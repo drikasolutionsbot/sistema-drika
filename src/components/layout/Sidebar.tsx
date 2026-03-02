@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/contexts/TenantContext";
 
 const navGroups = [
   {
@@ -40,6 +41,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
+  const { tenant } = useTenant();
 
   return (
     <aside
@@ -49,13 +51,20 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       )}
     >
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <img src={logo} alt="Drika Solutions" className="h-9 w-9 object-contain" />
+      <div className="flex h-auto items-center gap-3 border-b border-sidebar-border px-4 py-3">
+        <img src={logo} alt="Drika Solutions" className="h-9 w-9 object-contain shrink-0" />
         {!collapsed && (
-        <span className="font-display text-lg font-bold">
-            <span className="text-gradient-pink">DRIKA</span>{" "}
-            <span className="text-foreground">SOLUTIONS</span>
-          </span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-display text-lg font-bold leading-tight">
+              <span className="text-gradient-pink">DRIKA</span>{" "}
+              <span className="text-foreground">SOLUTIONS</span>
+            </span>
+            {tenant?.discord_guild_id && (
+              <span className="text-[10px] font-mono text-muted-foreground truncate">
+                {tenant.discord_guild_id}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
