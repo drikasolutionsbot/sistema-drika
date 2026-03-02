@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Terminal, Upload, Loader2 } from "lucide-react";
+import { Search, Terminal, Upload, Loader2, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +8,21 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BotCommand {
   id: string;
@@ -44,11 +59,17 @@ const categoryColors: Record<string, string> = {
   Moderação: "bg-destructive/15 text-destructive border-destructive/20",
 };
 
+const AVAILABLE_CATEGORIES = ["Admin", "Loja", "Suporte", "Convites", "Sorteios", "VIP", "Moderação", "Custom"];
+
 export const CommandsTab = () => {
   const [commands, setCommands] = useState<BotCommand[]>(defaultCommands);
   const [search, setSearch] = useState("");
   const [syncing, setSyncing] = useState(false);
   const { tenant } = useTenant();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newCategory, setNewCategory] = useState("Custom");
 
   const filtered = commands.filter(
     (c) =>
@@ -57,6 +78,37 @@ export const CommandsTab = () => {
   );
 
   const categories = [...new Set(commands.map((c) => c.category))];
+
+  const addCommand = () => {
+    const name = newName.startsWith("/") ? newName : `/${newName}`;
+    if (!newName.trim() || !newDesc.trim()) {
+      toast({ title: "Preencha nome e descrição", variant: "destructive" });
+      return;
+    }
+    if (commands.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      toast({ title: "Comando já existe", variant: "destructive" });
+      return;
+    }
+    setCommands((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: name.toLowerCase(),
+        description: newDesc.trim(),
+        category: newCategory,
+        enabled: true,
+      },
+    ]);
+    setNewName("");
+    setNewDesc("");
+    setNewCategory("Custom");
+    setCreateOpen(false);
+    toast({ title: "Comando criado!" });
+  };
+
+  const removeCommand = (id: string) => {
+    setCommands((prev) => prev.filter((c) => c.id !== id));
+  };
 
   const toggleCommand = (id: string) => {
     setCommands((prev) =>
@@ -115,6 +167,15 @@ export const CommandsTab = () => {
             <span>/</span>
             <span>{commands.length} total</span>
           </div>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            size="sm"
+            variant="outline"
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Criar
+          </Button>
           <Button
             onClick={handleSync}
             disabled={syncing}
@@ -175,16 +236,72 @@ export const CommandsTab = () => {
                           </p>
                         </div>
                       </div>
-                      <Switch
-                        checked={cmd.enabled}
-                        onCheckedChange={() => toggleCommand(cmd.id)}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={cmd.enabled}
+                          onCheckedChange={() => toggleCommand(cmd.id)}
+                        />
+                        {!defaultCommands.some((d) => d.id === cmd.id) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeCommand(cmd.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
             </div>
           ))}
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Comando</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do comando</Label>
+              <Input
+                placeholder="/meucomando"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                placeholder="O que este comando faz..."
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={newCategory} onValueChange={setNewCategory}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={addCommand}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
