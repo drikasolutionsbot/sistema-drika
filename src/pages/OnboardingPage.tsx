@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,12 @@ import {
   ChevronRight,
   ChevronLeft,
   Check,
-  AlertCircle,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
+
+const DISCORD_CLIENT_ID = "1477916070508757092";
+const BOT_PERMISSIONS = "8"; // Administrator
 
 interface DiscordGuild {
   id: string;
@@ -61,14 +64,14 @@ const CHANNEL_MAPPINGS = [
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
-  const { user, providerToken } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Step 0 - Discord Server
-  const [guilds, setGuilds] = useState<DiscordGuild[]>([]);
-  const [guildsLoading, setGuildsLoading] = useState(true);
+  // Step 0 - Discord Server (via bot auth redirect)
   const [selectedGuild, setSelectedGuild] = useState<DiscordGuild | null>(null);
+  const [guildLoading, setGuildLoading] = useState(false);
 
   // Step 1 - Store Info
   const [storeName, setStoreName] = useState("");
@@ -89,28 +92,36 @@ const OnboardingPage = () => {
   // Tenant created
   const [tenantId, setTenantId] = useState<string | null>(null);
 
+  // Check for guild_id from Discord bot authorization redirect
   useEffect(() => {
-    fetchGuilds();
-  }, []);
-
-  const fetchGuilds = async () => {
-    if (!providerToken) {
-      setGuildsLoading(false);
-      return;
+    const guildId = searchParams.get("guild_id");
+    if (guildId) {
+      fetchGuildInfo(guildId);
     }
+  }, [searchParams]);
+
+  const fetchGuildInfo = async (guildId: string) => {
+    setGuildLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("discord-guilds", {
-        body: { provider_token: providerToken },
+      const { data, error } = await supabase.functions.invoke("discord-guild-info", {
+        body: { guild_id: guildId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setGuilds(data || []);
+      setSelectedGuild(data);
+      setStep(1); // Auto-advance to store setup
     } catch (err: any) {
-      console.error("Error fetching guilds:", err);
-      toast({ title: "Erro ao buscar servidores", description: err.message, variant: "destructive" });
+      console.error("Error fetching guild info:", err);
+      toast({ title: "Erro ao buscar servidor", description: err.message, variant: "destructive" });
     } finally {
-      setGuildsLoading(false);
+      setGuildLoading(false);
     }
+  };
+
+  const handleAddBot = () => {
+    const redirectUri = encodeURIComponent(window.location.origin + "/onboarding");
+    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands&response_type=code&redirect_uri=${redirectUri}`;
+    window.location.href = url;
   };
 
   const fetchChannels = async (guildId: string) => {
@@ -147,7 +158,6 @@ const OnboardingPage = () => {
       if (data?.error) throw new Error(data.error);
       setTenantId(data.tenant.id);
       toast({ title: "Loja criada com sucesso! 🎉" });
-      // Fetch channels for the selected guild
       fetchChannels(selectedGuild.id);
       setStep(2);
     } catch (err: any) {
@@ -212,11 +222,6 @@ const OnboardingPage = () => {
     navigate("/dashboard");
   };
 
-  const getCategoryName = (parentId: string | null) => {
-    if (!parentId) return null;
-    return categories.find((c) => c.id === parentId)?.name;
-  };
-
   // Group channels by category
   const groupedChannels = categories
     .map((cat) => ({
@@ -227,7 +232,6 @@ const OnboardingPage = () => {
 
   const uncategorized = channels.filter((ch) => !ch.parent_id);
 
-  const canProceedStep0 = !!selectedGuild;
   const canProceedStep1 = !!storeName.trim();
 
   return (
@@ -262,72 +266,39 @@ const OnboardingPage = () => {
 
         {/* Card */}
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-lg animate-fade-in">
-          {/* Step 0: Select Server */}
+          {/* Step 0: Add Bot to Server */}
           {step === 0 && (
             <div className="space-y-6">
               <div>
-                <h2 className="font-display text-2xl font-bold">Selecione seu servidor</h2>
+                <h2 className="font-display text-2xl font-bold">Adicione o bot ao servidor</h2>
                 <p className="text-muted-foreground mt-1">
-                  Escolha o servidor Discord que será vinculado à sua loja
+                  Clique no botão abaixo para adicionar o bot e selecionar seu servidor diretamente no Discord
                 </p>
               </div>
 
-              {!providerToken ? (
-                <div className="flex flex-col items-center gap-3 py-8 text-center">
-                  <AlertCircle className="h-12 w-12 text-destructive" />
-                  <p className="text-muted-foreground">
-                    Token do Discord expirado. Faça login novamente.
-                  </p>
-                  <Button onClick={() => navigate("/login")} variant="outline">
-                    Voltar ao Login
-                  </Button>
-                </div>
-              ) : guildsLoading ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="h-16 rounded-xl" />
-                  ))}
-                </div>
-              ) : guilds.length === 0 ? (
-                <div className="py-8 text-center">
-                  <p className="text-muted-foreground">
-                    Nenhum servidor encontrado onde você é administrador.
-                  </p>
+              {guildLoading ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="text-muted-foreground">Conectando ao servidor...</p>
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 max-h-80 overflow-y-auto">
-                  {guilds.map((guild) => (
-                    <button
-                      key={guild.id}
-                      onClick={() => setSelectedGuild(guild)}
-                      className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all hover:border-primary/50 hover:bg-muted/50 ${
-                        selectedGuild?.id === guild.id
-                          ? "border-primary bg-primary/5 ring-1 ring-primary"
-                          : "border-border"
-                      }`}
-                    >
-                      {guild.icon ? (
-                        <img
-                          src={guild.icon}
-                          alt={guild.name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-bold">
-                          {guild.name[0]}
-                        </div>
-                      )}
-                      <span className="text-sm font-medium truncate">{guild.name}</span>
-                    </button>
-                  ))}
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#5865F2]/10">
+                    <Server className="h-10 w-10 text-[#5865F2]" />
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center max-w-sm">
+                    Você será redirecionado para o Discord para escolher o servidor e autorizar o bot
+                  </p>
+                  <Button
+                    onClick={handleAddBot}
+                    className="gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-6"
+                    size="lg"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Adicionar ao Discord
+                  </Button>
                 </div>
               )}
-
-              <div className="flex justify-end">
-                <Button onClick={() => setStep(1)} disabled={!canProceedStep0} className="gap-2 gradient-pink text-primary-foreground">
-                  Continuar <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           )}
 
@@ -448,9 +419,8 @@ const OnboardingPage = () => {
                 </div>
               ) : channels.length === 0 ? (
                 <div className="py-8 text-center">
-                  <AlertCircle className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
                   <p className="text-muted-foreground">
-                    Nenhum canal encontrado. Verifique se o bot foi adicionado ao servidor.
+                    Nenhum canal encontrado. Verifique se o bot tem permissão no servidor.
                   </p>
                 </div>
               ) : (
@@ -469,15 +439,11 @@ const OnboardingPage = () => {
                           <SelectValue placeholder="Selecionar canal..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {uncategorized.length > 0 && (
-                            <>
-                              {uncategorized.map((ch) => (
-                                <SelectItem key={ch.id} value={ch.id}>
-                                  # {ch.name}
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
+                          {uncategorized.map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              # {ch.name}
+                            </SelectItem>
+                          ))}
                           {groupedChannels.map((group) => (
                             <div key={group.category.id}>
                               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
