@@ -32,6 +32,22 @@ const OnboardingPage = () => {
   const [selectedGuild, setSelectedGuild] = useState<DiscordGuild | null>(null);
   const [creatingTenant, setCreatingTenant] = useState(false);
 
+  const getEdgeErrorMessage = async (error: any) => {
+    const fallback = error?.message || "Erro inesperado";
+    const response = error?.context;
+
+    if (!response || typeof response.json !== "function") {
+      return fallback;
+    }
+
+    try {
+      const payload = await response.json();
+      return payload?.error || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const handleAddBot = () => {
     const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
     window.open(url, "_blank");
@@ -60,6 +76,7 @@ const OnboardingPage = () => {
   const handleSelectGuild = async (guild: DiscordGuild) => {
     setSelectedGuild(guild);
     setCreatingTenant(true);
+
     try {
       const { data, error } = await supabase.functions.invoke("create-tenant", {
         body: {
@@ -67,16 +84,17 @@ const OnboardingPage = () => {
           discord_guild_id: guild.id,
         },
       });
+
       if (error) {
-        // If already exists, treat as success
-        const msg = error.message || "";
-        if (msg.includes("já está vinculado") || msg.includes("já possui")) {
+        const message = await getEdgeErrorMessage(error);
+        if (message.includes("já está vinculado") || message.includes("já possui")) {
           setPhase("done");
           toast({ title: "Servidor já configurado! Prosseguindo..." });
           return;
         }
-        throw error;
+        throw new Error(message);
       }
+
       if (data?.error) {
         if (data.error.includes("já está vinculado") || data.error.includes("já possui")) {
           setPhase("done");
@@ -85,10 +103,12 @@ const OnboardingPage = () => {
         }
         throw new Error(data.error);
       }
+
       setPhase("done");
       toast({ title: "Loja criada com sucesso! 🎉" });
     } catch (err: any) {
-      toast({ title: "Erro ao criar loja", description: err.message, variant: "destructive" });
+      const message = err?.message || "Erro ao criar loja";
+      toast({ title: "Erro ao criar loja", description: message, variant: "destructive" });
       setSelectedGuild(null);
     } finally {
       setCreatingTenant(false);
