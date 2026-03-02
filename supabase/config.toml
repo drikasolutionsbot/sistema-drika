@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.manage-permissions]
 verify_jwt = false
+
+[functions.manage-roles]
+verify_jwt = false

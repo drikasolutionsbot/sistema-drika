@@ -487,6 +487,80 @@ export type Database = {
           },
         ]
       }
+      tenant_roles: {
+        Row: {
+          can_change_server: boolean
+          can_manage_app: boolean
+          can_manage_bot_appearance: boolean
+          can_manage_ecloud: boolean
+          can_manage_permissions: boolean
+          can_manage_products: boolean
+          can_manage_protection: boolean
+          can_manage_resources: boolean
+          can_manage_stock: boolean
+          can_manage_store: boolean
+          can_view: boolean
+          color: string
+          created_at: string
+          discord_role_id: string | null
+          id: string
+          name: string
+          synced: boolean
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          can_change_server?: boolean
+          can_manage_app?: boolean
+          can_manage_bot_appearance?: boolean
+          can_manage_ecloud?: boolean
+          can_manage_permissions?: boolean
+          can_manage_products?: boolean
+          can_manage_protection?: boolean
+          can_manage_resources?: boolean
+          can_manage_stock?: boolean
+          can_manage_store?: boolean
+          can_view?: boolean
+          color?: string
+          created_at?: string
+          discord_role_id?: string | null
+          id?: string
+          name: string
+          synced?: boolean
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          can_change_server?: boolean
+          can_manage_app?: boolean
+          can_manage_bot_appearance?: boolean
+          can_manage_ecloud?: boolean
+          can_manage_permissions?: boolean
+          can_manage_products?: boolean
+          can_manage_protection?: boolean
+          can_manage_resources?: boolean
+          can_manage_stock?: boolean
+          can_manage_store?: boolean
+          can_view?: boolean
+          color?: string
+          created_at?: string
+          discord_role_id?: string | null
+          id?: string
+          name?: string
+          synced?: boolean
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string
