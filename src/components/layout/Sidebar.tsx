@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Store, Hash, Tag, Users, CreditCard, Ticket,
-  DollarSign, Settings, ChevronLeft, ChevronRight, Crown
+  LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, HandMetal,
+  Store, Zap, Shield, Link2, Gift, Crown, Ticket, Cloud,
+  ChevronLeft, ChevronRight, Settings
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -18,18 +19,24 @@ const navGroups = [
     label: "GERENCIAMENTO",
     items: [
       { label: "Finanças", icon: DollarSign, path: "/finance" },
-      { label: "Pagamentos", icon: CreditCard, path: "/payments" },
-      { label: "Loja", icon: Store, path: "/store" },
+      { label: "Personalização", icon: Palette, path: "/customization" },
+      { label: "Recursos", icon: Box, path: "/resources" },
     ],
   },
   {
     label: "CONFIGURAÇÕES",
     items: [
       { label: "Canais", icon: Hash, path: "/channels" },
-      { label: "Cupons", icon: Tag, path: "/coupons" },
-      { label: "Afiliados", icon: Users, path: "/affiliates" },
+      { label: "Cargos", icon: ShieldCheck, path: "/roles" },
+      { label: "Boas Vindas", icon: HandMetal, path: "/welcome" },
+      { label: "Loja", icon: Store, path: "/store" },
+      { label: "Ações Automáticas", icon: Zap, path: "/automations" },
+      { label: "Proteção", icon: Shield, path: "/protection" },
+      { label: "Rastreamento", icon: Link2, path: "/invite-tracking" },
+      { label: "Sorteios", icon: Gift, path: "/giveaways" },
+      { label: "VIPs", icon: Crown, path: "/vips" },
       { label: "Tickets", icon: Ticket, path: "/tickets" },
-      { label: "Configurações", icon: Settings, path: "/settings" },
+      { label: "eCloud", icon: Cloud, path: "/ecloud" },
     ],
   },
 ];
@@ -85,14 +92,14 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                       isActive
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                     )}
                     title={collapsed ? item.label : undefined}
                   >
-                    <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
+                    <item.icon className={cn("h-4 w-4 shrink-0", isActive && "text-primary")} />
                     {!collapsed && <span>{item.label}</span>}
                   </Link>
                 );

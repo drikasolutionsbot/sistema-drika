@@ -19,6 +19,16 @@ import PaymentsPage from "./pages/PaymentsPage";
 import TicketsPage from "./pages/TicketsPage";
 import FinancePage from "./pages/FinancePage";
 import SettingsPage from "./pages/SettingsPage";
+import CustomizationPage from "./pages/CustomizationPage";
+import ResourcesPage from "./pages/ResourcesPage";
+import RolesPage from "./pages/RolesPage";
+import WelcomePage from "./pages/WelcomePage";
+import AutomationsPage from "./pages/AutomationsPage";
+import ProtectionPage from "./pages/ProtectionPage";
+import InviteTrackingPage from "./pages/InviteTrackingPage";
+import GiveawaysPage from "./pages/GiveawaysPage";
+import VipsPage from "./pages/VipsPage";
+import ECloudPage from "./pages/ECloudPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminTenantsPage from "./pages/admin/AdminTenantsPage";
 import AdminTokensPage from "./pages/admin/AdminTokensPage";
@@ -64,6 +74,16 @@ const AppRoutes = () => (
       <Route path="/tickets" element={<TicketsPage />} />
       <Route path="/finance" element={<FinancePage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/customization" element={<CustomizationPage />} />
+      <Route path="/resources" element={<ResourcesPage />} />
+      <Route path="/roles" element={<RolesPage />} />
+      <Route path="/welcome" element={<WelcomePage />} />
+      <Route path="/automations" element={<AutomationsPage />} />
+      <Route path="/protection" element={<ProtectionPage />} />
+      <Route path="/invite-tracking" element={<InviteTrackingPage />} />
+      <Route path="/giveaways" element={<GiveawaysPage />} />
+      <Route path="/vips" element={<VipsPage />} />
+      <Route path="/ecloud" element={<ECloudPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
