@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.update-tenant]
 verify_jwt = false
+
+[functions.register-commands]
+verify_jwt = false

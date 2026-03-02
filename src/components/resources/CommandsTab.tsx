@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { Search, Terminal, ToggleLeft, ToggleRight } from "lucide-react";
+import { Search, Terminal, Upload, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/contexts/TenantContext";
+import { toast } from "@/hooks/use-toast";
 
 interface BotCommand {
   id: string;
@@ -43,6 +47,8 @@ const categoryColors: Record<string, string> = {
 export const CommandsTab = () => {
   const [commands, setCommands] = useState<BotCommand[]>(defaultCommands);
   const [search, setSearch] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const { tenant } = useTenant();
 
   const filtered = commands.filter(
     (c) =>
@@ -58,16 +64,66 @@ export const CommandsTab = () => {
     );
   };
 
+  const handleSync = async () => {
+    const enabledCommands = commands.filter((c) => c.enabled);
+    if (enabledCommands.length === 0) {
+      toast({ title: "Nenhum comando ativo para sincronizar", variant: "destructive" });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const guildId = tenant?.discord_guild_id || null;
+
+      const { data, error } = await supabase.functions.invoke("register-commands", {
+        body: {
+          guild_id: guildId,
+          commands: enabledCommands.map((c) => ({
+            name: c.name,
+            description: c.description,
+          })),
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Comandos sincronizados! ✅",
+        description: `${data?.registered ?? enabledCommands.length} comandos registrados no Discord.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao sincronizar",
+        description: err.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Ative ou desative os comandos disponíveis do bot.
         </p>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{commands.filter((c) => c.enabled).length} ativos</span>
-          <span>/</span>
-          <span>{commands.length} total</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{commands.filter((c) => c.enabled).length} ativos</span>
+            <span>/</span>
+            <span>{commands.length} total</span>
+          </div>
+          <Button
+            onClick={handleSync}
+            disabled={syncing}
+            size="sm"
+            className="gap-2"
+          >
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Sincronizar
+          </Button>
         </div>
       </div>
 
