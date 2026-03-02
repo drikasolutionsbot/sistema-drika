@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Palette, Pencil, Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,9 +12,19 @@ import { useTenant } from "@/contexts/TenantContext";
 
 const CustomizationPage = () => {
   const { tenant, tenantId, refetch } = useTenant();
-  const [status, setStatus] = useState("/panel");
+  const [status, setStatus] = useState("");
   const [interval, setStatusInterval] = useState("30");
   const [prefix, setPrefix] = useState("d!");
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  // Load bot config from tenant
+  useEffect(() => {
+    if (tenant) {
+      setStatus((tenant as any).bot_status || "/panel");
+      setStatusInterval(String((tenant as any).bot_status_interval || 30));
+      setPrefix((tenant as any).bot_prefix || "d!");
+    }
+  }, [tenant]);
 
   // Edit profile modal state
   const [editOpen, setEditOpen] = useState(false);
@@ -97,6 +107,30 @@ const CustomizationPage = () => {
       toast.error("Erro ao salvar: " + (err.message || "Tente novamente"));
     } finally {
       setSaving(false);
+    }
+  };
+  const handleSaveConfig = async () => {
+    if (!tenantId) return;
+    setSavingConfig(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-tenant", {
+        body: {
+          tenant_id: tenantId,
+          updates: {
+            bot_status: status,
+            bot_status_interval: parseInt(interval) || 30,
+            bot_prefix: prefix,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Configurações salvas com sucesso!");
+      refetch();
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err.message || "Tente novamente"));
+    } finally {
+      setSavingConfig(false);
     }
   };
 
@@ -343,6 +377,12 @@ const CustomizationPage = () => {
                 </div>
               </Card>
             </div>
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleSaveConfig} disabled={savingConfig}>
+              {savingConfig && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Salvar Configurações
+            </Button>
           </div>
         </TabsContent>
 

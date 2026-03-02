@@ -563,6 +563,9 @@ export type Database = {
       }
       tenants: {
         Row: {
+          bot_prefix: string | null
+          bot_status: string | null
+          bot_status_interval: number | null
           created_at: string
           discord_guild_id: string | null
           id: string
@@ -574,6 +577,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bot_prefix?: string | null
+          bot_status?: string | null
+          bot_status_interval?: number | null
           created_at?: string
           discord_guild_id?: string | null
           id?: string
@@ -585,6 +591,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bot_prefix?: string | null
+          bot_status?: string | null
+          bot_status_interval?: number | null
           created_at?: string
           discord_guild_id?: string | null
           id?: string
