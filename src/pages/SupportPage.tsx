@@ -2,7 +2,7 @@ import "./SupportPage.css";
 
 const SupportPage = () => {
   const handleSupport = () => {
-    window.open("https://discord.gg/SEU_LINK_AQUI", "_blank");
+    window.open("https://discord.com/users/868872675110551592", "_blank");
   };
 
   return (
