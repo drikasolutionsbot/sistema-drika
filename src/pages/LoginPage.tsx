@@ -1,7 +1,9 @@
 import logo from "@/assets/logo.png";
-import { Crown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
+  const { signInWithDiscord } = useAuth();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="absolute inset-0 overflow-hidden">
@@ -20,6 +22,7 @@ const LoginPage = () => {
 
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <button
+            onClick={signInWithDiscord}
             className="group flex w-full items-center justify-center gap-3 rounded-xl bg-[hsl(235,85%,65%)] px-6 py-4 font-semibold text-primary-foreground transition-all duration-200 hover:bg-[hsl(235,85%,58%)] hover:shadow-lg hover:shadow-[hsl(235,85%,65%)/0.3]"
           >
             <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">

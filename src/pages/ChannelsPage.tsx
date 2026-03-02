@@ -1,6 +1,11 @@
-import { Hash, MessageSquare, Shield, Users, Volume2 } from "lucide-react";
+import { Hash, Shield, Users, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTenantQuery } from "@/hooks/useSupabaseQuery";
+import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const channelSections = [
   {
@@ -41,15 +46,33 @@ const channelSections = [
   },
 ];
 
-const mockChannels = [
-  { id: "ch1", name: "# logs-vendas" },
-  { id: "ch2", name: "# geral" },
-  { id: "ch3", name: "# boas-vindas" },
-  { id: "ch4", name: "# moderação" },
-  { id: "ch5", name: "# feedback" },
-];
+interface ChannelConfig {
+  id: string;
+  channel_key: string;
+  discord_channel_id: string | null;
+}
 
 const ChannelsPage = () => {
+  const { tenantId } = useTenant();
+  const { data: configs = [], isLoading, refetch } = useTenantQuery<ChannelConfig>("channel-configs", "channel_configs");
+
+  const getChannelValue = (key: string) => {
+    const cfg = configs.find(c => c.channel_key === key);
+    return cfg?.discord_channel_id || undefined;
+  };
+
+  const handleChange = async (channelKey: string, discordChannelId: string) => {
+    if (!tenantId) return;
+    const existing = configs.find(c => c.channel_key === channelKey);
+    if (existing) {
+      await (supabase as any).from("channel_configs").update({ discord_channel_id: discordChannelId }).eq("id", existing.id);
+    } else {
+      await (supabase as any).from("channel_configs").insert({ tenant_id: tenantId, channel_key: channelKey, discord_channel_id: discordChannelId });
+    }
+    refetch();
+    toast({ title: "Canal atualizado" });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -60,33 +83,35 @@ const ChannelsPage = () => {
         <Button variant="outline">Sincronizar Canais</Button>
       </div>
 
-      <div className="space-y-6">
-        {channelSections.map((section) => (
-          <div key={section.title} className="rounded-xl border border-border bg-card">
-            <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-              <section.icon className="h-5 w-5 text-primary" />
-              <h2 className="font-display font-semibold">{section.title}</h2>
+      {isLoading ? (
+        <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div>
+      ) : (
+        <div className="space-y-6">
+          {channelSections.map((section) => (
+            <div key={section.title} className="rounded-xl border border-border bg-card">
+              <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+                <section.icon className="h-5 w-5 text-primary" />
+                <h2 className="font-display font-semibold">{section.title}</h2>
+              </div>
+              <div className="divide-y divide-border">
+                {section.channels.map((ch) => (
+                  <div key={ch.key} className="flex items-center justify-between px-5 py-3">
+                    <span className="text-sm">{ch.label}</span>
+                    <Select value={getChannelValue(ch.key)} onValueChange={(v) => handleChange(ch.key, v)}>
+                      <SelectTrigger className="w-56 bg-muted border-none">
+                        <SelectValue placeholder="Selecionar canal" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="placeholder">Selecionar canal...</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-border">
-              {section.channels.map((ch) => (
-                <div key={ch.key} className="flex items-center justify-between px-5 py-3">
-                  <span className="text-sm">{ch.label}</span>
-                  <Select>
-                    <SelectTrigger className="w-56 bg-muted border-none">
-                      <SelectValue placeholder="Selecionar canal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockChannels.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

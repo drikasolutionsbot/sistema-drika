@@ -14,16 +14,507 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      affiliates: {
+        Row: {
+          active: boolean
+          code: string
+          commission_percent: number
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+          total_revenue_cents: number
+          total_sales: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+          total_revenue_cents?: number
+          total_sales?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          commission_percent?: number
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+          total_revenue_cents?: number
+          total_sales?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_configs: {
+        Row: {
+          channel_key: string
+          created_at: string
+          discord_channel_id: string | null
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel_key: string
+          created_at?: string
+          discord_channel_id?: string | null
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel_key?: string
+          created_at?: string
+          discord_channel_id?: string | null
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          tenant_id: string
+          type: Database["public"]["Enums"]["coupon_type"]
+          used_count: number
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          tenant_id: string
+          type?: Database["public"]["Enums"]["coupon_type"]
+          used_count?: number
+          value?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["coupon_type"]
+          used_count?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          affiliate_id: string | null
+          coupon_id: string | null
+          created_at: string
+          discord_user_id: string
+          discord_username: string | null
+          id: string
+          order_number: number
+          payment_id: string | null
+          payment_provider: string | null
+          product_id: string | null
+          product_name: string
+          status: Database["public"]["Enums"]["order_status"]
+          tenant_id: string
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          affiliate_id?: string | null
+          coupon_id?: string | null
+          created_at?: string
+          discord_user_id: string
+          discord_username?: string | null
+          id?: string
+          order_number?: number
+          payment_id?: string | null
+          payment_provider?: string | null
+          product_id?: string | null
+          product_name: string
+          status?: Database["public"]["Enums"]["order_status"]
+          tenant_id: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          affiliate_id?: string | null
+          coupon_id?: string | null
+          created_at?: string
+          discord_user_id?: string
+          discord_username?: string | null
+          id?: string
+          order_number?: number
+          payment_id?: string | null
+          payment_provider?: string | null
+          product_id?: string | null
+          product_name?: string
+          status?: Database["public"]["Enums"]["order_status"]
+          tenant_id?: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_providers: {
+        Row: {
+          active: boolean
+          api_key_encrypted: string | null
+          created_at: string
+          id: string
+          provider_key: string
+          secret_key_encrypted: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          api_key_encrypted?: string | null
+          created_at?: string
+          id?: string
+          provider_key: string
+          secret_key_encrypted?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          api_key_encrypted?: string | null
+          created_at?: string
+          id?: string
+          provider_key?: string
+          secret_key_encrypted?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_providers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price_cents: number
+          stock: number | null
+          tenant_id: string
+          type: Database["public"]["Enums"]["product_type"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price_cents?: number
+          stock?: number | null
+          tenant_id: string
+          type?: Database["public"]["Enums"]["product_type"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price_cents?: number
+          stock?: number | null
+          tenant_id?: string
+          type?: Database["public"]["Enums"]["product_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          discord_user_id: string | null
+          discord_username: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          discord_user_id?: string | null
+          discord_username?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          discord_user_id?: string | null
+          discord_username?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tenants: {
+        Row: {
+          created_at: string
+          discord_guild_id: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          plan: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discord_guild_id?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          plan?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discord_guild_id?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          plan?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tickets: {
+        Row: {
+          created_at: string
+          discord_user_id: string
+          discord_username: string | null
+          id: string
+          order_id: string | null
+          product_name: string | null
+          status: Database["public"]["Enums"]["ticket_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discord_user_id: string
+          discord_username?: string | null
+          id?: string
+          order_id?: string | null
+          product_name?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discord_user_id?: string
+          discord_username?: string | null
+          id?: string
+          order_id?: string | null
+          product_name?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_tenant_member: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "admin" | "support"
+      coupon_type: "percent" | "fixed"
+      order_status:
+        | "pending_payment"
+        | "paid"
+        | "delivering"
+        | "delivered"
+        | "canceled"
+        | "refunded"
+      product_type: "digital_auto" | "service" | "hybrid"
+      ticket_status: "open" | "in_progress" | "delivered" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +641,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "admin", "support"],
+      coupon_type: ["percent", "fixed"],
+      order_status: [
+        "pending_payment",
+        "paid",
+        "delivering",
+        "delivered",
+        "canceled",
+        "refunded",
+      ],
+      product_type: ["digital_auto", "service", "hybrid"],
+      ticket_status: ["open", "in_progress", "delivered", "closed"],
+    },
   },
 } as const
