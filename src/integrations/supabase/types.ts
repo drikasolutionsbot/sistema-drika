@@ -413,6 +413,56 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_permissions: {
+        Row: {
+          can_manage_app: boolean
+          can_manage_resources: boolean
+          can_view: boolean
+          created_at: string
+          discord_avatar_url: string | null
+          discord_display_name: string | null
+          discord_user_id: string
+          discord_username: string | null
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          can_manage_app?: boolean
+          can_manage_resources?: boolean
+          can_view?: boolean
+          created_at?: string
+          discord_avatar_url?: string | null
+          discord_display_name?: string | null
+          discord_user_id: string
+          discord_username?: string | null
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          can_manage_app?: boolean
+          can_manage_resources?: boolean
+          can_view?: boolean
+          created_at?: string
+          discord_avatar_url?: string | null
+          discord_display_name?: string | null
+          discord_user_id?: string
+          discord_username?: string | null
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string

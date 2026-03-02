@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.discord-guild-members]
 verify_jwt = false
+
+[functions.manage-permissions]
+verify_jwt = false
