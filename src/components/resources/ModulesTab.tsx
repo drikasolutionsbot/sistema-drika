@@ -1,9 +1,21 @@
 import { useState } from "react";
 import {
   HandMetal, Store, Shield, Gift, Crown, Link2, Ticket, Zap, Cloud, MessageSquare,
+  Plus, Trash2, Puzzle,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface BotModule {
   id: string;
@@ -12,6 +24,7 @@ interface BotModule {
   icon: React.ElementType;
   enabled: boolean;
   color: string;
+  custom?: boolean;
 }
 
 const defaultModules: BotModule[] = [
@@ -29,11 +42,45 @@ const defaultModules: BotModule[] = [
 
 export const ModulesTab = () => {
   const [modules, setModules] = useState<BotModule[]>(defaultModules);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
 
   const toggleModule = (id: string) => {
     setModules((prev) =>
       prev.map((m) => (m.id === id ? { ...m, enabled: !m.enabled } : m))
     );
+  };
+
+  const addModule = () => {
+    if (!newName.trim() || !newDesc.trim()) {
+      toast({ title: "Preencha nome e descrição", variant: "destructive" });
+      return;
+    }
+    if (modules.some((m) => m.name.toLowerCase() === newName.trim().toLowerCase())) {
+      toast({ title: "Módulo já existe", variant: "destructive" });
+      return;
+    }
+    setModules((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: newName.trim(),
+        description: newDesc.trim(),
+        icon: Puzzle,
+        enabled: true,
+        color: "text-primary",
+        custom: true,
+      },
+    ]);
+    setNewName("");
+    setNewDesc("");
+    setCreateOpen(false);
+    toast({ title: "Módulo criado!" });
+  };
+
+  const removeModule = (id: string) => {
+    setModules((prev) => prev.filter((m) => m.id !== id));
   };
 
   const activeCount = modules.filter((m) => m.enabled).length;
@@ -44,10 +91,16 @@ export const ModulesTab = () => {
         <p className="text-sm text-muted-foreground">
           Ative ou desative os módulos do bot para este servidor.
         </p>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{activeCount} ativos</span>
-          <span>/</span>
-          <span>{modules.length} total</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{activeCount} ativos</span>
+            <span>/</span>
+            <span>{modules.length} total</span>
+          </div>
+          <Button onClick={() => setCreateOpen(true)} size="sm" variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Criar
+          </Button>
         </div>
       </div>
 
@@ -71,14 +124,57 @@ export const ModulesTab = () => {
                   <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
                 </div>
               </div>
-              <Switch
-                checked={mod.enabled}
-                onCheckedChange={() => toggleModule(mod.id)}
-              />
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={mod.enabled}
+                  onCheckedChange={() => toggleModule(mod.id)}
+                />
+                {mod.custom && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeModule(mod.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Módulo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do módulo</Label>
+              <Input
+                placeholder="Meu Módulo"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                placeholder="O que este módulo faz..."
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={addModule}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
