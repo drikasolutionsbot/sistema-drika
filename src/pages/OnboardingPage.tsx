@@ -119,8 +119,7 @@ const OnboardingPage = () => {
   };
 
   const handleAddBot = () => {
-    const redirectUri = encodeURIComponent(window.location.origin + "/onboarding");
-    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands&response_type=code&redirect_uri=${redirectUri}`;
+    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
     window.location.href = url;
   };
 
