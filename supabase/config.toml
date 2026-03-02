@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.validate-token]
 verify_jwt = false
+
+[functions.get-tenant]
+verify_jwt = false
+
+[functions.discord-guild-members]
+verify_jwt = false

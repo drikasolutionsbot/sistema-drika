@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Search, User, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,7 +27,11 @@ const MemberSearchModal = ({ open, onOpenChange, onSelectMember }: MemberSearchM
   const [error, setError] = useState<string | null>(null);
 
   const fetchMembers = useCallback(async (query: string) => {
-    if (!tenant?.discord_guild_id) return;
+    if (!tenant?.discord_guild_id) {
+      setMembers([]);
+      setError("Servidor Discord não conectado");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -78,9 +82,10 @@ const MemberSearchModal = ({ open, onOpenChange, onSelectMember }: MemberSearchM
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 gap-0 bg-card border-border">
-        <DialogHeader className="sr-only">
+        <div className="sr-only">
           <DialogTitle>Buscar membros</DialogTitle>
-        </DialogHeader>
+          <DialogDescription>Pesquise membros ativos do servidor Discord conectado.</DialogDescription>
+        </div>
 
         {/* Search input */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
