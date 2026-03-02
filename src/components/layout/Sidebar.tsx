@@ -37,8 +37,9 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
         <img src={logo} alt="Drika Solutions" className="h-9 w-9 object-contain" />
         {!collapsed && (
-          <span className="font-display text-lg font-bold text-gradient-pink">
-            DRIKA
+        <span className="font-display text-lg font-bold">
+            <span className="text-gradient-pink">DRIKA</span>{" "}
+            <span className="text-foreground">SOLUTIONS</span>
           </span>
         )}
       </div>
