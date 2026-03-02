@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Key, Loader2 } from "lucide-react";
+import { Key } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
+import WifiLoader from "@/components/ui/wifi-loader";
 const LoginPage = () => {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
@@ -38,6 +38,15 @@ const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
+      {/* Overlay de validação */}
+      {validating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-12">
+            <WifiLoader />
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-secondary/5 blur-3xl" />
@@ -73,11 +82,7 @@ const LoginPage = () => {
               disabled={validating || !token.trim()}
               className="w-full h-12 gradient-pink text-primary-foreground border-none hover:opacity-90"
             >
-              {validating ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Validando...</>
-              ) : (
-                "Entrar"
-              )}
+              Entrar
             </Button>
           </div>
 
