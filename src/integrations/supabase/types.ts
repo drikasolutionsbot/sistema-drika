@@ -415,8 +415,16 @@ export type Database = {
       }
       tenant_permissions: {
         Row: {
+          can_change_server: boolean
           can_manage_app: boolean
+          can_manage_bot_appearance: boolean
+          can_manage_ecloud: boolean
+          can_manage_permissions: boolean
+          can_manage_products: boolean
+          can_manage_protection: boolean
           can_manage_resources: boolean
+          can_manage_stock: boolean
+          can_manage_store: boolean
           can_view: boolean
           created_at: string
           discord_avatar_url: string | null
@@ -428,8 +436,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          can_change_server?: boolean
           can_manage_app?: boolean
+          can_manage_bot_appearance?: boolean
+          can_manage_ecloud?: boolean
+          can_manage_permissions?: boolean
+          can_manage_products?: boolean
+          can_manage_protection?: boolean
           can_manage_resources?: boolean
+          can_manage_stock?: boolean
+          can_manage_store?: boolean
           can_view?: boolean
           created_at?: string
           discord_avatar_url?: string | null
@@ -441,8 +457,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          can_change_server?: boolean
           can_manage_app?: boolean
+          can_manage_bot_appearance?: boolean
+          can_manage_ecloud?: boolean
+          can_manage_permissions?: boolean
+          can_manage_products?: boolean
+          can_manage_protection?: boolean
           can_manage_resources?: boolean
+          can_manage_stock?: boolean
+          can_manage_store?: boolean
           can_view?: boolean
           created_at?: string
           discord_avatar_url?: string | null

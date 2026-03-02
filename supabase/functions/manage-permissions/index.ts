@@ -35,7 +35,7 @@ serve(async (req) => {
       }
 
       case "upsert": {
-        const { discord_user_id, discord_username, discord_display_name, discord_avatar_url, can_view, can_manage_app, can_manage_resources } = params;
+        const { discord_user_id, discord_username, discord_display_name, discord_avatar_url } = params;
         if (!discord_user_id) throw new Error("Missing discord_user_id");
 
         const { data, error } = await supabase
@@ -47,9 +47,6 @@ serve(async (req) => {
               discord_username,
               discord_display_name,
               discord_avatar_url,
-              can_view: can_view ?? true,
-              can_manage_app: can_manage_app ?? false,
-              can_manage_resources: can_manage_resources ?? false,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "tenant_id,discord_user_id" }
@@ -64,13 +61,19 @@ serve(async (req) => {
       }
 
       case "update": {
-        const { id, can_view, can_manage_app, can_manage_resources } = params;
+        const { id, ...permUpdates } = params;
         if (!id) throw new Error("Missing id");
 
+        const allowedKeys = [
+          "can_view", "can_manage_app", "can_manage_resources",
+          "can_change_server", "can_manage_permissions", "can_manage_bot_appearance",
+          "can_manage_products", "can_manage_store", "can_manage_stock",
+          "can_manage_protection", "can_manage_ecloud"
+        ];
         const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (can_view !== undefined) updateData.can_view = can_view;
-        if (can_manage_app !== undefined) updateData.can_manage_app = can_manage_app;
-        if (can_manage_resources !== undefined) updateData.can_manage_resources = can_manage_resources;
+        for (const key of allowedKeys) {
+          if (permUpdates[key] !== undefined) updateData[key] = permUpdates[key];
+        }
 
         const { data, error } = await supabase
           .from("tenant_permissions")
