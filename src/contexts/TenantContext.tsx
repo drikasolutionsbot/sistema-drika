@@ -35,14 +35,11 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       try {
         const tokenSession = JSON.parse(tokenSessionStr);
         if (tokenSession.tenant_id) {
-          // Fetch full tenant data from Supabase using service key via edge or direct
-          const { data } = await supabase
-            .from("tenants")
-            .select("*")
-            .eq("id", tokenSession.tenant_id)
-            .single();
+          const { data, error } = await supabase.functions.invoke("get-tenant", {
+            body: { tenant_id: tokenSession.tenant_id },
+          });
 
-          if (data) {
+          if (!error && data && !data.error) {
             setTenant(data as Tenant);
           } else {
             setTenant({
