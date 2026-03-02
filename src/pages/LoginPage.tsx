@@ -88,16 +88,15 @@ const LoginPage = () => {
           </p>
 
           <div className="pt-4 border-t border-border">
-            <button
-              onClick={() => {
-                sessionStorage.setItem("admin_redirect", "true");
-                signInWithDiscord();
-              }}
+            <a
+              href="/admin/login"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <Shield className="h-3 w-3" />
               Acesso Administrativo
-            </button>
+            </a>
           </div>
         </div>
       </div>

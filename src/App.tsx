@@ -9,6 +9,7 @@ import { TenantProvider } from "@/contexts/TenantContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import LoginPage from "./pages/LoginPage";
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import StorePage from "./pages/StorePage";
@@ -46,24 +47,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) {
-    const adminRedirect = sessionStorage.getItem("admin_redirect");
-    if (adminRedirect) {
-      sessionStorage.removeItem("admin_redirect");
-      return <Navigate to="/admin" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
+const AdminPublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/admin" replace />;
   return <>{children}</>;
 };
 
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/admin/login" element={<AdminPublicRoute><AdminLoginPage /></AdminPublicRoute>} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
     
-    {/* Admin routes */}
+    {/* Admin routes - completely separate */}
     <Route element={<ProtectedRoute><AdminProvider><AdminLayout /></AdminProvider></ProtectedRoute>}>
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route path="/admin/tenants" element={<AdminTenantsPage />} />
