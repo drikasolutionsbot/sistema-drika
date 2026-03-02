@@ -61,7 +61,7 @@ const CustomizationPage = () => {
         <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20 relative">
           <button
             onClick={openEditModal}
-            className="absolute top-3 right-3 p-2 rounded-lg bg-background/60 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-background/60 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors"
           >
             <Pencil className="h-4 w-4" />
           </button>
