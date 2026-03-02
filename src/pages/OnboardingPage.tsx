@@ -6,12 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import {
   Server,
   Palette,
   Package,
-  CreditCard,
+  Hash,
   ChevronRight,
   ChevronLeft,
   Check,
@@ -25,11 +32,31 @@ interface DiscordGuild {
   icon: string | null;
 }
 
+interface DiscordChannel {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  position: number;
+}
+
+interface DiscordCategory {
+  id: string;
+  name: string;
+  position: number;
+}
+
 const STEPS = [
   { icon: Server, label: "Servidor" },
   { icon: Palette, label: "Loja" },
+  { icon: Hash, label: "Canais" },
   { icon: Package, label: "Produto" },
-  { icon: CreditCard, label: "Pagamento" },
+];
+
+const CHANNEL_MAPPINGS = [
+  { key: "logs_sales", label: "Logs de Vendas", description: "Canal para registrar todas as vendas" },
+  { key: "welcome", label: "Boas-vindas", description: "Canal de boas-vindas para novos membros" },
+  { key: "support_tickets", label: "Suporte / Tickets", description: "Canal para tickets de suporte" },
+  { key: "logs_moderation_bans", label: "Moderação", description: "Canal de logs de moderação" },
 ];
 
 const OnboardingPage = () => {
@@ -38,23 +65,26 @@ const OnboardingPage = () => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Step 1 - Discord Server
+  // Step 0 - Discord Server
   const [guilds, setGuilds] = useState<DiscordGuild[]>([]);
   const [guildsLoading, setGuildsLoading] = useState(true);
   const [selectedGuild, setSelectedGuild] = useState<DiscordGuild | null>(null);
 
-  // Step 2 - Store Info
+  // Step 1 - Store Info
   const [storeName, setStoreName] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#FF69B4");
   const [secondaryColor, setSecondaryColor] = useState("#FFD700");
+
+  // Step 2 - Channel Mapping
+  const [channels, setChannels] = useState<DiscordChannel[]>([]);
+  const [categories, setCategories] = useState<DiscordCategory[]>([]);
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const [channelSelections, setChannelSelections] = useState<Record<string, string>>({});
 
   // Step 3 - First Product
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("");
   const [productDesc, setProductDesc] = useState("");
-
-  // Step 4 - Payment (optional)
-  const [paymentProvider, setPaymentProvider] = useState("mercadopago");
 
   // Tenant created
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -83,6 +113,24 @@ const OnboardingPage = () => {
     }
   };
 
+  const fetchChannels = async (guildId: string) => {
+    setChannelsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("discord-channels", {
+        body: { guild_id: guildId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setChannels(data?.channels || []);
+      setCategories(data?.categories || []);
+    } catch (err: any) {
+      console.error("Error fetching channels:", err);
+      toast({ title: "Erro ao buscar canais", description: err.message, variant: "destructive" });
+    } finally {
+      setChannelsLoading(false);
+    }
+  };
+
   const handleCreateTenant = async () => {
     if (!selectedGuild || !storeName.trim()) return;
     setLoading(true);
@@ -99,6 +147,8 @@ const OnboardingPage = () => {
       if (data?.error) throw new Error(data.error);
       setTenantId(data.tenant.id);
       toast({ title: "Loja criada com sucesso! 🎉" });
+      // Fetch channels for the selected guild
+      fetchChannels(selectedGuild.id);
       setStep(2);
     } catch (err: any) {
       toast({ title: "Erro ao criar loja", description: err.message, variant: "destructive" });
@@ -107,9 +157,35 @@ const OnboardingPage = () => {
     }
   };
 
+  const handleSaveChannels = async () => {
+    if (!tenantId) {
+      setStep(3);
+      return;
+    }
+    setLoading(true);
+    try {
+      const entries = Object.entries(channelSelections).filter(([, v]) => v);
+      if (entries.length > 0) {
+        const inserts = entries.map(([channel_key, discord_channel_id]) => ({
+          tenant_id: tenantId,
+          channel_key,
+          discord_channel_id,
+        }));
+        const { error } = await (supabase as any).from("channel_configs").insert(inserts);
+        if (error) throw error;
+        toast({ title: "Canais configurados! 📡" });
+      }
+      setStep(3);
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar canais", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateProduct = async () => {
     if (!tenantId || !productName.trim()) {
-      setStep(3);
+      handleFinish();
       return;
     }
     setLoading(true);
@@ -124,7 +200,7 @@ const OnboardingPage = () => {
       } as any);
       if (error) throw error;
       toast({ title: "Produto criado! 📦" });
-      setStep(3);
+      handleFinish();
     } catch (err: any) {
       toast({ title: "Erro ao criar produto", description: err.message, variant: "destructive" });
     } finally {
@@ -135,6 +211,21 @@ const OnboardingPage = () => {
   const handleFinish = () => {
     navigate("/dashboard");
   };
+
+  const getCategoryName = (parentId: string | null) => {
+    if (!parentId) return null;
+    return categories.find((c) => c.id === parentId)?.name;
+  };
+
+  // Group channels by category
+  const groupedChannels = categories
+    .map((cat) => ({
+      category: cat,
+      channels: channels.filter((ch) => ch.parent_id === cat.id),
+    }))
+    .filter((g) => g.channels.length > 0);
+
+  const uncategorized = channels.filter((ch) => !ch.parent_id);
 
   const canProceedStep0 = !!selectedGuild;
   const canProceedStep1 = !!storeName.trim();
@@ -339,8 +430,91 @@ const OnboardingPage = () => {
             </div>
           )}
 
-          {/* Step 2: First Product (optional) */}
+          {/* Step 2: Channel Mapping */}
           {step === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-2xl font-bold">Configure os canais</h2>
+                <p className="text-muted-foreground mt-1">
+                  Selecione os canais do Discord para cada função — você pode alterar depois
+                </p>
+              </div>
+
+              {channelsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-14 rounded-xl" />
+                  ))}
+                </div>
+              ) : channels.length === 0 ? (
+                <div className="py-8 text-center">
+                  <AlertCircle className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">
+                    Nenhum canal encontrado. Verifique se o bot foi adicionado ao servidor.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {CHANNEL_MAPPINGS.map((mapping) => (
+                    <div key={mapping.key} className="space-y-1.5">
+                      <Label>{mapping.label}</Label>
+                      <p className="text-xs text-muted-foreground">{mapping.description}</p>
+                      <Select
+                        value={channelSelections[mapping.key] || ""}
+                        onValueChange={(v) =>
+                          setChannelSelections((prev) => ({ ...prev, [mapping.key]: v }))
+                        }
+                      >
+                        <SelectTrigger className="bg-muted border-none">
+                          <SelectValue placeholder="Selecionar canal..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {uncategorized.length > 0 && (
+                            <>
+                              {uncategorized.map((ch) => (
+                                <SelectItem key={ch.id} value={ch.id}>
+                                  # {ch.name}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {groupedChannels.map((group) => (
+                            <div key={group.category.id}>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                {group.category.name}
+                              </div>
+                              {group.channels.map((ch) => (
+                                <SelectItem key={ch.id} value={ch.id}>
+                                  # {ch.name}
+                                </SelectItem>
+                              ))}
+                            </div>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-between">
+                <Button variant="ghost" onClick={() => setStep(3)} className="text-muted-foreground">
+                  Pular
+                </Button>
+                <Button
+                  onClick={handleSaveChannels}
+                  disabled={loading}
+                  className="gap-2 gradient-pink text-primary-foreground"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Salvar Canais <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: First Product (optional) */}
+          {step === 3 && (
             <div className="space-y-6">
               <div>
                 <h2 className="font-display text-2xl font-bold">Crie seu primeiro produto</h2>
@@ -386,7 +560,7 @@ const OnboardingPage = () => {
               </div>
 
               <div className="flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(3)} className="text-muted-foreground">
+                <Button variant="ghost" onClick={handleFinish} className="text-muted-foreground">
                   Pular
                 </Button>
                 <Button
@@ -395,39 +569,7 @@ const OnboardingPage = () => {
                   className="gap-2 gradient-pink text-primary-foreground"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Criar Produto <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Payment Setup (info only) */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="font-display text-2xl font-bold">Tudo pronto! 🎉</h2>
-                <p className="text-muted-foreground mt-1">
-                  Sua loja foi configurada. Configure pagamentos e mais opções no painel.
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border p-6 space-y-4 text-center">
-                <div className="flex justify-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full gradient-pink">
-                    <Check className="h-8 w-8 text-primary-foreground" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="font-semibold text-lg">{storeName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Servidor: {selectedGuild?.name}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-center">
-                <Button onClick={handleFinish} className="gap-2 gradient-pink text-primary-foreground px-8">
-                  Ir para o Dashboard <ChevronRight className="h-4 w-4" />
+                  Criar e Finalizar <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
