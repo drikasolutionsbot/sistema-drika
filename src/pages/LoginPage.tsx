@@ -89,7 +89,10 @@ const LoginPage = () => {
 
           <div className="pt-4 border-t border-border">
             <button
-              onClick={signInWithDiscord}
+              onClick={() => {
+                sessionStorage.setItem("admin_redirect", "true");
+                signInWithDiscord();
+              }}
               className="flex items-center justify-center gap-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <Shield className="h-3 w-3" />

@@ -46,7 +46,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) {
+    const adminRedirect = sessionStorage.getItem("admin_redirect");
+    if (adminRedirect) {
+      sessionStorage.removeItem("admin_redirect");
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
   return <>{children}</>;
 };
 
