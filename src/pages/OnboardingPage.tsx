@@ -34,6 +34,13 @@ const OnboardingPage = () => {
 
   // Check if user already has a tenant
   useEffect(() => {
+    // Token session users skip onboarding entirely
+    const tokenSession = sessionStorage.getItem("token_session");
+    if (tokenSession) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+
     const checkExistingTenant = async () => {
       if (!user) return;
       try {
