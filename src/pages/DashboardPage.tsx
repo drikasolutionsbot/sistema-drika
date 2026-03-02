@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { usePermissions, PERMISSION_LABELS, type TenantPermission, type Permissi
 import { useRoles, type TenantRole } from "@/hooks/useRoles";
 import type { DiscordMember } from "@/components/dashboard/MemberSearchModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const DISCORD_CLIENT_ID = "1477916070508757092";
 const BOT_PERMISSIONS = "8";
@@ -41,6 +42,20 @@ const DashboardPage = () => {
 
   const { permissions, loading: permLoading, addMember, savePermissions, removeMember } = usePermissions(tenant?.id ?? null);
   const { roles, loading: rolesLoading, createRole, updateRole, deleteRole } = useRoles(tenant?.id ?? null);
+
+  // Guild info state
+  const [guildInfo, setGuildInfo] = useState<{ member_count: number; presence_count: number; icon: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!tenant?.discord_guild_id) return;
+    supabase.functions.invoke("discord-guild-info", {
+      body: { guild_id: tenant.discord_guild_id },
+    }).then(({ data }) => {
+      if (data && !data.error) {
+        setGuildInfo({ member_count: data.member_count, presence_count: data.presence_count, icon: data.icon });
+      }
+    });
+  }, [tenant?.discord_guild_id]);
 
   const selectedMember = permissions.find(p => p.id === selectedMemberId) ?? null;
   const selectedRole = roles.find(r => r.id === selectedRoleId) ?? null;
@@ -187,8 +202,8 @@ const DashboardPage = () => {
           <div>
             <p className="text-xs font-semibold text-muted-foreground border-l-2 border-primary pl-2 mb-2">Informações do Servidor</p>
             <div className="flex gap-2">
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><Users className="h-3 w-3" /> 0 membros</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> 0 clientes</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><Users className="h-3 w-3" /> {guildInfo?.member_count ?? 0} membros</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> {guildInfo?.presence_count ?? 0} online</span>
             </div>
           </div>
           <Button variant="outline" className="gap-2 text-sm" onClick={handleAddBot}>

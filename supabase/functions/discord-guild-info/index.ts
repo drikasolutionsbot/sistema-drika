@@ -18,7 +18,7 @@ serve(async (req) => {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
     if (!botToken) throw new Error("Bot token not configured");
 
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guild_id}`, {
+    const res = await fetch(`https://discord.com/api/v10/guilds/${guild_id}?with_counts=true`, {
       headers: { Authorization: `Bot ${botToken}` },
     });
 
@@ -36,6 +36,8 @@ serve(async (req) => {
         icon: guild.icon
           ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
           : null,
+        member_count: guild.approximate_member_count ?? guild.member_count ?? 0,
+        presence_count: guild.approximate_presence_count ?? 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
