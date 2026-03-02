@@ -31,10 +31,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signInWithDiscord = async () => {
-    await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
-      options: { redirectTo: window.location.origin + "/dashboard" },
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+        skipBrowserRedirect: true,
+      },
     });
+
+    if (error) throw error;
+    if (!data?.url) return;
+
+    const isInIframe = window.self !== window.top;
+    if (isInIframe) {
+      const popup = window.open(data.url, "_blank", "noopener,noreferrer");
+      if (!popup) {
+        window.location.assign(data.url);
+      }
+      return;
+    }
+
+    window.location.assign(data.url);
   };
 
   const signOut = async () => {
