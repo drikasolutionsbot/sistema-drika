@@ -19,8 +19,13 @@ const LoginPage = () => {
       const { data, error } = await supabase.functions.invoke("validate-token", {
         body: { token: token.trim() },
       });
+
+      // Garante mínimo de 5s no loader
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
       if (error || data?.error) {
         toast({ title: "Token inválido", description: data?.error || error?.message, variant: "destructive" });
+        setValidating(false);
       } else {
         sessionStorage.setItem("token_session", JSON.stringify({
           tenant_id: data.tenant_id,
@@ -32,8 +37,8 @@ const LoginPage = () => {
       }
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
+      setValidating(false);
     }
-    setValidating(false);
   };
 
   return (
