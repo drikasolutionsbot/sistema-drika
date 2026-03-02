@@ -11,7 +11,7 @@ const ResourcesPage = () => (
       <h1 className="font-display text-2xl font-bold">Recursos</h1>
     </div>
 
-    <Tabs defaultValue="cargos" className="space-y-4">
+    <Tabs defaultValue="comandos" className="space-y-4">
       <TabsList className="bg-muted">
         <TabsTrigger value="cargos">Cargos</TabsTrigger>
         <TabsTrigger value="comandos">Comandos</TabsTrigger>
