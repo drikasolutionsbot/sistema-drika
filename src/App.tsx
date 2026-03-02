@@ -4,9 +4,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AdminProvider } from "@/contexts/AdminContext";
 import { TenantProvider } from "@/contexts/TenantContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 import LoginPage from "./pages/LoginPage";
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
+import AdminClientsPage from "./pages/admin/AdminClientsPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import StorePage from "./pages/StorePage";
@@ -34,10 +40,13 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex h-screen items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    // Don't redirect admin routes to client login
+    const isAdminRoute = window.location.pathname.startsWith("/admin");
+    return <Navigate to={isAdminRoute ? "/admin/login" : "/login"} replace />;
+  }
   return <>{children}</>;
 };
-
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -48,8 +57,16 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+    {/* Admin routes - completely separate */}
+    <Route element={<ProtectedRoute><AdminProvider><AdminLayout /></AdminProvider></ProtectedRoute>}>
+      <Route path="/admin" element={<AdminDashboardPage />} />
+      <Route path="/admin/pagamentos" element={<AdminPaymentsPage />} />
+      <Route path="/admin/clientes" element={<AdminClientsPage />} />
+    </Route>
 
     {/* Dashboard routes */}
     <Route element={<ProtectedRoute><TenantProvider><DashboardLayout /></TenantProvider></ProtectedRoute>}>
