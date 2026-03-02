@@ -27,8 +27,27 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchTenant = async () => {
-    if (!user) { setTenant(null); setLoading(false); return; }
     setLoading(true);
+
+    // Check token session first
+    const tokenSessionStr = sessionStorage.getItem("token_session");
+    if (tokenSessionStr) {
+      try {
+        const tokenSession = JSON.parse(tokenSessionStr);
+        if (tokenSession.tenant_id) {
+          const { data } = await supabase
+            .from("tenants")
+            .select("*")
+            .eq("id", tokenSession.tenant_id)
+            .single();
+          setTenant(data as Tenant | null);
+          setLoading(false);
+          return;
+        }
+      } catch {}
+    }
+
+    if (!user) { setTenant(null); setLoading(false); return; }
 
     // Get user's first tenant via user_roles
     const { data: roleData } = await supabase
