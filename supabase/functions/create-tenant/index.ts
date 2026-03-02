@@ -1,0 +1,96 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing authorization header");
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify user with anon key
+    const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await supabaseAnon.auth.getUser();
+    if (userError || !user) throw new Error("Unauthorized");
+
+    // Use service role for privileged operations
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    const { name, discord_guild_id, primary_color, secondary_color } = await req.json();
+
+    if (!name || !discord_guild_id) {
+      throw new Error("name and discord_guild_id are required");
+    }
+
+    // Check if guild is already registered
+    const { data: existing } = await supabaseAdmin
+      .from("tenants")
+      .select("id")
+      .eq("discord_guild_id", discord_guild_id)
+      .maybeSingle();
+
+    if (existing) {
+      throw new Error("Este servidor Discord já está vinculado a uma loja.");
+    }
+
+    // Check if user already has a tenant
+    const { data: existingRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingRole) {
+      throw new Error("Você já possui uma loja. Acesse o dashboard.");
+    }
+
+    // Create tenant
+    const { data: tenant, error: tenantError } = await supabaseAdmin
+      .from("tenants")
+      .insert({
+        name,
+        discord_guild_id,
+        primary_color: primary_color || "#FF69B4",
+        secondary_color: secondary_color || "#FFD700",
+      })
+      .select()
+      .single();
+
+    if (tenantError) throw tenantError;
+
+    // Assign owner role
+    const { error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .insert({
+        user_id: user.id,
+        tenant_id: tenant.id,
+        role: "owner",
+      });
+
+    if (roleError) throw roleError;
+
+    return new Response(JSON.stringify({ tenant }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

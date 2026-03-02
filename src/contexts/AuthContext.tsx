@@ -6,6 +6,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  providerToken: string | null;
   signInWithDiscord: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -15,17 +16,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [providerToken, setProviderToken] = useState<string | null>(() => {
+    return sessionStorage.getItem("discord_provider_token");
+  });
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      // Capture provider token on sign in
+      if (event === "SIGNED_IN" && session?.provider_token) {
+        setProviderToken(session.provider_token);
+        sessionStorage.setItem("discord_provider_token", session.provider_token);
+      }
       setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      // Only set loading to false if there are no auth tokens in the URL hash
-      // Otherwise, let onAuthStateChange handle it after processing the tokens
+      if (session?.provider_token) {
+        setProviderToken(session.provider_token);
+        sessionStorage.setItem("discord_provider_token", session.provider_token);
+      }
       const hasAuthParams = window.location.hash?.includes("access_token") || window.location.hash?.includes("refresh_token");
       if (!hasAuthParams) {
         setLoading(false);
@@ -39,8 +50,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "discord",
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/onboarding`,
         skipBrowserRedirect: true,
+        scopes: "identify guilds",
       },
     });
 
@@ -56,11 +68,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    sessionStorage.removeItem("discord_provider_token");
+    setProviderToken(null);
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signInWithDiscord, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, providerToken, signInWithDiscord, signOut }}>
       {children}
     </AuthContext.Provider>
   );

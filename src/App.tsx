@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/contexts/TenantContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import LoginPage from "./pages/LoginPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import StorePage from "./pages/StorePage";
 import ChannelsPage from "./pages/ChannelsPage";
@@ -37,6 +38,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
     <Route path="/" element={<Navigate to="/dashboard" replace />} />
     <Route element={<ProtectedRoute><TenantProvider><DashboardLayout /></TenantProvider></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />

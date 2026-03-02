@@ -1,1 +1,7 @@
 project_id = "krudxivcuygykoswjbbx"
+
+[functions.discord-guilds]
+verify_jwt = false
+
+[functions.create-tenant]
+verify_jwt = false

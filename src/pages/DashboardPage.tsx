@@ -1,5 +1,7 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { ShoppingCart, DollarSign, TrendingUp, Package, ArrowUpRight } from "lucide-react";
+import { ShoppingCart, DollarSign, TrendingUp, Package } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +17,7 @@ interface Order {
 }
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
   const { tenant, loading: tenantLoading } = useTenant();
   const { data: orders = [], isLoading } = useTenantQuery<Order>("dashboard-orders", "orders", { orderBy: "created_at", ascending: false });
 
@@ -22,20 +25,17 @@ const DashboardPage = () => {
   const today = new Date().toISOString().slice(0, 10);
   const todayOrders = orders.filter(o => o.created_at.startsWith(today));
   const totalRevenue = orders.filter(o => o.status === "paid" || o.status === "delivered").reduce((s, o) => s + o.total_cents, 0);
-  const lowStock = 0; // Would need products query
+  const lowStock = 0;
 
-  if (tenantLoading) {
+  // Redirect to onboarding if no tenant
+  useEffect(() => {
+    if (!tenantLoading && !tenant) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [tenantLoading, tenant, navigate]);
+
+  if (tenantLoading || !tenant) {
     return <div className="space-y-6"><Skeleton className="h-8 w-48" /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-28" />)}</div></div>;
-  }
-
-  if (!tenant) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in">
-        <Package className="h-16 w-16 text-muted-foreground" />
-        <h2 className="font-display text-xl font-bold">Nenhuma loja encontrada</h2>
-        <p className="text-muted-foreground text-center max-w-md">Você ainda não está vinculado a nenhuma loja. Peça ao proprietário para te adicionar ou crie uma nova loja.</p>
-      </div>
-    );
   }
 
   return (
