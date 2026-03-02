@@ -20,7 +20,7 @@ serve(async (req) => {
     }
 
     // Only allow specific fields to be updated
-    const allowedFields = ["name", "logo_url", "primary_color", "secondary_color"];
+    const allowedFields = ["name", "logo_url", "primary_color", "secondary_color", "bot_status", "bot_status_interval", "bot_prefix"];
     const safeUpdates: Record<string, string> = {};
     for (const key of Object.keys(updates)) {
       if (allowedFields.includes(key)) {
