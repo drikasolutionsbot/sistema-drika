@@ -1,19 +1,55 @@
-import { useState } from "react";
-import { Copy, Eye, LayoutTemplate } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Copy, Eye, LayoutTemplate, Save, FolderOpen, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/contexts/TenantContext";
 import EmbedForm from "./EmbedForm";
 import EmbedPreview from "./EmbedPreview";
 import { defaultEmbed, embedTemplates, type EmbedData } from "./types";
 
+interface SavedEmbed {
+  id: string;
+  name: string;
+  embed_data: EmbedData;
+  created_at: string;
+}
+
 const EmbedBuilder = () => {
+  const { tenantId } = useTenant();
   const [embed, setEmbed] = useState<EmbedData>({ ...defaultEmbed });
+  const [savedEmbeds, setSavedEmbeds] = useState<SavedEmbed[]>([]);
+  const [loadingEmbeds, setLoadingEmbeds] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+  const [embedName, setEmbedName] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const fetchSavedEmbeds = async () => {
+    if (!tenantId) return;
+    setLoadingEmbeds(true);
+    const { data } = await supabase
+      .from("saved_embeds")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false });
+    setSavedEmbeds((data as unknown as SavedEmbed[]) || []);
+    setLoadingEmbeds(false);
+  };
+
+  useEffect(() => {
+    fetchSavedEmbeds();
+  }, [tenantId]);
 
   const applyTemplate = (templateId: string) => {
     const tpl = embedTemplates.find(t => t.id === templateId);
     if (tpl) {
       setEmbed({ ...tpl.data, fields: tpl.data.fields.map(f => ({ ...f, id: crypto.randomUUID() })) });
+      setEditingId(null);
       toast.success(`Template "${tpl.name}" aplicado!`);
     }
   };
@@ -52,6 +88,70 @@ const EmbedBuilder = () => {
     toast.success("JSON copiado!");
   };
 
+  const openSaveDialog = () => {
+    if (!embedName && editingId) {
+      const existing = savedEmbeds.find(e => e.id === editingId);
+      if (existing) setEmbedName(existing.name);
+    }
+    setSaveDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!tenantId || !embedName.trim()) return;
+    setSaving(true);
+    try {
+      if (editingId) {
+        const { error } = await supabase
+          .from("saved_embeds")
+          .update({ name: embedName.trim(), embed_data: JSON.parse(JSON.stringify(embed)), updated_at: new Date().toISOString() })
+          .eq("id", editingId);
+        if (error) throw error;
+        toast.success("Embed atualizado!");
+      } else {
+        const { error } = await supabase
+          .from("saved_embeds")
+          .insert([{ tenant_id: tenantId, name: embedName.trim(), embed_data: JSON.parse(JSON.stringify(embed)) }]);
+        if (error) throw error;
+        toast.success("Embed salvo!");
+      }
+      setSaveDialogOpen(false);
+      setEmbedName("");
+      fetchSavedEmbeds();
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err.message || "Tente novamente"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadEmbed = (saved: SavedEmbed) => {
+    setEmbed(saved.embed_data);
+    setEditingId(saved.id);
+    setEmbedName(saved.name);
+    setLoadDialogOpen(false);
+    toast.success(`Embed "${saved.name}" carregado!`);
+  };
+
+  const deleteEmbed = async (id: string) => {
+    const { error } = await supabase.from("saved_embeds").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir");
+      return;
+    }
+    toast.success("Embed excluído!");
+    if (editingId === id) {
+      setEditingId(null);
+      setEmbedName("");
+    }
+    fetchSavedEmbeds();
+  };
+
+  const handleNew = () => {
+    setEmbed({ ...defaultEmbed });
+    setEditingId(null);
+    setEmbedName("");
+  };
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       {/* Form */}
@@ -60,11 +160,28 @@ const EmbedBuilder = () => {
           <h3 className="text-base font-semibold flex items-center gap-2">
             <span className="h-5 w-1 rounded-full bg-primary inline-block" />
             Editor
+            {editingId && (
+              <span className="text-xs font-normal text-muted-foreground ml-1">
+                — {embedName}
+              </span>
+            )}
           </h3>
-          <Button variant="outline" size="sm" onClick={copyJson}>
-            <Copy className="h-3.5 w-3.5 mr-1.5" /> Copiar JSON
-          </Button>
+          <div className="flex gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleNew} title="Novo embed">
+              Novo
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setLoadDialogOpen(true)} title="Carregar embed salvo">
+              <FolderOpen className="h-3.5 w-3.5 mr-1.5" /> Carregar
+            </Button>
+            <Button variant="outline" size="sm" onClick={openSaveDialog} title="Salvar embed">
+              <Save className="h-3.5 w-3.5 mr-1.5" /> Salvar
+            </Button>
+            <Button variant="outline" size="sm" onClick={copyJson}>
+              <Copy className="h-3.5 w-3.5 mr-1.5" /> JSON
+            </Button>
+          </div>
         </div>
+
         {/* Templates */}
         <div className="flex items-center gap-2 mb-4">
           <LayoutTemplate className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -83,6 +200,7 @@ const EmbedBuilder = () => {
             ))}
           </div>
         </div>
+
         <EmbedForm embed={embed} onChange={setEmbed} />
       </Card>
 
@@ -96,6 +214,80 @@ const EmbedBuilder = () => {
           <EmbedPreview embed={embed} />
         </div>
       </Card>
+
+      {/* Save Dialog */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-sm bg-sidebar border-border">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Atualizar Embed" : "Salvar Embed"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Nome do Embed</label>
+              <Input
+                value={embedName}
+                onChange={e => setEmbedName(e.target.value)}
+                placeholder="Ex: Boas-vindas, Compra confirmada..."
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setSaveDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button className="flex-1" onClick={handleSave} disabled={saving || !embedName.trim()}>
+                {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {editingId ? "Atualizar" : "Salvar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Dialog */}
+      <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-sidebar border-border">
+          <DialogHeader>
+            <DialogTitle>Embeds Salvos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
+            {loadingEmbeds ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : savedEmbeds.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhum embed salvo ainda.
+              </p>
+            ) : (
+              savedEmbeds.map(saved => (
+                <div
+                  key={saved.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-accent/50 transition-colors"
+                >
+                  <button
+                    className="flex-1 text-left"
+                    onClick={() => loadEmbed(saved)}
+                  >
+                    <p className="text-sm font-medium">{saved.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(saved.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => deleteEmbed(saved.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
