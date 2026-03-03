@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,39 +26,62 @@ const FREQUENT_EMOJIS = [
   "👎", "🎮", "🎯", "💡", "🔑", "🛡️", "⚙️", "📌", "🔒", "🔓",
 ];
 
+// Global cache shared across all picker instances
+const emojiCache: Record<string, { emojis: DiscordEmoji[]; loading: boolean; promise?: Promise<void> }> = {};
+
 export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
   const tenantName = tenant?.name;
   const [open, setOpen] = useState(false);
-  const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [emojis, setEmojis] = useState<DiscordEmoji[]>(() =>
+    tenantId && emojiCache[tenantId] ? emojiCache[tenantId].emojis : []
+  );
+  const [loadingCustom, setLoadingCustom] = useState(false);
   const [search, setSearch] = useState("");
-  const [fetched, setFetched] = useState(false);
-
-  const fetchEmojis = async () => {
-    if (!tenantId || fetched) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("discord-guild-emojis", {
-        body: { tenant_id: tenantId },
-      });
-      if (error) throw error;
-      if (Array.isArray(data)) {
-        setEmojis(data);
-      }
-      setFetched(true);
-    } catch (e) {
-      console.error("Failed to fetch emojis:", e);
-    }
-    setLoading(false);
-  };
 
   useEffect(() => {
-    if (open && !fetched) {
-      fetchEmojis();
+    if (!open || !tenantId) return;
+
+    // Already cached
+    if (emojiCache[tenantId] && emojiCache[tenantId].emojis.length > 0) {
+      setEmojis(emojiCache[tenantId].emojis);
+      return;
     }
-  }, [open]);
+
+    // Already loading from another instance
+    if (emojiCache[tenantId]?.loading && emojiCache[tenantId]?.promise) {
+      setLoadingCustom(true);
+      emojiCache[tenantId].promise!.then(() => {
+        setEmojis(emojiCache[tenantId].emojis);
+        setLoadingCustom(false);
+      });
+      return;
+    }
+
+    // Fetch
+    setLoadingCustom(true);
+    emojiCache[tenantId] = { emojis: [], loading: true };
+
+    const fetchPromise = (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("discord-guild-emojis", {
+          body: { tenant_id: tenantId },
+        });
+        if (error) throw error;
+        if (Array.isArray(data)) {
+          emojiCache[tenantId].emojis = data;
+          setEmojis(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch emojis:", e);
+      }
+      emojiCache[tenantId].loading = false;
+      setLoadingCustom(false);
+    })();
+
+    emojiCache[tenantId].promise = fetchPromise;
+  }, [open, tenantId]);
 
   const filteredCustom = emojis.filter((e) =>
     e.name.toLowerCase().includes(search.toLowerCase())
@@ -110,66 +133,69 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
         </div>
 
         <ScrollArea className="h-64">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="p-2 space-y-3">
-              {/* Frequent Unicode emojis */}
-              {filteredFrequent.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
-                    ⏱ Utilizados com frequência
-                  </p>
-                  <div className="grid grid-cols-8 gap-0.5">
-                    {filteredFrequent.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => selectEmoji(emoji)}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors text-lg"
-                        title={emoji}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+          <div className="p-2 space-y-3">
+            {/* Frequent Unicode emojis - always visible immediately */}
+            {filteredFrequent.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                  ⏱ Utilizados com frequência
+                </p>
+                <div className="grid grid-cols-8 gap-0.5">
+                  {filteredFrequent.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => selectEmoji(emoji)}
+                      className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors text-lg"
+                      title={emoji}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Server custom emojis */}
-              {filteredCustom.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
-                    🏠 {tenantName || "Servidor"}
-                  </p>
-                  <div className="grid grid-cols-8 gap-0.5">
-                    {filteredCustom.map((emoji) => (
-                      <button
-                        key={emoji.id}
-                        onClick={() => selectEmoji(emoji.formatted)}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-                        title={`:${emoji.name}:`}
-                      >
-                        <img
-                          src={emoji.url}
-                          alt={emoji.name}
-                          className="h-5 w-5 object-contain"
-                          loading="lazy"
-                        />
-                      </button>
-                    ))}
-                  </div>
+            {/* Server custom emojis */}
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                🏠 {tenantName || "Servidor"}
+              </p>
+              {loadingCustom ? (
+                <div className="flex items-center gap-2 justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Carregando emojis do servidor...</span>
                 </div>
-              )}
-
-              {filteredFrequent.length === 0 && filteredCustom.length === 0 && (
-                <div className="text-center py-6 text-xs text-muted-foreground">
-                  Nenhum emoji encontrado
+              ) : filteredCustom.length > 0 ? (
+                <div className="grid grid-cols-8 gap-0.5">
+                  {filteredCustom.map((emoji) => (
+                    <button
+                      key={emoji.id}
+                      onClick={() => selectEmoji(emoji.formatted)}
+                      className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
+                      title={`:${emoji.name}:`}
+                    >
+                      <img
+                        src={emoji.url}
+                        alt={emoji.name}
+                        className="h-5 w-5 object-contain"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-center py-3 text-xs text-muted-foreground">
+                  Nenhum emoji personalizado
+                </p>
               )}
             </div>
-          )}
+
+            {filteredFrequent.length === 0 && filteredCustom.length === 0 && !loadingCustom && (
+              <div className="text-center py-6 text-xs text-muted-foreground">
+                Nenhum emoji encontrado
+              </div>
+            )}
+          </div>
         </ScrollArea>
 
         {/* Manual input */}
