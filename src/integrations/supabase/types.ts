@@ -105,6 +105,104 @@ export type Database = {
           },
         ]
       }
+      automation_logs: {
+        Row: {
+          automation_id: string
+          created_at: string
+          details: string | null
+          id: string
+          result: string
+          tenant_id: string
+          trigger_data: Json | null
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          result?: string
+          tenant_id: string
+          trigger_data?: Json | null
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          result?: string
+          tenant_id?: string
+          trigger_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automations: {
+        Row: {
+          actions: Json
+          conditions: Json
+          created_at: string
+          enabled: boolean
+          executions: number
+          id: string
+          last_executed_at: string | null
+          name: string
+          tenant_id: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string
+          enabled?: boolean
+          executions?: number
+          id?: string
+          last_executed_at?: string | null
+          name: string
+          tenant_id: string
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string
+          enabled?: boolean
+          executions?: number
+          id?: string
+          last_executed_at?: string | null
+          name?: string
+          tenant_id?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
