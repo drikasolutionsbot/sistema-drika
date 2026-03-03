@@ -98,7 +98,11 @@ const NavItem = ({ item, isActive, collapsed }: NavItemProps) => {
     return (
       <Tooltip>
         <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent side="right" sideOffset={12} className="text-xs font-medium">
+        <TooltipContent
+          side="right"
+          sideOffset={14}
+          className="px-3.5 py-2 text-[12px] font-semibold tracking-wide rounded-2xl bg-foreground text-background shadow-[0_8px_30px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl border-0 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2 duration-200"
+        >
           {item.label}
         </TooltipContent>
       </Tooltip>
