@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.manage-giveaways]
 verify_jwt = false
+
+[functions.check-expired-vips]
+verify_jwt = false

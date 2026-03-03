@@ -50,6 +50,7 @@ const VipsPage = () => {
   const [members, setMembers] = useState<VipMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [checkingExpired, setCheckingExpired] = useState(false);
 
   // Plan form
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
@@ -169,6 +170,28 @@ const VipsPage = () => {
     } catch (err: any) { toast.error(err.message); }
   };
 
+  const handleCheckExpired = async () => {
+    setCheckingExpired(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-expired-vips", {
+        body: {},
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const { deactivated, roles_removed } = data;
+      if (deactivated > 0) {
+        toast.success(`${deactivated} VIP(s) desativado(s), ${roles_removed} cargo(s) removido(s)`);
+        fetchData();
+      } else {
+        toast.info("Nenhum VIP expirado encontrado");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setCheckingExpired(false);
+    }
+  };
+
   const filteredMembers = members.filter((m) => {
     const q = search.toLowerCase();
     return (m.discord_username || "").toLowerCase().includes(q) || m.discord_user_id.includes(q);
@@ -202,10 +225,16 @@ const VipsPage = () => {
           </h1>
           <p className="text-muted-foreground text-sm">Gerencie planos VIP e membros premium</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleCheckExpired} disabled={checkingExpired} className="gap-2">
+            <Clock className="h-4 w-4" />
+            {checkingExpired ? "Verificando..." : "Verificar Expirados"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
