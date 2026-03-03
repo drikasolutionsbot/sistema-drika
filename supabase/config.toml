@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.generate-pix]
 verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.test-payment]
+verify_jwt = false

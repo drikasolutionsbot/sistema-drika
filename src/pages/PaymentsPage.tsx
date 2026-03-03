@@ -1,20 +1,61 @@
-import { CreditCard, Check, AlertCircle } from "lucide-react";
+import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
 
 const providers = [
-  { key: "mercadopago", name: "Mercado Pago", color: "bg-blue-500/10 text-blue-400" },
-  { key: "misticpay", name: "Mistic Pay", color: "bg-purple-500/10 text-purple-400" },
-  { key: "efi", name: "Efí", color: "bg-emerald-500/10 text-emerald-400" },
-  { key: "pushinpay", name: "PushinPay", color: "bg-orange-500/10 text-orange-400" },
+  {
+    key: "mercadopago",
+    name: "Mercado Pago",
+    color: "bg-blue-500/10 text-blue-400",
+    docsUrl: "https://www.mercadopago.com.br/developers/pt/docs",
+    fields: [
+      { key: "api_key", label: "Access Token", placeholder: "APP_USR-..." },
+    ],
+    instructions: "Acesse Mercado Pago Developers > Suas integrações > Credenciais de produção e copie o Access Token.",
+  },
+  {
+    key: "pushinpay",
+    name: "PushinPay",
+    color: "bg-orange-500/10 text-orange-400",
+    docsUrl: "https://pushinpay.com.br",
+    fields: [
+      { key: "api_key", label: "API Token", placeholder: "pk_live_..." },
+    ],
+    instructions: "No painel PushinPay, vá em Configurações > API e copie o token de produção.",
+  },
+  {
+    key: "efi",
+    name: "Efí (Gerencianet)",
+    color: "bg-emerald-500/10 text-emerald-400",
+    docsUrl: "https://dev.efipay.com.br",
+    fields: [
+      { key: "api_key", label: "Client ID", placeholder: "Client_Id_..." },
+      { key: "secret_key", label: "Client Secret", placeholder: "Client_Secret_..." },
+    ],
+    instructions: "No painel Efí, acesse API > Aplicações > Credenciais de Produção e copie Client ID e Client Secret.",
+  },
+  {
+    key: "misticpay",
+    name: "Mistic Pay",
+    color: "bg-purple-500/10 text-purple-400",
+    docsUrl: "https://misticpay.com",
+    fields: [
+      { key: "api_key", label: "API Token", placeholder: "mst_live_..." },
+    ],
+    instructions: "No painel Mistic Pay, vá em Integrações > API Keys e copie o token.",
+  },
 ];
 
 interface PaymentProvider {
@@ -35,19 +76,35 @@ const PaymentsPage = () => {
     if (!tenantId) return;
     const existing = getConfig(providerKey);
     if (existing) {
-      await (supabase as any).from("payment_providers").update({ api_key_encrypted: apiKey, secret_key_encrypted: secretKey, active: true }).eq("id", existing.id);
+      await (supabase as any).from("payment_providers").update({
+        api_key_encrypted: apiKey,
+        secret_key_encrypted: secretKey,
+        active: true,
+        updated_at: new Date().toISOString(),
+      }).eq("id", existing.id);
     } else {
-      await (supabase as any).from("payment_providers").insert({ tenant_id: tenantId, provider_key: providerKey, api_key_encrypted: apiKey, secret_key_encrypted: secretKey, active: true });
+      await (supabase as any).from("payment_providers").insert({
+        tenant_id: tenantId,
+        provider_key: providerKey,
+        api_key_encrypted: apiKey,
+        secret_key_encrypted: secretKey,
+        active: true,
+      });
     }
     refetch();
-    toast({ title: "Provedor salvo com sucesso" });
+    toast({ title: "Provedor salvo e ativado!" });
+  };
+
+  const handleToggle = async (providerId: string, currentActive: boolean) => {
+    await supabase.from("payment_providers").update({ active: !currentActive }).eq("id", providerId);
+    refetch();
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="font-display text-2xl font-bold">Pagamentos</h1>
-        <p className="text-muted-foreground">Configure seus provedores de pagamento PIX</p>
+        <p className="text-muted-foreground">Configure seus provedores de pagamento PIX em tempo real</p>
       </div>
 
       {isLoading ? (
@@ -55,12 +112,26 @@ const PaymentsPage = () => {
       ) : (
         <Tabs defaultValue="mercadopago">
           <TabsList className="bg-muted">
-            {providers.map(p => <TabsTrigger key={p.key} value={p.key}>{p.name}</TabsTrigger>)}
+            {providers.map(p => {
+              const cfg = getConfig(p.key);
+              return (
+                <TabsTrigger key={p.key} value={p.key} className="gap-2">
+                  {p.name}
+                  {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
 
           {providers.map(p => (
             <TabsContent key={p.key} value={p.key}>
-              <ProviderForm provider={p} config={getConfig(p.key)} onSave={handleSave} />
+              <ProviderForm
+                provider={p}
+                config={getConfig(p.key)}
+                tenantId={tenantId}
+                onSave={handleSave}
+                onToggle={handleToggle}
+              />
             </TabsContent>
           ))}
         </Tabs>
@@ -69,50 +140,200 @@ const PaymentsPage = () => {
   );
 };
 
-const ProviderForm = ({ provider, config, onSave }: { provider: any; config?: PaymentProvider; onSave: (key: string, api: string, secret: string) => void }) => {
-  const [apiKey, setApiKey] = useState(config?.api_key_encrypted || "");
-  const [secretKey, setSecretKey] = useState(config?.secret_key_encrypted || "");
+interface ProviderFormProps {
+  provider: typeof providers[0];
+  config?: PaymentProvider;
+  tenantId: string | null;
+  onSave: (key: string, api: string, secret: string) => void;
+  onToggle: (id: string, active: boolean) => void;
+}
+
+const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: ProviderFormProps) => {
+  const [apiKey, setApiKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showSecretKey, setShowSecretKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setApiKey(config?.api_key_encrypted || "");
+    setSecretKey(config?.secret_key_encrypted || "");
+    setTestResult(null);
+  }, [config?.id]);
+
+  const webhookUrl = tenantId
+    ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/payment-webhook/${provider.key}/${tenantId}`
+    : "Configure o tenant primeiro";
+
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    toast({ title: "Webhook URL copiada!" });
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-payment", {
+        body: { provider_key: provider.key, api_key: apiKey, secret_key: secretKey },
+      });
+      if (error) throw error;
+      setTestResult(data);
+      if (data?.success) {
+        toast({ title: data.message });
+      } else {
+        toast({ title: data?.message || "Falha na validação", variant: "destructive" });
+      }
+    } catch (err: any) {
+      setTestResult({ success: false, message: err.message || "Erro na conexão" });
+      toast({ title: "Erro ao testar", variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(provider.key, apiKey, secretKey);
+    setSaving(false);
+  };
+
+  const maskedValue = (val: string) => {
+    if (!val || val.length < 8) return val;
+    return val.slice(0, 4) + "••••••••" + val.slice(-4);
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2.5 ${provider.color}`}>
-          <CreditCard className="h-5 w-5" />
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`rounded-lg p-2.5 ${provider.color}`}>
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold">{provider.name}</h3>
+            <p className="text-sm text-muted-foreground">{provider.instructions}</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-semibold">{provider.name}</h3>
-          <p className="text-sm text-muted-foreground">Configure as credenciais de acesso</p>
+        <div className="flex items-center gap-3">
+          {config && (
+            <>
+              <Badge variant={config.active ? "default" : "secondary"}>
+                {config.active ? "Ativo" : "Inativo"}
+              </Badge>
+              <Switch checked={config.active} onCheckedChange={() => onToggle(config.id, config.active)} />
+            </>
+          )}
+          <a href={provider.docsUrl} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Docs
+            </Button>
+          </a>
         </div>
-        {config?.active && <span className="ml-auto rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Ativo</span>}
       </div>
 
+      {/* Credentials */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label>API Key / Token</Label>
-          <Input type="password" placeholder="••••••••••••••••" value={apiKey} onChange={e => setApiKey(e.target.value)} className="bg-muted border-none" />
+          <Label>{provider.fields[0].label}</Label>
+          <div className="relative">
+            <Input
+              type={showApiKey ? "text" : "password"}
+              placeholder={provider.fields[0].placeholder}
+              value={apiKey}
+              onChange={e => { setApiKey(e.target.value); setTestResult(null); }}
+              className="bg-muted border-none pr-10 font-mono text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label>Secret Key</Label>
-          <Input type="password" placeholder="••••••••••••••••" value={secretKey} onChange={e => setSecretKey(e.target.value)} className="bg-muted border-none" />
-        </div>
+
+        {provider.fields.length > 1 && (
+          <div className="space-y-2">
+            <Label>{provider.fields[1].label}</Label>
+            <div className="relative">
+              <Input
+                type={showSecretKey ? "text" : "password"}
+                placeholder={provider.fields[1].placeholder}
+                value={secretKey}
+                onChange={e => { setSecretKey(e.target.value); setTestResult(null); }}
+                className="bg-muted border-none pr-10 font-mono text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecretKey(!showSecretKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showSecretKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Test Result */}
+      {testResult && (
+        <div className={`flex items-center gap-2 rounded-lg px-4 py-3 ${testResult.success ? "bg-emerald-500/10" : "bg-destructive/10"}`}>
+          {testResult.success ? (
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          ) : (
+            <XCircle className="h-4 w-4 text-destructive shrink-0" />
+          )}
+          <span className={`text-sm ${testResult.success ? "text-emerald-400" : "text-destructive"}`}>
+            {testResult.message}
+          </span>
+        </div>
+      )}
+
+      {/* Webhook URL */}
       <div className="space-y-2">
-        <Label>Webhook URL</Label>
+        <Label className="flex items-center gap-2">
+          <Zap className="h-3.5 w-3.5 text-primary" />
+          Webhook URL
+        </Label>
         <div className="flex gap-2">
-          <Input readOnly value={`https://api.drikasolutions.com/webhooks/${provider.key}`} className="bg-muted border-none font-mono text-xs" />
-          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`https://api.drikasolutions.com/webhooks/${provider.key}`); toast({ title: "Copiado!" }); }}>Copiar</Button>
+          <Input
+            readOnly
+            value={webhookUrl}
+            className="bg-muted border-none font-mono text-xs"
+          />
+          <Button variant="outline" size="sm" onClick={copyWebhook}>
+            <Copy className="h-3.5 w-3.5 mr-1.5" /> Copiar
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />Configure essa URL no painel do {provider.name}
+          <AlertCircle className="h-3 w-3" />
+          Cole essa URL no painel do {provider.name} para receber notificações de pagamento automaticamente
         </p>
       </div>
 
+      {/* Actions */}
       <div className="flex gap-3">
-        <Button className="gradient-pink text-primary-foreground border-none hover:opacity-90" onClick={() => onSave(provider.key, apiKey, secretKey)}>
-          <Check className="mr-2 h-4 w-4" /> Salvar
+        <Button
+          variant="outline"
+          onClick={handleTest}
+          disabled={testing || !apiKey}
+        >
+          {testing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+          Testar Conexão
         </Button>
-        <Button variant="outline">Testar Conexão</Button>
+        <Button
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+          onClick={handleSave}
+          disabled={saving || !apiKey}
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+          Salvar e Ativar
+        </Button>
       </div>
     </div>
   );
