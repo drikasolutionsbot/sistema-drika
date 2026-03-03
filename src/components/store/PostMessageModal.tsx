@@ -124,7 +124,7 @@ export const PostMessageModal = ({
 
       const { data, error } = await supabase.functions.invoke("send-webhook-message", {
         body: {
-          guild_id: guildId,
+          tenant_id: tenant?.id,
           channel_id: selectedChannel,
           embeds: [embed],
           content: "",
