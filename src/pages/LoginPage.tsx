@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Key, LogIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WifiLoader from "@/components/ui/wifi-loader";
-import drikaBanner from "@/assets/drika_banner.png";
 import drikaLogo from "@/assets/drika_logo_crown.png";
+import TermsModal from "@/components/TermsModal";
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const [token, setToken] = useState("");
   const [validating, setValidating] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const handleTokenLogin = async () => {
     if (!token.trim()) return;
@@ -86,10 +87,18 @@ const LoginPage = () => {
           </div>
 
           <p className="text-center text-sm font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-            Ao entrar, você concorda com nossos <span className="underline text-white cursor-pointer hover:text-primary transition-colors">Termos de Serviço</span>
+            Ao entrar, você concorda com nossos{" "}
+            <button
+              onClick={() => setTermsOpen(true)}
+              className="underline text-white hover:text-primary transition-colors bg-transparent border-none cursor-pointer font-medium text-sm p-0"
+            >
+              Termos de Serviço
+            </button>
           </p>
         </div>
       </div>
+
+      <TermsModal open={termsOpen} onOpenChange={setTermsOpen} />
     </div>
   );
 };
