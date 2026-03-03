@@ -599,9 +599,11 @@ export type Database = {
       tenants: {
         Row: {
           banner_url: string | null
+          bot_client_id: string | null
           bot_prefix: string | null
           bot_status: string | null
           bot_status_interval: number | null
+          bot_token_encrypted: string | null
           created_at: string
           discord_guild_id: string | null
           id: string
@@ -614,9 +616,11 @@ export type Database = {
         }
         Insert: {
           banner_url?: string | null
+          bot_client_id?: string | null
           bot_prefix?: string | null
           bot_status?: string | null
           bot_status_interval?: number | null
+          bot_token_encrypted?: string | null
           created_at?: string
           discord_guild_id?: string | null
           id?: string
@@ -629,9 +633,11 @@ export type Database = {
         }
         Update: {
           banner_url?: string | null
+          bot_client_id?: string | null
           bot_prefix?: string | null
           bot_status?: string | null
           bot_status_interval?: number | null
+          bot_token_encrypted?: string | null
           created_at?: string
           discord_guild_id?: string | null
           id?: string

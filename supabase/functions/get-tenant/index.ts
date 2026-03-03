@@ -28,7 +28,9 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    return new Response(JSON.stringify(data), {
+    // Remove sensitive token, expose only whether it's set
+    const { bot_token_encrypted, ...safeData } = data;
+    return new Response(JSON.stringify({ ...safeData, has_bot_token: !!bot_token_encrypted, bot_client_id: data.bot_client_id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

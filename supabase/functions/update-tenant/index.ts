@@ -7,18 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function updateDiscordBotProfile(updates: Record<string, any>, logoUrl?: string) {
-  const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+async function updateDiscordBotProfile(botToken: string, updates: Record<string, any>, logoUrl?: string) {
   if (!botToken) return;
 
   const discordPayload: Record<string, any> = {};
 
-  // Update bot username if name changed
   if (updates.name) {
     discordPayload.username = updates.name;
   }
 
-  // Update bot avatar if logo_url changed
   if (updates.logo_url || logoUrl) {
     const avatarUrl = updates.logo_url || logoUrl;
     try {
@@ -69,8 +66,7 @@ serve(async (req) => {
       throw new Error("No updates provided");
     }
 
-    // Only allow specific fields to be updated
-    const allowedFields = ["name", "logo_url", "banner_url", "primary_color", "secondary_color", "bot_status", "bot_status_interval", "bot_prefix", "discord_guild_id"];
+    const allowedFields = ["name", "logo_url", "banner_url", "primary_color", "secondary_color", "bot_status", "bot_status_interval", "bot_prefix", "discord_guild_id", "bot_token_encrypted", "bot_client_id"];
     const safeUpdates: Record<string, string> = {};
     for (const key of Object.keys(updates)) {
       if (allowedFields.includes(key)) {
@@ -95,10 +91,15 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    // Sync avatar and name to Discord bot profile (non-blocking)
-    updateDiscordBotProfile(safeUpdates, data.logo_url).catch(console.error);
+    // Use tenant's own bot token for Discord sync
+    const botToken = data.bot_token_encrypted;
+    if (botToken && (safeUpdates.name || safeUpdates.logo_url)) {
+      updateDiscordBotProfile(botToken, safeUpdates, data.logo_url).catch(console.error);
+    }
 
-    return new Response(JSON.stringify(data), {
+    // Remove sensitive token from response
+    const { bot_token_encrypted, ...safeData } = data;
+    return new Response(JSON.stringify({ ...safeData, has_bot_token: !!bot_token_encrypted }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

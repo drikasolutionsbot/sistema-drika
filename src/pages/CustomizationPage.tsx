@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Palette, Pencil, Upload, X, Loader2 } from "lucide-react";
+import { Palette, Pencil, Upload, X, Loader2, Bot, Eye, EyeOff, Check, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -18,12 +18,20 @@ const CustomizationPage = () => {
   const [prefix, setPrefix] = useState("d!");
   const [savingConfig, setSavingConfig] = useState(false);
 
+  // Bot token state
+  const [botToken, setBotToken] = useState("");
+  const [botClientId, setBotClientId] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [savingToken, setSavingToken] = useState(false);
+  const hasBotToken = (tenant as any)?.has_bot_token || false;
+
   // Load bot config from tenant
   useEffect(() => {
     if (tenant) {
       setStatus((tenant as any).bot_status || "/panel");
       setStatusInterval(String((tenant as any).bot_status_interval || 30));
       setPrefix((tenant as any).bot_prefix || "d!");
+      setBotClientId((tenant as any).bot_client_id || "");
     }
   }, [tenant]);
 
@@ -136,6 +144,34 @@ const CustomizationPage = () => {
       toast.error("Erro ao salvar: " + (err.message || "Tente novamente"));
     } finally {
       setSavingConfig(false);
+    }
+  };
+
+  const handleSaveBotToken = async () => {
+    if (!tenantId) return;
+    setSavingToken(true);
+    try {
+      const updates: Record<string, string> = {};
+      if (botToken.trim()) updates.bot_token_encrypted = botToken.trim();
+      if (botClientId.trim()) updates.bot_client_id = botClientId.trim();
+      
+      if (Object.keys(updates).length === 0) {
+        toast.error("Preencha pelo menos o Token do Bot");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("update-tenant", {
+        body: { tenant_id: tenantId, updates },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Token do bot salvo com sucesso!");
+      setBotToken("");
+      refetch();
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err.message || "Tente novamente"));
+    } finally {
+      setSavingToken(false);
     }
   };
 
@@ -312,6 +348,70 @@ const CustomizationPage = () => {
         </TabsList>
 
         <TabsContent value="geral" className="mt-6">
+          {/* Bot Token Config */}
+          <Card className="p-5 space-y-4 bg-sidebar border-border mb-6">
+            <div>
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <Bot className="h-5 w-5 text-primary" />
+                Conexão do Bot
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Configure o token do seu bot Discord para sincronizar personalizações.
+              </p>
+            </div>
+
+            {hasBotToken && (
+              <div className="flex items-center gap-2 text-sm text-green-500 bg-green-500/10 rounded-lg px-3 py-2">
+                <Check className="h-4 w-4" />
+                Bot token configurado
+              </div>
+            )}
+
+            {!hasBotToken && (
+              <div className="flex items-center gap-2 text-sm text-yellow-500 bg-yellow-500/10 rounded-lg px-3 py-2">
+                <AlertCircle className="h-4 w-4" />
+                Nenhum bot token configurado. As personalizações não serão sincronizadas com o Discord.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Bot Token</label>
+                <div className="relative">
+                  <Input
+                    type={showToken ? "text" : "password"}
+                    value={botToken}
+                    onChange={(e) => setBotToken(e.target.value)}
+                    placeholder={hasBotToken ? "••••••••••••••••••••••••" : "Cole o token do seu bot aqui"}
+                    className="bg-background border-border font-mono pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Client ID da Aplicação</label>
+                <Input
+                  value={botClientId}
+                  onChange={(e) => setBotClientId(e.target.value)}
+                  placeholder="Ex: 1477916070508757092"
+                  className="bg-background border-border font-mono"
+                />
+              </div>
+
+              <Button onClick={handleSaveBotToken} disabled={savingToken} className="w-full">
+                {savingToken && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {hasBotToken ? "Atualizar Token" : "Salvar Token"}
+              </Button>
+            </div>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="p-5 space-y-5 bg-sidebar border-border">
               <div>
