@@ -45,8 +45,8 @@ const SettingsPage = () => {
 
   // Load PIX data from tenant
   if (tenant && !pixLoaded) {
-    setPixKey((tenant as any).pix_key || "");
-    setPixKeyType((tenant as any).pix_key_type || "");
+    setPixKey(tenant.pix_key || "");
+    setPixKeyType(tenant.pix_key_type || "");
     setPixLoaded(true);
   }
 

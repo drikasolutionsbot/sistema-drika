@@ -10,6 +10,18 @@ interface Tenant {
   primary_color: string;
   secondary_color: string;
   plan: string;
+  pix_key: string | null;
+  pix_key_type: string | null;
+  bot_token_encrypted: string | null;
+  bot_client_id: string | null;
+  bot_prefix: string | null;
+  bot_status: string | null;
+  bot_status_interval: number | null;
+  banner_url: string | null;
+  ecloud_custom_url: string | null;
+  verify_enabled: boolean | null;
+  verify_redirect_url: string | null;
+  verify_role_id: string | null;
 }
 
 interface TenantContextType {
@@ -50,6 +62,18 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               primary_color: "#FF69B4",
               secondary_color: "#FFD700",
               plan: "free",
+              pix_key: null,
+              pix_key_type: null,
+              bot_token_encrypted: null,
+              bot_client_id: null,
+              bot_prefix: null,
+              bot_status: null,
+              bot_status_interval: null,
+              banner_url: null,
+              ecloud_custom_url: null,
+              verify_enabled: null,
+              verify_redirect_url: null,
+              verify_role_id: null,
             });
           }
           setLoading(false);
