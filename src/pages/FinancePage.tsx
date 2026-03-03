@@ -17,7 +17,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { format, subDays, isAfter, isBefore, startOfDay, endOfDay, parseISO } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { toast } from "@/hooks/use-toast";
@@ -86,7 +86,7 @@ const FinancePage = () => {
     }
     return orders.filter(o => {
       const d = parseISO(o.created_at);
-      return isAfter(d, from) && isBefore(d, to);
+      return isWithinInterval(d, { start: from, end: to });
     });
   }, [orders, period, dateFrom, dateTo]);
 
@@ -109,6 +109,25 @@ const FinancePage = () => {
   const avgTicket = paidOrders.length > 0 ? Math.round(totalRevenue / paidOrders.length) : 0;
   const canceledCount = periodFiltered.filter(o => o.status === "canceled" || o.status === "refunded").length;
   const conversionRate = totalOrders > 0 ? Math.round((paidOrders.length / totalOrders) * 100) : 0;
+
+  // Compare with previous period for trend
+  const prevPeriodOrders = useMemo(() => {
+    const days = period === "7d" ? 7 : period === "90d" ? 90 : 30;
+    const currentFrom = period === "custom" && dateFrom ? dateFrom : subDays(new Date(), days);
+    const currentTo = period === "custom" && dateTo ? dateTo : new Date();
+    const duration = currentTo.getTime() - currentFrom.getTime();
+    const prevFrom = new Date(currentFrom.getTime() - duration);
+    const prevTo = new Date(currentFrom.getTime() - 1);
+    return orders.filter(o => {
+      const d = parseISO(o.created_at);
+      return isWithinInterval(d, { start: startOfDay(prevFrom), end: endOfDay(prevTo) });
+    });
+  }, [orders, period, dateFrom, dateTo]);
+
+  const prevPaidOrders = prevPeriodOrders.filter(o => o.status === "paid" || o.status === "delivered");
+  const prevRevenue = prevPaidOrders.reduce((s, o) => s + o.total_cents, 0);
+  const revenueTrend = prevRevenue > 0 ? Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100) : totalRevenue > 0 ? 100 : 0;
+  const ordersTrend = prevPeriodOrders.length > 0 ? Math.round(((totalOrders - prevPeriodOrders.length) / prevPeriodOrders.length) * 100) : totalOrders > 0 ? 100 : 0;
 
   // Chart data - Revenue over time
   const revenueChartData = useMemo(() => {
@@ -222,8 +241,8 @@ const FinancePage = () => {
       label: "Receita Total",
       value: formatCurrency(totalRevenue),
       icon: DollarSign,
-      trend: "+12.5%",
-      trendUp: true,
+      trend: `${revenueTrend >= 0 ? "+" : ""}${revenueTrend}%`,
+      trendUp: revenueTrend >= 0,
       gradient: "from-emerald-500/20 to-emerald-500/5",
       iconBg: "bg-emerald-500/15",
       iconColor: "text-emerald-400",
@@ -232,8 +251,8 @@ const FinancePage = () => {
       label: "Total de Pedidos",
       value: totalOrders.toString(),
       icon: ShoppingCart,
-      trend: `${paidOrders.length} pagos`,
-      trendUp: true,
+      trend: `${ordersTrend >= 0 ? "+" : ""}${ordersTrend}%`,
+      trendUp: ordersTrend >= 0,
       gradient: "from-primary/20 to-primary/5",
       iconBg: "bg-primary/15",
       iconColor: "text-primary",
