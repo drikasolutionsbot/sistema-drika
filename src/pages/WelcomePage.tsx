@@ -157,9 +157,17 @@ const WelcomePage = () => {
         supabase.functions.invoke("discord-channels", { body: { tenant_id: tenantId } }),
         supabase.functions.invoke("discord-guild-info", { body: { tenant_id: tenantId } }),
       ]);
-      if (chRes.data && Array.isArray(chRes.data)) {
-        setChannels(chRes.data.filter((c: any) => c.type === 0).sort((a: any, b: any) => a.position - b.position));
-      }
+
+      const parsedChannels = Array.isArray(chRes.data)
+        ? chRes.data.filter((c: any) => c.type === 0)
+        : Array.isArray(chRes.data?.channels)
+          ? chRes.data.channels
+          : [];
+
+      setChannels(
+        parsedChannels.sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+      );
+
       if (roRes.data?.roles && Array.isArray(roRes.data.roles)) {
         setRoles(roRes.data.roles.filter((r: any) => !r.managed && r.name !== "@everyone").sort((a: any, b: any) => b.position - a.position));
       }
