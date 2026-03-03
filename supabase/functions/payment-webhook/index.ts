@@ -13,42 +13,51 @@ const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // ─── Provider-specific webhook handlers ────────────────────────────
 async function handleMercadoPago(body: any, tenantId: string, supabase: any) {
   // MP sends: { action: "payment.created", data: { id: "123" } }
-  if (body?.action === "payment.created" || body?.action === "payment.updated") {
-    const paymentId = body?.data?.id;
-    if (!paymentId) return { handled: false, reason: "No payment ID" };
+  const action = body?.action;
+  if (!action?.startsWith("payment.")) return { handled: false, reason: "Not a payment event" };
 
-    // Get provider credentials
-    const { data: provider } = await supabase
-      .from("payment_providers")
-      .select("api_key_encrypted")
-      .eq("tenant_id", tenantId)
-      .eq("provider_key", "mercadopago")
-      .single();
+  const paymentId = body?.data?.id;
+  if (!paymentId) return { handled: false, reason: "No payment ID" };
 
-    if (!provider?.api_key_encrypted) return { handled: false, reason: "No API key" };
+  // Get provider credentials
+  const { data: provider } = await supabase
+    .from("payment_providers")
+    .select("api_key_encrypted")
+    .eq("tenant_id", tenantId)
+    .eq("provider_key", "mercadopago")
+    .single();
 
-    // Fetch payment details from MP API
-    const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: { Authorization: `Bearer ${provider.api_key_encrypted}` },
-    });
+  if (!provider?.api_key_encrypted) return { handled: false, reason: "No API key" };
 
-    if (!res.ok) return { handled: false, reason: `MP API error: ${res.status}` };
+  // Fetch payment details from MP API
+  const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+    headers: { Authorization: `Bearer ${provider.api_key_encrypted}` },
+  });
 
-    const payment = await res.json();
-    const status = payment.status === "approved" ? "paid" : "pending_payment";
+  if (!res.ok) return { handled: false, reason: `MP API error: ${res.status}` };
 
-    // Update order if exists
-    if (payment.external_reference) {
-      await supabase
-        .from("orders")
-        .update({ status, payment_id: String(paymentId), payment_provider: "mercadopago" })
-        .eq("id", payment.external_reference)
-        .eq("tenant_id", tenantId);
-    }
+  const payment = await res.json();
 
-    return { handled: true, status: payment.status, payment_id: paymentId };
+  // Map MP status to order status
+  let orderStatus: string;
+  switch (payment.status) {
+    case "approved": orderStatus = "paid"; break;
+    case "pending": case "in_process": case "authorized": orderStatus = "pending_payment"; break;
+    case "cancelled": case "refunded": case "charged_back": orderStatus = "canceled"; break;
+    default: orderStatus = "pending_payment";
   }
-  return { handled: false, reason: "Unknown action" };
+
+  // Update order — external_reference is "order_{uuid}"
+  if (payment.external_reference) {
+    const orderId = payment.external_reference.replace(/^order_/, "");
+    await supabase
+      .from("orders")
+      .update({ status: orderStatus, payment_id: String(paymentId), payment_provider: "mercadopago" })
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId);
+  }
+
+  return { handled: true, status: payment.status, order_status: orderStatus, payment_id: paymentId };
 }
 
 async function handlePushinPay(body: any, tenantId: string, supabase: any) {
@@ -173,7 +182,7 @@ serve(async (req) => {
     console.log(`Webhook ${provider}/${tenantId}:`, JSON.stringify(result));
 
     // If payment was confirmed, trigger auto-delivery
-    if (result?.handled && result?.status === "approved" || result?.status === "paid" || (result as any)?.txid) {
+    if (result?.handled && (result?.order_status === "paid" || result?.status === "approved" || (result as any)?.txid)) {
       try {
         // Find the order that was just paid
         const { data: paidOrders } = await supabase
