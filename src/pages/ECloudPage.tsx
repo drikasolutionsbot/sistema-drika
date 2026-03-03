@@ -261,8 +261,15 @@ const ECloudPage = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 hidden sm:flex">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground">Realtime</span>
+          </div>
           {lastCheck && (
-            <span className="text-xs text-muted-foreground hidden sm:inline">
+            <span className="text-xs text-muted-foreground hidden md:inline">
               Última verificação: {lastCheck.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </span>
           )}
