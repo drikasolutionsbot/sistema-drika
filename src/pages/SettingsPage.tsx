@@ -183,7 +183,7 @@ const SettingsPage = () => {
                     <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-white/10 bg-white/5">
                       <Upload className="h-5 w-5 text-white/30" />
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="border-white/10 text-white/60 hover:bg-white/5 hover:text-white">Upload</Button>
+                    <Button type="button" variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white">Upload</Button>
                   </div>
                 </div>
                 <div className="space-y-2">
