@@ -85,8 +85,8 @@ const LoginPage = () => {
             </button>
           </div>
 
-          <p className="text-center text-xs text-muted-foreground">
-            Ao entrar, você concorda com nossos Termos de Serviço
+          <p className="text-center text-sm font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            Ao entrar, você concorda com nossos <span className="underline text-white cursor-pointer hover:text-primary transition-colors">Termos de Serviço</span>
           </p>
         </div>
       </div>
