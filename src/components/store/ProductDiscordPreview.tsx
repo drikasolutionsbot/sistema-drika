@@ -69,9 +69,13 @@ export const ProductDiscordPreview = ({ product, storeName }: ProductDiscordPrev
               <div>
                 <p className="text-[#00b0f4] text-[10px] font-semibold">💰 Preço</p>
                 <div className="flex items-center gap-1.5">
-                  <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
-                  {product.compare_price_cents && product.compare_price_cents > product.price_cents && (
-                    <p className="text-[#72767d] text-[10px] line-through">{formatPrice(product.compare_price_cents)}</p>
+                  {product.compare_price_cents && product.compare_price_cents > product.price_cents ? (
+                    <>
+                      <p className="text-[#57F287] text-xs font-semibold">{formatPrice(product.price_cents)}</p>
+                      <p className="text-[#72767d] text-[10px] line-through">{formatPrice(product.compare_price_cents)}</p>
+                    </>
+                  ) : (
+                    <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
                   )}
                 </div>
               </div>

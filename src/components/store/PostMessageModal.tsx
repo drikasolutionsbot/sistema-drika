@@ -34,6 +34,7 @@ interface PostMessageModalProps {
     name: string;
     description: string | null;
     price_cents: number;
+    compare_price_cents?: number | null;
     icon_url?: string | null;
     banner_url?: string | null;
   };
@@ -87,11 +88,26 @@ export const PostMessageModal = ({
         description: product.description || "",
         color: 0x00ff00,
         fields: [
-          {
-            name: "Valor à vista",
-            value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
-            inline: true,
-          },
+          ...(product.compare_price_cents && product.compare_price_cents > product.price_cents
+            ? [
+                {
+                  name: "~~Preço original~~",
+                  value: `~~R$ ${(product.compare_price_cents / 100).toFixed(2).replace(".", ",")}~~`,
+                  inline: true,
+                },
+                {
+                  name: "🔥 Preço promocional",
+                  value: `**R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}**`,
+                  inline: true,
+                },
+              ]
+            : [
+                {
+                  name: "Valor à vista",
+                  value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
+                  inline: true,
+                },
+              ]),
         ],
         footer: {
           text: `Servidor de ${tenant?.name} • ${new Date().toLocaleString("pt-BR")}`,
