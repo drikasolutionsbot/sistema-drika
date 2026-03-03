@@ -5,6 +5,7 @@ import {
   ArrowDownRight, BarChart3, Eye, ChevronDown, RefreshCw, Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -602,9 +603,7 @@ const FinancePage = () => {
                       <span className="text-xs text-muted-foreground capitalize">{order.payment_provider || "—"}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusColors[order.status] || ""}`}>
-                        {statusLabels[order.status] || order.status}
-                      </span>
+                      <StatusBadge status={order.status} />
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="text-xs text-muted-foreground">

@@ -6,6 +6,7 @@ import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -16,13 +17,14 @@ const formatBRL = (cents: number) =>
 const formatDate = (date: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(date));
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  pending_payment: { label: "Pendente", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  paid: { label: "Pago", color: "bg-green-500/20 text-green-400 border-green-500/30" },
-  delivering: { label: "Entregando", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  delivered: { label: "Entregue", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  canceled: { label: "Cancelado", color: "bg-red-500/20 text-red-400 border-red-500/30" },
-  refunded: { label: "Reembolsado", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+// Status labels kept for pending count badge only
+const statusLabels: Record<string, string> = {
+  pending_payment: "Pendente",
+  paid: "Pago",
+  delivering: "Entregando",
+  delivered: "Entregue",
+  canceled: "Cancelado",
+  refunded: "Reembolsado",
 };
 
 async function invokeWithRetry(fnName: string, body: any, retries = 2) {
@@ -211,7 +213,6 @@ export default function ApprovalsPage() {
       ) : (
         <div className="space-y-3">
           {filteredOrders.map(order => {
-            const status = statusLabels[order.status] || { label: order.status, color: "bg-muted text-muted-foreground" };
             const isPending = order.status === "pending_payment";
             const isProcessingThis = processing === order.id;
             const isExpanded = expandedId === order.id;
@@ -235,9 +236,7 @@ export default function ApprovalsPage() {
                       <span className="font-mono text-sm font-bold text-foreground/80">
                         #{order.order_number}
                       </span>
-                      <Badge variant="outline" className={`text-[11px] ${status.color}`}>
-                        {status.label}
-                      </Badge>
+                      <StatusBadge status={order.status} />
                       {isPending && (
                         <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
