@@ -609,6 +609,8 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          pix_key: string | null
+          pix_key_type: string | null
           plan: string | null
           primary_color: string | null
           secondary_color: string | null
@@ -626,6 +628,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          pix_key?: string | null
+          pix_key_type?: string | null
           plan?: string | null
           primary_color?: string | null
           secondary_color?: string | null
@@ -643,6 +647,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          pix_key?: string | null
+          pix_key_type?: string | null
           plan?: string | null
           primary_color?: string | null
           secondary_color?: string | null

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -124,6 +124,10 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
             <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
               Configurações
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings?tab=pix")} className="cursor-pointer">
+              <QrCode className="mr-2 h-4 w-4" />
+              Configurar PIX
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
