@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.manage-welcome]
 verify_jwt = false
+
+[functions.manage-giveaways]
+verify_jwt = false

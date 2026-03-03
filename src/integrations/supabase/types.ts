@@ -327,6 +327,113 @@ export type Database = {
           },
         ]
       }
+      giveaway_entries: {
+        Row: {
+          discord_avatar: string | null
+          discord_user_id: string
+          discord_username: string | null
+          entered_at: string
+          giveaway_id: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          discord_avatar?: string | null
+          discord_user_id: string
+          discord_username?: string | null
+          entered_at?: string
+          giveaway_id: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          discord_avatar?: string | null
+          discord_user_id?: string
+          discord_username?: string | null
+          entered_at?: string
+          giveaway_id?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_entries_giveaway_id_fkey"
+            columns: ["giveaway_id"]
+            isOneToOne: false
+            referencedRelation: "giveaways"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giveaway_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      giveaways: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string
+          id: string
+          message_id: string | null
+          prize: string
+          require_role_id: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          winners: Json
+          winners_count: number
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at: string
+          id?: string
+          message_id?: string | null
+          prize: string
+          require_role_id?: string | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+          winners?: Json
+          winners_count?: number
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string
+          id?: string
+          message_id?: string | null
+          prize?: string
+          require_role_id?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          winners?: Json
+          winners_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giveaways_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           affiliate_id: string | null
