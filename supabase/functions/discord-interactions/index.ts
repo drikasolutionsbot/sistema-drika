@@ -418,17 +418,20 @@ async function processPurchase(
       fields: [
         { name: "📦 Produto", value: orderName, inline: true },
         { name: "💰 Valor", value: formatBRL(priceCents), inline: true },
-        { name: "📋 PIX Copia e Cola", value: `\`\`\`\n${brcode}\n\`\`\``, inline: false },
       ],
       image: { url: qrImageUrl },
-      footer: { text: "Copie o código acima e pague no app do seu banco • Expira em 30 min" },
+      footer: { text: "Copie o código abaixo e pague no app do seu banco • Expira em 30 min" },
       timestamp: new Date().toISOString(),
     };
 
+    // Send embed + brcode as separate content so mobile users can long-press to copy
     await fetch(`${DISCORD_API}/channels/${dmChannel.id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [embed] }),
+      body: JSON.stringify({
+        content: `📋 **PIX Copia e Cola:**\n${brcode}`,
+        embeds: [embed],
+      }),
     });
     dmSent = true;
   }
