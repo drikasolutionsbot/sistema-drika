@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import "./SupportPage.css";
 
 interface SupportContact {
@@ -67,12 +67,10 @@ const defaultContacts: SupportContact[] = [
 ];
 
 const SupportPage = () => {
-  const [selectedContact, setSelectedContact] = useState<SupportContact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<SupportContact>(defaultContacts[0]);
 
   const handleGoToSupport = () => {
-    if (selectedContact) {
-      window.open(selectedContact.url, "_blank");
-    }
+    window.open(selectedContact.url, "_blank");
   };
 
   return (
@@ -90,7 +88,7 @@ const SupportPage = () => {
           {defaultContacts.map((contact) => (
             <div
               key={contact.id}
-              className={`support-card ${selectedContact?.id === contact.id ? "active" : ""}`}
+              className={`support-card ${selectedContact.id === contact.id ? "active" : ""}`}
               onClick={() => setSelectedContact(contact)}
             >
               <div className="support-card-top">
@@ -130,45 +128,36 @@ const SupportPage = () => {
         </div>
 
         {/* Side Panel */}
-        {selectedContact && (
-          <div className="support-side-panel">
-            <div className="support-side-panel-glass" />
+        <div className="support-side-panel">
+          <div className="support-side-panel-glass" />
 
-            <button className="support-side-close" onClick={() => setSelectedContact(null)}>
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="support-side-content">
-              <div className="support-side-header">
-                <div className="support-card-avatar large">
-                  <span className="support-card-avatar-initial">{selectedContact.initial}</span>
-                </div>
-                <div>
-                  <h3 className="support-side-name">{selectedContact.name}</h3>
-                  <div className="support-card-status">
-                    <span className="support-card-dot" style={{ background: selectedContact.statusColor }} />
-                    {selectedContact.status}
-                  </div>
-                </div>
+          <div className="support-side-content">
+            <div className="support-side-header">
+              <div className="support-card-avatar large">
+                <span className="support-card-avatar-initial">{selectedContact.initial}</span>
               </div>
-
-              <div className="support-side-body">
-                <div className="support-side-role">{selectedContact.role}</div>
-                <p className="support-side-about">{selectedContact.about}</p>
-              </div>
-
-              <div className="support-side-actions">
-                <button className="support-side-btn primary" onClick={handleGoToSupport}>
-                  <ExternalLink className="h-4 w-4" />
-                  Ir para o suporte
-                </button>
-                <button className="support-side-btn" onClick={() => setSelectedContact(null)}>
-                  Fechar
-                </button>
+              <div>
+                <h3 className="support-side-name">{selectedContact.name}</h3>
+                <div className="support-card-status">
+                  <span className="support-card-dot" style={{ background: selectedContact.statusColor }} />
+                  {selectedContact.status}
+                </div>
               </div>
             </div>
+
+            <div className="support-side-body">
+              <div className="support-side-role">{selectedContact.role}</div>
+              <p className="support-side-about">{selectedContact.about}</p>
+            </div>
+
+            <div className="support-side-actions">
+              <button className="support-side-btn primary" onClick={handleGoToSupport}>
+                <ExternalLink className="h-4 w-4" />
+                Ir para o suporte
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
