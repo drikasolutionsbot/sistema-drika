@@ -422,6 +422,14 @@ const SettingsPage = () => {
                   ))}
                 </div>
               )}
+
+              <a
+                href="/payments"
+                className="flex items-center justify-center gap-2 mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] hover:bg-white/5 transition-colors px-4 py-3 text-sm text-white/40 hover:text-white/60"
+              >
+                <Zap className="h-4 w-4" />
+                Configurar outros gateways
+              </a>
             </div>
           </div>
         </TabsContent>
