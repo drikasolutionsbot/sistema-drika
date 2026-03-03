@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -33,6 +34,11 @@ interface ProductDetailGeneralProps {
 
 export const ProductDetailGeneral = ({ product, onChange, categories = [] }: ProductDetailGeneralProps) => {
   const { tenantId } = useTenant();
+  const [priceDisplay, setPriceDisplay] = useState((product.price_cents / 100).toFixed(2));
+
+  useEffect(() => {
+    setPriceDisplay((product.price_cents / 100).toFixed(2));
+  }, [product.id]);
 
   return (
     <div className="space-y-8">
@@ -135,11 +141,14 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
               type="text"
               inputMode="decimal"
               placeholder="0.00"
-              value={(product.price_cents / 100).toFixed(2)}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
+              value={priceDisplay}
+              onChange={(e) => setPriceDisplay(e.target.value)}
+              onBlur={() => {
+                const raw = priceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
                 const num = parseFloat(raw);
-                onChange({ price_cents: isNaN(num) ? 0 : Math.round(num * 100) });
+                const cents = isNaN(num) ? 0 : Math.round(num * 100);
+                onChange({ price_cents: cents });
+                setPriceDisplay((cents / 100).toFixed(2));
               }}
               className="bg-muted border-border"
             />
