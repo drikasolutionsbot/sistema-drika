@@ -250,17 +250,23 @@ const ChannelsPage = () => {
     setSaving(true);
     try {
       const allKeys = channelSections.flatMap(s => s.channels.map(c => c.key));
+      const channels: Record<string, string | null> = {};
       for (const key of allKeys) {
         const draftVal = draft[key] || null;
-        const existing = configs.find(c => c.channel_key === key);
-        if (existing) {
-          if (existing.discord_channel_id !== draftVal) {
-            await (supabase as any).from("channel_configs").update({ discord_channel_id: draftVal }).eq("id", existing.id);
-          }
-        } else if (draftVal) {
-          await (supabase as any).from("channel_configs").insert({ tenant_id: tenantId, channel_key: key, discord_channel_id: draftVal });
+        const savedVal = configs.find(c => c.channel_key === key)?.discord_channel_id || null;
+        if (draftVal !== savedVal) {
+          channels[key] = draftVal;
         }
       }
+
+      if (Object.keys(channels).length > 0) {
+        const { data, error } = await supabase.functions.invoke("manage-channel-configs", {
+          body: { tenant_id: tenantId, channels },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      }
+
       await refetch();
       toast({ title: "Configurações salvas! ✅" });
     } catch (err: any) {
