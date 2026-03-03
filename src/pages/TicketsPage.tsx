@@ -1,47 +1,168 @@
-import { Ticket, Clock, CheckCircle, MessageSquare, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Ticket, Clock, CheckCircle, MessageSquare, AlertCircle, Eye, RefreshCw, Search, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface TicketItem {
   id: string;
   order_id: string | null;
-  discord_username: string;
-  product_name: string;
-  status: string;
+  discord_user_id: string;
+  discord_username: string | null;
+  product_name: string | null;
+  status: "open" | "in_progress" | "delivered" | "closed";
   created_at: string;
+  updated_at: string;
 }
 
-const statusConfig: Record<string, { label: string; icon: any; cls: string }> = {
-  open: { label: "Aberto", icon: AlertCircle, cls: "text-yellow-400 bg-yellow-500/10" },
-  in_progress: { label: "Em Andamento", icon: Clock, cls: "text-blue-400 bg-blue-500/10" },
-  delivered: { label: "Entregue", icon: CheckCircle, cls: "text-emerald-400 bg-emerald-500/10" },
-  closed: { label: "Fechado", icon: MessageSquare, cls: "text-muted-foreground bg-muted" },
+const statusConfig: Record<string, { label: string; icon: any; cls: string; badgeCls: string }> = {
+  open: { label: "Aberto", icon: AlertCircle, cls: "text-yellow-400 bg-yellow-500/10", badgeCls: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+  in_progress: { label: "Em Andamento", icon: Clock, cls: "text-blue-400 bg-blue-500/10", badgeCls: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  delivered: { label: "Entregue", icon: CheckCircle, cls: "text-emerald-400 bg-emerald-500/10", badgeCls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  closed: { label: "Fechado", icon: MessageSquare, cls: "text-muted-foreground bg-muted", badgeCls: "bg-muted text-muted-foreground border-border" },
 };
 
 const TicketsPage = () => {
-  const { data: tickets = [], isLoading } = useTenantQuery<TicketItem>("tickets", "tickets", { orderBy: "created_at", ascending: false });
+  const { tenantId } = useTenant();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const { data: tickets = [], isLoading, refetch } = useTenantQuery<TicketItem>("tickets", "tickets", {
+    orderBy: "created_at",
+    ascending: false,
+  });
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`tickets-realtime-${tenantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tickets", filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as any;
+            toast.info("🎫 Novo Ticket", {
+              description: `${row.discord_username || "Usuário"} — ${row.product_name || "Suporte"}`,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ["tickets", tenantId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, queryClient]);
+
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    setUpdatingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("tickets")
+        .update({ status: newStatus as any, updated_at: new Date().toISOString() })
+        .eq("id", ticketId)
+        .eq("tenant_id", tenantId!);
+      if (error) throw error;
+      toast.success("Status atualizado", { description: `Ticket alterado para ${statusConfig[newStatus]?.label}` });
+      queryClient.invalidateQueries({ queryKey: ["tickets", tenantId] });
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, status: newStatus as any });
+      }
+    } catch (err: any) {
+      toast.error("Erro ao atualizar status", { description: err.message });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const filtered = tickets.filter((t) => {
+    const q = search.toLowerCase();
+    return (
+      (t.discord_username || "").toLowerCase().includes(q) ||
+      (t.product_name || "").toLowerCase().includes(q) ||
+      t.discord_user_id.includes(q)
+    );
+  });
+
+  const counts = {
+    all: tickets.length,
+    open: tickets.filter((t) => t.status === "open").length,
+    in_progress: tickets.filter((t) => t.status === "in_progress").length,
+    delivered: tickets.filter((t) => t.status === "delivered").length,
+    closed: tickets.filter((t) => t.status === "closed").length,
+  };
+
+  const openDetail = (ticket: TicketItem) => {
+    setSelectedTicket(ticket);
+    setDetailOpen(true);
+  };
 
   const renderTickets = (list: TicketItem[]) => {
-    if (isLoading) return <div className="space-y-3 mt-4">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>;
-    if (list.length === 0) return <p className="text-center text-muted-foreground py-8">Nenhum ticket encontrado</p>;
+    if (isLoading)
+      return (
+        <div className="space-y-3 mt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-[72px] rounded-xl" />
+          ))}
+        </div>
+      );
+    if (list.length === 0)
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Ticket className="h-12 w-12 text-muted-foreground/30 mb-3" />
+          <p className="text-muted-foreground font-medium">Nenhum ticket encontrado</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            Tickets aparecerão aqui quando forem criados pelo bot
+          </p>
+        </div>
+      );
     return (
-      <div className="space-y-3 mt-4">
+      <div className="space-y-2 mt-4">
         {list.map((ticket) => {
           const sc = statusConfig[ticket.status] || statusConfig.open;
           const Icon = sc.icon;
           return (
-            <div key={ticket.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors cursor-pointer">
+            <div
+              key={ticket.id}
+              onClick={() => openDetail(ticket)}
+              className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
+            >
               <div className="flex items-center gap-4">
-                <div className={`rounded-lg p-2 ${sc.cls}`}><Icon className="h-4 w-4" /></div>
-                <div>
-                  <p className="text-sm font-medium">{ticket.product_name}</p>
-                  <p className="text-xs text-muted-foreground">{ticket.discord_username}</p>
+                <div className={`rounded-lg p-2.5 ${sc.cls} transition-transform group-hover:scale-110`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {ticket.product_name || "Suporte Geral"}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {ticket.discord_username || ticket.discord_user_id}
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${sc.cls}`}>{sc.label}</span>
-                <p className="text-xs text-muted-foreground mt-1">{new Date(ticket.created_at).toLocaleString("pt-BR")}</p>
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className={`${sc.badgeCls} text-xs`}>
+                  {sc.label}
+                </Badge>
+                <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                  {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true, locale: ptBR })}
+                </span>
+                <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </div>
           );
@@ -52,24 +173,135 @@ const TicketsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Tickets</h1>
-        <p className="text-muted-foreground">Gerencie tickets de serviço</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+            <Ticket className="h-6 w-6 text-primary" />
+            Tickets
+          </h1>
+          <p className="text-muted-foreground text-sm">Gerencie tickets de suporte e serviço</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Atualizar
+        </Button>
       </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {(["open", "in_progress", "delivered", "closed"] as const).map((status) => {
+          const sc = statusConfig[status];
+          const Icon = sc.icon;
+          return (
+            <div key={status} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+              <div className={`rounded-lg p-2 ${sc.cls}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{counts[status]}</p>
+                <p className="text-xs text-muted-foreground">{sc.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por usuário ou produto..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Tabs */}
       <Tabs defaultValue="all">
         <TabsList className="bg-muted">
-          <TabsTrigger value="all">Todos</TabsTrigger>
-          <TabsTrigger value="open">Abertos</TabsTrigger>
-          <TabsTrigger value="in_progress">Em Andamento</TabsTrigger>
-          <TabsTrigger value="delivered">Entregues</TabsTrigger>
+          <TabsTrigger value="all">Todos ({counts.all})</TabsTrigger>
+          <TabsTrigger value="open">Abertos ({counts.open})</TabsTrigger>
+          <TabsTrigger value="in_progress">Em Andamento ({counts.in_progress})</TabsTrigger>
+          <TabsTrigger value="delivered">Entregues ({counts.delivered})</TabsTrigger>
+          <TabsTrigger value="closed">Fechados ({counts.closed})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all">{renderTickets(tickets)}</TabsContent>
-        {["open", "in_progress", "delivered"].map(status => (
-          <TabsContent key={status} value={status}>{renderTickets(tickets.filter(t => t.status === status))}</TabsContent>
+        <TabsContent value="all">{renderTickets(filtered)}</TabsContent>
+        {(["open", "in_progress", "delivered", "closed"] as const).map((status) => (
+          <TabsContent key={status} value={status}>
+            {renderTickets(filtered.filter((t) => t.status === status))}
+          </TabsContent>
         ))}
       </Tabs>
+
+      {/* Ticket Detail Modal */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="h-5 w-5 text-primary" />
+              Detalhes do Ticket
+            </DialogTitle>
+          </DialogHeader>
+          {selectedTicket && (() => {
+            const sc = statusConfig[selectedTicket.status] || statusConfig.open;
+            return (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Status</Label>
+                    <Badge variant="outline" className={sc.badgeCls}>{sc.label}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Usuário</Label>
+                    <span className="text-sm font-medium">{selectedTicket.discord_username || selectedTicket.discord_user_id}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Produto</Label>
+                    <span className="text-sm font-medium">{selectedTicket.product_name || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Pedido</Label>
+                    <span className="text-sm font-mono text-muted-foreground">{selectedTicket.order_id ? selectedTicket.order_id.slice(0, 8) + "..." : "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Criado em</Label>
+                    <span className="text-sm">{new Date(selectedTicket.created_at).toLocaleString("pt-BR")}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground">Atualizado em</Label>
+                    <span className="text-sm">{new Date(selectedTicket.updated_at).toLocaleString("pt-BR")}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Alterar Status</Label>
+                  <Select
+                    value={selectedTicket.status}
+                    onValueChange={(val) => handleStatusChange(selectedTicket.id, val)}
+                    disabled={updatingStatus}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">🟡 Aberto</SelectItem>
+                      <SelectItem value="in_progress">🔵 Em Andamento</SelectItem>
+                      <SelectItem value="delivered">🟢 Entregue</SelectItem>
+                      <SelectItem value="closed">⚫ Fechado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
