@@ -1445,6 +1445,77 @@ export type Database = {
           },
         ]
       }
+      welcome_configs: {
+        Row: {
+          auto_role_enabled: boolean
+          auto_role_id: string | null
+          channel_enabled: boolean
+          channel_id: string | null
+          content: string | null
+          created_at: string
+          dm_content: string | null
+          dm_embed_data: Json
+          dm_enabled: boolean
+          embed_data: Json
+          enabled: boolean
+          goodbye_channel_id: string | null
+          goodbye_content: string | null
+          goodbye_embed_data: Json
+          goodbye_enabled: boolean
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_role_enabled?: boolean
+          auto_role_id?: string | null
+          channel_enabled?: boolean
+          channel_id?: string | null
+          content?: string | null
+          created_at?: string
+          dm_content?: string | null
+          dm_embed_data?: Json
+          dm_enabled?: boolean
+          embed_data?: Json
+          enabled?: boolean
+          goodbye_channel_id?: string | null
+          goodbye_content?: string | null
+          goodbye_embed_data?: Json
+          goodbye_enabled?: boolean
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_role_enabled?: boolean
+          auto_role_id?: string | null
+          channel_enabled?: boolean
+          channel_id?: string | null
+          content?: string | null
+          created_at?: string
+          dm_content?: string | null
+          dm_embed_data?: Json
+          dm_enabled?: boolean
+          embed_data?: Json
+          enabled?: boolean
+          goodbye_channel_id?: string | null
+          goodbye_content?: string | null
+          goodbye_embed_data?: Json
+          goodbye_enabled?: boolean
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welcome_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
