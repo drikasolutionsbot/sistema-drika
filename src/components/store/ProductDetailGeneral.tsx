@@ -132,10 +132,15 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
           <div className="space-y-2">
             <Label className="text-sm font-bold">Preço (R$)</Label>
             <Input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="0.00"
               value={(product.price_cents / 100).toFixed(2)}
-              onChange={(e) => onChange({ price_cents: Math.round(parseFloat(e.target.value || "0") * 100) })}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
+                const num = parseFloat(raw);
+                onChange({ price_cents: isNaN(num) ? 0 : Math.round(num * 100) });
+              }}
               className="bg-muted border-border"
             />
           </div>
