@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
-import { Key, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WifiLoader from "@/components/ui/wifi-loader";
 import drikaLogo from "@/assets/drika_logo_crown.png";
@@ -66,15 +65,19 @@ const LoginPage = () => {
         {/* Login form */}
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <div className="space-y-3">
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="relative login-floating-input">
+              <input
+                type="text"
+                required
+                autoComplete="off"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="Cole seu token de acesso..."
-                className="pl-9 bg-muted border-none h-12"
                 onKeyDown={(e) => e.key === "Enter" && handleTokenLogin()}
+                className="w-full text-base px-4 py-3 bg-transparent border-2 border-white/30 rounded-[20px] outline-none text-white transition-colors focus:border-primary"
               />
+              <label className="absolute left-0 px-4 py-3 ml-2 pointer-events-none text-white/60 transition-all duration-300">
+                Token de acesso
+              </label>
             </div>
             <button
               onClick={handleTokenLogin}
