@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useTenantQuery } from "@/hooks/useSupabaseQuery";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -69,32 +69,40 @@ interface PaymentProvider {
 
 const PaymentsPage = () => {
   const { tenantId } = useTenant();
-  const { data: configs = [], isLoading, refetch } = useTenantQuery<PaymentProvider>("payment-providers", "payment_providers");
+  const queryClient = useQueryClient();
+
+  const { data: configs = [], isLoading } = useQuery<PaymentProvider[]>({
+    queryKey: ["payment-providers", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
+        body: { action: "list", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data ?? [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const refetch = () => queryClient.invalidateQueries({ queryKey: ["payment-providers", tenantId] });
 
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
 
   const handleSave = async (providerKey: string, apiKey: string, secretKey: string) => {
     if (!tenantId) return;
-    const existing = getConfig(providerKey);
     try {
-      if (existing) {
-        const { error } = await (supabase as any).from("payment_providers").update({
-          api_key_encrypted: apiKey,
-          secret_key_encrypted: secretKey,
-          active: true,
-          updated_at: new Date().toISOString(),
-        }).eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await (supabase as any).from("payment_providers").insert({
+      const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
+        body: {
+          action: "upsert",
           tenant_id: tenantId,
           provider_key: providerKey,
-          api_key_encrypted: apiKey,
-          secret_key_encrypted: secretKey,
-          active: true,
-        });
-        if (error) throw error;
-      }
+          api_key: apiKey,
+          secret_key: secretKey,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       refetch();
       toast({ title: "Provedor salvo e ativado!" });
     } catch (err: any) {
@@ -104,8 +112,16 @@ const PaymentsPage = () => {
   };
 
   const handleToggle = async (providerId: string, currentActive: boolean) => {
-    await supabase.from("payment_providers").update({ active: !currentActive }).eq("id", providerId);
-    refetch();
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
+        body: { action: "toggle", tenant_id: tenantId, provider_id: providerId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Erro ao alternar provedor", description: err.message, variant: "destructive" });
+    }
   };
 
   return (

@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.discord-interactions]
 verify_jwt = false
+
+[functions.manage-payment-providers]
+verify_jwt = false
