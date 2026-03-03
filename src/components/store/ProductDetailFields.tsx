@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 import { AddStockModal } from "./AddStockModal";
+import { EmojiPicker } from "./EmojiPicker";
 
 interface ProductField {
   id: string;
@@ -220,11 +221,9 @@ export const ProductDetailFields = ({ productId }: ProductDetailFieldsProps) => 
                           <Label className="text-sm font-bold">
                             Emoji <span className="font-normal text-muted-foreground">(Opcional)</span>
                           </Label>
-                          <Input
-                            value={field.emoji || ""}
-                            onChange={(e) => updateField(field.id, { emoji: e.target.value })}
-                            placeholder="😀"
-                            className="bg-muted border-border"
+                          <EmojiPicker
+                            value={field.emoji}
+                            onChange={(val) => updateField(field.id, { emoji: val })}
                           />
                         </div>
                       </div>
