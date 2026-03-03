@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -10,7 +12,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { guild_id } = await req.json();
+    const body = await req.json();
+    let guild_id = body.guild_id;
+
+    if (!guild_id && body.tenant_id) {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("discord_guild_id")
+        .eq("id", body.tenant_id)
+        .single();
+      guild_id = tenant?.discord_guild_id;
+    }
+
     if (!guild_id) {
       return new Response(JSON.stringify({ error: "Missing guild_id" }), {
         status: 400,
