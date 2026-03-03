@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Trash2, Loader2, Shield,
+  BarChart3, Eye,
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import MemberSearchModal from "@/components/dashboard/MemberSearchModal";
 import { usePermissions, PERMISSION_LABELS, type TenantPermission, type PermissionKey } from "@/hooks/usePermissions";
@@ -216,15 +218,26 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Dashboard Overview */}
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-display text-2xl font-bold">Visão Geral</h1>
-        <p className="text-muted-foreground mb-6">
-          Métricas e desempenho de <strong className="text-foreground">{tenant.name}</strong>
+        <h1 className="font-display text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Painel de controle de <strong className="text-foreground">{tenant.name}</strong>
         </p>
-        <DashboardOverview />
       </div>
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="bg-muted/50 border border-border">
+          <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-background">
+            <Eye className="h-4 w-4" /> Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="resumo" className="gap-2 data-[state=active]:bg-background">
+            <BarChart3 className="h-4 w-4" /> Resumo
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ===== ABA VISÃO GERAL ===== */}
+        <TabsContent value="overview" className="space-y-8">
 
       {/* Server Section */}
       <div>
@@ -400,6 +413,13 @@ const DashboardPage = () => {
           </div>
         )}
       </div>
+        </TabsContent>
+
+        {/* ===== ABA RESUMO ===== */}
+        <TabsContent value="resumo" className="space-y-6">
+          <DashboardOverview />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <MemberSearchModal open={memberSearchOpen} onOpenChange={setMemberSearchOpen} onSelectMember={handleSelectMember} />

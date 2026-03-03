@@ -51,19 +51,5 @@ export const WalletBadge = () => {
   (balance / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) :
   "—";
 
-  return;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  return null;
 };
