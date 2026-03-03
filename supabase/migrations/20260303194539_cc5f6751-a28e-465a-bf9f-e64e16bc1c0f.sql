@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN field_id uuid REFERENCES public.product_fields(id) ON DELETE SET NULL;
