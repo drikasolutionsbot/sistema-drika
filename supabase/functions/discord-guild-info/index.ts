@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,12 +13,33 @@ serve(async (req) => {
   }
 
   try {
-    const { guild_id } = await req.json();
+    const body = await req.json();
+    let guild_id = body.guild_id;
+
+    // If tenant_id provided instead of guild_id, resolve it
+    if (!guild_id && body.tenant_id) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+      const { data: tenant, error } = await supabase
+        .from("tenants")
+        .select("discord_guild_id")
+        .eq("id", body.tenant_id)
+        .single();
+
+      if (error || !tenant?.discord_guild_id) {
+        throw new Error("Could not resolve guild_id from tenant");
+      }
+      guild_id = tenant.discord_guild_id;
+    }
+
     if (!guild_id) throw new Error("Missing guild_id");
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
     if (!botToken) throw new Error("Bot token not configured");
 
+    // Fetch guild info
     const res = await fetch(`https://discord.com/api/v10/guilds/${guild_id}?with_counts=true`, {
       headers: { Authorization: `Bot ${botToken}` },
     });
@@ -29,6 +51,18 @@ serve(async (req) => {
 
     const guild = await res.json();
 
+    // Also fetch roles
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guild_id}/roles`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+
+    let roles: any[] = [];
+    if (rolesRes.ok) {
+      roles = await rolesRes.json();
+    } else {
+      await rolesRes.text(); // consume body
+    }
+
     return new Response(
       JSON.stringify({
         id: guild.id,
@@ -38,6 +72,7 @@ serve(async (req) => {
           : null,
         member_count: guild.approximate_member_count ?? guild.member_count ?? 0,
         presence_count: guild.approximate_presence_count ?? 0,
+        roles,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
