@@ -11,6 +11,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 import { AddStockModal } from "./AddStockModal";
 import { EmojiPicker } from "./EmojiPicker";
+import { ProductImageUpload } from "./ProductImageUpload";
 
 interface ProductField {
   id: string;
@@ -19,6 +20,8 @@ interface ProductField {
   name: string;
   description: string | null;
   emoji: string | null;
+  icon_url: string | null;
+  banner_url: string | null;
   price_cents: number;
   compare_price_cents: number | null;
   sort_order: number;
@@ -109,6 +112,8 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
             name: field.name,
             description: field.description,
             emoji: field.emoji,
+            icon_url: field.icon_url,
+            banner_url: field.banner_url,
             price_cents: field.price_cents,
             compare_price_cents: field.compare_price_cents,
             enable_credits: field.enable_credits,
@@ -185,8 +190,10 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
               >
                 <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 text-lg">
-                  {field.emoji || <Package className="h-4 w-4 text-primary" />}
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 text-lg overflow-hidden">
+                  {field.icon_url ? (
+                    <img src={field.icon_url} alt={field.name} className="h-8 w-8 object-cover rounded-lg" />
+                  ) : field.emoji ? field.emoji : <Package className="h-4 w-4 text-primary" />}
                 </div>
                 <div className="text-left min-w-0 flex-1">
                   <p className="text-sm font-bold">{field.name}</p>
@@ -243,6 +250,32 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
                           className="bg-muted border-border min-h-[80px] resize-none"
                         />
                       </div>
+
+                      {/* Images */}
+                      {tenantId && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <ProductImageUpload
+                            label="Ícone"
+                            hint="PNG, JPG ou GIF — 128x128 recomendado"
+                            currentUrl={field.icon_url}
+                            onUploaded={(url) => updateField(field.id, { icon_url: url })}
+                            onRemoved={() => updateField(field.id, { icon_url: null })}
+                            tenantId={tenantId}
+                            productId={`${field.product_id}/fields/${field.id}`}
+                            aspect="square"
+                          />
+                          <ProductImageUpload
+                            label="Banner"
+                            hint="PNG ou JPG — 600x200 recomendado"
+                            currentUrl={field.banner_url}
+                            onUploaded={(url) => updateField(field.id, { banner_url: url })}
+                            onRemoved={() => updateField(field.id, { banner_url: null })}
+                            tenantId={tenantId}
+                            productId={`${field.product_id}/fields/${field.id}`}
+                            aspect="banner"
+                          />
+                        </div>
+                      )}
 
                       {/* Price */}
                       <div className="grid grid-cols-2 gap-4">

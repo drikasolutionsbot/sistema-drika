@@ -546,12 +546,14 @@ export type Database = {
       }
       product_fields: {
         Row: {
+          banner_url: string | null
           compare_price_cents: number | null
           created_at: string
           description: string | null
           emoji: string | null
           enable_credits: boolean
           enable_instructions: boolean
+          icon_url: string | null
           id: string
           is_subscription: boolean
           max_quantity: number | null
@@ -567,12 +569,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          banner_url?: string | null
           compare_price_cents?: number | null
           created_at?: string
           description?: string | null
           emoji?: string | null
           enable_credits?: boolean
           enable_instructions?: boolean
+          icon_url?: string | null
           id?: string
           is_subscription?: boolean
           max_quantity?: number | null
@@ -588,12 +592,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          banner_url?: string | null
           compare_price_cents?: number | null
           created_at?: string
           description?: string | null
           emoji?: string | null
           enable_credits?: boolean
           enable_instructions?: boolean
+          icon_url?: string | null
           id?: string
           is_subscription?: boolean
           max_quantity?: number | null
