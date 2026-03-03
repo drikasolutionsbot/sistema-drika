@@ -74,17 +74,17 @@ const NavItem = ({ item, isActive, collapsed }: NavItemProps) => {
     <Link
       to={item.path}
       className={cn(
-        "relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-200 group",
+      "relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-200 group",
         collapsed ? "justify-center w-11 h-11 mx-auto" : "px-3 py-2.5",
         isActive
-          ? "bg-primary/10 text-primary shadow-[0_0_12px_hsl(330_100%_71%/0.08)]"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          ? "bg-primary/15 text-primary shadow-[0_0_16px_hsl(330_100%_71%/0.12)] border border-primary/20"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground border border-transparent"
       )}
     >
       {isActive && (
         <div className={cn(
-          "absolute top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full bg-primary shadow-[0_0_6px_hsl(330_100%_71%/0.5)]",
-          collapsed ? "left-0 -translate-x-2" : "left-0"
+          "absolute top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_8px_hsl(330_100%_71%/0.6)]",
+          collapsed ? "left-0 -translate-x-2" : "-left-0.5"
         )} />
       )}
       <item.icon
