@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Upload, Paintbrush, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, Wallet, UserPlus, Sparkles, Zap, Shield } from "lucide-react";
+import { Upload, Paintbrush, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { WalletTab } from "@/components/wallet/WalletTab";
 import "@/components/wallet/wallet-card.css";
 
 interface UserRole {
@@ -153,9 +152,6 @@ const SettingsPage = () => {
             </TabsTrigger>
             <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-4 py-2">
               <Crown className="h-4 w-4" /> Plano
-            </TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-4 py-2">
-              <Wallet className="h-4 w-4" /> Carteira
             </TabsTrigger>
           </TabsList>
 
@@ -451,10 +447,6 @@ const SettingsPage = () => {
           </div>
         </TabsContent>
 
-        {/* Wallet Tab */}
-        <TabsContent value="wallet">
-          <WalletTab />
-        </TabsContent>
       </Tabs>
       </div>
     </div>
