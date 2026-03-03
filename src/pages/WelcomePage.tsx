@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ImageUploadField from "@/components/customization/ImageUploadField";
 import {
   HandMetal, Send, MessageSquare, UserPlus, LogOut, Hash, Settings2, Eye, Save,
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight, Sparkles, Shield, Bot
@@ -302,14 +303,8 @@ const WelcomePage = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>URL da Thumbnail</Label>
-            <Input value={embed.thumbnail_url} onChange={(e) => updateEmbed(embedKey, "thumbnail_url", e.target.value)} className="mt-1" placeholder="https://..." />
-          </div>
-          <div>
-            <Label>URL da Imagem</Label>
-            <Input value={embed.image_url} onChange={(e) => updateEmbed(embedKey, "image_url", e.target.value)} className="mt-1" placeholder="https://..." />
-          </div>
+          <ImageUploadField label="Thumbnail" value={embed.thumbnail_url} onChange={(v) => updateEmbed(embedKey, "thumbnail_url", v)} folder="welcome/thumbnails" />
+          <ImageUploadField label="Imagem" value={embed.image_url} onChange={(v) => updateEmbed(embedKey, "image_url", v)} folder="welcome/images" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
