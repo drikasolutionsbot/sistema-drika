@@ -280,7 +280,7 @@ const ChannelsPage = () => {
           guild_id: guildId,
           name: newName.trim(),
           type: newType,
-          parent_id: newParent || undefined,
+          parent_id: newParent && newParent !== "none" ? newParent : undefined,
           topic: newTopic.trim() || undefined,
         },
       });
