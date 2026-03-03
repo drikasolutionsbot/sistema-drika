@@ -160,10 +160,67 @@ const ECloudPage = () => {
 
   useEffect(() => {
     fetchData();
-    // Poll every 60 seconds for real-time status monitoring
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
+    // Poll bot status every 60s (Discord API can't use Realtime)
+    const botInterval = setInterval(async () => {
+      if (!tenant?.discord_guild_id) return;
+      try {
+        const { data: guild, error } = await supabase.functions.invoke("discord-guild-info", {
+          body: { guild_id: tenant.discord_guild_id },
+        });
+        if (!error && guild && !guild.error) {
+          setGuildInfo(guild);
+          setBotOnline(true);
+        } else {
+          setBotOnline(false);
+        }
+      } catch {
+        setBotOnline(false);
+      }
+    }, 60000);
+    return () => clearInterval(botInterval);
   }, [tenant?.discord_guild_id, tenantId]);
+
+  // Realtime subscriptions for orders, tickets, webhook_logs
+  useEffect(() => {
+    if (!tenantId) return;
+
+    const channel = supabase
+      .channel(`ecloud-realtime-${tenantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          const row = payload.new as any;
+          if (payload.eventType === "INSERT") {
+            toast.info("🛒 Nova venda", { description: `${row.product_name} — ${row.discord_username || "Usuário"}` });
+          } else if (payload.eventType === "UPDATE" && (row.status === "paid" || row.status === "delivered")) {
+            toast.success("💰 Pagamento confirmado", { description: row.product_name });
+          }
+          fetchData();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tickets", filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          const row = payload.new as any;
+          toast.info("🎫 Novo ticket", { description: `${row.discord_username || "Usuário"} — ${row.product_name || "Suporte"}` });
+          fetchData();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "webhook_logs", filter: `tenant_id=eq.${tenantId}` },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
