@@ -47,19 +47,19 @@ export const AddStockModal = ({
 
     setAdding(true);
     try {
-      const rows = filtered.map((content) => ({
-        field_id: fieldId,
-        tenant_id: tenantId,
-        content,
-      }));
-
-      const { error } = await (supabase as any)
-        .from("product_stock_items")
-        .insert(rows);
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "add_stock",
+          tenant_id: tenantId,
+          field_id: fieldId,
+          items: filtered,
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      toast({ title: `${filtered.length} item(ns) adicionado(s)! ✅` });
+      toast({ title: `${data?.count || filtered.length} item(ns) adicionado(s)! ✅` });
       onAdded();
     } catch (err: any) {
       toast({ title: "Erro ao adicionar", description: err.message, variant: "destructive" });
