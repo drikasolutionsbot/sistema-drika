@@ -20,8 +20,16 @@ interface EmojiPickerProps {
   onChange: (emoji: string) => void;
 }
 
+const FREQUENT_EMOJIS = [
+  "😀", "😊", "😎", "🔥", "⭐", "✅", "❌", "💰", "🎉", "🎁",
+  "🛒", "📦", "💎", "🏆", "🚀", "⚡", "💬", "🔔", "❤️", "👍",
+  "👎", "🎮", "🎯", "💡", "🔑", "🛡️", "⚙️", "📌", "🔒", "🔓",
+];
+
 export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
-  const { tenantId } = useTenant();
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
+  const tenantName = tenant?.name;
   const [open, setOpen] = useState(false);
   const [emojis, setEmojis] = useState<DiscordEmoji[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,12 +60,20 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
     }
   }, [open]);
 
-  const filtered = emojis.filter((e) =>
+  const filteredCustom = emojis.filter((e) =>
     e.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Check if current value is a custom discord emoji
+  const filteredFrequent = FREQUENT_EMOJIS.filter((e) =>
+    !search || e.includes(search)
+  );
+
   const currentCustomEmoji = emojis.find((e) => e.formatted === value);
+
+  const selectEmoji = (emoji: string) => {
+    onChange(emoji);
+    setOpen(false);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -79,7 +95,8 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
+      <PopoverContent className="w-80 p-0" align="start">
+        {/* Search */}
         <div className="p-2 border-b border-border">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -92,37 +109,65 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
           </div>
         </div>
 
-        <ScrollArea className="h-52">
+        <ScrollArea className="h-64">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : filtered.length > 0 ? (
-            <div className="grid grid-cols-6 gap-1 p-2">
-              {filtered.map((emoji) => (
-                <button
-                  key={emoji.id}
-                  onClick={() => {
-                    onChange(emoji.formatted);
-                    setOpen(false);
-                  }}
-                  className="h-9 w-9 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-                  title={`:${emoji.name}:`}
-                >
-                  <img
-                    src={emoji.url}
-                    alt={emoji.name}
-                    className="h-6 w-6 object-contain"
-                    loading="lazy"
-                  />
-                </button>
-              ))}
-            </div>
           ) : (
-            <div className="text-center py-8 text-xs text-muted-foreground">
-              {emojis.length === 0
-                ? "Nenhum emoji personalizado encontrado"
-                : "Nenhum resultado"}
+            <div className="p-2 space-y-3">
+              {/* Frequent Unicode emojis */}
+              {filteredFrequent.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                    ⏱ Utilizados com frequência
+                  </p>
+                  <div className="grid grid-cols-8 gap-0.5">
+                    {filteredFrequent.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => selectEmoji(emoji)}
+                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors text-lg"
+                        title={emoji}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Server custom emojis */}
+              {filteredCustom.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                    🏠 {tenantName || "Servidor"}
+                  </p>
+                  <div className="grid grid-cols-8 gap-0.5">
+                    {filteredCustom.map((emoji) => (
+                      <button
+                        key={emoji.id}
+                        onClick={() => selectEmoji(emoji.formatted)}
+                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
+                        title={`:${emoji.name}:`}
+                      >
+                        <img
+                          src={emoji.url}
+                          alt={emoji.name}
+                          className="h-5 w-5 object-contain"
+                          loading="lazy"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {filteredFrequent.length === 0 && filteredCustom.length === 0 && (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  Nenhum emoji encontrado
+                </div>
+              )}
             </div>
           )}
         </ScrollArea>
@@ -130,12 +175,11 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
         {/* Manual input */}
         <div className="border-t border-border p-2">
           <Input
-            placeholder="Ou digite um emoji padrão: 😀"
+            placeholder="Ou digite um emoji: 😀"
             value=""
             onChange={(e) => {
               if (e.target.value) {
-                onChange(e.target.value);
-                setOpen(false);
+                selectEmoji(e.target.value);
               }
             }}
             className="h-8 text-xs bg-muted border-border"
