@@ -1,7 +1,7 @@
 import { Outlet, Navigate, Link, useLocation } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, CreditCard, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, CreditCard, Users, LogOut, Headphones } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
   { label: "Pagamentos", icon: CreditCard, path: "/admin/pagamentos" },
   { label: "Clientes", icon: Users, path: "/admin/clientes" },
+  { label: "Suporte", icon: Headphones, path: "/admin/suporte" },
 ];
 
 export const AdminLayout = () => {

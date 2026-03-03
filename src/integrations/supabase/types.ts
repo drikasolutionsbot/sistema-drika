@@ -1074,6 +1074,63 @@ export type Database = {
           },
         ]
       }
+      support_channels: {
+        Row: {
+          about: string
+          action_text: string
+          active: boolean
+          bottom_color: string
+          bottom_text: string
+          created_at: string
+          id: string
+          initial: string
+          name: string
+          role: string
+          secondary_action_text: string | null
+          sort_order: number | null
+          status: string
+          status_color: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          about?: string
+          action_text?: string
+          active?: boolean
+          bottom_color?: string
+          bottom_text?: string
+          created_at?: string
+          id?: string
+          initial?: string
+          name: string
+          role?: string
+          secondary_action_text?: string | null
+          sort_order?: number | null
+          status?: string
+          status_color?: string
+          updated_at?: string
+          url?: string
+        }
+        Update: {
+          about?: string
+          action_text?: string
+          active?: boolean
+          bottom_color?: string
+          bottom_text?: string
+          created_at?: string
+          id?: string
+          initial?: string
+          name?: string
+          role?: string
+          secondary_action_text?: string | null
+          sort_order?: number | null
+          status?: string
+          status_color?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       tenant_permissions: {
         Row: {
           can_change_server: boolean

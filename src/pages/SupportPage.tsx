@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ExternalLink } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import "./SupportPage.css";
 
 interface SupportContact {
@@ -7,71 +8,59 @@ interface SupportContact {
   name: string;
   role: string;
   status: string;
-  statusColor: string;
-  action: string;
-  actionIcon: string;
-  secondaryAction: string;
+  status_color: string;
+  action_text: string;
+  secondary_action_text: string;
   about: string;
-  bottomText: string;
-  bottomColor: string;
+  bottom_text: string;
+  bottom_color: string;
   url: string;
   initial: string;
 }
 
-const defaultContacts: SupportContact[] = [
-  {
-    id: "1",
-    name: "Suporte Discord",
-    role: "Atendimento",
-    status: "Online",
-    statusColor: "#6aff6a",
-    action: "＋ Abrir Ticket",
-    actionIcon: "💬",
-    secondaryAction: "📞 Chamar",
-    about: "Atendimento rápido via Discord. Tire suas dúvidas e resolva problemas em tempo real.",
-    bottomText: "Disponível 24/7",
-    bottomColor: "pink",
-    url: "https://discord.com/users/868872675110551592",
-    initial: "D",
-  },
-  {
-    id: "2",
-    name: "Suporte Técnico",
-    role: "Especialista",
-    status: "Disponível",
-    statusColor: "#6aff6a",
-    action: "＋ Contatar",
-    actionIcon: "🛠",
-    secondaryAction: "📧 E-mail",
-    about: "Suporte técnico especializado para configurações avançadas e integrações.",
-    bottomText: "Resposta em até 1h",
-    bottomColor: "gold",
-    url: "https://discord.com/users/868872675110551592",
-    initial: "T",
-  },
-  {
-    id: "3",
-    name: "Vendas & Parcerias",
-    role: "Comercial",
-    status: "Horário comercial",
-    statusColor: "#ffb86a",
-    action: "＋ Falar",
-    actionIcon: "🤝",
-    secondaryAction: "📋 Proposta",
-    about: "Interessado em planos especiais, parcerias ou revenda? Fale com nosso comercial.",
-    bottomText: "Seg–Sex 9h–18h",
-    bottomColor: "blue",
-    url: "https://discord.com/users/868872675110551592",
-    initial: "V",
-  },
-];
-
 const SupportPage = () => {
-  const [selectedContact, setSelectedContact] = useState<SupportContact>(defaultContacts[0]);
+  const [contacts, setContacts] = useState<SupportContact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<SupportContact | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase
+        .from("support_channels")
+        .select("*")
+        .eq("active", true)
+        .order("sort_order");
+      if (data && data.length > 0) {
+        setContacts(data as any);
+        setSelectedContact(data[0] as any);
+      }
+      setLoading(false);
+    };
+    fetch();
+  }, []);
 
   const handleGoToSupport = () => {
-    window.open(selectedContact.url, "_blank");
+    if (selectedContact?.url) window.open(selectedContact.url, "_blank");
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-24">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (contacts.length === 0) {
+    return (
+      <div className="space-y-8 animate-fade-in">
+        <div>
+          <h1 className="font-display text-2xl font-bold">Suporte</h1>
+          <p className="text-muted-foreground">Nenhum canal de suporte disponível no momento.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -83,12 +72,11 @@ const SupportPage = () => {
       </div>
 
       <div className="support-layout">
-        {/* Cards */}
         <div className="support-cards-grid">
-          {defaultContacts.map((contact) => (
+          {contacts.map((contact) => (
             <div
               key={contact.id}
-              className={`support-card ${selectedContact.id === contact.id ? "active" : ""}`}
+              className={`support-card ${selectedContact?.id === contact.id ? "active" : ""}`}
               onClick={() => setSelectedContact(contact)}
             >
               <div className="support-card-top">
@@ -104,14 +92,16 @@ const SupportPage = () => {
                   <div className="support-card-info">
                     <div className="support-card-name">{contact.name}</div>
                     <div className="support-card-status">
-                      <span className="support-card-dot" style={{ background: contact.statusColor }} />
+                      <span className="support-card-dot" style={{ background: contact.status_color }} />
                       {contact.status}
                     </div>
                   </div>
                 </div>
                 <div className="support-card-actions">
-                  <div className="support-card-btn">{contact.action}</div>
-                  <div className="support-card-btn secondary">{contact.secondaryAction}</div>
+                  <div className="support-card-btn">{contact.action_text}</div>
+                  {contact.secondary_action_text && (
+                    <div className="support-card-btn secondary">{contact.secondary_action_text}</div>
+                  )}
                 </div>
               </div>
               <div className="support-card-expand">
@@ -120,44 +110,44 @@ const SupportPage = () => {
                   <div className="support-card-text">{contact.about}</div>
                 </div>
               </div>
-              <div className={`support-card-bottom ${contact.bottomColor}`}>
-                {contact.bottomText}
+              <div className={`support-card-bottom ${contact.bottom_color}`}>
+                {contact.bottom_text}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Side Panel */}
-        <div className="support-side-panel">
-          <div className="support-side-panel-glass" />
-
-          <div className="support-side-content">
-            <div className="support-side-header">
-              <div className="support-card-avatar large">
-                <span className="support-card-avatar-initial">{selectedContact.initial}</span>
-              </div>
-              <div>
-                <h3 className="support-side-name">{selectedContact.name}</h3>
-                <div className="support-card-status">
-                  <span className="support-card-dot" style={{ background: selectedContact.statusColor }} />
-                  {selectedContact.status}
+        {selectedContact && (
+          <div className="support-side-panel">
+            <div className="support-side-panel-glass" />
+            <div className="support-side-content">
+              <div className="support-side-header">
+                <div className="support-card-avatar large">
+                  <span className="support-card-avatar-initial">{selectedContact.initial}</span>
+                </div>
+                <div>
+                  <h3 className="support-side-name">{selectedContact.name}</h3>
+                  <div className="support-card-status">
+                    <span className="support-card-dot" style={{ background: selectedContact.status_color }} />
+                    {selectedContact.status}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="support-side-body">
-              <div className="support-side-role">{selectedContact.role}</div>
-              <p className="support-side-about">{selectedContact.about}</p>
-            </div>
+              <div className="support-side-body">
+                <div className="support-side-role">{selectedContact.role}</div>
+                <p className="support-side-about">{selectedContact.about}</p>
+              </div>
 
-            <div className="support-side-actions">
-              <button className="support-side-btn primary" onClick={handleGoToSupport}>
-                <ExternalLink className="h-4 w-4" />
-                Ir para o suporte
-              </button>
+              <div className="support-side-actions">
+                <button className="support-side-btn primary" onClick={handleGoToSupport}>
+                  <ExternalLink className="h-4 w-4" />
+                  Ir para o suporte
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
