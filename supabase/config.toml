@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.send-webhook-message]
 verify_jwt = false
+
+[functions.generate-pix]
+verify_jwt = false
