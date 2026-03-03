@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductDetailGeneral } from "./ProductDetailGeneral";
 import { ProductDetailFields } from "./ProductDetailFields";
-import { cn } from "@/lib/utils";
+import { PostMessageModal } from "./PostMessageModal";
 
 interface Product {
   id: string;
@@ -28,6 +28,7 @@ interface ProductDetailProps {
 export const ProductDetail = ({ product, onBack, onSave }: ProductDetailProps) => {
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
+  const [postModalOpen, setPostModalOpen] = useState(false);
 
   const handleChange = (updates: Partial<Product>) => {
     setEdited((prev) => ({ ...prev, ...updates }));
@@ -56,9 +57,9 @@ export const ProductDetail = ({ product, onBack, onSave }: ProductDetailProps) =
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h2 className="text-lg font-bold font-display">{product.name}</h2>
+            <h2 className="text-lg font-bold font-display">Especificações do produto</h2>
             <p className="text-xs text-muted-foreground">
-              R$ {(product.price_cents / 100).toFixed(2)}
+              Configure as informações deste produto
             </p>
           </div>
         </div>
@@ -67,7 +68,7 @@ export const ProductDetail = ({ product, onBack, onSave }: ProductDetailProps) =
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Sincronizar Mensagens
           </Button>
-          <Button variant="outline" size="sm" className="text-xs">
+          <Button variant="outline" size="sm" className="text-xs" onClick={() => setPostModalOpen(true)}>
             <Send className="h-3.5 w-3.5 mr-1.5" />
             Postar Mensagem
           </Button>
@@ -92,7 +93,7 @@ export const ProductDetail = ({ product, onBack, onSave }: ProductDetailProps) =
             </TabsContent>
 
             <TabsContent value="campos" className="mt-0">
-              <ProductDetailFields />
+              <ProductDetailFields productId={product.id} />
             </TabsContent>
 
             <TabsContent value="cupons" className="mt-0">
@@ -131,6 +132,13 @@ export const ProductDetail = ({ product, onBack, onSave }: ProductDetailProps) =
           </div>
         </div>
       )}
+
+      {/* Post message modal */}
+      <PostMessageModal
+        open={postModalOpen}
+        onOpenChange={setPostModalOpen}
+        product={edited}
+      />
     </div>
   );
 };

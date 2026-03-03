@@ -329,6 +329,135 @@ export type Database = {
           },
         ]
       }
+      product_fields: {
+        Row: {
+          compare_price_cents: number | null
+          created_at: string
+          description: string | null
+          emoji: string | null
+          enable_credits: boolean
+          enable_instructions: boolean
+          id: string
+          is_subscription: boolean
+          max_quantity: number | null
+          min_quantity: number | null
+          name: string
+          price_cents: number
+          product_id: string
+          require_role_id: string | null
+          show_sold: boolean
+          show_stock: boolean
+          sort_order: number | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          compare_price_cents?: number | null
+          created_at?: string
+          description?: string | null
+          emoji?: string | null
+          enable_credits?: boolean
+          enable_instructions?: boolean
+          id?: string
+          is_subscription?: boolean
+          max_quantity?: number | null
+          min_quantity?: number | null
+          name: string
+          price_cents?: number
+          product_id: string
+          require_role_id?: string | null
+          show_sold?: boolean
+          show_stock?: boolean
+          sort_order?: number | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          compare_price_cents?: number | null
+          created_at?: string
+          description?: string | null
+          emoji?: string | null
+          enable_credits?: boolean
+          enable_instructions?: boolean
+          id?: string
+          is_subscription?: boolean
+          max_quantity?: number | null
+          min_quantity?: number | null
+          name?: string
+          price_cents?: number
+          product_id?: string
+          require_role_id?: string | null
+          show_sold?: boolean
+          show_stock?: boolean
+          sort_order?: number | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_fields_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_fields_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_stock_items: {
+        Row: {
+          content: string
+          created_at: string
+          delivered: boolean
+          delivered_at: string | null
+          delivered_to: string | null
+          field_id: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          delivered?: boolean
+          delivered_at?: string | null
+          delivered_to?: string | null
+          field_id: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          delivered?: boolean
+          delivered_at?: string | null
+          delivered_to?: string | null
+          field_id?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_items_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "product_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stock_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
