@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Upload, Paintbrush, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, Wallet } from "lucide-react";
+import { Upload, Paintbrush, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, Wallet, UserPlus, Sparkles, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { useTenant } from "@/contexts/TenantContext";
 import PixGeneratorDialog from "@/components/pix/PixGeneratorDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { WalletTab } from "@/components/wallet/WalletTab";
+import "@/components/wallet/wallet-card.css";
 
 interface UserRole {
   id: string;
@@ -161,63 +161,71 @@ const SettingsPage = () => {
 
         {/* Branding Tab */}
         <TabsContent value="branding">
-          <form onSubmit={handleSaveBranding} className="rounded-xl border border-border bg-card p-6 space-y-6">
-            <h3 className="font-display font-semibold">White-label</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Nome da Loja</Label>
-                <Input name="name" defaultValue={tenant.name} className="bg-muted border-none" />
+          <div className="wallet-section">
+            <div className="wallet-section-header mb-5">
+              <div className="wallet-section-icon">
+                <Paintbrush className="h-4 w-4 text-primary" />
               </div>
-              <div className="space-y-2">
-                <Label>Logo</Label>
-                <div className="flex items-center gap-3">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted">
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <Button type="button" variant="outline" size="sm">Upload</Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Cor Primária</Label>
-                <div className="flex gap-2">
-                  <div className="h-10 w-10 rounded-lg gradient-pink" />
-                  <Input name="primary_color" defaultValue={tenant.primary_color} className="bg-muted border-none font-mono" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Cor Secundária</Label>
-                <div className="flex gap-2">
-                  <div className="h-10 w-10 rounded-lg gradient-gold" />
-                  <Input name="secondary_color" defaultValue={tenant.secondary_color} className="bg-muted border-none font-mono" />
-                </div>
+              <div>
+                <h3 className="text-white font-display font-semibold text-sm">White-label</h3>
+                <p className="text-[11px] text-white/30 mt-0.5">Personalize a identidade visual da sua loja</p>
               </div>
             </div>
-            <Button type="submit" className="gradient-pink text-primary-foreground border-none hover:opacity-90">Salvar</Button>
-          </form>
+            <form onSubmit={handleSaveBranding} className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-white/50 text-xs uppercase tracking-wider">Nome da Loja</Label>
+                  <Input name="name" defaultValue={tenant.name} className="wallet-input" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/50 text-xs uppercase tracking-wider">Logo</Label>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-white/10 bg-white/5">
+                      <Upload className="h-5 w-5 text-white/30" />
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="border-white/10 text-white/60 hover:bg-white/5 hover:text-white">Upload</Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/50 text-xs uppercase tracking-wider">Cor Primária</Label>
+                  <div className="flex gap-2">
+                    <div className="h-10 w-10 rounded-lg gradient-pink flex-shrink-0" />
+                    <Input name="primary_color" defaultValue={tenant.primary_color} className="wallet-input font-mono" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/50 text-xs uppercase tracking-wider">Cor Secundária</Label>
+                  <div className="flex gap-2">
+                    <div className="h-10 w-10 rounded-lg gradient-gold flex-shrink-0" />
+                    <Input name="secondary_color" defaultValue={tenant.secondary_color} className="wallet-input font-mono" />
+                  </div>
+                </div>
+              </div>
+              <Button type="submit" className="gradient-pink text-primary-foreground border-none hover:opacity-90">Salvar</Button>
+            </form>
+          </div>
         </TabsContent>
 
         {/* PIX Tab */}
         <TabsContent value="pix">
           <div className="space-y-6">
             {/* Static PIX Key */}
-            <div className="rounded-xl border border-border bg-card p-6 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <QrCode className="h-5 w-5 text-primary" />
+            <div className="wallet-section">
+              <div className="wallet-section-header mb-5">
+                <div className="wallet-section-icon">
+                  <QrCode className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-display font-semibold">Chave PIX Estática</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Usada para gerar QR Code e PIX copia e cola nos produtos
-                  </p>
+                  <h3 className="text-white font-display font-semibold text-sm">Chave PIX Estática</h3>
+                  <p className="text-[11px] text-white/30 mt-0.5">Usada para gerar QR Code e PIX copia e cola nos produtos</p>
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Tipo de Chave</Label>
+                  <Label className="text-white/50 text-xs uppercase tracking-wider">Tipo de Chave</Label>
                   <Select value={pixKeyType} onValueChange={setPixKeyType}>
-                    <SelectTrigger className="bg-muted border-none">
+                    <SelectTrigger className="wallet-input">
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -228,7 +236,7 @@ const SettingsPage = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Chave PIX</Label>
+                  <Label className="text-white/50 text-xs uppercase tracking-wider">Chave PIX</Label>
                   <div className="flex gap-2">
                     <Input
                       value={pixKey}
@@ -240,10 +248,10 @@ const SettingsPage = () => {
                         pixKeyType === "telefone" ? "+5511999999999" :
                         "Cole sua chave aleatória"
                       }
-                      className="bg-muted border-none font-mono"
+                      className="wallet-input font-mono"
                     />
                     {pixKey && (
-                      <Button type="button" variant="outline" size="icon" onClick={copyPixKey} title="Copiar">
+                      <Button type="button" size="icon" onClick={copyPixKey} title="Copiar" className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white flex-shrink-0">
                         <Copy className="h-4 w-4" />
                       </Button>
                     )}
@@ -252,7 +260,7 @@ const SettingsPage = () => {
               </div>
 
               {pixKey && pixKeyType && (
-                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-3">
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 mt-4">
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                   <span className="text-sm text-emerald-400">
                     Chave PIX configurada — QR Code será gerado automaticamente nos produtos
@@ -260,11 +268,11 @@ const SettingsPage = () => {
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-5">
                 <Button
                   onClick={handleSavePix}
                   disabled={savingPix}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="gradient-pink text-primary-foreground border-none hover:opacity-90"
                 >
                   {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Salvar Chave PIX
@@ -272,7 +280,7 @@ const SettingsPage = () => {
                 {pixKey && pixKeyType && (
                   <PixGeneratorDialog
                     trigger={
-                      <Button variant="outline">
+                      <Button className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white">
                         <QrCode className="h-4 w-4 mr-2" /> Testar QR Code
                       </Button>
                     }
@@ -282,50 +290,48 @@ const SettingsPage = () => {
             </div>
 
             {/* Payment Gateways */}
-            <div className="rounded-xl border border-border bg-card p-6 space-y-6">
-              <div>
-                <h3 className="font-display font-semibold">Gateways de Pagamento</h3>
-                <p className="text-sm text-muted-foreground">
-                  Ative gateways para gerar PIX dinâmico com valor e expiração automáticos
-                </p>
+            <div className="wallet-section">
+              <div className="wallet-section-header mb-5">
+                <div className="wallet-section-icon">
+                  <Zap className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-white font-display font-semibold text-sm">Gateways de Pagamento</h3>
+                  <p className="text-[11px] text-white/30 mt-0.5">Ative gateways para gerar PIX dinâmico com valor e expiração automáticos</p>
+                </div>
               </div>
 
               {providersLoading ? (
                 <div className="space-y-3">
-                  {[1, 2].map(i => <Skeleton key={i} className="h-16" />)}
+                  {[1, 2].map(i => <Skeleton key={i} className="h-16 rounded-xl bg-white/5" />)}
                 </div>
               ) : providers.length === 0 ? (
-                <div className="rounded-lg bg-muted p-6 text-center">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Nenhum gateway configurado ainda.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="rounded-xl bg-white/5 border border-white/8 p-6 text-center">
+                  <p className="text-sm text-white/40 mb-2">Nenhum gateway configurado ainda.</p>
+                  <p className="text-xs text-white/25">
                     Configure seus gateways na página de{" "}
                     <a href="/payments" className="text-primary hover:underline">Pagamentos</a>
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {providers.map(p => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3"
-                    >
+                    <div key={p.id} className="wallet-tx-row">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background text-xs font-bold uppercase">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-xs font-bold uppercase text-white/70">
                           {p.provider_key.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="text-sm font-medium capitalize">{p.provider_key.replace(/_/g, " ")}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm font-medium text-white capitalize">{p.provider_key.replace(/_/g, " ")}</p>
+                          <p className="text-[11px] text-white/30">
                             {p.api_key_encrypted ? "Credenciais configuradas" : "Sem credenciais"}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Badge variant={p.active ? "default" : "secondary"} className="text-xs">
+                        <span className={`wallet-tx-badge ${p.active ? "completed" : "pending"}`}>
                           {p.active ? "Ativo" : "Inativo"}
-                        </Badge>
+                        </span>
                         <Switch
                           checked={p.active}
                           onCheckedChange={() => toggleProvider(p.id, p.active)}
@@ -341,25 +347,35 @@ const SettingsPage = () => {
 
         {/* Users Tab */}
         <TabsContent value="users">
-          <div className="rounded-xl border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border p-5">
-              <h3 className="font-display font-semibold">Usuários e Permissões</h3>
-              <Button variant="outline" size="sm">Convidar</Button>
+          <div className="wallet-section">
+            <div className="flex items-center justify-between mb-5">
+              <div className="wallet-section-header">
+                <div className="wallet-section-icon">
+                  <Shield className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-white font-display font-semibold text-sm">Usuários e Permissões</h3>
+                  <p className="text-[11px] text-white/30 mt-0.5">Gerencie os acessos ao painel</p>
+                </div>
+              </div>
+              <Button size="sm" className="gap-2 border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white">
+                <UserPlus className="h-3.5 w-3.5" /> Convidar
+              </Button>
             </div>
             {rolesLoading ? (
-              <div className="p-4 space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}</div>
+              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-14 rounded-xl bg-white/5" />)}</div>
             ) : (
-              <div className="divide-y divide-border">
+              <div className="space-y-2">
                 {userRoles.map(u => (
-                  <div key={u.id} className="flex items-center justify-between px-5 py-3">
+                  <div key={u.id} className="wallet-tx-row">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full gradient-pink text-xs font-bold text-primary-foreground">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full gradient-pink text-xs font-bold text-white">
                         {(u.profiles?.discord_username || "?")[0].toUpperCase()}
                       </div>
-                      <span className="text-sm font-medium">{u.profiles?.discord_username || "Usuário"}</span>
+                      <span className="text-sm font-medium text-white">{u.profiles?.discord_username || "Usuário"}</span>
                     </div>
                     <Select defaultValue={u.role}>
-                      <SelectTrigger className="w-32 bg-muted border-none"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-32 wallet-input text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="owner">Owner</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
@@ -375,15 +391,37 @@ const SettingsPage = () => {
 
         {/* Plan Tab */}
         <TabsContent value="plan">
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <h3 className="font-display font-semibold">Plano Atual</h3>
-            <div className="rounded-lg bg-muted p-4">
+          <div className="wallet-section">
+            <div className="wallet-section-header mb-5">
+              <div className="wallet-section-icon">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-white font-display font-semibold text-sm">Plano Atual</h3>
+                <p className="text-[11px] text-white/30 mt-0.5">Detalhes da sua assinatura</p>
+              </div>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/8 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-gradient-pink capitalize">{tenant.plan || "Free"}</p>
-                  <p className="text-sm text-muted-foreground">Plano atual</p>
+                  <p className="text-xl font-bold text-gradient-pink capitalize">{tenant.plan || "Free"}</p>
+                  <p className="text-xs text-white/30 mt-1">Plano ativo</p>
                 </div>
-                <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">Ativo</span>
+                <span className="wallet-tx-badge completed">Ativo</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              <div className="rounded-xl bg-white/5 border border-white/8 p-4 text-center">
+                <p className="text-lg font-bold text-white">∞</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Produtos</p>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-white/8 p-4 text-center">
+                <p className="text-lg font-bold text-white">∞</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Vendas</p>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-white/8 p-4 text-center">
+                <p className="text-lg font-bold text-white">24/7</p>
+                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Suporte</p>
               </div>
             </div>
           </div>
