@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Package } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTenantQuery } from "@/hooks/useSupabaseQuery";
 import { ProductList } from "@/components/store/ProductList";
 import { ProductDetail } from "@/components/store/ProductDetail";
 import { ProductSelectModal } from "@/components/store/ProductSelectModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
 interface Product {
@@ -30,28 +29,41 @@ const StorePage = () => {
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
 
-  const { data: products = [], isLoading } = useTenantQuery<Product>("products", "products", {
-    orderBy: "created_at",
-    ascending: false,
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ["products", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase.functions.invoke("manage-products", {
+        body: { action: "list", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data ?? [];
+    },
+    enabled: !!tenantId,
   });
 
   const handleSave = async (product: Product) => {
-    const { error } = await (supabase as any)
-      .from("products")
-      .update({
-        name: product.name,
-        description: product.description,
-        price_cents: product.price_cents,
-        type: product.type,
-        active: product.active,
-        icon_url: product.icon_url,
-        banner_url: product.banner_url,
-        auto_delivery: product.auto_delivery,
-      })
-      .eq("id", product.id);
+    const { data, error } = await supabase.functions.invoke("manage-products", {
+      body: {
+        action: "update",
+        tenant_id: tenantId,
+        product_id: product.id,
+        product: {
+          name: product.name,
+          description: product.description,
+          price_cents: product.price_cents,
+          type: product.type,
+          active: product.active,
+          icon_url: product.icon_url,
+          banner_url: product.banner_url,
+          auto_delivery: product.auto_delivery,
+        },
+      },
+    });
 
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    if (error || data?.error) {
+      toast({ title: "Erro ao salvar", description: error?.message || data?.error, variant: "destructive" });
     } else {
       toast({ title: "Produto salvo com sucesso!" });
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -69,14 +81,12 @@ const StorePage = () => {
 
   const handleCreateNew = async () => {
     if (!tenantId) return;
-    const { data, error } = await (supabase as any)
-      .from("products")
-      .insert({ name: "Novo Produto", tenant_id: tenantId, price_cents: 0 })
-      .select()
-      .single();
+    const { data, error } = await supabase.functions.invoke("manage-products", {
+      body: { action: "create", tenant_id: tenantId },
+    });
 
-    if (error) {
-      toast({ title: "Erro ao criar produto", description: error.message, variant: "destructive" });
+    if (error || data?.error) {
+      toast({ title: "Erro ao criar produto", description: error?.message || data?.error, variant: "destructive" });
     } else {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setSelectedProduct(data as Product);
