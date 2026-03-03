@@ -310,6 +310,128 @@ serve(async (req) => {
         return respondImmediate(interaction, { embeds: [embed] });
       }
 
+      // ─── APPROVE ORDER (admin button) ─────────────────────
+      if (customId.startsWith("approve_order:")) {
+        const orderId = customId.replace("approve_order:", "");
+        await respondDeferredUpdate(interaction, botToken);
+
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (order.status !== "pending_payment") {
+          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
+          return ok();
+        }
+
+        // Mark as paid
+        await supabase.from("orders").update({ status: "paid", payment_provider: "static_pix" }).eq("id", orderId);
+
+        // Try to deliver (invoke deliver-order)
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/deliver-order`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({ order_id: orderId }),
+          });
+        } catch (e) {
+          console.error("Auto-deliver error:", e);
+        }
+
+        // Notify buyer via DM
+        try {
+          const dmCh = await fetch(`${DISCORD_API}/users/@me/channels`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ recipient_id: order.discord_user_id }),
+          });
+          if (dmCh.ok) {
+            const ch = await dmCh.json();
+            await fetch(`${DISCORD_API}/channels/${ch.id}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                embeds: [{
+                  title: "✅ Pagamento Confirmado!",
+                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`,
+                  color: 0x57F287,
+                  timestamp: new Date().toISOString(),
+                }],
+              }),
+            });
+          }
+        } catch (e) { console.error("DM notify error:", e); }
+
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "✅ Pedido Aprovado",
+            description: `Pedido **#${order.order_number}** aprovado por <@${userId}>`,
+            color: 0x57F287,
+            fields: [
+              { name: "📦 Produto", value: order.product_name, inline: true },
+              { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
+              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+            ],
+            timestamp: new Date().toISOString(),
+          }],
+        });
+        return ok();
+      }
+
+      // ─── REJECT ORDER (admin button) ──────────────────────
+      if (customId.startsWith("reject_order:")) {
+        const orderId = customId.replace("reject_order:", "");
+        await respondDeferredUpdate(interaction, botToken);
+
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (order.status !== "pending_payment") {
+          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
+          return ok();
+        }
+
+        await supabase.from("orders").update({ status: "canceled" }).eq("id", orderId);
+
+        // Notify buyer
+        try {
+          const dmCh = await fetch(`${DISCORD_API}/users/@me/channels`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ recipient_id: order.discord_user_id }),
+          });
+          if (dmCh.ok) {
+            const ch = await dmCh.json();
+            await fetch(`${DISCORD_API}/channels/${ch.id}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                embeds: [{
+                  title: "❌ Pedido Recusado",
+                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado pelo administrador.`,
+                  color: 0xED4245,
+                  timestamp: new Date().toISOString(),
+                }],
+              }),
+            });
+          }
+        } catch (e) { console.error("DM notify error:", e); }
+
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "❌ Pedido Recusado",
+            description: `Pedido **#${order.order_number}** recusado por <@${userId}>`,
+            color: 0xED4245,
+            fields: [
+              { name: "📦 Produto", value: order.product_name, inline: true },
+              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+            ],
+            timestamp: new Date().toISOString(),
+          }],
+        });
+        return ok();
+      }
+
     } catch (err) {
       console.error("Interaction error:", err);
       try {
@@ -399,6 +521,55 @@ async function processPurchase(
     const { data: tenant } = await supabase.from("tenants").select("name, pix_key, pix_key_type").eq("id", tenantId).single();
     if (!tenant?.pix_key) throw new Error("Nenhum método de pagamento configurado.");
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+    await supabase.from("orders").update({ payment_provider: "static_pix" }).eq("id", order.id);
+
+    // ─── Send admin notification to logs channel ────────────
+    const { data: storeConfig } = await supabase
+      .from("store_configs")
+      .select("logs_channel_id")
+      .eq("tenant_id", tenantId)
+      .single();
+
+    if (storeConfig?.logs_channel_id) {
+      const adminEmbed = {
+        title: "🔔 Novo Pedido — PIX Estático",
+        description: `Um novo pedido foi criado com **PIX estático**.\nAguardando confirmação manual do pagamento.`,
+        color: 0xFEE75C,
+        fields: [
+          { name: "📦 Produto", value: orderName, inline: true },
+          { name: "💰 Valor", value: formatBRL(priceCents), inline: true },
+          { name: "🔢 Pedido", value: `#${order.order_number}`, inline: true },
+          { name: "👤 Comprador", value: `<@${userId}> (${username})`, inline: false },
+        ],
+        footer: { text: "Clique em Aprovar após confirmar o pagamento no seu banco" },
+        timestamp: new Date().toISOString(),
+      };
+
+      await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [adminEmbed],
+          components: [{
+            type: 1,
+            components: [
+              {
+                type: 2, // Button
+                style: 3, // Green (Success)
+                label: "✅ Aprovar Pagamento",
+                custom_id: `approve_order:${order.id}`,
+              },
+              {
+                type: 2,
+                style: 4, // Red (Danger)
+                label: "❌ Recusar",
+                custom_id: `reject_order:${order.id}`,
+              },
+            ],
+          }],
+        }),
+      });
+    }
   }
 
   // Send PIX to user via DM

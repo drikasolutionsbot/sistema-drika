@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.manage-payment-providers]
 verify_jwt = false
+
+[functions.expire-pending-orders]
+verify_jwt = false
