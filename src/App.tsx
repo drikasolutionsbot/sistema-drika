@@ -34,6 +34,7 @@ import GiveawaysPage from "./pages/GiveawaysPage";
 import VipsPage from "./pages/VipsPage";
 import ECloudPage from "./pages/ECloudPage";
 import SupportPage from "./pages/SupportPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const AppRoutes = () => (
       <Route path="/payments" element={<PaymentsPage />} />
       <Route path="/tickets" element={<TicketsPage />} />
       <Route path="/finance" element={<FinancePage />} />
+      <Route path="/approvals" element={<ApprovalsPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/customization" element={<CustomizationPage />} />
       <Route path="/resources" element={<ResourcesPage />} />
