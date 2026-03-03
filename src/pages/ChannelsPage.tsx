@@ -170,6 +170,8 @@ const ChannelsPage = () => {
   const [newType, setNewType] = useState("text");
   const [newParent, setNewParent] = useState<string>("");
   const [newTopic, setNewTopic] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -292,6 +294,31 @@ const ChannelsPage = () => {
       await fetchDiscordChannels();
     } catch (err: any) {
       toast({ title: "Erro ao criar canal", description: err.message, variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!guildId || !newCategoryName.trim()) return;
+    setCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-discord-channel", {
+        body: {
+          guild_id: guildId,
+          name: newCategoryName.trim(),
+          type: "category",
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Categoria criada! ✅", description: data.channel?.name });
+      setNewParent(data.channel?.id || "");
+      setNewCategoryName("");
+      setCreatingCategory(false);
+      await fetchDiscordChannels();
+    } catch (err: any) {
+      toast({ title: "Erro ao criar categoria", description: err.message, variant: "destructive" });
     } finally {
       setCreating(false);
     }
@@ -500,18 +527,67 @@ const ChannelsPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            {newType !== "category" && discordCategories.length > 0 && (
+            {newType !== "category" && (
               <div className="space-y-2">
                 <Label>Categoria (opcional)</Label>
-                <Select value={newParent} onValueChange={setNewParent}>
-                  <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem categoria</SelectItem>
-                    {discordCategories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {creatingCategory ? (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nome da categoria"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateCategory();
+                        }
+                        if (e.key === "Escape") {
+                          setCreatingCategory(false);
+                          setNewCategoryName("");
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleCreateCategory}
+                      disabled={!newCategoryName.trim() || creating}
+                      className="shrink-0"
+                    >
+                      {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setCreatingCategory(false); setNewCategoryName(""); }}
+                      className="shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Select value={newParent} onValueChange={(v) => {
+                    if (v === "__create_cat__") {
+                      setCreatingCategory(true);
+                      return;
+                    }
+                    setNewParent(v);
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem categoria</SelectItem>
+                      <SelectItem value="__create_cat__">
+                        <div className="flex items-center gap-2 text-primary font-medium">
+                          <Plus className="h-3.5 w-3.5" />
+                          Criar nova categoria
+                        </div>
+                      </SelectItem>
+                      {discordCategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             )}
             {(newType === "text" || newType === "announcement") && (
