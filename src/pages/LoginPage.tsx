@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Key } from "lucide-react";
+import { Key, LogIn } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WifiLoader from "@/components/ui/wifi-loader";
 import drikaBanner from "@/assets/drika_banner.png";
@@ -83,13 +82,14 @@ const LoginPage = () => {
                 onKeyDown={(e) => e.key === "Enter" && handleTokenLogin()}
               />
             </div>
-            <Button
+            <button
               onClick={handleTokenLogin}
               disabled={validating || !token.trim()}
-              className="w-full h-12 gradient-pink text-primary-foreground border-none hover:opacity-90"
+              className="w-full h-10 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors group"
             >
-              Entrar
-            </Button>
+              <LogIn className="h-5 w-5 group-hover:animate-[flickering_2s_linear_infinite]" />
+              <span>Entrar</span>
+            </button>
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
