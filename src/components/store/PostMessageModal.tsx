@@ -31,6 +31,7 @@ interface PostMessageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: {
+    id: string;
     name: string;
     description: string | null;
     price_cents: number;
@@ -128,6 +129,7 @@ export const PostMessageModal = ({
           channel_id: selectedChannel,
           embeds: [embed],
           content: "",
+          product_id: product.id,
         },
       });
 

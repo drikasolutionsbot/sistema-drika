@@ -9,51 +9,14 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
-async function getOrCreateWebhook(channelId: string, botToken: string, webhookName: string): Promise<{ id: string; token: string } | null> {
-  // Check existing webhooks in the channel
-  const listRes = await fetch(`${DISCORD_API}/channels/${channelId}/webhooks`, {
-    headers: { Authorization: `Bot ${botToken}` },
-  });
-
-  if (!listRes.ok) {
-    console.error("Failed to list webhooks:", await listRes.text());
-    return null;
-  }
-
-  const webhooks = await listRes.json();
-  const existing = webhooks.find((w: any) => w.name === webhookName && w.type === 1);
-  
-  if (existing) {
-    return { id: existing.id, token: existing.token };
-  }
-
-  // Create a new webhook
-  const createRes = await fetch(`${DISCORD_API}/channels/${channelId}/webhooks`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ name: webhookName }),
-  });
-
-  if (!createRes.ok) {
-    console.error("Failed to create webhook:", await createRes.text());
-    return null;
-  }
-
-  const webhook = await createRes.json();
-  return { id: webhook.id, token: webhook.token };
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { tenant_id, channel_id, content, embeds } = await req.json();
-    
+    const { tenant_id, channel_id, content, embeds, product_id, components } = await req.json();
+
     if (!tenant_id) throw new Error("Missing tenant_id");
     if (!channel_id) throw new Error("Missing channel_id");
     if (!content && (!embeds || embeds.length === 0)) {
@@ -63,46 +26,81 @@ serve(async (req) => {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
     if (!botToken) throw new Error("DISCORD_BOT_TOKEN not configured");
 
-    // Get tenant info for webhook identity
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    const { data: tenant, error: tenantError } = await supabase
-      .from("tenants")
-      .select("name, logo_url")
-      .eq("id", tenant_id)
-      .single();
-
-    if (tenantError) throw tenantError;
-
-    const webhookName = `drika-${tenant_id.slice(0, 8)}`;
-    const webhook = await getOrCreateWebhook(channel_id, botToken, webhookName);
-    
-    if (!webhook) {
-      throw new Error("Failed to get or create webhook. Check bot permissions (MANAGE_WEBHOOKS).");
-    }
-
-    // Execute webhook with tenant's identity
+    // Build payload
     const payload: Record<string, any> = {};
     if (content) payload.content = content;
     if (embeds) payload.embeds = embeds;
-    payload.username = tenant.name || "Drika Bot";
-    if (tenant.logo_url) payload.avatar_url = tenant.logo_url;
 
-    const execRes = await fetch(`${DISCORD_API}/webhooks/${webhook.id}/${webhook.token}?wait=true`, {
+    // If product_id is provided, add buy/variations buttons
+    if (product_id) {
+      // Fetch product fields to check if there are variations
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+      const { data: fields } = await supabase
+        .from("product_fields")
+        .select("id")
+        .eq("product_id", product_id)
+        .eq("tenant_id", tenant_id);
+
+      const hasVariations = fields && fields.length > 0;
+
+      const buttons: any[] = [
+        {
+          type: 2, // Button
+          style: 3, // Success (green)
+          label: "Comprar",
+          emoji: { name: "🛒" },
+          custom_id: `buy_product:${product_id}`,
+        },
+      ];
+
+      if (hasVariations) {
+        buttons.push({
+          type: 2,
+          style: 2, // Secondary (gray)
+          label: "Variações",
+          emoji: { name: "📋" },
+          custom_id: `view_variations:${product_id}`,
+        });
+      }
+
+      buttons.push({
+        type: 2,
+        style: 2,
+        label: "Detalhes",
+        emoji: { name: "ℹ️" },
+        custom_id: `view_details:${product_id}`,
+      });
+
+      payload.components = [
+        {
+          type: 1, // Action Row
+          components: buttons,
+        },
+      ];
+    } else if (components) {
+      payload.components = components;
+    }
+
+    // Send message via Bot API (supports components/interactions)
+    const sendRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(payload),
     });
 
-    if (!execRes.ok) {
-      const errText = await execRes.text();
-      console.error("Webhook execute failed:", execRes.status, errText);
-      throw new Error(`Discord webhook error: ${execRes.status}`);
+    if (!sendRes.ok) {
+      const errText = await sendRes.text();
+      console.error("Bot message failed:", sendRes.status, errText);
+      throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
     }
 
-    const message = await execRes.json();
+    const message = await sendRes.json();
 
     return new Response(JSON.stringify({ success: true, message_id: message.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

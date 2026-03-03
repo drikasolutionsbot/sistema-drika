@@ -185,9 +185,14 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [] }: Produ
 
         {/* Button row */}
         <div className="flex gap-2 mt-2">
-          <button className="bg-[#5865F2] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
+          <button className="bg-[#248046] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
             🛒 Comprar
           </button>
+          {fields.length > 0 && (
+            <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
+              📋 Variações
+            </button>
+          )}
           <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
             ℹ️ Detalhes
           </button>
