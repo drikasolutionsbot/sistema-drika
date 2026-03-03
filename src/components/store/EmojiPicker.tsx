@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, SmilePlus } from "lucide-react";
+import { Loader2, Lock, Search, SmilePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +12,9 @@ interface DiscordEmoji {
   id: string;
   name: string;
   animated: boolean;
+  available?: boolean;
+  role_ids?: string[];
+  blocked?: boolean;
   url: string;
   formatted: string;
 }
@@ -136,8 +139,16 @@ const EMOJI_CATEGORIES: { label: string; icon: string; emojis: string[] }[] = [
   },
 ];
 
-// Global cache
-const emojiCache: Record<string, { emojis: DiscordEmoji[]; loading: boolean; promise?: Promise<void> }> = {};
+const CUSTOM_EMOJI_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type EmojiCacheEntry = {
+  emojis: DiscordEmoji[];
+  loading: boolean;
+  fetchedAt: number;
+  promise?: Promise<void>;
+};
+
+const emojiCache: Record<string, EmojiCacheEntry> = {};
 
 export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
   const { tenant } = useTenant();
@@ -149,27 +160,33 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
   );
   const [loadingCustom, setLoadingCustom] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("frequentes");
+  const [activeTab, setActiveTab] = useState("servidor");
 
   useEffect(() => {
     if (!open || !tenantId) return;
 
-    if (emojiCache[tenantId] && !emojiCache[tenantId].loading) {
-      setCustomEmojis(emojiCache[tenantId].emojis);
-      return;
+    const cached = emojiCache[tenantId];
+    if (cached && !cached.loading) {
+      setCustomEmojis(cached.emojis);
+      const fresh = Date.now() - cached.fetchedAt < CUSTOM_EMOJI_CACHE_TTL_MS;
+      if (fresh && cached.emojis.length > 0) return;
     }
 
-    if (emojiCache[tenantId]?.loading && emojiCache[tenantId]?.promise) {
+    if (cached?.loading && cached.promise) {
       setLoadingCustom(true);
-      emojiCache[tenantId].promise!.then(() => {
-        setCustomEmojis(emojiCache[tenantId].emojis);
+      cached.promise.then(() => {
+        setCustomEmojis(emojiCache[tenantId]?.emojis ?? []);
         setLoadingCustom(false);
       });
       return;
     }
 
     setLoadingCustom(true);
-    emojiCache[tenantId] = { emojis: [], loading: true };
+    emojiCache[tenantId] = {
+      emojis: cached?.emojis ?? [],
+      loading: true,
+      fetchedAt: cached?.fetchedAt ?? 0,
+    };
 
     const fetchPromise = (async () => {
       try {
@@ -177,15 +194,25 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
           body: { tenant_id: tenantId },
         });
         if (error) throw error;
-        if (Array.isArray(data)) {
-          emojiCache[tenantId].emojis = data;
-          setCustomEmojis(data);
-        }
+
+        const fetchedEmojis = Array.isArray(data) ? data : [];
+        emojiCache[tenantId] = {
+          emojis: fetchedEmojis,
+          loading: false,
+          fetchedAt: Date.now(),
+        };
+        setCustomEmojis(fetchedEmojis);
       } catch (e) {
         console.error("Failed to fetch emojis:", e);
+        emojiCache[tenantId] = {
+          emojis: cached?.emojis ?? [],
+          loading: false,
+          fetchedAt: 0,
+        };
+        setCustomEmojis(cached?.emojis ?? []);
+      } finally {
+        setLoadingCustom(false);
       }
-      emojiCache[tenantId].loading = false;
-      setLoadingCustom(false);
     })();
 
     emojiCache[tenantId].promise = fetchPromise;
@@ -198,7 +225,7 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
     setOpen(false);
   };
 
-  const hasCustomEmojis = customEmojis.length > 0 || loadingCustom;
+  // Server tab is always visible
 
   // Filter logic
   const searchLower = search.toLowerCase();
@@ -245,15 +272,13 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
 
         {/* Category tabs */}
         <div className="flex gap-0.5 px-2 py-1.5 border-b border-border overflow-x-auto">
-          {hasCustomEmojis && (
-            <button
-              onClick={() => setActiveTab("servidor")}
-              className={`h-7 w-7 flex items-center justify-center rounded text-sm shrink-0 transition-colors ${activeTab === "servidor" ? "bg-primary/20" : "hover:bg-muted"}`}
-              title={tenantName || "Servidor"}
-            >
-              🏠
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab("servidor")}
+            className={`h-7 w-7 flex items-center justify-center rounded text-sm shrink-0 transition-colors ${activeTab === "servidor" ? "bg-primary/20" : "hover:bg-muted"}`}
+            title={tenantName || "Servidor"}
+          >
+            🏠
+          </button>
           {EMOJI_CATEGORIES.map((cat) => (
             <button
               key={cat.label}
@@ -285,8 +310,8 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
                       <button
                         key={emoji.id}
                         onClick={() => selectEmoji(emoji.formatted)}
-                        className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-                        title={`:${emoji.name}:`}
+                        className={`relative h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors ${emoji.blocked ? "opacity-70" : ""}`}
+                        title={`:${emoji.name}: ${emoji.blocked ? "(bloqueado)" : ""}`}
                       >
                         <img
                           src={emoji.url}
@@ -294,6 +319,11 @@ export const EmojiPicker = ({ value, onChange }: EmojiPickerProps) => {
                           className="h-5 w-5 object-contain"
                           loading="lazy"
                         />
+                        {emoji.blocked && (
+                          <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-muted p-0.5">
+                            <Lock className="h-2.5 w-2.5 text-muted-foreground" />
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

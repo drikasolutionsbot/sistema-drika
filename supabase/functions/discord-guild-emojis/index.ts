@@ -49,16 +49,30 @@ serve(async (req) => {
 
     const emojis = await res.json();
 
-    const formatted = emojis.map((e: any) => ({
-      id: e.id,
-      name: e.name,
-      animated: e.animated ?? false,
-      url: `https://cdn.discordapp.com/emojis/${e.id}.${e.animated ? "gif" : "png"}`,
-      formatted: e.animated ? `<a:${e.name}:${e.id}>` : `<:${e.name}:${e.id}>`,
-    }));
+    const formatted = emojis.map((e: any) => {
+      const isAnimated = e.animated ?? false;
+      const roleIds = Array.isArray(e.roles) ? e.roles : [];
+      const available = e.available ?? true;
+      const blocked = !available || roleIds.length > 0;
+
+      return {
+        id: e.id,
+        name: e.name,
+        animated: isAnimated,
+        available,
+        role_ids: roleIds,
+        blocked,
+        url: `https://cdn.discordapp.com/emojis/${e.id}.${isAnimated ? "gif" : "png"}`,
+        formatted: isAnimated ? `<a:${e.name}:${e.id}>` : `<:${e.name}:${e.id}>`,
+      };
+    });
 
     return new Response(JSON.stringify(formatted), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
