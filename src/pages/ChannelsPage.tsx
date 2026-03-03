@@ -239,7 +239,9 @@ const ChannelsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">Canais</h1>
-          <p className="text-muted-foreground">Configure e crie canais no Discord</p>
+          <p className="text-muted-foreground">
+            Configure os canais da <span className="font-semibold text-foreground">{tenant?.name || "sua loja"}</span> para logs e notificações
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
