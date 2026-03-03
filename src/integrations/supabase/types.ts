@@ -606,6 +606,7 @@ export type Database = {
           bot_token_encrypted: string | null
           created_at: string
           discord_guild_id: string | null
+          ecloud_custom_url: string | null
           id: string
           logo_url: string | null
           name: string
@@ -625,6 +626,7 @@ export type Database = {
           bot_token_encrypted?: string | null
           created_at?: string
           discord_guild_id?: string | null
+          ecloud_custom_url?: string | null
           id?: string
           logo_url?: string | null
           name: string
@@ -644,6 +646,7 @@ export type Database = {
           bot_token_encrypted?: string | null
           created_at?: string
           discord_guild_id?: string | null
+          ecloud_custom_url?: string | null
           id?: string
           logo_url?: string | null
           name?: string

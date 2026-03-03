@@ -1,0 +1,1 @@
+ALTER TABLE public.tenants ADD COLUMN ecloud_custom_url text DEFAULT NULL;
