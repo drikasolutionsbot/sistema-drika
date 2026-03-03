@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Plus, Hash, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Hash, Loader2, FolderOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -19,11 +21,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+
+interface Channel {
+  id: string;
+  name: string;
+  parent_id?: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  position: number;
+}
 
 interface ChannelSelectWithCreateProps {
   value: string;
   onChange: (value: string) => void;
-  channels: { id: string; name: string }[];
+  channels: Channel[];
+  categories?: Category[];
   onChannelCreated: () => void;
   tenantId: string | null;
   guildId?: string | null;
@@ -35,6 +51,7 @@ const ChannelSelectWithCreate = ({
   value,
   onChange,
   channels,
+  categories = [],
   onChannelCreated,
   tenantId,
   guildId,
@@ -44,6 +61,19 @@ const ChannelSelectWithCreate = ({
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState(defaultNewName);
+
+  const grouped = useMemo(() => {
+    if (categories.length === 0) return null;
+
+    const groups = categories.map((cat) => ({
+      category: cat,
+      channels: channels.filter((ch) => ch.parent_id === cat.id),
+    }));
+    const uncategorized = channels.filter(
+      (ch) => !ch.parent_id || !categories.some((c) => c.id === ch.parent_id)
+    );
+    return { groups, uncategorized };
+  }, [channels, categories]);
 
   const handleCreate = async () => {
     if (!newName.trim()) {
@@ -83,7 +113,6 @@ const ChannelSelectWithCreate = ({
 
       toast.success(`Canal #${data.channel?.name} criado!`);
 
-      // Refresh channels list then select the new one
       await onChannelCreated();
       if (data.channel?.id) {
         onChange(data.channel.id);
@@ -106,6 +135,15 @@ const ChannelSelectWithCreate = ({
     onChange(val);
   };
 
+  const renderChannelItem = (ch: Channel) => (
+    <SelectItem key={ch.id} value={ch.id}>
+      <div className="flex items-center gap-2">
+        <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        {ch.name}
+      </div>
+    </SelectItem>
+  );
+
   return (
     <>
       <Select value={value || undefined} onValueChange={handleValueChange}>
@@ -119,14 +157,35 @@ const ChannelSelectWithCreate = ({
               Criar novo canal
             </div>
           </SelectItem>
-          {channels.map((ch) => (
-            <SelectItem key={ch.id} value={ch.id}>
-              <div className="flex items-center gap-2">
-                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                {ch.name}
-              </div>
-            </SelectItem>
-          ))}
+
+          <Separator className="my-1" />
+
+          {grouped ? (
+            <>
+              {grouped.uncategorized.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+                    Sem categoria
+                  </SelectLabel>
+                  {grouped.uncategorized.map(renderChannelItem)}
+                </SelectGroup>
+              )}
+              {grouped.groups.map(
+                (g) =>
+                  g.channels.length > 0 && (
+                    <SelectGroup key={g.category.id}>
+                      <SelectLabel className="text-[11px] uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+                        <FolderOpen className="h-3 w-3" />
+                        {g.category.name}
+                      </SelectLabel>
+                      {g.channels.map(renderChannelItem)}
+                    </SelectGroup>
+                  )
+              )}
+            </>
+          ) : (
+            channels.map(renderChannelItem)
+          )}
         </SelectContent>
       </Select>
 
