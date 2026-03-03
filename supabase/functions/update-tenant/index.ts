@@ -19,7 +19,7 @@ serve(async (req) => {
       throw new Error("No updates provided");
     }
 
-    const allowedFields = ["name", "logo_url", "banner_url", "primary_color", "secondary_color", "bot_status", "bot_status_interval", "bot_prefix", "discord_guild_id", "ecloud_custom_url"];
+    const allowedFields = ["name", "logo_url", "banner_url", "primary_color", "secondary_color", "bot_status", "bot_status_interval", "bot_prefix", "discord_guild_id", "ecloud_custom_url", "verify_enabled", "verify_redirect_url", "verify_role_id"];
     const safeUpdates: Record<string, string> = {};
     for (const key of Object.keys(updates)) {
       if (allowedFields.includes(key)) {

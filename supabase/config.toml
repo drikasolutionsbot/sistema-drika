@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.test-payment]
 verify_jwt = false
+
+[functions.verify-member]
+verify_jwt = false

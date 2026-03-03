@@ -33,6 +33,7 @@ import InviteTrackingPage from "./pages/InviteTrackingPage";
 import GiveawaysPage from "./pages/GiveawaysPage";
 import VipsPage from "./pages/VipsPage";
 import ECloudPage from "./pages/ECloudPage";
+import VerifyPage from "./pages/VerifyPage";
 import SupportPage from "./pages/SupportPage";
 import NotFound from "./pages/NotFound";
 
@@ -58,6 +59,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/verify" element={<VerifyPage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
     <Route path="/" element={<Navigate to="/dashboard" replace />} />

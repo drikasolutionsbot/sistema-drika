@@ -616,6 +616,9 @@ export type Database = {
           primary_color: string | null
           secondary_color: string | null
           updated_at: string
+          verify_enabled: boolean | null
+          verify_redirect_url: string | null
+          verify_role_id: string | null
         }
         Insert: {
           banner_url?: string | null
@@ -636,6 +639,9 @@ export type Database = {
           primary_color?: string | null
           secondary_color?: string | null
           updated_at?: string
+          verify_enabled?: boolean | null
+          verify_redirect_url?: string | null
+          verify_role_id?: string | null
         }
         Update: {
           banner_url?: string | null
@@ -656,6 +662,9 @@ export type Database = {
           primary_color?: string | null
           secondary_color?: string | null
           updated_at?: string
+          verify_enabled?: boolean | null
+          verify_redirect_url?: string | null
+          verify_role_id?: string | null
         }
         Relationships: []
       }
@@ -735,6 +744,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verified_members: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          discord_avatar: string | null
+          discord_user_id: string
+          discord_username: string | null
+          id: string
+          last_restore_at: string | null
+          nickname: string | null
+          refresh_token_encrypted: string | null
+          roles_backup: Json | null
+          tenant_id: string
+          token_expires_at: string | null
+          updated_at: string
+          verified_at: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          discord_avatar?: string | null
+          discord_user_id: string
+          discord_username?: string | null
+          id?: string
+          last_restore_at?: string | null
+          nickname?: string | null
+          refresh_token_encrypted?: string | null
+          roles_backup?: Json | null
+          tenant_id: string
+          token_expires_at?: string | null
+          updated_at?: string
+          verified_at?: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          discord_avatar?: string | null
+          discord_user_id?: string
+          discord_username?: string | null
+          id?: string
+          last_restore_at?: string | null
+          nickname?: string | null
+          refresh_token_encrypted?: string | null
+          roles_backup?: Json | null
+          tenant_id?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verified_members_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
