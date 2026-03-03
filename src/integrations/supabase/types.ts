@@ -612,6 +612,120 @@ export type Database = {
         }
         Relationships: []
       }
+      protection_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          module_key: string
+          target_user_id: string | null
+          target_username: string | null
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          module_key: string
+          target_user_id?: string | null
+          target_username?: string | null
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          module_key?: string
+          target_user_id?: string | null
+          target_username?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_settings: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          module_key: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          module_key: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          module_key?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_whitelist: {
+        Row: {
+          created_at: string
+          discord_id: string
+          id: string
+          label: string | null
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          discord_id: string
+          id?: string
+          label?: string | null
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          discord_id?: string
+          id?: string
+          label?: string | null
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_whitelist_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_embeds: {
         Row: {
           created_at: string

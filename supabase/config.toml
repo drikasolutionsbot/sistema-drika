@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.manage-vips]
 verify_jwt = false
+
+[functions.manage-protection]
+verify_jwt = false
