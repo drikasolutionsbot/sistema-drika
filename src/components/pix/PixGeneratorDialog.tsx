@@ -15,18 +15,26 @@ interface PixGeneratorDialogProps {
   trigger?: React.ReactNode;
 }
 
+interface PixResult {
+  brcode: string;
+  amount: string | null;
+  method: "static" | "dynamic";
+  provider: string | null;
+  qr_code_base64: string | null;
+  expires_at: string | null;
+}
+
 const PixGeneratorDialog = ({ productName, amountCents, trigger }: PixGeneratorDialogProps) => {
   const { tenantId } = useTenant();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [brcode, setBrcode] = useState("");
-  const [amount, setAmount] = useState(amountCents ? (amountCents / 100).toFixed(2) : "");
+  const [result, setResult] = useState<PixResult | null>(null);
   const [customAmount, setCustomAmount] = useState(amountCents ? (amountCents / 100).toFixed(2) : "");
 
   const handleGenerate = async () => {
     if (!tenantId) return;
     setLoading(true);
-    setBrcode("");
+    setResult(null);
     try {
       const cents = Math.round(parseFloat(customAmount || "0") * 100);
       const { data, error } = await supabase.functions.invoke("generate-pix", {
@@ -39,8 +47,14 @@ const PixGeneratorDialog = ({ productName, amountCents, trigger }: PixGeneratorD
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setBrcode(data.brcode);
-      setAmount(data.amount || null);
+      setResult({
+        brcode: data.brcode,
+        amount: data.amount || null,
+        method: data.method || "static",
+        provider: data.provider || null,
+        qr_code_base64: data.qr_code_base64 || null,
+        expires_at: data.expires_at || null,
+      });
     } catch (err: any) {
       toast({ title: "Erro ao gerar PIX", description: err.message, variant: "destructive" });
     } finally {
@@ -66,7 +80,7 @@ const PixGeneratorDialog = ({ productName, amountCents, trigger }: PixGeneratorD
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
-          {!brcode ? (
+          {!result ? (
             <>
               <div className="space-y-2">
                 <Label>Valor (R$)</Label>
@@ -80,7 +94,7 @@ const PixGeneratorDialog = ({ productName, amountCents, trigger }: PixGeneratorD
                   className="bg-muted border-none font-mono"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Deixe vazio para gerar um PIX sem valor definido
+                  Com gateway ativo, o PIX será gerado dinamicamente. Sem gateway, será estático via chave PIX.
                 </p>
               </div>
               <Button
@@ -97,11 +111,19 @@ const PixGeneratorDialog = ({ productName, amountCents, trigger }: PixGeneratorD
             </>
           ) : (
             <>
-              <PixQRCode brcode={brcode} amount={amount} size={220} />
+              <PixQRCode
+                brcode={result.brcode}
+                amount={result.amount}
+                size={220}
+                method={result.method}
+                provider={result.provider}
+                qrCodeBase64={result.qr_code_base64}
+                expiresAt={result.expires_at}
+              />
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => { setBrcode(""); setAmount(""); }}
+                onClick={() => setResult(null)}
               >
                 Gerar Novo
               </Button>
