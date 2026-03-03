@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useTenant } from "@/contexts/TenantContext";
+import PixGeneratorDialog from "@/components/pix/PixGeneratorDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -243,14 +244,25 @@ const SettingsPage = () => {
                 </div>
               )}
 
-              <Button
-                onClick={handleSavePix}
-                disabled={savingPix}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Salvar Chave PIX
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleSavePix}
+                  disabled={savingPix}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Salvar Chave PIX
+                </Button>
+                {pixKey && pixKeyType && (
+                  <PixGeneratorDialog
+                    trigger={
+                      <Button variant="outline">
+                        <QrCode className="h-4 w-4 mr-2" /> Testar QR Code
+                      </Button>
+                    }
+                  />
+                )}
+              </div>
             </div>
 
             {/* Payment Gateways */}
