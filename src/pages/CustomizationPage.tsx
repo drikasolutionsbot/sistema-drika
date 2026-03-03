@@ -44,7 +44,7 @@ const CustomizationPage = () => {
   const openEditModal = () => {
     setEditName(botName);
     setAvatarPreview(tenant?.logo_url || null);
-    setBannerPreview(null);
+    setBannerPreview((tenant as any)?.banner_url || null);
     setEditOpen(true);
   };
 
@@ -91,6 +91,10 @@ const CustomizationPage = () => {
           .from("tenant-assets")
           .upload(path, bannerFile, { upsert: true });
         if (error) throw error;
+        const { data: urlData } = supabase.storage
+          .from("tenant-assets")
+          .getPublicUrl(path);
+        updates.banner_url = urlData.publicUrl;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -150,7 +154,10 @@ const CustomizationPage = () => {
 
       {/* Banner */}
       <div className="relative rounded-xl overflow-hidden border border-border">
-        <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20 relative">
+        <div className="h-32 bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20 relative overflow-hidden">
+          {(tenant as any)?.banner_url && (
+            <img src={(tenant as any).banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+          )}
           <button
             onClick={openEditModal}
             className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-background/60 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground transition-colors"

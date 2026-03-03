@@ -598,6 +598,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          banner_url: string | null
           bot_prefix: string | null
           bot_status: string | null
           bot_status_interval: number | null
@@ -612,6 +613,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          banner_url?: string | null
           bot_prefix?: string | null
           bot_status?: string | null
           bot_status_interval?: number | null
@@ -626,6 +628,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          banner_url?: string | null
           bot_prefix?: string | null
           bot_status?: string | null
           bot_status_interval?: number | null
