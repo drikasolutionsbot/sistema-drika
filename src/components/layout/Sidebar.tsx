@@ -26,6 +26,11 @@ const navGroups = [
     items: [
       { label: "Finanças", icon: DollarSign, path: "/finance" },
       { label: "Aprovações", icon: ClipboardCheck, path: "/approvals" },
+    ],
+  },
+  {
+    label: "BOT",
+    items: [
       { label: "Personalização", icon: Palette, path: "/customization" },
       { label: "Recursos", icon: Box, path: "/resources" },
     ],
