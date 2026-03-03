@@ -15,6 +15,23 @@ import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
 
+// Retry helper for cold-start edge function failures
+async function invokeWithRetry(fnName: string, body: any, retries = 2): Promise<any> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const { data, error } = await supabase.functions.invoke(fnName, { body });
+      if (error) {
+        if (i < retries) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        throw error;
+      }
+      return data;
+    } catch (err) {
+      if (i < retries) { await new Promise(r => setTimeout(r, 1500)); continue; }
+      throw err;
+    }
+  }
+}
+
 const providers = [
   {
     key: "mercadopago",
@@ -75,10 +92,7 @@ const PaymentsPage = () => {
     queryKey: ["payment-providers", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
-        body: { action: "list", tenant_id: tenantId },
-      });
-      if (error) throw error;
+      const data = await invokeWithRetry("manage-payment-providers", { action: "list", tenant_id: tenantId });
       if (data?.error) throw new Error(data.error);
       return data ?? [];
     },
@@ -92,16 +106,13 @@ const PaymentsPage = () => {
   const handleSave = async (providerKey: string, apiKey: string, secretKey: string) => {
     if (!tenantId) return;
     try {
-      const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
-        body: {
-          action: "upsert",
-          tenant_id: tenantId,
-          provider_key: providerKey,
-          api_key: apiKey,
-          secret_key: secretKey,
-        },
+      const data = await invokeWithRetry("manage-payment-providers", {
+        action: "upsert",
+        tenant_id: tenantId,
+        provider_key: providerKey,
+        api_key: apiKey,
+        secret_key: secretKey,
       });
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       refetch();
       toast({ title: "Provedor salvo e ativado!" });
@@ -113,10 +124,11 @@ const PaymentsPage = () => {
 
   const handleToggle = async (providerId: string, currentActive: boolean) => {
     try {
-      const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
-        body: { action: "toggle", tenant_id: tenantId, provider_id: providerId },
+      const data = await invokeWithRetry("manage-payment-providers", {
+        action: "toggle",
+        tenant_id: tenantId,
+        provider_id: providerId,
       });
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
       refetch();
     } catch (err: any) {
@@ -203,10 +215,11 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
     setTesting(true);
     setTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("test-payment", {
-        body: { provider_key: provider.key, api_key: apiKey, secret_key: secretKey },
+      const data = await invokeWithRetry("test-payment", {
+        provider_key: provider.key,
+        api_key: apiKey,
+        secret_key: secretKey,
       });
-      if (error) throw error;
       setTestResult(data);
       if (data?.success) {
         toast({ title: data.message });
