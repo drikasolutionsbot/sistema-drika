@@ -93,10 +93,12 @@ const AdminSupportPage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir este canal?")) return;
     const { error } = await supabase.from("support_channels").delete().eq("id", id);
     if (error) {
       toast({ title: "Erro ao excluir", variant: "destructive" });
     } else {
+      if (editing?.id === id) handleCancel();
       toast({ title: "Canal excluído!" });
       fetchChannels();
     }
