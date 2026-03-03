@@ -733,10 +733,14 @@ export type Database = {
           compare_price_cents: number | null
           created_at: string
           description: string | null
+          enable_credits: boolean
+          enable_instructions: boolean
           icon_url: string | null
           id: string
           name: string
           price_cents: number
+          show_sold: boolean
+          show_stock: boolean
           stock: number | null
           tenant_id: string
           type: Database["public"]["Enums"]["product_type"]
@@ -750,10 +754,14 @@ export type Database = {
           compare_price_cents?: number | null
           created_at?: string
           description?: string | null
+          enable_credits?: boolean
+          enable_instructions?: boolean
           icon_url?: string | null
           id?: string
           name: string
           price_cents?: number
+          show_sold?: boolean
+          show_stock?: boolean
           stock?: number | null
           tenant_id: string
           type?: Database["public"]["Enums"]["product_type"]
@@ -767,10 +775,14 @@ export type Database = {
           compare_price_cents?: number | null
           created_at?: string
           description?: string | null
+          enable_credits?: boolean
+          enable_instructions?: boolean
           icon_url?: string | null
           id?: string
           name?: string
           price_cents?: number
+          show_sold?: boolean
+          show_stock?: boolean
           stock?: number | null
           tenant_id?: string
           type?: Database["public"]["Enums"]["product_type"]

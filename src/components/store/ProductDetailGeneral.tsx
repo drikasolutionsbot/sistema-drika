@@ -25,6 +25,10 @@ interface Product {
   banner_url?: string | null;
   auto_delivery?: boolean;
   category_id?: string | null;
+  enable_credits?: boolean;
+  show_stock?: boolean;
+  show_sold?: boolean;
+  enable_instructions?: boolean;
 }
 
 interface ProductDetailGeneralProps {
@@ -219,28 +223,40 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
               <p className="text-sm font-bold">Habilitar Créditos</p>
               <p className="text-xs text-muted-foreground">Permitir pagamento com créditos</p>
             </div>
-            <Switch />
+            <Switch
+              checked={product.enable_credits ?? false}
+              onCheckedChange={(val) => onChange({ enable_credits: val })}
+            />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold">Mostrar Estoque</p>
               <p className="text-xs text-muted-foreground">Mostrar o estoque do produto</p>
             </div>
-            <Switch />
+            <Switch
+              checked={product.show_stock ?? false}
+              onCheckedChange={(val) => onChange({ show_stock: val })}
+            />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold">Mostrar Vendidos</p>
               <p className="text-xs text-muted-foreground">Mostrar o número de vendidos do produto</p>
             </div>
-            <Switch />
+            <Switch
+              checked={product.show_sold ?? false}
+              onCheckedChange={(val) => onChange({ show_sold: val })}
+            />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold">Habilitar Instruções</p>
               <p className="text-xs text-muted-foreground">Habilitar instruções do produto</p>
             </div>
-            <Switch />
+            <Switch
+              checked={product.enable_instructions ?? false}
+              onCheckedChange={(val) => onChange({ enable_instructions: val })}
+            />
           </div>
         </div>
       </section>
