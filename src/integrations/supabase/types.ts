@@ -441,6 +441,7 @@ export type Database = {
           created_at: string
           discord_user_id: string
           discord_username: string | null
+          field_id: string | null
           id: string
           order_number: number
           payment_id: string | null
@@ -458,6 +459,7 @@ export type Database = {
           created_at?: string
           discord_user_id: string
           discord_username?: string | null
+          field_id?: string | null
           id?: string
           order_number?: number
           payment_id?: string | null
@@ -475,6 +477,7 @@ export type Database = {
           created_at?: string
           discord_user_id?: string
           discord_username?: string | null
+          field_id?: string | null
           id?: string
           order_number?: number
           payment_id?: string | null
@@ -487,6 +490,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "product_fields"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_product_id_fkey"
             columns: ["product_id"]

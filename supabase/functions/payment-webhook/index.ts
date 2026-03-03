@@ -172,6 +172,43 @@ serve(async (req) => {
 
     console.log(`Webhook ${provider}/${tenantId}:`, JSON.stringify(result));
 
+    // If payment was confirmed, trigger auto-delivery
+    if (result?.handled && result?.status === "approved" || result?.status === "paid" || (result as any)?.txid) {
+      try {
+        // Find the order that was just paid
+        const { data: paidOrders } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("status", "paid")
+          .order("updated_at", { ascending: false })
+          .limit(1);
+
+        if (paidOrders && paidOrders.length > 0) {
+          // Call deliver-order function
+          const deliverRes = await fetch(
+            `${supabaseUrl}/functions/v1/deliver-order`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                order_id: paidOrders[0].id,
+                tenant_id: tenantId,
+              }),
+            }
+          );
+          const deliverResult = await deliverRes.json();
+          console.log("Auto-delivery result:", JSON.stringify(deliverResult));
+        }
+      } catch (deliverErr) {
+        console.error("Auto-delivery failed:", deliverErr);
+        // Don't fail the webhook response
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, ...result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

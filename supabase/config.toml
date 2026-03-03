@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.check-expired-vips]
 verify_jwt = false
+
+[functions.deliver-order]
+verify_jwt = false
