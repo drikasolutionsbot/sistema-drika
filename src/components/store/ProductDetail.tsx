@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, RefreshCw, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, Send, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -18,6 +18,7 @@ import { ProductDetailFields } from "./ProductDetailFields";
 import { ProductDetailCoupons } from "./ProductDetailCoupons";
 import { ProductDetailHooks } from "./ProductDetailHooks";
 import { PostMessageModal } from "./PostMessageModal";
+import { ProductDiscordPreview } from "./ProductDiscordPreview";
 
 interface Category {
   id: string;
@@ -50,6 +51,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
   const [postModalOpen, setPostModalOpen] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
 
   const handleChange = (updates: Partial<Product>) => {
     setEdited((prev) => ({ ...prev, ...updates }));
@@ -112,11 +114,20 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
           </AlertDialog>
           <Button variant="outline" size="sm" className="text-xs">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            Sincronizar Mensagens
+            Sincronizar
+          </Button>
+          <Button
+            variant={showPreview ? "default" : "outline"}
+            size="sm"
+            className="text-xs"
+            onClick={() => setShowPreview((p) => !p)}
+          >
+            <Eye className="h-3.5 w-3.5 mr-1.5" />
+            Preview
           </Button>
           <Button variant="outline" size="sm" className="text-xs" onClick={() => setPostModalOpen(true)}>
             <Send className="h-3.5 w-3.5 mr-1.5" />
-            Postar Mensagem
+            Postar
           </Button>
         </div>
       </div>
@@ -135,7 +146,14 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
 
           <div className="px-6 py-4">
             <TabsContent value="geral" className="mt-0">
-              <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
+              <div className={showPreview ? "grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6" : ""}>
+                <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
+                {showPreview && (
+                  <div className="sticky top-4">
+                    <ProductDiscordPreview product={edited} />
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="campos" className="mt-0">
