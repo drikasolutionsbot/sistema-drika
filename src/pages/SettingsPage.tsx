@@ -188,15 +188,39 @@ const SettingsPage = () => {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-white/50 text-xs uppercase tracking-wider">Cor Primária</Label>
-                  <div className="flex gap-2">
-                    <div className="h-10 w-10 rounded-lg gradient-pink flex-shrink-0" />
+                  <div className="flex gap-2 items-center">
+                    <label className="relative h-10 w-10 rounded-lg flex-shrink-0 cursor-pointer overflow-hidden border border-white/10" style={{ backgroundColor: tenant.primary_color || '#FF69B4' }}>
+                      <input
+                        type="color"
+                        name="primary_color_picker"
+                        defaultValue={tenant.primary_color || '#FF69B4'}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        onChange={(e) => {
+                          const input = e.target.closest('form')?.querySelector<HTMLInputElement>('input[name="primary_color"]');
+                          if (input) { input.value = e.target.value; }
+                          (e.target.parentElement as HTMLElement).style.backgroundColor = e.target.value;
+                        }}
+                      />
+                    </label>
                     <Input name="primary_color" defaultValue={tenant.primary_color} className="wallet-input font-mono" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-white/50 text-xs uppercase tracking-wider">Cor Secundária</Label>
-                  <div className="flex gap-2">
-                    <div className="h-10 w-10 rounded-lg gradient-gold flex-shrink-0" />
+                  <div className="flex gap-2 items-center">
+                    <label className="relative h-10 w-10 rounded-lg flex-shrink-0 cursor-pointer overflow-hidden border border-white/10" style={{ backgroundColor: tenant.secondary_color || '#00d019' }}>
+                      <input
+                        type="color"
+                        name="secondary_color_picker"
+                        defaultValue={tenant.secondary_color || '#00d019'}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        onChange={(e) => {
+                          const input = e.target.closest('form')?.querySelector<HTMLInputElement>('input[name="secondary_color"]');
+                          if (input) { input.value = e.target.value; }
+                          (e.target.parentElement as HTMLElement).style.backgroundColor = e.target.value;
+                        }}
+                      />
+                    </label>
                     <Input name="secondary_color" defaultValue={tenant.secondary_color} className="wallet-input font-mono" />
                   </div>
                 </div>
