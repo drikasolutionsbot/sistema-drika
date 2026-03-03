@@ -216,7 +216,8 @@ serve(async (req) => {
         const productId = parts[1];
         const fieldId = parts[2];
 
-        await respondDeferred(interaction, botToken);
+        // Use DEFERRED_UPDATE_MESSAGE (type 6) to update existing message instead of creating new one
+        await respondDeferredUpdate(interaction, botToken);
 
         const { data: product } = await supabase.from("products").select("*").eq("id", productId).single();
         if (!product) { await editFollowup(interaction, botToken, "❌ Produto não encontrado."); return ok(); }
@@ -455,12 +456,21 @@ function parseEmoji(emoji: string): any {
   return { name: emoji };
 }
 
-// Deferred ephemeral response (for long operations)
+// Deferred ephemeral response (for long operations - creates NEW message)
 async function respondDeferred(interaction: any, botToken: string) {
   await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
     method: "POST",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ type: 5, data: { flags: 64 } }), // 64 = ephemeral
+  });
+}
+
+// Deferred update (updates EXISTING message, no new message created)
+async function respondDeferredUpdate(interaction: any, botToken: string) {
+  await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
+    method: "POST",
+    headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ type: 6 }), // DEFERRED_UPDATE_MESSAGE
   });
 }
 
@@ -474,7 +484,7 @@ function respondImmediate(interaction: any, content: string | Record<string, any
 
 // Edit the deferred followup
 async function editFollowup(interaction: any, botToken: string, content: string | Record<string, any>) {
-  const payload = typeof content === "string" ? { content } : content;
+  const payload = typeof content === "string" ? { content, components: [] } : { ...content, components: content.components || [] };
   await fetch(`${DISCORD_API}/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`, {
     method: "PATCH",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
