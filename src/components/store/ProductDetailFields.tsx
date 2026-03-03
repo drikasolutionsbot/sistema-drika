@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, GripVertical, ChevronDown, ChevronUp, Package, Trash2, Loader2 } from "lucide-react";
+import { Plus, Search, GripVertical, ChevronDown, ChevronUp, Package, Trash2, Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -392,6 +392,32 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
     }
   };
 
+  const moveField = async (index: number, direction: "up" | "down") => {
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= fields.length) return;
+
+    const newFields = [...fields];
+    [newFields[index], newFields[swapIndex]] = [newFields[swapIndex], newFields[index]];
+    // Update sort_order values
+    const updated = newFields.map((f, i) => ({ ...f, sort_order: i }));
+    setFields(updated);
+
+    // Persist both changed items
+    try {
+      await Promise.all([
+        supabase.functions.invoke("manage-product-fields", {
+          body: { action: "update", tenant_id: tenantId, field_id: updated[index].id, field: { sort_order: index } },
+        }),
+        supabase.functions.invoke("manage-product-fields", {
+          body: { action: "update", tenant_id: tenantId, field_id: updated[swapIndex].id, field: { sort_order: swapIndex } },
+        }),
+      ]);
+    } catch (e: any) {
+      toast({ title: "Erro ao reordenar", description: e.message, variant: "destructive" });
+      fetchFields();
+    }
+  };
+
   const filtered = fields.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -425,32 +451,55 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       ) : filtered.length > 0 ? (
         <div className="space-y-2">
           <h4 className="text-sm font-bold">Campos</h4>
-          {filtered.map((field) => (
+          {filtered.map((field, idx) => {
+            const realIndex = fields.findIndex(f => f.id === field.id);
+            return (
             <div key={field.id} className="rounded-xl border border-border bg-card overflow-hidden">
               {/* Header */}
-              <button
-                onClick={() => toggle(field.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
-              >
-                <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 text-lg overflow-hidden">
-                  {field.icon_url ? (
-                    <img src={field.icon_url} alt={field.name} className="h-8 w-8 object-cover rounded-lg" />
-                  ) : field.emoji ? field.emoji : <Package className="h-4 w-4 text-primary" />}
+              <div className="flex items-center">
+                {/* Reorder buttons */}
+                <div className="flex flex-col border-r border-border">
+                  <button
+                    onClick={() => moveField(realIndex, "up")}
+                    disabled={realIndex === 0}
+                    className="p-1.5 hover:bg-muted/50 disabled:opacity-20 transition-colors"
+                    title="Mover para cima"
+                  >
+                    <ArrowUp className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={() => moveField(realIndex, "down")}
+                    disabled={realIndex === fields.length - 1}
+                    className="p-1.5 hover:bg-muted/50 disabled:opacity-20 transition-colors"
+                    title="Mover para baixo"
+                  >
+                    <ArrowDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
                 </div>
-                <div className="text-left min-w-0 flex-1">
-                  <p className="text-sm font-bold">{field.name}</p>
-                  <p className="text-xs text-muted-foreground">{field.description}</p>
-                  <p className="text-xs font-bold text-emerald-400">
-                    R$ {(field.price_cents / 100).toFixed(2).replace(".", ",")}
-                  </p>
-                </div>
-                {expandedId === field.id ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-              </button>
+
+                <button
+                  onClick={() => toggle(field.id)}
+                  className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 text-lg overflow-hidden">
+                    {field.icon_url ? (
+                      <img src={field.icon_url} alt={field.name} className="h-8 w-8 object-cover rounded-lg" />
+                    ) : field.emoji ? field.emoji : <Package className="h-4 w-4 text-primary" />}
+                  </div>
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="text-sm font-bold">{field.name}</p>
+                    <p className="text-xs text-muted-foreground">{field.description}</p>
+                    <p className="text-xs font-bold text-emerald-400">
+                      R$ {(field.price_cents / 100).toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                  {expandedId === field.id ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              </div>
 
               {/* Expanded content */}
               {expandedId === field.id && (
@@ -466,7 +515,8 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
                 />
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : fields.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
