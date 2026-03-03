@@ -966,6 +966,83 @@ export type Database = {
           },
         ]
       }
+      store_configs: {
+        Row: {
+          auto_delivery_global: boolean
+          created_at: string
+          delivery_instructions: string | null
+          embed_color: string
+          id: string
+          logs_channel_id: string | null
+          payment_timeout_minutes: number
+          purchase_embed_color: string | null
+          purchase_embed_description: string | null
+          purchase_embed_footer: string | null
+          purchase_embed_image_url: string | null
+          purchase_embed_thumbnail_url: string | null
+          purchase_embed_title: string | null
+          sales_channel_id: string | null
+          store_banner_url: string | null
+          store_description: string | null
+          store_logo_url: string | null
+          store_title: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_delivery_global?: boolean
+          created_at?: string
+          delivery_instructions?: string | null
+          embed_color?: string
+          id?: string
+          logs_channel_id?: string | null
+          payment_timeout_minutes?: number
+          purchase_embed_color?: string | null
+          purchase_embed_description?: string | null
+          purchase_embed_footer?: string | null
+          purchase_embed_image_url?: string | null
+          purchase_embed_thumbnail_url?: string | null
+          purchase_embed_title?: string | null
+          sales_channel_id?: string | null
+          store_banner_url?: string | null
+          store_description?: string | null
+          store_logo_url?: string | null
+          store_title?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_delivery_global?: boolean
+          created_at?: string
+          delivery_instructions?: string | null
+          embed_color?: string
+          id?: string
+          logs_channel_id?: string | null
+          payment_timeout_minutes?: number
+          purchase_embed_color?: string | null
+          purchase_embed_description?: string | null
+          purchase_embed_footer?: string | null
+          purchase_embed_image_url?: string | null
+          purchase_embed_thumbnail_url?: string | null
+          purchase_embed_title?: string | null
+          sales_channel_id?: string | null
+          store_banner_url?: string | null
+          store_description?: string | null
+          store_logo_url?: string | null
+          store_title?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_permissions: {
         Row: {
           can_change_server: boolean

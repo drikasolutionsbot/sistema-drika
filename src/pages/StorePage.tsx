@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Package } from "lucide-react";
+import StoreGeneralSettings from "@/components/store/StoreGeneralSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductList } from "@/components/store/ProductList";
 import { ProductDetail } from "@/components/store/ProductDetail";
@@ -187,8 +188,8 @@ const StorePage = () => {
         </TabsContent>
 
         <TabsContent value="general" className="mt-4">
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
-            Configurações gerais da loja — em breve
+          <div className="rounded-xl border border-border bg-card p-6">
+            <StoreGeneralSettings />
           </div>
         </TabsContent>
       </Tabs>
