@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ECloudCharts } from "@/components/ecloud/ECloudCharts";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge, getStatusLabel } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -43,6 +44,7 @@ interface RecentLog {
   description: string;
   status: "success" | "warning" | "error";
   created_at: string;
+  orderStatus?: string;
 }
 
 const PLAN_FEATURES: Record<string, { label: string; limits: string }> = {
@@ -149,9 +151,10 @@ const ECloudPage = () => {
           id: o.id,
           type: "order",
           title: o.product_name,
-          description: `${o.discord_username || "Usuário"} — ${o.status}`,
+          description: `${o.discord_username || "Usuário"}`,
           status: o.status === "paid" || o.status === "delivered" ? "success" : o.status === "canceled" ? "error" : "warning",
           created_at: o.created_at,
+          orderStatus: o.status,
         })
       );
 
@@ -366,12 +369,16 @@ const ECloudPage = () => {
                   className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex-shrink-0">{logIcon(log.type)}</div>
-                  <div className="flex-1 min-w-0">
+                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{log.title}</p>
                     <p className="text-xs text-muted-foreground truncate">{log.description}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {statusIcon(log.status)}
+                    {log.orderStatus ? (
+                      <StatusBadge status={log.orderStatus} />
+                    ) : (
+                      statusIcon(log.status)
+                    )}
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
                     </span>
