@@ -48,30 +48,15 @@ export const ProductDetailFields = ({ productId }: ProductDetailFieldsProps) => 
   const fetchFields = useCallback(async () => {
     if (!tenantId || !productId) return;
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("product_fields")
-      .select("*")
-      .eq("product_id", productId)
-      .eq("tenant_id", tenantId)
-      .order("sort_order", { ascending: true });
-
-    if (!error && data) {
-      setFields(data);
-      // Fetch stock counts
-      const ids = data.map((f: any) => f.id);
-      if (ids.length > 0) {
-        const { data: stockData } = await (supabase as any)
-          .from("product_stock_items")
-          .select("field_id")
-          .in("field_id", ids)
-          .eq("delivered", false);
-        
-        const counts: Record<string, number> = {};
-        (stockData || []).forEach((s: any) => {
-          counts[s.field_id] = (counts[s.field_id] || 0) + 1;
-        });
-        setStockCounts(counts);
-      }
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: { action: "list", tenant_id: tenantId, product_id: productId },
+      });
+      if (error) throw error;
+      if (data?.fields) setFields(data.fields);
+      if (data?.stockCounts) setStockCounts(data.stockCounts);
+    } catch (e: any) {
+      console.error(e);
     }
     setLoading(false);
   }, [tenantId, productId]);
@@ -84,24 +69,21 @@ export const ProductDetailFields = ({ productId }: ProductDetailFieldsProps) => 
 
   const addField = async () => {
     if (!tenantId) return;
-    const { data, error } = await (supabase as any)
-      .from("product_fields")
-      .insert({
-        product_id: productId,
-        tenant_id: tenantId,
-        name: "Novo",
-        description: "Novo produto",
-        price_cents: 0,
-        sort_order: fields.length,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast({ title: "Erro ao criar campo", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "create",
+          tenant_id: tenantId,
+          product_id: productId,
+          field: { name: "Novo", description: "Novo produto", price_cents: 0, sort_order: fields.length },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       setFields([...fields, data]);
       setExpandedId(data.id);
+    } catch (e: any) {
+      toast({ title: "Erro ao criar campo", description: e.message, variant: "destructive" });
     }
   };
 
@@ -111,39 +93,48 @@ export const ProductDetailFields = ({ productId }: ProductDetailFieldsProps) => 
 
   const saveField = async (field: ProductField) => {
     setSaving(true);
-    const { error } = await (supabase as any)
-      .from("product_fields")
-      .update({
-        name: field.name,
-        description: field.description,
-        emoji: field.emoji,
-        price_cents: field.price_cents,
-        compare_price_cents: field.compare_price_cents,
-        enable_credits: field.enable_credits,
-        is_subscription: field.is_subscription,
-        show_stock: field.show_stock,
-        show_sold: field.show_sold,
-        enable_instructions: field.enable_instructions,
-        require_role_id: field.require_role_id,
-        min_quantity: field.min_quantity,
-        max_quantity: field.max_quantity,
-      })
-      .eq("id", field.id);
-
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      const { error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "update",
+          tenant_id: tenantId,
+          field_id: field.id,
+          field: {
+            name: field.name,
+            description: field.description,
+            emoji: field.emoji,
+            price_cents: field.price_cents,
+            compare_price_cents: field.compare_price_cents,
+            enable_credits: field.enable_credits,
+            is_subscription: field.is_subscription,
+            show_stock: field.show_stock,
+            show_sold: field.show_sold,
+            enable_instructions: field.enable_instructions,
+            require_role_id: field.require_role_id,
+            min_quantity: field.min_quantity,
+            max_quantity: field.max_quantity,
+          },
+        },
+      });
+      if (error) throw error;
       toast({ title: "Campo salvo! ✅" });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     }
     setSaving(false);
   };
 
   const deleteField = async (id: string) => {
-    const { error } = await (supabase as any).from("product_fields").delete().eq("id", id);
-    if (!error) {
+    try {
+      const { error } = await supabase.functions.invoke("manage-product-fields", {
+        body: { action: "delete", tenant_id: tenantId, field_id: id },
+      });
+      if (error) throw error;
       setFields(fields.filter((f) => f.id !== id));
       if (expandedId === id) setExpandedId(null);
       toast({ title: "Campo removido" });
+    } catch (e: any) {
+      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
     }
   };
 
