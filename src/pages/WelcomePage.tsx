@@ -260,7 +260,7 @@ const WelcomePage = () => {
     }));
   };
 
-  const EmbedEditor = ({ type, embedKey, contentKey }: { type: string; embedKey: "embed_data" | "dm_embed_data" | "goodbye_embed_data"; contentKey: "content" | "dm_content" | "goodbye_content" }) => {
+  const renderEmbedEditor = (type: string, embedKey: "embed_data" | "dm_embed_data" | "goodbye_embed_data", contentKey: "content" | "dm_content" | "goodbye_content") => {
     const embed = config[embedKey];
     return (
       <div className="space-y-4">
@@ -358,7 +358,7 @@ const WelcomePage = () => {
     );
   };
 
-  const EmbedPreview = ({ embed, content }: { embed: EmbedData; content: string }) => (
+  const renderEmbedPreview = (embed: EmbedData, content: string) => (
     <div className="bg-[#313338] rounded-lg p-4 max-w-md">
       {content && <p className="text-[#dcddde] text-sm mb-2 whitespace-pre-wrap">{content.replace(/\{user\}/g, "@Usuário").replace(/\{server\}/g, "Meu Servidor").replace(/\{memberCount\}/g, "150")}</p>}
       <div className="flex rounded" style={{ borderLeft: `4px solid ${embed.color}` }}>
@@ -516,7 +516,7 @@ const WelcomePage = () => {
                   </select>
                 </div>
                 <Separator />
-                <EmbedEditor type="welcome" embedKey="embed_data" contentKey="content" />
+                {renderEmbedEditor("welcome", "embed_data", "content")}
                 <Button onClick={() => handleTest("welcome")} disabled={testing} variant="outline" className="w-full">
                   <Send className="h-4 w-4 mr-2" /> {testing ? "Enviando..." : "Enviar Teste"}
                 </Button>
@@ -529,7 +529,7 @@ const WelcomePage = () => {
                   <CardTitle className="text-lg flex items-center gap-2"><Eye className="h-5 w-5" /> Preview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <EmbedPreview embed={config.embed_data} content={config.content} />
+                  {renderEmbedPreview(config.embed_data, config.content)}
                 </CardContent>
               </Card>
               <Card className="border-border/50 bg-gradient-to-br from-emerald-500/5 to-transparent">
@@ -565,7 +565,7 @@ const WelcomePage = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <EmbedEditor type="dm" embedKey="dm_embed_data" contentKey="dm_content" />
+                {renderEmbedEditor("dm", "dm_embed_data", "dm_content")}
               </CardContent>
             </Card>
             <Card className="border-border/50">
@@ -573,7 +573,7 @@ const WelcomePage = () => {
                 <CardTitle className="text-lg flex items-center gap-2"><Eye className="h-5 w-5" /> Preview DM</CardTitle>
               </CardHeader>
               <CardContent>
-                <EmbedPreview embed={config.dm_embed_data} content={config.dm_content} />
+                {renderEmbedPreview(config.dm_embed_data, config.dm_content)}
               </CardContent>
             </Card>
           </div>
@@ -607,7 +607,7 @@ const WelcomePage = () => {
                   </select>
                 </div>
                 <Separator />
-                <EmbedEditor type="goodbye" embedKey="goodbye_embed_data" contentKey="goodbye_content" />
+                {renderEmbedEditor("goodbye", "goodbye_embed_data", "goodbye_content")}
                 <Button onClick={() => handleTest("goodbye")} disabled={testing} variant="outline" className="w-full">
                   <Send className="h-4 w-4 mr-2" /> {testing ? "Enviando..." : "Enviar Teste de Despedida"}
                 </Button>
@@ -618,7 +618,7 @@ const WelcomePage = () => {
                 <CardTitle className="text-lg flex items-center gap-2"><Eye className="h-5 w-5" /> Preview Despedida</CardTitle>
               </CardHeader>
               <CardContent>
-                <EmbedPreview embed={config.goodbye_embed_data} content={config.goodbye_content} />
+                {renderEmbedPreview(config.goodbye_embed_data, config.goodbye_content)}
               </CardContent>
             </Card>
           </div>
