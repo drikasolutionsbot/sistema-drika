@@ -19,6 +19,11 @@ import { ProductDetailCoupons } from "./ProductDetailCoupons";
 import { ProductDetailHooks } from "./ProductDetailHooks";
 import { PostMessageModal } from "./PostMessageModal";
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -30,6 +35,7 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  category_id?: string | null;
 }
 
 interface ProductDetailProps {
@@ -37,9 +43,10 @@ interface ProductDetailProps {
   onBack: () => void;
   onSave: (product: Product) => void;
   onDelete: (productId: string) => void;
+  categories?: Category[];
 }
 
-export const ProductDetail = ({ product, onBack, onSave, onDelete }: ProductDetailProps) => {
+export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = [] }: ProductDetailProps) => {
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
   const [postModalOpen, setPostModalOpen] = useState(false);
@@ -128,7 +135,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete }: ProductDeta
 
           <div className="px-6 py-4">
             <TabsContent value="geral" className="mt-0">
-              <ProductDetailGeneral product={edited} onChange={handleChange} />
+              <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
             </TabsContent>
 
             <TabsContent value="campos" className="mt-0">

@@ -1,8 +1,20 @@
-import { Search, Plus, Package } from "lucide-react";
+import { Search, Plus, Package, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Category {
+  id: string;
+  name: string;
+}
 
 interface Product {
   id: string;
@@ -12,6 +24,7 @@ interface Product {
   stock: number | null;
   active: boolean;
   description: string | null;
+  category_id?: string | null;
 }
 
 interface ProductListProps {
@@ -22,6 +35,9 @@ interface ProductListProps {
   selectedId: string | null;
   onSelect: (product: Product) => void;
   onNewProduct: () => void;
+  categories?: Category[];
+  selectedCategoryId?: string | null;
+  onCategoryChange?: (id: string | null) => void;
 }
 
 const typeLabels: Record<string, string> = {
@@ -38,10 +54,13 @@ export const ProductList = ({
   selectedId,
   onSelect,
   onNewProduct,
+  categories = [],
+  selectedCategoryId,
+  onCategoryChange,
 }: ProductListProps) => {
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products
+    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => !selectedCategoryId || p.category_id === selectedCategoryId);
 
   return (
     <div className="flex flex-col h-full border-r border-border">
@@ -66,6 +85,23 @@ export const ProductList = ({
             className="pl-9 h-9 bg-muted border-none text-sm"
           />
         </div>
+        {categories.length > 0 && onCategoryChange && (
+          <Select
+            value={selectedCategoryId ?? "all"}
+            onValueChange={(val) => onCategoryChange(val === "all" ? null : val)}
+          >
+            <SelectTrigger className="h-8 bg-muted border-none text-xs">
+              <Filter className="h-3 w-3 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder="Todas categorias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas categorias</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Product list */}

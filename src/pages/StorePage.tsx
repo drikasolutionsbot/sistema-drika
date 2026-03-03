@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Package } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductList } from "@/components/store/ProductList";
 import { ProductDetail } from "@/components/store/ProductDetail";
 import { ProductSelectModal } from "@/components/store/ProductSelectModal";
+import { CategoryManager, type Category } from "@/components/store/CategoryManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -20,12 +21,15 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  category_id?: string | null;
 }
 
 const StorePage = () => {
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectModalOpen, setSelectModalOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
 
@@ -43,6 +47,16 @@ const StorePage = () => {
     enabled: !!tenantId,
   });
 
+  // Fetch categories
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.functions.invoke("manage-categories", {
+      body: { action: "list", tenant_id: tenantId },
+    }).then(({ data, error }) => {
+      if (!error && !data?.error) setCategories(data || []);
+    });
+  }, [tenantId]);
+
   const handleSave = async (product: Product) => {
     const { data, error } = await supabase.functions.invoke("manage-products", {
       body: {
@@ -58,6 +72,7 @@ const StorePage = () => {
           icon_url: product.icon_url,
           banner_url: product.banner_url,
           auto_delivery: product.auto_delivery,
+          category_id: product.category_id,
         },
       },
     });
@@ -118,6 +133,7 @@ const StorePage = () => {
       <Tabs defaultValue="products">
         <TabsList className="bg-muted">
           <TabsTrigger value="products">Produtos</TabsTrigger>
+          <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="general">Geral</TabsTrigger>
         </TabsList>
 
@@ -133,6 +149,9 @@ const StorePage = () => {
                 selectedId={selectedProduct?.id ?? null}
                 onSelect={setSelectedProduct}
                 onNewProduct={handleNewProduct}
+                categories={categories}
+                selectedCategoryId={selectedCategoryId}
+                onCategoryChange={setSelectedCategoryId}
               />
 
               {/* Right: Product detail */}
@@ -144,6 +163,7 @@ const StorePage = () => {
                     onBack={() => setSelectedProduct(null)}
                     onSave={handleSave}
                     onDelete={handleDelete}
+                    categories={categories}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-12">
@@ -154,6 +174,15 @@ const StorePage = () => {
                 )}
               </div>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="categories" className="mt-4">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <CategoryManager
+              categories={categories}
+              onCategoriesChange={setCategories}
+            />
           </div>
         </TabsContent>
 

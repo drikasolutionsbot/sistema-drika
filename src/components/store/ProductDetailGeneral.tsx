@@ -6,6 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductImageUpload } from "./ProductImageUpload";
 import { useTenant } from "@/contexts/TenantContext";
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -17,14 +22,16 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  category_id?: string | null;
 }
 
 interface ProductDetailGeneralProps {
   product: Product;
   onChange: (updates: Partial<Product>) => void;
+  categories?: Category[];
 }
 
-export const ProductDetailGeneral = ({ product, onChange }: ProductDetailGeneralProps) => {
+export const ProductDetailGeneral = ({ product, onChange, categories = [] }: ProductDetailGeneralProps) => {
   const { tenantId } = useTenant();
 
   return (
@@ -51,6 +58,27 @@ export const ProductDetailGeneral = ({ product, onChange }: ProductDetailGeneral
             className="bg-muted border-border min-h-[100px] resize-none"
           />
         </div>
+
+        {/* Categoria */}
+        {categories.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Categoria</Label>
+            <Select
+              value={product.category_id ?? "none"}
+              onValueChange={(val) => onChange({ category_id: val === "none" ? null : val })}
+            >
+              <SelectTrigger className="bg-muted border-border">
+                <SelectValue placeholder="Sem categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem categoria</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Entrega Automática */}
         <div className="flex items-center justify-between py-1">
