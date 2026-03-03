@@ -114,6 +114,7 @@ const WelcomePage = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [channels, setChannels] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("welcome");
   const [previewTab, setPreviewTab] = useState<"welcome" | "dm" | "goodbye">("welcome");
@@ -165,8 +166,15 @@ const WelcomePage = () => {
           ? chRes.data.channels
           : [];
 
+      const parsedCategories = Array.isArray(chRes.data?.categories)
+        ? chRes.data.categories
+        : [];
+
       setChannels(
         parsedChannels.sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+      );
+      setCategories(
+        parsedCategories.sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
       );
 
       if (roRes.data?.roles && Array.isArray(roRes.data.roles)) {
@@ -512,6 +520,7 @@ const WelcomePage = () => {
                     value={config.channel_id}
                     onChange={(v) => setConfig((p) => ({ ...p, channel_id: v }))}
                     channels={channels}
+                    categories={categories}
                     onChannelCreated={fetchDiscordData}
                     tenantId={tenantId}
                     placeholder="Selecione um canal"
@@ -602,6 +611,7 @@ const WelcomePage = () => {
                     value={config.goodbye_channel_id}
                     onChange={(v) => setConfig((p) => ({ ...p, goodbye_channel_id: v }))}
                     channels={channels}
+                    categories={categories}
                     onChannelCreated={fetchDiscordData}
                     tenantId={tenantId}
                     placeholder="Selecione um canal"
