@@ -141,6 +141,8 @@ serve(async (req) => {
     }
 
     let result;
+    const eventType = body?.action || body?.event || body?.type || "unknown";
+
     switch (provider) {
       case "mercadopago":
         result = await handleMercadoPago(body, tenantId, supabase);
@@ -157,6 +159,16 @@ serve(async (req) => {
       default:
         result = { handled: false, reason: `Unknown provider: ${provider}` };
     }
+
+    // Log webhook
+    await supabase.from("webhook_logs").insert({
+      tenant_id: tenantId,
+      provider_key: provider,
+      event_type: eventType,
+      payload: body,
+      result,
+      status: result?.handled ? "processed" : "ignored",
+    });
 
     console.log(`Webhook ${provider}/${tenantId}:`, JSON.stringify(result));
 

@@ -11,6 +11,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
 
@@ -136,6 +137,9 @@ const PaymentsPage = () => {
           ))}
         </Tabs>
       )}
+
+      {/* Webhook Logs */}
+      <WebhookLogsPanel />
     </div>
   );
 };
