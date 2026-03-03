@@ -123,6 +123,10 @@ const PaymentsPage = () => {
   };
 
   const handleToggle = async (providerId: string, currentActive: boolean) => {
+    // Optimistic update
+    queryClient.setQueryData(["payment-providers", tenantId], (old: PaymentProvider[] | undefined) =>
+      (old || []).map(p => p.id === providerId ? { ...p, active: !p.active } : p)
+    );
     try {
       const data = await invokeWithRetry("manage-payment-providers", {
         action: "toggle",
@@ -132,6 +136,10 @@ const PaymentsPage = () => {
       if (data?.error) throw new Error(data.error);
       refetch();
     } catch (err: any) {
+      // Revert optimistic update
+      queryClient.setQueryData(["payment-providers", tenantId], (old: PaymentProvider[] | undefined) =>
+        (old || []).map(p => p.id === providerId ? { ...p, active: currentActive } : p)
+      );
       toast({ title: "Erro ao alternar provedor", description: err.message, variant: "destructive" });
     }
   };
