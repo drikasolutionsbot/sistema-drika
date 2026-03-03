@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Hash, Shield, Users, Volume2, Plus, Loader2, RefreshCw, Megaphone, Mic, MessageSquare, Save } from "lucide-react";
+import {
+  Hash, Shield, Users, Volume2, Plus, Loader2, RefreshCw, Megaphone, Mic,
+  MessageSquare, Save, Settings2, ShoppingBag, UserCheck, Gavel, Tag,
+  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
@@ -12,85 +16,116 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const channelSections = [
   {
     title: "Sistema",
-    description: "Canais para logs do sistema e operações",
+    description: "Logs do sistema e operações internas",
+    icon: Settings2,
+    color: "text-blue-400",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
     channels: [
-      { key: "logs_system", label: "Sistema" },
-      { key: "logs_commands", label: "Comandos" },
+      { key: "logs_system", label: "Sistema", description: "Logs gerais do bot" },
+      { key: "logs_commands", label: "Comandos", description: "Uso de comandos" },
     ],
   },
   {
     title: "Loja",
-    description: "Canais relacionados a transações e compras",
+    description: "Transações, compras e feedback",
+    icon: ShoppingBag,
+    color: "text-emerald-400",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/20",
     channels: [
-      { key: "logs_sales", label: "Compras" },
-      { key: "logs_events", label: "Eventos de Compras" },
-      { key: "logs_feedback", label: "Feedback" },
+      { key: "logs_sales", label: "Compras", description: "Registro de vendas" },
+      { key: "logs_events", label: "Eventos de Compras", description: "Ações durante compra" },
+      { key: "logs_feedback", label: "Feedback", description: "Avaliações de clientes" },
     ],
   },
   {
     title: "Membros",
-    description: "Canais para logs de atividades dos membros",
+    description: "Atividades e movimentação de membros",
+    icon: Users,
+    color: "text-violet-400",
+    bgColor: "bg-violet-500/10",
+    borderColor: "border-violet-500/20",
     channels: [
-      { key: "welcome", label: "Boas-vindas" },
-      { key: "member_join", label: "Entrada" },
-      { key: "member_leave", label: "Saída" },
-      { key: "member_messages", label: "Mensagens" },
-      { key: "traffic", label: "Tráfego" },
+      { key: "welcome", label: "Boas-vindas", description: "Mensagem de boas-vindas" },
+      { key: "member_join", label: "Entrada", description: "Novos membros" },
+      { key: "member_leave", label: "Saída", description: "Membros que saíram" },
+      { key: "member_messages", label: "Mensagens", description: "Atividade de mensagens" },
+      { key: "traffic", label: "Tráfego", description: "Fluxo de membros" },
     ],
   },
   {
     title: "Moderação",
-    description: "Canais para logs de ações de moderação",
+    description: "Ações de moderação e punições",
+    icon: Gavel,
+    color: "text-red-400",
+    bgColor: "bg-red-500/10",
+    borderColor: "border-red-500/20",
     channels: [
-      { key: "logs_moderation_bans", label: "Bans" },
-      { key: "logs_moderation_kicks", label: "Kicks" },
-      { key: "logs_moderation_timeouts", label: "Timeouts" },
+      { key: "logs_moderation_bans", label: "Bans", description: "Banimentos aplicados" },
+      { key: "logs_moderation_kicks", label: "Kicks", description: "Expulsões aplicadas" },
+      { key: "logs_moderation_timeouts", label: "Timeouts", description: "Silenciamentos" },
     ],
   },
   {
     title: "Cargos",
-    description: "Canais para logs de gerenciamento de cargos",
+    description: "Gerenciamento de cargos do servidor",
+    icon: Tag,
+    color: "text-amber-400",
+    bgColor: "bg-amber-500/10",
+    borderColor: "border-amber-500/20",
     channels: [
-      { key: "logs_roles_added", label: "Cargos Adicionados" },
-      { key: "logs_roles_removed", label: "Cargos Removidos" },
-      { key: "logs_roles_created", label: "Cargos Criados" },
-      { key: "logs_roles_deleted", label: "Cargos Deletados" },
-      { key: "logs_roles_edited", label: "Cargos Editados" },
+      { key: "logs_roles_added", label: "Adicionados", description: "Cargos dados a membros" },
+      { key: "logs_roles_removed", label: "Removidos", description: "Cargos removidos de membros" },
+      { key: "logs_roles_created", label: "Criados", description: "Novos cargos criados" },
+      { key: "logs_roles_deleted", label: "Deletados", description: "Cargos excluídos" },
+      { key: "logs_roles_edited", label: "Editados", description: "Cargos modificados" },
     ],
   },
   {
     title: "Canais",
-    description: "Canais para logs de gerenciamento de canais",
+    description: "Gerenciamento de canais do servidor",
+    icon: Layers,
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500/10",
+    borderColor: "border-cyan-500/20",
     channels: [
-      { key: "logs_channels_created", label: "Canais Criados" },
-      { key: "logs_channels_edited", label: "Canais Editados" },
-      { key: "logs_channels_deleted", label: "Canais Deletados" },
+      { key: "logs_channels_created", label: "Criados", description: "Novos canais criados" },
+      { key: "logs_channels_edited", label: "Editados", description: "Canais modificados" },
+      { key: "logs_channels_deleted", label: "Deletados", description: "Canais excluídos" },
     ],
   },
   {
     title: "Permissões",
-    description: "Canais para logs de gerenciamento de permissões",
+    description: "Alterações de permissões",
+    icon: Lock,
+    color: "text-orange-400",
+    bgColor: "bg-orange-500/10",
+    borderColor: "border-orange-500/20",
     channels: [
-      { key: "logs_perms_added", label: "Permissões Adicionadas" },
-      { key: "logs_perms_removed", label: "Permissões Removidas" },
+      { key: "logs_perms_added", label: "Adicionadas", description: "Permissões concedidas" },
+      { key: "logs_perms_removed", label: "Removidas", description: "Permissões revogadas" },
     ],
   },
   {
     title: "Suporte",
-    description: "Canais para logs de suporte e tickets",
+    description: "Tickets e atendimento",
+    icon: LifeBuoy,
+    color: "text-pink-400",
+    bgColor: "bg-pink-500/10",
+    borderColor: "border-pink-500/20",
     channels: [
-      { key: "logs_tickets_opened", label: "Tickets Abertos" },
-      { key: "logs_tickets_closed", label: "Tickets Fechados" },
+      { key: "logs_tickets_opened", label: "Tickets Abertos", description: "Novos tickets" },
+      { key: "logs_tickets_closed", label: "Tickets Fechados", description: "Tickets encerrados" },
     ],
   },
 ];
@@ -136,11 +171,14 @@ const ChannelsPage = () => {
   const [newParent, setNewParent] = useState<string>("");
   const [newTopic, setNewTopic] = useState("");
 
-  // Local draft state for channel mappings
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    channelSections.forEach(s => { initial[s.title] = true; });
+    return initial;
+  });
 
-  // Initialize draft from configs
   useEffect(() => {
     const initial: Record<string, string> = {};
     configs.forEach(c => {
@@ -149,7 +187,6 @@ const ChannelsPage = () => {
     setDraft(initial);
   }, [configs]);
 
-  // Check if draft differs from saved configs
   const hasChanges = useMemo(() => {
     const allKeys = new Set([
       ...Object.keys(draft),
@@ -189,8 +226,21 @@ const ChannelsPage = () => {
 
   const getChannelValue = (key: string) => draft[key] || undefined;
 
+  const getChannelName = (discordId: string) => {
+    const ch = discordChannels.find(c => c.id === discordId);
+    return ch ? `#${ch.name}` : null;
+  };
+
   const handleLocalChange = (channelKey: string, discordChannelId: string) => {
-    setDraft(prev => ({ ...prev, [channelKey]: discordChannelId }));
+    if (discordChannelId === "__clear__") {
+      setDraft(prev => {
+        const next = { ...prev };
+        delete next[channelKey];
+        return next;
+      });
+    } else {
+      setDraft(prev => ({ ...prev, [channelKey]: discordChannelId }));
+    }
   };
 
   const handleSave = async () => {
@@ -223,7 +273,6 @@ const ChannelsPage = () => {
       toast({ title: "Preencha o nome do canal", variant: "destructive" });
       return;
     }
-
     setCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-discord-channel", {
@@ -235,123 +284,191 @@ const ChannelsPage = () => {
           topic: newTopic.trim() || undefined,
         },
       });
-
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
-      toast({
-        title: "Canal criado no Discord! ✅",
-        description: `#${data.channel?.name} foi adicionado ao servidor.`,
-      });
-
-      setNewName("");
-      setNewType("text");
-      setNewParent("");
-      setNewTopic("");
+      toast({ title: "Canal criado no Discord! ✅", description: `#${data.channel?.name}` });
+      setNewName(""); setNewType("text"); setNewParent(""); setNewTopic("");
       setCreateOpen(false);
-
-      // Refresh channel list
       await fetchDiscordChannels();
     } catch (err: any) {
-      toast({
-        title: "Erro ao criar canal",
-        description: err.message || "Tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao criar canal", description: err.message, variant: "destructive" });
     } finally {
       setCreating(false);
     }
   };
 
-  const getChannelCategory = (parentId: string | null) => {
-    if (!parentId) return null;
-    return discordCategories.find(c => c.id === parentId);
+  const configuredCount = Object.keys(draft).length;
+  const totalCount = channelSections.reduce((acc, s) => acc + s.channels.length, 0);
+
+  const toggleSection = (title: string) => {
+    setOpenSections(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
-  // Group channels by category
-  const channelsByCategory = discordCategories.map(cat => ({
-    category: cat,
-    channels: discordChannels.filter(ch => ch.parent_id === cat.id),
-  }));
-  const uncategorized = discordChannels.filter(ch => !ch.parent_id);
+  // Group discord channels by category for selects
+  const channelsByCategory = useMemo(() => {
+    const groups: { label: string; channels: DiscordChannel[] }[] = [];
+    const sorted = [...discordCategories].sort((a, b) => a.position - b.position);
+
+    sorted.forEach(cat => {
+      const chans = discordChannels.filter(ch => ch.parent_id === cat.id).sort((a, b) => a.position - b.position);
+      if (chans.length > 0) groups.push({ label: cat.name, channels: chans });
+    });
+
+    const uncategorized = discordChannels.filter(ch => !ch.parent_id).sort((a, b) => a.position - b.position);
+    if (uncategorized.length > 0) groups.unshift({ label: "Sem Categoria", channels: uncategorized });
+
+    return groups;
+  }, [discordChannels, discordCategories]);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold">Canais</h1>
-          <p className="text-muted-foreground">
-            Configure os canais da <span className="font-semibold text-foreground">{tenant?.name || "sua loja"}</span> para logs e notificações
+          <p className="text-muted-foreground text-sm">
+            Direcione logs e notificações para canais específicos do seu servidor
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={fetchDiscordChannels}
-            disabled={loadingChannels}
-          >
+          <Badge variant="outline" className="font-mono text-xs gap-1.5 px-3 py-1.5">
+            <span className={cn(configuredCount > 0 ? "text-emerald-400" : "text-muted-foreground")}>
+              {configuredCount}
+            </span>
+            <span className="text-muted-foreground">/</span>
+            <span className="text-muted-foreground">{totalCount}</span>
+            <span className="text-muted-foreground ml-0.5">configurados</span>
+          </Badge>
+          <Button variant="outline" size="sm" className="gap-2" onClick={fetchDiscordChannels} disabled={loadingChannels}>
             {loadingChannels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Sincronizar
           </Button>
-          <Button
-            size="sm"
-            className="gap-2"
-            onClick={() => setCreateOpen(true)}
-            disabled={!guildId}
-          >
-            <Plus className="h-4 w-4" />
-            Criar Canal
+          <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)} disabled={!guildId}>
+            <Plus className="h-4 w-4" /> Criar Canal
           </Button>
-          {hasChanges && (
-            <Button
-              size="sm"
-              className="gap-2 gradient-pink text-primary-foreground border-none hover:opacity-90"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Salvar
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Channel config mapping */}
+      {/* Save bar */}
+      {hasChanges && (
+        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-md px-5 py-3">
+          <p className="text-sm text-foreground font-medium">Você tem alterações não salvas</p>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => {
+              const initial: Record<string, string> = {};
+              configs.forEach(c => { if (c.discord_channel_id) initial[c.channel_key] = c.discord_channel_id; });
+              setDraft(initial);
+            }}>
+              <X className="h-4 w-4 mr-1.5" /> Descartar
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar Tudo
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Channel sections */}
       {isLoading ? (
-        <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32" />)}</div>
+        <div className="space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}</div>
       ) : (
-        <div className="space-y-8">
-          {channelSections.map((section) => (
-            <div key={section.title} className="border-l-2 border-primary pl-5">
-              <h2 className="font-display text-lg font-bold text-foreground">{section.title}</h2>
-              <p className="text-sm text-muted-foreground mb-4">{section.description}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {section.channels.map((ch) => (
-                  <div key={ch.key} className="space-y-1.5">
-                    <span className="text-sm font-medium text-foreground">{ch.label}</span>
-                    <Select value={getChannelValue(ch.key)} onValueChange={(v) => handleLocalChange(ch.key, v)}>
-                      <SelectTrigger className="bg-muted/50 border-border h-10">
-                        <SelectValue placeholder="Não configurado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {discordChannels.length > 0 ? (
-                          discordChannels.map(dc => (
-                            <SelectItem key={dc.id} value={dc.id}>
-                              # {dc.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="placeholder" disabled>Sincronize os canais primeiro</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="space-y-4">
+          {channelSections.map((section) => {
+            const SectionIcon = section.icon;
+            const configuredInSection = section.channels.filter(ch => draft[ch.key]).length;
+            const isOpen = openSections[section.title] !== false;
+
+            return (
+              <Collapsible key={section.title} open={isOpen} onOpenChange={() => toggleSection(section.title)}>
+                <div className={cn(
+                  "rounded-xl border transition-colors",
+                  section.borderColor,
+                  "bg-card"
+                )}>
+                  {/* Section header */}
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-muted/30 transition-colors rounded-t-xl">
+                      <div className={cn("rounded-lg p-2.5 shrink-0", section.bgColor)}>
+                        <SectionIcon className={cn("h-4.5 w-4.5", section.color)} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-display font-semibold text-foreground">{section.title}</h3>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-mono">
+                            {configuredInSection}/{section.channels.length}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{section.description}</p>
+                      </div>
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+
+                  {/* Section content */}
+                  <CollapsibleContent>
+                    <div className="px-5 pb-5 pt-1 space-y-3">
+                      {section.channels.map((ch) => {
+                        const currentValue = getChannelValue(ch.key);
+                        const channelName = currentValue ? getChannelName(currentValue) : null;
+
+                        return (
+                          <div key={ch.key} className="flex items-center gap-4 rounded-lg bg-muted/30 px-4 py-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground">{ch.label}</p>
+                              <p className="text-[11px] text-muted-foreground">{ch.description}</p>
+                            </div>
+                            <div className="w-56 shrink-0">
+                              <Select value={currentValue} onValueChange={(v) => handleLocalChange(ch.key, v)}>
+                                <SelectTrigger className={cn(
+                                  "h-9 text-sm",
+                                  currentValue ? "border-emerald-500/30 bg-emerald-500/5" : "border-border bg-background"
+                                )}>
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                    <SelectValue placeholder="Selecionar canal" />
+                                  </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {currentValue && (
+                                    <SelectItem value="__clear__" className="text-red-400">
+                                      ✕ Remover canal
+                                    </SelectItem>
+                                  )}
+                                  {channelsByCategory.length > 0 ? (
+                                    channelsByCategory.map(group => (
+                                      <SelectGroup key={group.label}>
+                                        <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                                          {group.label}
+                                        </SelectLabel>
+                                        {group.channels.map(dc => (
+                                          <SelectItem key={dc.id} value={dc.id}>
+                                            # {dc.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectGroup>
+                                    ))
+                                  ) : (
+                                    <div className="text-center text-sm text-muted-foreground py-3">
+                                      Sincronize os canais primeiro
+                                    </div>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })}
         </div>
       )}
 
@@ -364,20 +481,13 @@ const ChannelsPage = () => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Nome do canal</Label>
-              <Input
-                placeholder="logs-vendas"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
+              <Input placeholder="logs-vendas" value={newName} onChange={(e) => setNewName(e.target.value)} />
               <p className="text-[11px] text-muted-foreground">Será convertido para minúsculas com hifens</p>
             </div>
-
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select value={newType} onValueChange={setNewType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CHANNEL_TYPE_OPTIONS.map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>
@@ -390,14 +500,11 @@ const ChannelsPage = () => {
                 </SelectContent>
               </Select>
             </div>
-
             {newType !== "category" && discordCategories.length > 0 && (
               <div className="space-y-2">
                 <Label>Categoria (opcional)</Label>
                 <Select value={newParent} onValueChange={setNewParent}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sem categoria" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sem categoria" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sem categoria</SelectItem>
                     {discordCategories.map(cat => (
@@ -407,16 +514,10 @@ const ChannelsPage = () => {
                 </Select>
               </div>
             )}
-
             {(newType === "text" || newType === "announcement") && (
               <div className="space-y-2">
                 <Label>Tópico (opcional)</Label>
-                <Input
-                  placeholder="Descrição do canal..."
-                  value={newTopic}
-                  onChange={(e) => setNewTopic(e.target.value)}
-                  maxLength={1024}
-                />
+                <Input placeholder="Descrição do canal..." value={newTopic} onChange={(e) => setNewTopic(e.target.value)} maxLength={1024} />
               </div>
             )}
           </div>
