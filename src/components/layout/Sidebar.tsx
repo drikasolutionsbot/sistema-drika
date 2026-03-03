@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, HandMetal,
   Store, Zap, Shield, Link2, Gift, Crown, Ticket, Cloud, Headset, Settings,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ClipboardCheck,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ const navGroups = [
     label: "GERENCIAMENTO",
     items: [
       { label: "Finanças", icon: DollarSign, path: "/finance" },
+      { label: "Aprovações", icon: ClipboardCheck, path: "/approvals" },
       { label: "Personalização", icon: Palette, path: "/customization" },
       { label: "Recursos", icon: Box, path: "/resources" },
     ],
