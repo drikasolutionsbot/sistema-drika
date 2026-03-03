@@ -3,6 +3,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProductImageUpload } from "./ProductImageUpload";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface Product {
   id: string;
@@ -12,6 +14,9 @@ interface Product {
   stock: number | null;
   active: boolean;
   description: string | null;
+  icon_url?: string | null;
+  banner_url?: string | null;
+  auto_delivery?: boolean;
 }
 
 interface ProductDetailGeneralProps {
@@ -20,110 +25,164 @@ interface ProductDetailGeneralProps {
 }
 
 export const ProductDetailGeneral = ({ product, onChange }: ProductDetailGeneralProps) => {
+  const { tenantId } = useTenant();
+
   return (
-    <div className="space-y-6">
-      {/* Nome e Emoji */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
+    <div className="space-y-8">
+      {/* Section: Informações Básicas */}
+      <section className="space-y-5">
+        <h3 className="text-base font-bold text-foreground">Informações Básicas</h3>
+
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Nome do Produto</Label>
+          <Label className="text-sm font-bold">Nome do Produto</Label>
           <Input
             value={product.name}
             onChange={(e) => onChange({ name: e.target.value })}
-            className="bg-muted border-none"
+            className="bg-muted border-border"
           />
         </div>
+
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Emoji (Opcional)</Label>
-          <Input
-            placeholder="🎮"
-            className="bg-muted border-none"
+          <Label className="text-sm font-bold">Descrição</Label>
+          <Textarea
+            value={product.description || ""}
+            onChange={(e) => onChange({ description: e.target.value })}
+            placeholder="Descreva o produto..."
+            className="bg-muted border-border min-h-[100px] resize-none"
           />
         </div>
-      </div>
 
-      {/* Descrição */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Descrição</Label>
-        <Textarea
-          value={product.description || ""}
-          onChange={(e) => onChange({ description: e.target.value })}
-          placeholder="Descreva o produto..."
-          className="bg-muted border-none min-h-[100px] resize-none"
-        />
-      </div>
-
-      {/* Preço e Tipo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Preço (R$)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={(product.price_cents / 100).toFixed(2)}
-            onChange={(e) => onChange({ price_cents: Math.round(parseFloat(e.target.value || "0") * 100) })}
-            className="bg-muted border-none"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Preço de Comparação (Opcional)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            className="bg-muted border-none"
-          />
-        </div>
-      </div>
-
-      {/* Tipo */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Tipo do Produto</Label>
-        <Select value={product.type} onValueChange={(val) => onChange({ type: val })}>
-          <SelectTrigger className="bg-muted border-none">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="digital_auto">Digital (Entrega Automática)</SelectItem>
-            <SelectItem value="service">Serviço</SelectItem>
-            <SelectItem value="hybrid">Híbrido</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Toggles */}
-      <div className="space-y-4 rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between">
+        {/* Entrega Automática */}
+        <div className="flex items-center justify-between py-1">
           <div>
-            <p className="text-sm font-medium">Produto Ativo</p>
-            <p className="text-xs text-muted-foreground">Exibir produto na loja</p>
+            <p className="text-sm font-bold">Entrega Automática</p>
+            <p className="text-xs text-muted-foreground">Ativa a entrega automática do produto</p>
           </div>
           <Switch
-            checked={product.active}
-            onCheckedChange={(val) => onChange({ active: val })}
+            checked={product.auto_delivery ?? false}
+            onCheckedChange={(val) => onChange({ auto_delivery: val })}
           />
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Mostrar Estoque</p>
-            <p className="text-xs text-muted-foreground">Mostrar o estoque do produto</p>
+      </section>
+
+      {/* Section: Imagens */}
+      <section className="space-y-5">
+        <h3 className="text-base font-bold text-foreground">Imagens</h3>
+
+        {tenantId && (
+          <div className="space-y-6">
+            <ProductImageUpload
+              label="Ícone do Produto"
+              hint="Suporta PNG, JPG e GIF · Máximo 10MB · Proporção: 1:1"
+              currentUrl={product.icon_url || null}
+              onUploaded={(url) => onChange({ icon_url: url })}
+              onRemoved={() => onChange({ icon_url: null })}
+              tenantId={tenantId}
+              productId={product.id}
+              aspect="square"
+            />
+
+            <ProductImageUpload
+              label="Banner do Produto"
+              hint="Suporta PNG, JPG e GIF · Máximo 10MB · Proporção: Banner (16:9)"
+              currentUrl={product.banner_url || null}
+              onUploaded={(url) => onChange({ banner_url: url })}
+              onRemoved={() => onChange({ banner_url: null })}
+              tenantId={tenantId}
+              productId={product.id}
+              aspect="banner"
+            />
           </div>
-          <Switch />
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Habilitar Créditos</p>
-            <p className="text-xs text-muted-foreground">Permitir pagamento com créditos</p>
+        )}
+      </section>
+
+      {/* Section: Preço */}
+      <section className="space-y-5">
+        <h3 className="text-base font-bold text-foreground">Preço</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Preço (R$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={(product.price_cents / 100).toFixed(2)}
+              onChange={(e) => onChange({ price_cents: Math.round(parseFloat(e.target.value || "0") * 100) })}
+              className="bg-muted border-border"
+            />
           </div>
-          <Switch />
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Mostrar Vendidos</p>
-            <p className="text-xs text-muted-foreground">Mostrar o número de vendidos do produto</p>
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Preço de Comparação <span className="font-normal text-muted-foreground">(Opcional)</span></Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              className="bg-muted border-border"
+            />
           </div>
-          <Switch />
         </div>
-      </div>
+      </section>
+
+      {/* Section: Tipo */}
+      <section className="space-y-5">
+        <h3 className="text-base font-bold text-foreground">Configurações</h3>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">Tipo do Produto</Label>
+          <Select value={product.type} onValueChange={(val) => onChange({ type: val })}>
+            <SelectTrigger className="bg-muted border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="digital_auto">Digital (Entrega Automática)</SelectItem>
+              <SelectItem value="service">Serviço</SelectItem>
+              <SelectItem value="hybrid">Híbrido</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Toggles */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Produto Ativo</p>
+              <p className="text-xs text-muted-foreground">Exibir produto na loja</p>
+            </div>
+            <Switch
+              checked={product.active}
+              onCheckedChange={(val) => onChange({ active: val })}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Habilitar Créditos</p>
+              <p className="text-xs text-muted-foreground">Permitir pagamento com créditos</p>
+            </div>
+            <Switch />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Mostrar Estoque</p>
+              <p className="text-xs text-muted-foreground">Mostrar o estoque do produto</p>
+            </div>
+            <Switch />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Mostrar Vendidos</p>
+              <p className="text-xs text-muted-foreground">Mostrar o número de vendidos do produto</p>
+            </div>
+            <Switch />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">Habilitar Instruções</p>
+              <p className="text-xs text-muted-foreground">Habilitar instruções do produto</p>
+            </div>
+            <Switch />
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

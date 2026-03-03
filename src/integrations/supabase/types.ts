@@ -332,9 +332,12 @@ export type Database = {
       products: {
         Row: {
           active: boolean
+          auto_delivery: boolean
+          banner_url: string | null
           category_id: string | null
           created_at: string
           description: string | null
+          icon_url: string | null
           id: string
           name: string
           price_cents: number
@@ -345,9 +348,12 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          auto_delivery?: boolean
+          banner_url?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
+          icon_url?: string | null
           id?: string
           name: string
           price_cents?: number
@@ -358,9 +364,12 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          auto_delivery?: boolean
+          banner_url?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
+          icon_url?: string | null
           id?: string
           name?: string
           price_cents?: number

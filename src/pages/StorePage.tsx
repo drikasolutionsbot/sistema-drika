@@ -18,6 +18,9 @@ interface Product {
   stock: number | null;
   active: boolean;
   description: string | null;
+  icon_url?: string | null;
+  banner_url?: string | null;
+  auto_delivery?: boolean;
 }
 
 const StorePage = () => {
@@ -41,6 +44,9 @@ const StorePage = () => {
         price_cents: product.price_cents,
         type: product.type,
         active: product.active,
+        icon_url: product.icon_url,
+        banner_url: product.banner_url,
+        auto_delivery: product.auto_delivery,
       })
       .eq("id", product.id);
 

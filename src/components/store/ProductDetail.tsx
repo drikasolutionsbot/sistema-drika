@@ -14,6 +14,9 @@ interface Product {
   stock: number | null;
   active: boolean;
   description: string | null;
+  icon_url?: string | null;
+  banner_url?: string | null;
+  auto_delivery?: boolean;
 }
 
 interface ProductDetailProps {
