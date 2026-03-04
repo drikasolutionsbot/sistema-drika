@@ -60,6 +60,15 @@ serve(async (req) => {
       .update({ last_used_at: new Date().toISOString() })
       .eq("id", tokenRecord.id);
 
+    // Check if plan is expired
+    const { data: tenantData } = await supabase
+      .from("tenants")
+      .select("plan, plan_expires_at")
+      .eq("id", tokenRecord.tenant_id)
+      .single();
+
+    const planExpired = tenantData?.plan === "pro" && tenantData?.plan_expires_at && new Date(tenantData.plan_expires_at) < new Date();
+
     return new Response(
       JSON.stringify({
         valid: true,
@@ -67,6 +76,7 @@ serve(async (req) => {
         tenant_name: tokenRecord.tenants?.name,
         label: tokenRecord.label,
         client_ip: clientIp,
+        plan_expired: !!planExpired,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

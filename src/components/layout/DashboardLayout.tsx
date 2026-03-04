@@ -2,9 +2,16 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { useTenant } from "@/contexts/TenantContext";
+import PlanExpiredPage from "@/pages/PlanExpiredPage";
 
 export const DashboardLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isPlanExpired } = useTenant();
+
+  if (isPlanExpired) {
+    return <PlanExpiredPage />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

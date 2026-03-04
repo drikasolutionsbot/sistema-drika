@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Trash2, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone } from "lucide-react";
+import { Plus, Key, Copy, Trash2, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff } from "lucide-react";
 
 const PLANS = [
   { value: "free", label: "Drika Solutions Free", color: "text-muted-foreground bg-muted/50 border-border" },
@@ -110,16 +110,53 @@ const AdminClientsPage = () => {
   const handleChangePlan = async (tenantId: string, newPlan: string) => {
     setSavingPlan(true);
     try {
+      const now = new Date();
+      const updateData: any = { plan: newPlan };
+      
+      if (newPlan === "pro") {
+        // Activate pro: set start to now, expires in 30 days
+        updateData.plan_started_at = now.toISOString();
+        updateData.plan_expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      } else {
+        // Downgrade to free: clear dates
+        updateData.plan_started_at = null;
+        updateData.plan_expires_at = null;
+      }
+
       const { error } = await supabase
         .from("tenants")
-        .update({ plan: newPlan })
+        .update(updateData)
         .eq("id", tenantId);
       if (error) throw error;
       setTenants((prev) =>
-        prev.map((t) => (t.id === tenantId ? { ...t, plan: newPlan } : t))
+        prev.map((t) => (t.id === tenantId ? { ...t, ...updateData } : t))
       );
       toast({ title: "Plano atualizado!", description: `Alterado para ${PLANS.find((p) => p.value === newPlan)?.label}` });
       setEditingPlan(null);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+    setSavingPlan(false);
+  };
+
+  const handleRenewPlan = async (tenantId: string) => {
+    setSavingPlan(true);
+    try {
+      const now = new Date();
+      const updateData = {
+        plan: "pro",
+        plan_started_at: now.toISOString(),
+        plan_expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      const { error } = await supabase
+        .from("tenants")
+        .update(updateData)
+        .eq("id", tenantId);
+      if (error) throw error;
+      setTenants((prev) =>
+        prev.map((t) => (t.id === tenantId ? { ...t, ...updateData } : t))
+      );
+      toast({ title: "Plano renovado por +30 dias! ✅" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
@@ -325,9 +362,14 @@ const AdminClientsPage = () => {
                 const tenantTokens = tokens[tenant.id] || [];
                 const currentPlan = tenant.plan || "free";
                 const planInfo = PLANS.find((p) => p.value === currentPlan) || PLANS[0];
+                const isPro = currentPlan === "pro";
+                const isExpired = isPro && tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date();
+                const daysLeft = isPro && tenant.plan_expires_at
+                  ? Math.ceil((new Date(tenant.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : null;
 
                 return (
-                  <div key={tenant.id} className="rounded-lg border border-border overflow-hidden">
+                  <div key={tenant.id} className={`rounded-lg border overflow-hidden ${isExpired ? "border-destructive/50 bg-destructive/5" : "border-border"}`}>
                     {/* Tenant row */}
                     <div
                       className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -335,7 +377,19 @@ const AdminClientsPage = () => {
                     >
                       <div className="flex items-center gap-4 min-w-0 flex-1">
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground">{tenant.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground">{tenant.name}</p>
+                            {isExpired && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 border border-destructive/30 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+                                <ShieldOff className="h-3 w-3" /> EXPIRADO
+                              </span>
+                            )}
+                            {isPro && !isExpired && daysLeft !== null && daysLeft <= 5 && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+                                ⚠️ {daysLeft}d restantes
+                              </span>
+                            )}
+                          </div>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                             {tenant.email && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -347,7 +401,17 @@ const AdminClientsPage = () => {
                                 <Phone className="h-3 w-3" /> {tenant.whatsapp}
                               </span>
                             )}
-                            {!tenant.email && !tenant.whatsapp && (
+                            {isPro && tenant.plan_started_at && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" /> Início: {format(new Date(tenant.plan_started_at), "dd/MM/yyyy")}
+                              </span>
+                            )}
+                            {isPro && tenant.plan_expires_at && (
+                              <span className={`text-xs flex items-center gap-1 ${isExpired ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                                <CalendarClock className="h-3 w-3" /> Vence: {format(new Date(tenant.plan_expires_at), "dd/MM/yyyy")}
+                              </span>
+                            )}
+                            {!tenant.email && !tenant.whatsapp && !isPro && (
                               <span className="text-xs text-muted-foreground font-mono">
                                 {tenant.discord_guild_id || "Sem contato"}
                               </span>
@@ -384,17 +448,28 @@ const AdminClientsPage = () => {
                             </Button>
                           </div>
                         ) : (
-                          <button
-                            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-[2px] text-xs font-medium transition-colors hover:opacity-80 ${planInfo.color}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingPlan(tenant.id);
-                            }}
-                            title="Clique para alterar o plano"
-                          >
-                            <Settings className="h-3 w-3" />
-                            {planInfo.label}
-                          </button>
+                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-[2px] text-xs font-medium transition-colors hover:opacity-80 ${planInfo.color}`}
+                              onClick={() => setEditingPlan(tenant.id)}
+                              title="Clique para alterar o plano"
+                            >
+                              <Settings className="h-3 w-3" />
+                              {planInfo.label}
+                            </button>
+                            {isPro && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-[10px] px-2 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                                onClick={() => handleRenewPlan(tenant.id)}
+                                disabled={savingPlan}
+                              >
+                                <CalendarClock className="h-3 w-3 mr-1" />
+                                Renovar +30d
+                              </Button>
+                            )}
+                          </div>
                         )}
                         <span className="text-xs text-muted-foreground hidden sm:inline">
                           {format(new Date(tenant.created_at), "dd/MM/yyyy")}

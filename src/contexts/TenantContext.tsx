@@ -10,6 +10,8 @@ interface Tenant {
   primary_color: string;
   secondary_color: string;
   plan: string;
+  plan_started_at: string | null;
+  plan_expires_at: string | null;
   pix_key: string | null;
   pix_key_type: string | null;
   bot_token_encrypted: string | null;
@@ -29,6 +31,7 @@ interface TenantContextType {
   tenantId: string | null;
   loading: boolean;
   refetch: () => void;
+  isPlanExpired: boolean;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -62,6 +65,8 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               primary_color: "#FF69B4",
               secondary_color: "#FFD700",
               plan: "free",
+              plan_started_at: null,
+              plan_expires_at: null,
               pix_key: null,
               pix_key_type: null,
               bot_token_encrypted: null,
@@ -107,8 +112,14 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => { fetchTenant(); }, [user]);
 
+  const isPlanExpired = !!(
+    tenant?.plan === "pro" &&
+    tenant?.plan_expires_at &&
+    new Date(tenant.plan_expires_at) < new Date()
+  );
+
   return (
-    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: fetchTenant }}>
+    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: fetchTenant, isPlanExpired }}>
       {children}
     </TenantContext.Provider>
   );
