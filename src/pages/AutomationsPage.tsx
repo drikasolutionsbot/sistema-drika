@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Zap, Plus, Trash2, Edit2, Power, PowerOff, RefreshCw, Search,
   Play, Clock, Activity, ChevronDown, ChevronRight, Eye, Copy,
-  UserPlus, UserMinus, MessageSquare, Hash, AtSign, Gift, ShieldCheck,
-  Bell, Send, Tag, Star, Heart, Award, Megaphone, Ban, UserX,
+  MessageSquare, Hash, ShieldCheck,
+  Bell, Send, Tag, Award, Megaphone, Ban, UserX,
   PenLine, Image,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -103,22 +103,7 @@ interface ActionDef {
 const TRIGGERS: TriggerDef[] = [
   { key: "order_created", label: "Pedido Criado", description: "Quando um novo pedido é criado na loja", icon: Tag, color: "text-yellow-400 bg-yellow-500/10", category: "Loja", auto: true, configFields: [] },
   { key: "order_paid", label: "Pagamento Confirmado", description: "Quando um pedido é pago", icon: Award, color: "text-emerald-400 bg-emerald-500/10", category: "Loja", auto: true, configFields: [] },
-  { key: "member_join", label: "Membro Entrou", description: "Quando um novo membro entra no servidor", icon: UserPlus, color: "text-emerald-400 bg-emerald-500/10", category: "Membros", configFields: [] },
-  { key: "member_leave", label: "Membro Saiu", description: "Quando um membro sai do servidor", icon: UserMinus, color: "text-red-400 bg-red-500/10", category: "Membros", configFields: [] },
-  { key: "member_boost", label: "Membro Boostou", description: "Quando um membro impulsiona o servidor", icon: Star, color: "text-pink-400 bg-pink-500/10", category: "Membros", configFields: [] },
-  { key: "message_contains", label: "Mensagem Contém", description: "Quando uma mensagem contém palavras específicas", icon: MessageSquare, color: "text-blue-400 bg-blue-500/10", category: "Mensagens", configFields: [
-    { key: "keywords", label: "Palavras-chave (separadas por vírgula)", type: "text", placeholder: "comprar, preço, ajuda" },
-    { key: "channel_id", label: "Canal específico (opcional)", type: "channel" },
-  ]},
-  { key: "reaction_add", label: "Reação Adicionada", description: "Quando uma reação é adicionada a uma mensagem", icon: Heart, color: "text-pink-400 bg-pink-500/10", category: "Mensagens", configFields: [
-    { key: "emoji", label: "Emoji específico (opcional)", type: "text", placeholder: "✅ ou nome do emoji" },
-    { key: "message_id", label: "ID da Mensagem (opcional)", type: "text", placeholder: "ID da mensagem" },
-  ]},
   { key: "ticket_created", label: "Ticket Criado", description: "Quando um ticket de suporte é aberto", icon: Bell, color: "text-blue-400 bg-blue-500/10", category: "Suporte", auto: true, configFields: [] },
-  { key: "scheduled", label: "Agendado", description: "Executa em intervalos regulares", icon: Clock, color: "text-purple-400 bg-purple-500/10", category: "Sistema", configFields: [
-    { key: "interval_minutes", label: "Intervalo (minutos)", type: "number", placeholder: "60" },
-    { key: "start_time", label: "Horário inicial (HH:MM)", type: "text", placeholder: "08:00" },
-  ]},
 ];
 
 const ACTIONS: ActionDef[] = [

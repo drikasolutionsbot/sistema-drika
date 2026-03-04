@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, HandMetal,
-  Store, Zap, Shield, Link2, Gift, Crown, Ticket, Cloud, Headset, Settings,
+  LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck,
+  Store, Zap, Gift, Crown, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -40,11 +40,8 @@ const navGroups = [
     items: [
       { label: "Canais", icon: Hash, path: "/channels" },
       { label: "Cargos", icon: ShieldCheck, path: "/roles" },
-      { label: "Boas Vindas", icon: HandMetal, path: "/welcome" },
       { label: "Loja", icon: Store, path: "/store" },
       { label: "Ações Automáticas", icon: Zap, path: "/automations" },
-      { label: "Proteção", icon: Shield, path: "/protection" },
-      { label: "Rastreamento", icon: Link2, path: "/invite-tracking" },
       { label: "Sorteios", icon: Gift, path: "/giveaways" },
       { label: "VIPs", icon: Crown, path: "/vips" },
       { label: "Tickets", icon: Ticket, path: "/tickets" },
