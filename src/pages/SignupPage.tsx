@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { UserPlus, Copy, Check, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -9,6 +9,8 @@ import TermsModal from "@/components/TermsModal";
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const wantsPro = searchParams.get("plan") === "pro";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -92,6 +94,9 @@ const SignupPage = () => {
   };
 
   const handleGoToLogin = () => {
+    if (wantsPro) {
+      sessionStorage.setItem("pending_pro_upgrade", "true");
+    }
     window.location.href = "/login";
   };
 

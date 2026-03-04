@@ -38,6 +38,7 @@ import ECloudPage from "./pages/ECloudPage";
 import SupportPage from "./pages/SupportPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import TermsPage from "./pages/TermsPage";
+import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,7 +67,7 @@ const AppRoutes = () => (
     <Route path="/termos" element={<TermsPage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+    <Route path="/" element={<LandingPage />} />
 
     {/* Admin routes - completely separate */}
     <Route element={<ProtectedRoute><AdminProvider><AdminLayout /></AdminProvider></ProtectedRoute>}>
