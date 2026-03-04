@@ -3,7 +3,8 @@ import {
   Zap, Plus, Trash2, Edit2, Power, PowerOff, RefreshCw, Search,
   Play, Clock, Activity, ChevronDown, ChevronRight, Eye, Copy,
   UserPlus, UserMinus, MessageSquare, Hash, AtSign, Gift, ShieldCheck,
-  Bell, Send, Globe, Tag, Star, Heart, Award, Megaphone,
+  Bell, Send, Globe, Tag, Star, Heart, Award, Megaphone, Ban, UserX,
+  PenLine, Image,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-// ─── Types ──────────────────────────────
+// ─── Types ──────────────────────────
 interface Automation {
   id: string;
   name: string;
@@ -57,7 +58,28 @@ interface AutoLog {
   created_at: string;
 }
 
+interface DiscordChannel {
+  id: string;
+  name: string;
+  type: number;
+}
+
+interface DiscordRole {
+  id: string;
+  name: string;
+  color: number;
+  position: number;
+}
+
 // ─── Trigger & Action Definitions ──────────
+interface FieldDef {
+  key: string;
+  label: string;
+  type: "text" | "number" | "select" | "textarea" | "channel" | "role";
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+}
+
 interface TriggerDef {
   key: string;
   label: string;
@@ -65,15 +87,16 @@ interface TriggerDef {
   icon: any;
   color: string;
   category: string;
-  configFields: { key: string; label: string; type: "text" | "number" | "select"; placeholder?: string; options?: { value: string; label: string }[] }[];
+  configFields: FieldDef[];
 }
 
 interface ActionDef {
   key: string;
   label: string;
+  description: string;
   icon: any;
   color: string;
-  configFields: { key: string; label: string; type: "text" | "number" | "select" | "textarea"; placeholder?: string; options?: { value: string; label: string }[] }[];
+  configFields: FieldDef[];
 }
 
 const TRIGGERS: TriggerDef[] = [
@@ -82,13 +105,13 @@ const TRIGGERS: TriggerDef[] = [
   { key: "member_boost", label: "Membro Boostou", description: "Quando um membro impulsiona o servidor", icon: Star, color: "text-pink-400 bg-pink-500/10", category: "Membros", configFields: [] },
   { key: "message_contains", label: "Mensagem Contém", description: "Quando uma mensagem contém palavras específicas", icon: MessageSquare, color: "text-blue-400 bg-blue-500/10", category: "Mensagens", configFields: [
     { key: "keywords", label: "Palavras-chave (separadas por vírgula)", type: "text", placeholder: "comprar, preço, ajuda" },
-    { key: "channel_id", label: "Canal específico (opcional)", type: "text", placeholder: "ID do canal" },
+    { key: "channel_id", label: "Canal específico (opcional)", type: "channel" },
   ]},
   { key: "reaction_add", label: "Reação Adicionada", description: "Quando uma reação é adicionada a uma mensagem", icon: Heart, color: "text-pink-400 bg-pink-500/10", category: "Mensagens", configFields: [
     { key: "emoji", label: "Emoji específico (opcional)", type: "text", placeholder: "✅ ou nome do emoji" },
-    { key: "message_id", label: "Mensagem específica (opcional)", type: "text", placeholder: "ID da mensagem" },
+    { key: "message_id", label: "ID da Mensagem (opcional)", type: "text", placeholder: "ID da mensagem" },
   ]},
-  { key: "order_created", label: "Pedido Criado", description: "Quando um novo pedido é criado", icon: Tag, color: "text-yellow-400 bg-yellow-500/10", category: "Loja", configFields: [] },
+  { key: "order_created", label: "Pedido Criado", description: "Quando um novo pedido é criado na loja", icon: Tag, color: "text-yellow-400 bg-yellow-500/10", category: "Loja", configFields: [] },
   { key: "order_paid", label: "Pagamento Confirmado", description: "Quando um pedido é pago", icon: Award, color: "text-emerald-400 bg-emerald-500/10", category: "Loja", configFields: [] },
   { key: "ticket_created", label: "Ticket Criado", description: "Quando um ticket de suporte é aberto", icon: Bell, color: "text-blue-400 bg-blue-500/10", category: "Suporte", configFields: [] },
   { key: "scheduled", label: "Agendado", description: "Executa em intervalos regulares", icon: Clock, color: "text-purple-400 bg-purple-500/10", category: "Sistema", configFields: [
@@ -98,35 +121,50 @@ const TRIGGERS: TriggerDef[] = [
 ];
 
 const ACTIONS: ActionDef[] = [
-  { key: "send_message", label: "Enviar Mensagem", icon: Send, color: "text-blue-400 bg-blue-500/10", configFields: [
-    { key: "channel_id", label: "ID do Canal", type: "text", placeholder: "ID do canal Discord" },
+  { key: "send_message", label: "Enviar Mensagem", description: "Envia uma mensagem de texto em um canal", icon: Send, color: "text-blue-400 bg-blue-500/10", configFields: [
+    { key: "channel_id", label: "Canal", type: "channel" },
     { key: "content", label: "Mensagem", type: "textarea", placeholder: "Use {user}, {server}, {member_count} como variáveis" },
   ]},
-  { key: "send_dm", label: "Enviar DM", icon: MessageSquare, color: "text-purple-400 bg-purple-500/10", configFields: [
+  { key: "send_embed", label: "Enviar Embed", description: "Envia um embed rico em um canal", icon: Image, color: "text-indigo-400 bg-indigo-500/10", configFields: [
+    { key: "channel_id", label: "Canal", type: "channel" },
+    { key: "title", label: "Título", type: "text", placeholder: "Título do embed" },
+    { key: "description", label: "Descrição", type: "textarea", placeholder: "Conteúdo do embed. Use {user}, {server}" },
+    { key: "color", label: "Cor (hex)", type: "text", placeholder: "#5865F2" },
+    { key: "thumbnail_url", label: "Thumbnail URL (opcional)", type: "text", placeholder: "https://..." },
+    { key: "image_url", label: "Imagem URL (opcional)", type: "text", placeholder: "https://..." },
+  ]},
+  { key: "send_dm", label: "Enviar DM", description: "Envia uma mensagem direta ao usuário", icon: MessageSquare, color: "text-purple-400 bg-purple-500/10", configFields: [
     { key: "content", label: "Mensagem", type: "textarea", placeholder: "Use {user}, {server} como variáveis" },
   ]},
-  { key: "add_role", label: "Adicionar Cargo", icon: ShieldCheck, color: "text-emerald-400 bg-emerald-500/10", configFields: [
-    { key: "role_id", label: "ID do Cargo", type: "text", placeholder: "ID do cargo Discord" },
+  { key: "add_role", label: "Adicionar Cargo", description: "Adiciona um cargo ao membro", icon: ShieldCheck, color: "text-emerald-400 bg-emerald-500/10", configFields: [
+    { key: "role_id", label: "Cargo", type: "role" },
   ]},
-  { key: "remove_role", label: "Remover Cargo", icon: ShieldCheck, color: "text-red-400 bg-red-500/10", configFields: [
-    { key: "role_id", label: "ID do Cargo", type: "text", placeholder: "ID do cargo Discord" },
+  { key: "remove_role", label: "Remover Cargo", description: "Remove um cargo do membro", icon: ShieldCheck, color: "text-red-400 bg-red-500/10", configFields: [
+    { key: "role_id", label: "Cargo", type: "role" },
   ]},
-  { key: "send_webhook", label: "Chamar Webhook", icon: Globe, color: "text-yellow-400 bg-yellow-500/10", configFields: [
+  { key: "kick_member", label: "Expulsar Membro", description: "Expulsa o membro do servidor", icon: UserX, color: "text-orange-400 bg-orange-500/10", configFields: [] },
+  { key: "ban_member", label: "Banir Membro", description: "Bane o membro do servidor", icon: Ban, color: "text-red-500 bg-red-500/10", configFields: [
+    { key: "delete_days", label: "Deletar mensagens (dias)", type: "number", placeholder: "0" },
+  ]},
+  { key: "change_nickname", label: "Alterar Apelido", description: "Altera o apelido do membro", icon: PenLine, color: "text-cyan-400 bg-cyan-500/10", configFields: [
+    { key: "nickname", label: "Novo apelido", type: "text", placeholder: "Use {username} como variável" },
+  ]},
+  { key: "send_announcement", label: "Enviar Anúncio", description: "Envia um embed de anúncio em um canal", icon: Megaphone, color: "text-orange-400 bg-orange-500/10", configFields: [
+    { key: "channel_id", label: "Canal", type: "channel" },
+    { key: "title", label: "Título", type: "text", placeholder: "Título do anúncio" },
+    { key: "description", label: "Descrição", type: "textarea", placeholder: "Conteúdo do anúncio" },
+    { key: "color", label: "Cor (hex)", type: "text", placeholder: "#FF69B4" },
+  ]},
+  { key: "send_webhook", label: "Chamar Webhook", description: "Faz uma requisição HTTP para uma URL", icon: Globe, color: "text-yellow-400 bg-yellow-500/10", configFields: [
     { key: "url", label: "URL do Webhook", type: "text", placeholder: "https://..." },
     { key: "body_template", label: "Body (JSON)", type: "textarea", placeholder: '{"event": "{trigger_type}", "user": "{user}"}' },
-  ]},
-  { key: "send_announcement", label: "Enviar Anúncio", icon: Megaphone, color: "text-orange-400 bg-orange-500/10", configFields: [
-    { key: "channel_id", label: "ID do Canal", type: "text", placeholder: "ID do canal Discord" },
-    { key: "title", label: "Título", type: "text", placeholder: "Título do embed" },
-    { key: "description", label: "Descrição", type: "textarea", placeholder: "Conteúdo do embed" },
-    { key: "color", label: "Cor (hex)", type: "text", placeholder: "#FF69B4" },
   ]},
 ];
 
 const CONDITION_TYPES = [
-  { value: "has_role", label: "Tem o cargo (ID)" },
-  { value: "not_has_role", label: "Não tem o cargo (ID)" },
-  { value: "in_channel", label: "No canal (ID)" },
+  { value: "has_role", label: "Tem o cargo" },
+  { value: "not_has_role", label: "Não tem o cargo" },
+  { value: "in_channel", label: "No canal" },
   { value: "account_age_days", label: "Conta com mais de X dias" },
 ];
 
@@ -139,6 +177,10 @@ const AutomationsPage = () => {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Discord data
+  const [channels, setChannels] = useState<DiscordChannel[]>([]);
+  const [roles, setRoles] = useState<DiscordRole[]>([]);
+
   // Form
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Automation | null>(null);
@@ -148,26 +190,46 @@ const AutomationsPage = () => {
   const [formActions, setFormActions] = useState<AutoAction[]>([]);
   const [formConditions, setFormConditions] = useState<AutoCondition[]>([]);
   const [saving, setSaving] = useState(false);
-  const [formStep, setFormStep] = useState(0); // 0=trigger, 1=actions, 2=conditions
+  const [formStep, setFormStep] = useState(0);
 
   // Logs dialog
   const [logsDialogOpen, setLogsDialogOpen] = useState(false);
   const [logsForAutomation, setLogsForAutomation] = useState<string | null>(null);
   const [automationLogs, setAutomationLogs] = useState<AutoLog[]>([]);
 
-  const invoke = useCallback(async (body: any) => {
-    const { data, error } = await supabase.functions.invoke("manage-automations", { body: { ...body, tenant_id: tenantId } });
+  const invoke = useCallback(async (fn: string, body: any) => {
+    const { data, error } = await supabase.functions.invoke(fn, { body: { ...body, tenant_id: tenantId } });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
     return data;
+  }, [tenantId]);
+
+  const fetchDiscordData = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const [chData, roleData] = await Promise.all([
+        supabase.functions.invoke("discord-channels", { body: { tenant_id: tenantId } }),
+        supabase.functions.invoke("manage-roles", { body: { action: "list", tenant_id: tenantId } }),
+      ]);
+      if (chData.data && Array.isArray(chData.data)) {
+        setChannels(chData.data.filter((c: any) => c.type === 0 || c.type === 5).sort((a: any, b: any) => a.name.localeCompare(b.name)));
+      }
+      // Try to get Discord roles directly
+      const guildInfo = await supabase.functions.invoke("discord-guild-info", { body: { tenant_id: tenantId } });
+      if (guildInfo.data?.roles) {
+        setRoles(guildInfo.data.roles.filter((r: any) => r.name !== "@everyone").sort((a: any, b: any) => b.position - a.position));
+      }
+    } catch (err) {
+      console.error("Failed to fetch Discord data:", err);
+    }
   }, [tenantId]);
 
   const fetchData = useCallback(async () => {
     if (!tenantId) return;
     try {
       const [autoData, logsData] = await Promise.all([
-        invoke({ action: "list" }),
-        invoke({ action: "list_logs", limit: 20 }),
+        invoke("manage-automations", { action: "list" }),
+        invoke("manage-automations", { action: "list_logs", limit: 20 }),
       ]);
       setAutomations(autoData || []);
       setLogs(logsData || []);
@@ -175,7 +237,7 @@ const AutomationsPage = () => {
     finally { setLoading(false); }
   }, [tenantId, invoke]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); fetchDiscordData(); }, [fetchData, fetchDiscordData]);
 
   // Realtime
   useEffect(() => {
@@ -183,10 +245,8 @@ const AutomationsPage = () => {
     const channel = supabase
       .channel(`automations-realtime-${tenantId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "automations", filter: `tenant_id=eq.${tenantId}` }, () => fetchData())
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "automation_logs", filter: `tenant_id=eq.${tenantId}` }, (payload) => {
-        const row = payload.new as any;
-        const auto = automations.find((a) => a.id === row.automation_id);
-        toast.info("⚡ Automação executada", { description: auto?.name || "Automação" });
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "automation_logs", filter: `tenant_id=eq.${tenantId}` }, () => {
+        toast.info("⚡ Automação executada");
         fetchData();
       })
       .subscribe();
@@ -195,59 +255,47 @@ const AutomationsPage = () => {
 
   // CRUD
   const openNew = () => {
-    setEditing(null);
-    setFormName("");
-    setFormTrigger("");
-    setFormTriggerConfig({});
-    setFormActions([]);
-    setFormConditions([]);
-    setFormStep(0);
-    setDialogOpen(true);
+    setEditing(null); setFormName(""); setFormTrigger(""); setFormTriggerConfig({});
+    setFormActions([]); setFormConditions([]); setFormStep(0); setDialogOpen(true);
   };
 
   const openEdit = (auto: Automation) => {
-    setEditing(auto);
-    setFormName(auto.name);
-    setFormTrigger(auto.trigger_type);
-    setFormTriggerConfig(auto.trigger_config);
-    setFormActions(auto.actions);
-    setFormConditions(auto.conditions);
-    setFormStep(0);
-    setDialogOpen(true);
+    setEditing(auto); setFormName(auto.name); setFormTrigger(auto.trigger_type);
+    setFormTriggerConfig(auto.trigger_config); setFormActions(auto.actions);
+    setFormConditions(auto.conditions); setFormStep(0); setDialogOpen(true);
   };
 
   const saveAutomation = async () => {
-    if (!formName.trim() || !formTrigger) { toast.error("Nome e trigger são obrigatórios"); return; }
+    if (!formName.trim() || !formTrigger) { toast.error("Nome e gatilho são obrigatórios"); return; }
     if (formActions.length === 0) { toast.error("Adicione pelo menos uma ação"); return; }
     setSaving(true);
     try {
       if (editing) {
-        await invoke({ action: "update", automation_id: editing.id, name: formName, trigger_type: formTrigger, trigger_config: formTriggerConfig, actions: formActions, conditions: formConditions });
+        await invoke("manage-automations", { action: "update", automation_id: editing.id, name: formName, trigger_type: formTrigger, trigger_config: formTriggerConfig, actions: formActions, conditions: formConditions });
         toast.success("Automação atualizada");
       } else {
-        await invoke({ action: "create", name: formName, trigger_type: formTrigger, trigger_config: formTriggerConfig, actions: formActions, conditions: formConditions });
+        await invoke("manage-automations", { action: "create", name: formName, trigger_type: formTrigger, trigger_config: formTriggerConfig, actions: formActions, conditions: formConditions });
         toast.success("Automação criada");
       }
-      setDialogOpen(false);
-      fetchData();
+      setDialogOpen(false); fetchData();
     } catch (err: any) { toast.error(err.message); }
     finally { setSaving(false); }
   };
 
   const deleteAutomation = async (id: string) => {
-    try { await invoke({ action: "delete", automation_id: id }); toast.success("Automação removida"); fetchData(); }
+    try { await invoke("manage-automations", { action: "delete", automation_id: id }); toast.success("Automação removida"); fetchData(); }
     catch (err: any) { toast.error(err.message); }
   };
 
   const toggleAutomation = async (id: string, enabled: boolean) => {
-    try { await invoke({ action: "toggle", automation_id: id, enabled }); fetchData(); }
+    try { await invoke("manage-automations", { action: "toggle", automation_id: id, enabled }); fetchData(); }
     catch (err: any) { toast.error(err.message); }
   };
 
   const openLogs = async (automationId: string) => {
     setLogsForAutomation(automationId);
     try {
-      const data = await invoke({ action: "list_logs", automation_id: automationId, limit: 30 });
+      const data = await invoke("manage-automations", { action: "list_logs", automation_id: automationId, limit: 30 });
       setAutomationLogs(data || []);
     } catch { setAutomationLogs([]); }
     setLogsDialogOpen(true);
@@ -267,13 +315,9 @@ const AutomationsPage = () => {
     setFormActions(updated);
   };
 
-  const removeAction = (idx: number) => {
-    setFormActions(formActions.filter((_, i) => i !== idx));
-  };
+  const removeAction = (idx: number) => setFormActions(formActions.filter((_, i) => i !== idx));
 
-  const addCondition = () => {
-    setFormConditions([...formConditions, { type: "has_role", value: "" }]);
-  };
+  const addCondition = () => setFormConditions([...formConditions, { type: "has_role", value: "" }]);
 
   const updateCondition = (idx: number, field: "type" | "value", val: string) => {
     const updated = [...formConditions];
@@ -281,15 +325,101 @@ const AutomationsPage = () => {
     setFormConditions(updated);
   };
 
-  const removeCondition = (idx: number) => {
-    setFormConditions(formConditions.filter((_, i) => i !== idx));
-  };
+  const removeCondition = (idx: number) => setFormConditions(formConditions.filter((_, i) => i !== idx));
 
   const filtered = automations.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
   const activeCount = automations.filter((a) => a.enabled).length;
   const totalExecs = automations.reduce((sum, a) => sum + a.executions, 0);
   const triggerDef = (key: string) => TRIGGERS.find((t) => t.key === key);
   const actionDef = (key: string) => ACTIONS.find((a) => a.key === key);
+
+  const channelName = (id: string) => channels.find(c => c.id === id)?.name || id;
+  const roleName = (id: string) => roles.find(r => r.id === id)?.name || id;
+
+  // ─── Dynamic field renderer ──────────
+  const renderField = (f: FieldDef, value: string, onChange: (v: string) => void) => {
+    if (f.type === "channel") {
+      return (
+        <Select value={value || ""} onValueChange={onChange}>
+          <SelectTrigger><SelectValue placeholder="Selecione um canal..." /></SelectTrigger>
+          <SelectContent>
+            {channels.map(ch => (
+              <SelectItem key={ch.id} value={ch.id}>
+                <span className="flex items-center gap-1.5">
+                  <Hash className="h-3 w-3 text-muted-foreground" />
+                  {ch.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    if (f.type === "role") {
+      return (
+        <Select value={value || ""} onValueChange={onChange}>
+          <SelectTrigger><SelectValue placeholder="Selecione um cargo..." /></SelectTrigger>
+          <SelectContent>
+            {roles.map(r => (
+              <SelectItem key={r.id} value={r.id}>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color ? `#${r.color.toString(16).padStart(6, "0")}` : "#99AAB5" }} />
+                  {r.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    if (f.type === "textarea") {
+      return <Textarea value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={f.placeholder} rows={2} />;
+    }
+    return <Input value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={f.placeholder} type={f.type === "number" ? "number" : "text"} />;
+  };
+
+  // ─── Condition value renderer ──────────
+  const renderConditionValue = (cond: AutoCondition, idx: number) => {
+    if (cond.type === "has_role" || cond.type === "not_has_role") {
+      return (
+        <Select value={cond.value} onValueChange={(v) => updateCondition(idx, "value", v)}>
+          <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um cargo..." /></SelectTrigger>
+          <SelectContent>
+            {roles.map(r => (
+              <SelectItem key={r.id} value={r.id}>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color ? `#${r.color.toString(16).padStart(6, "0")}` : "#99AAB5" }} />
+                  {r.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    if (cond.type === "in_channel") {
+      return (
+        <Select value={cond.value} onValueChange={(v) => updateCondition(idx, "value", v)}>
+          <SelectTrigger className="flex-1"><SelectValue placeholder="Selecione um canal..." /></SelectTrigger>
+          <SelectContent>
+            {channels.map(ch => (
+              <SelectItem key={ch.id} value={ch.id}>
+                <span className="flex items-center gap-1.5"><Hash className="h-3 w-3 text-muted-foreground" />{ch.name}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    return <Input value={cond.value} onChange={(e) => updateCondition(idx, "value", e.target.value)} placeholder="Valor" className="flex-1" />;
+  };
+
+  // ─── Human-readable config display ──────────
+  const displayConfigValue = (key: string, value: string) => {
+    if (key === "channel_id") return `#${channelName(value)}`;
+    if (key === "role_id") return `@${roleName(value)}`;
+    return String(value);
+  };
 
   if (loading) {
     return (
@@ -309,7 +439,7 @@ const AutomationsPage = () => {
           <h1 className="font-display text-2xl font-bold flex items-center gap-2">
             <Zap className="h-6 w-6 text-primary" /> Ações Automáticas
           </h1>
-          <p className="text-muted-foreground text-sm">Crie automações poderosas para o seu servidor Discord</p>
+          <p className="text-muted-foreground text-sm">Crie automações sincronizadas com o seu servidor Discord</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchData} className="gap-2"><RefreshCw className="h-4 w-4"/>Atualizar</Button>
@@ -413,21 +543,19 @@ const AutomationsPage = () => {
 
                       <CollapsibleContent>
                         <div className="border-t border-border p-4 space-y-4 bg-muted/20">
-                          {/* Trigger detail */}
                           <div>
                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Gatilho</Label>
                             <div className="mt-1.5 rounded-lg border border-border p-3 bg-card/50">
                               <p className="text-sm font-medium">{trig?.label} — {trig?.description}</p>
                               {Object.keys(auto.trigger_config).length > 0 && (
                                 <div className="mt-2 space-y-1">
-                                  {Object.entries(auto.trigger_config).map(([k, v]) => (
-                                    <p key={k} className="text-xs text-muted-foreground"><span className="font-mono">{k}:</span> {String(v)}</p>
+                                  {Object.entries(auto.trigger_config).filter(([,v]) => v).map(([k, v]) => (
+                                    <p key={k} className="text-xs text-muted-foreground"><span className="font-mono">{k}:</span> {displayConfigValue(k, String(v))}</p>
                                   ))}
                                 </div>
                               )}
                             </div>
                           </div>
-                          {/* Actions detail */}
                           <div>
                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Ações ({auto.actions.length})</Label>
                             <div className="mt-1.5 space-y-2">
@@ -440,7 +568,7 @@ const AutomationsPage = () => {
                                     <div className="min-w-0 flex-1">
                                       <p className="text-sm font-medium">{aDef?.label || act.type}</p>
                                       {Object.entries(act.config).filter(([,v])=>v).map(([k,v]) => (
-                                        <p key={k} className="text-xs text-muted-foreground truncate"><span className="font-mono">{k}:</span> {String(v)}</p>
+                                        <p key={k} className="text-xs text-muted-foreground truncate"><span className="font-mono">{k}:</span> {displayConfigValue(k, String(v))}</p>
                                       ))}
                                     </div>
                                   </div>
@@ -448,14 +576,16 @@ const AutomationsPage = () => {
                               })}
                             </div>
                           </div>
-                          {/* Conditions */}
                           {auto.conditions.length > 0 && (
                             <div>
                               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Condições</Label>
                               <div className="mt-1.5 flex flex-wrap gap-2">
-                                {auto.conditions.map((c, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs">{CONDITION_TYPES.find(ct=>ct.value===c.type)?.label || c.type}: {c.value}</Badge>
-                                ))}
+                                {auto.conditions.map((c, i) => {
+                                  const label = CONDITION_TYPES.find(ct=>ct.value===c.type)?.label || c.type;
+                                  const val = (c.type === "has_role" || c.type === "not_has_role") ? `@${roleName(c.value)}` :
+                                    c.type === "in_channel" ? `#${channelName(c.value)}` : c.value;
+                                  return <Badge key={i} variant="outline" className="text-xs">{label}: {val}</Badge>;
+                                })}
                               </div>
                             </div>
                           )}
@@ -491,8 +621,12 @@ const AutomationsPage = () => {
                       <p className="text-sm font-medium truncate">{auto?.name || "Automação removida"}</p>
                       <p className="text-xs text-muted-foreground truncate">{log.details || log.result}</p>
                     </div>
-                    <Badge variant="outline" className={log.result === "success" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"}>
-                      {log.result === "success" ? "Sucesso" : "Erro"}
+                    <Badge variant="outline" className={
+                      log.result === "success" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                      log.result === "skipped" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
+                      "bg-destructive/10 text-destructive border-destructive/20"
+                    }>
+                      {log.result === "success" ? "Sucesso" : log.result === "skipped" ? "Ignorado" : "Erro"}
                     </Badge>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
@@ -561,7 +695,7 @@ const AutomationsPage = () => {
                     {t.configFields.map((f) => (
                       <div key={f.key} className="space-y-1.5">
                         <Label className="text-sm">{f.label}</Label>
-                        <Input value={formTriggerConfig[f.key] || ""} onChange={(e) => setFormTriggerConfig({...formTriggerConfig, [f.key]: e.target.value})} placeholder={f.placeholder} type={f.type === "number" ? "number" : "text"}/>
+                        {renderField(f, formTriggerConfig[f.key] || "", (v) => setFormTriggerConfig({...formTriggerConfig, [f.key]: v}))}
                       </div>
                     ))}
                   </div>
@@ -576,9 +710,16 @@ const AutomationsPage = () => {
               <div className="flex items-center justify-between">
                 <Label className="text-muted-foreground text-xs uppercase tracking-wider">Ações ({formActions.length})</Label>
                 <Select onValueChange={addAction}>
-                  <SelectTrigger className="w-48"><SelectValue placeholder="Adicionar ação..."/></SelectTrigger>
+                  <SelectTrigger className="w-52"><SelectValue placeholder="Adicionar ação..."/></SelectTrigger>
                   <SelectContent>
-                    {ACTIONS.map((a) => <SelectItem key={a.key} value={a.key}>{a.label}</SelectItem>)}
+                    {ACTIONS.map((a) => (
+                      <SelectItem key={a.key} value={a.key}>
+                        <span className="flex items-center gap-1.5">
+                          <a.icon className="h-3.5 w-3.5" />
+                          {a.label}
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -595,18 +736,17 @@ const AutomationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className={`rounded p-1.5 ${aDef?.color || "bg-muted"}`}><AIcon className="h-3.5 w-3.5"/></div>
-                            <span className="text-sm font-semibold">{aDef?.label || act.type}</span>
+                            <div>
+                              <span className="text-sm font-semibold">{aDef?.label || act.type}</span>
+                              {aDef?.description && <p className="text-[10px] text-muted-foreground">{aDef.description}</p>}
+                            </div>
                           </div>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAction(idx)}><Trash2 className="h-3.5 w-3.5"/></Button>
                         </div>
                         {aDef?.configFields.map((f) => (
                           <div key={f.key} className="space-y-1">
                             <Label className="text-xs">{f.label}</Label>
-                            {f.type === "textarea" ? (
-                              <Textarea value={act.config[f.key] || ""} onChange={(e) => updateActionConfig(idx, f.key, e.target.value)} placeholder={f.placeholder} rows={2}/>
-                            ) : (
-                              <Input value={act.config[f.key] || ""} onChange={(e) => updateActionConfig(idx, f.key, e.target.value)} placeholder={f.placeholder}/>
-                            )}
+                            {renderField(f, act.config[f.key] || "", (v) => updateActionConfig(idx, f.key, v))}
                           </div>
                         ))}
                       </div>
@@ -629,17 +769,17 @@ const AutomationsPage = () => {
               {formConditions.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Sem condições — a automação sempre será executada.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {formConditions.map((cond, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                    <div key={idx} className="flex items-center gap-2 rounded-lg border border-border p-3 bg-card/50">
                       <Select value={cond.type} onValueChange={(v) => updateCondition(idx, "type", v)}>
-                        <SelectTrigger className="w-48"><SelectValue/></SelectTrigger>
+                        <SelectTrigger className="w-52"><SelectValue/></SelectTrigger>
                         <SelectContent>
                           {CONDITION_TYPES.map((ct) => <SelectItem key={ct.value} value={ct.value}>{ct.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Input value={cond.value} onChange={(e) => updateCondition(idx, "value", e.target.value)} placeholder="Valor" className="flex-1"/>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCondition(idx)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                      {renderConditionValue(cond, idx)}
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeCondition(idx)}><Trash2 className="h-3.5 w-3.5"/></Button>
                     </div>
                   ))}
                 </div>
@@ -665,27 +805,28 @@ const AutomationsPage = () => {
             <DialogTitle>Logs de Execução</DialogTitle>
           </DialogHeader>
           {automationLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma execução registrada</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhum log encontrado.</p>
           ) : (
             <div className="space-y-2">
               {automationLogs.map((log) => (
-                <div key={log.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-                  <Badge variant="outline" className={log.result === "success" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"}>
-                    {log.result === "success" ? "OK" : "Erro"}
+                <div key={log.id} className="flex items-start gap-3 rounded-lg border border-border p-3 bg-card/50">
+                  <Badge variant="outline" className={`shrink-0 mt-0.5 ${
+                    log.result === "success" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                    log.result === "skipped" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
+                    "bg-destructive/10 text-destructive border-destructive/20"
+                  }`}>
+                    {log.result === "success" ? "✓" : log.result === "skipped" ? "—" : "✗"}
                   </Badge>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground truncate">{log.details || "Executado com sucesso"}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground">{log.details || log.result}</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                      {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
+                    </p>
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
-                  </span>
                 </div>
               ))}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLogsDialogOpen(false)}>Fechar</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
