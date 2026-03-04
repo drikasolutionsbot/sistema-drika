@@ -451,24 +451,21 @@ const LandingPage = () => {
           <div className="grid md:grid-cols-2 gap-6 pt-4 overflow-visible">
             {/* Free */}
             <ScrollReveal>
-              <div className="pricing-card group relative h-full transition-all duration-300 hover:scale-[1.03]">
-                <div className="pricing-card-img overflow-hidden rounded-[.5rem_2rem] absolute inset-0">
-                  <div className="w-full h-full bg-gradient-to-r from-[#33001b] to-[#ff0084] transition-transform duration-300 group-hover:scale-[1.15]" />
-                </div>
+              <div className="pricing-card group relative h-full transition-all duration-300 hover:scale-[1.03] bg-white">
                 <div className="relative z-10 p-5 flex flex-col h-full">
-                  <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Teste Grátis</h3>
-                  <div className="text-2xl font-extrabold font-display mb-0.5">4 dias</div>
-                  <p className="text-xs text-white/40 mb-4">para experimentar tudo</p>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Teste Grátis</h3>
+                  <div className="text-2xl font-extrabold font-display mb-0.5 text-gray-900">4 dias</div>
+                  <p className="text-xs text-gray-400 mb-4">para experimentar tudo</p>
                   <ul className="space-y-1.5 mb-5 flex-1">
                     {["Painel completo", "Bot no seu servidor", "Vendas automáticas", "Sem cartão"].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-white/60">
-                        <Check className="h-3 w-3 text-white/40 shrink-0" />
+                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                        <Check className="h-3 w-3 text-primary shrink-0" />
                         {f}
                       </li>
                     ))}
                   </ul>
-                  <div className="pricing-card-label backdrop-blur-sm bg-black/20 rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
-                    <button onClick={() => navigate("/signup")} className="w-full py-2 rounded-full border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 text-sm">
+                  <div className="pricing-card-label rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
+                    <button onClick={() => navigate("/signup")} className="w-full py-2 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_hsl(330_100%_71%/0.3)]">
                       Começar <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -478,10 +475,7 @@ const LandingPage = () => {
 
             {/* Pro */}
             <ScrollReveal delay={0.15}>
-              <div className="pricing-card pricing-card--pro group relative h-full transition-all duration-300 hover:scale-[1.03] ring-2 ring-primary/50 scale-[1.02] pt-4 overflow-visible">
-                <div className="pricing-card-img overflow-hidden rounded-[.5rem_2rem] absolute inset-0">
-                  <div className="w-full h-full bg-gradient-to-r from-[#33001b] to-[#ff0084] transition-transform duration-300 group-hover:scale-[1.15]" />
-                </div>
+              <div className="pricing-card pricing-card--pro group relative h-full transition-all duration-300 hover:scale-[1.03] ring-2 ring-primary/50 scale-[1.02] pt-4 overflow-visible bg-white">
                 {/* Glow highlight */}
                 <div className="absolute -inset-[1px] rounded-[.5rem_2rem] bg-gradient-to-r from-primary/40 to-pink-500/40 blur-sm -z-10" />
                 {/* Popular badge */}
@@ -492,17 +486,17 @@ const LandingPage = () => {
                 </div>
                 <div className="relative z-10 p-5 pt-3 flex flex-col h-full">
                   <h3 className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Pro</h3>
-                  <div className="text-2xl font-extrabold font-display mb-0.5">R$ 26,90</div>
-                  <p className="text-xs text-white/40 mb-4">por mês</p>
+                  <div className="text-2xl font-extrabold font-display mb-0.5 text-gray-900">R$ 26,90</div>
+                  <p className="text-xs text-gray-400 mb-4">por mês</p>
                   <ul className="space-y-1.5 mb-5 flex-1">
                     {["Tudo do Free", "Sem limite de tempo", "Segurança avançada", "Suporte prioritário"].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-white/70">
+                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
                         <Check className="h-3 w-3 text-primary shrink-0" />
                         {f}
                       </li>
                     ))}
                   </ul>
-                  <div className="pricing-card-label backdrop-blur-sm bg-black/20 rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
+                  <div className="pricing-card-label rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
                     <button onClick={handleProClick} className="w-full py-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,40,73,0.3)]">
                       Assinar Pro <ArrowRight className="h-3.5 w-3.5" />
                     </button>
