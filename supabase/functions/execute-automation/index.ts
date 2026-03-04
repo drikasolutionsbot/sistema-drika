@@ -189,7 +189,6 @@ async function executeAction(
     }
     return result;
   };
-  };
 
   switch (action.type) {
     case "send_message": {
