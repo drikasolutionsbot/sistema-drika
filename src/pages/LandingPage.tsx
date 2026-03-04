@@ -141,13 +141,13 @@ const LandingPage = () => {
                 <div className="w-full h-full bg-gradient-to-r from-[#33001b] to-[#ff0084] transition-transform duration-300 group-hover:scale-[1.15]" />
               </div>
               <div className="relative z-10 p-5 flex flex-col h-full">
-                <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-1">Free</h3>
-                <div className="text-2xl font-extrabold font-display mb-0.5">R$ 0</div>
-                <p className="text-xs text-white/40 mb-4">4 dias grátis</p>
+                <h3 className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Teste Grátis</h3>
+                <div className="text-2xl font-extrabold font-display mb-0.5">4 dias</div>
+                <p className="text-xs text-white/40 mb-4">para experimentar tudo</p>
                 <ul className="space-y-1.5 mb-5 flex-1">
-                  {["Painel completo", "1 servidor", "Loja com PIX", "Suporte via ticket"].map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-white/50">
-                      <Check className="h-3 w-3 text-white/30 shrink-0" />
+                  {["Painel completo", "Bot no seu servidor", "Vendas automáticas", "Sem cartão"].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-white/60">
+                      <Check className="h-3 w-3 text-white/40 shrink-0" />
                       {f}
                     </li>
                   ))}
