@@ -97,13 +97,15 @@ Deno.serve(async (req) => {
       console.error("Role assign error:", roleError.message);
     }
 
-    // 4. Generate access token
+    // 4. Generate access token (expires in 4 days)
+    const expiresAt = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString();
     const { data: tokenData, error: tokenError } = await supabase
       .from("access_tokens")
       .insert({
         tenant_id: tenant.id,
         label: `Token inicial - ${tenantName}`,
         created_by: userId,
+        expires_at: expiresAt,
       })
       .select("token")
       .single();

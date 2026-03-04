@@ -95,52 +95,58 @@ const SignupPage = () => {
     navigate("/login");
   };
 
-  // Token display screen
+  // Token display screen — modal over same background
   if (generatedToken) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center relative overflow-hidden login-pattern-bg">
-        <div className="relative z-10 w-full max-w-lg px-4 space-y-6">
-          <div className="flex flex-col items-center gap-4 animate-fade-in">
-            <img src={drikaLogo} alt="Drika Solutions" className="h-32 w-auto drop-shadow-[0_0_30px_hsl(330_100%_71%/0.3)]" />
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 border-2 border-emerald-500/40">
-              <Check className="h-8 w-8 text-emerald-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-white text-center">Conta criada com sucesso!</h2>
-            <p className="text-white/70 text-sm text-center max-w-sm">
-              Guarde seu token de acesso com segurança. Você precisará dele para acessar o painel.
-            </p>
-          </div>
+        {/* Backdrop overlay */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10" />
 
-          <div className="space-y-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            {/* Token display */}
-            <div className="rounded-2xl border-2 border-primary/30 bg-black/40 backdrop-blur-sm p-5 space-y-3">
-              <p className="text-xs text-white/50 font-semibold uppercase tracking-wider">Seu Token de Acesso</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-sm font-mono text-primary break-all bg-white/5 rounded-xl px-3 py-2.5 border border-white/10">
-                  {generatedToken}
-                </code>
-                <button
-                  onClick={handleCopy}
-                  className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all ${
-                    copied
-                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                      : "bg-white/10 text-white/70 hover:text-white border border-white/20 hover:border-white/40"
-                  }`}
-                >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
-              </div>
-              <p className="text-[11px] text-white/40">⚠️ Este token não será exibido novamente.</p>
+        {/* Modal */}
+        <div className="relative z-20 w-full max-w-md mx-4 animate-fade-in">
+          <div className="rounded-3xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl p-8 shadow-[0_0_60px_rgba(255,40,73,0.15)]">
+            {/* Logo */}
+            <div className="flex flex-col items-center gap-3 mb-6">
+              <img src={drikaLogo} alt="Drika Solutions" className="h-24 w-auto drop-shadow-[0_0_20px_hsl(330_100%_71%/0.4)]" />
             </div>
 
-            {/* Go to login button */}
+            {/* Title */}
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold text-white mb-1">Seu Token Único</h2>
+              <p className="text-sm text-white/50">Válido por <span className="text-primary font-semibold">4 dias</span> — guarde-o com segurança</p>
+            </div>
+
+            {/* Token box */}
+            <div className="rounded-2xl border border-primary/20 bg-black/40 p-4 mb-4">
+              <code className="block text-sm font-mono text-primary break-all leading-relaxed text-center">
+                {generatedToken}
+              </code>
+            </div>
+
+            {/* Copy button */}
+            <button
+              onClick={handleCopy}
+              className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base tracking-wide cursor-pointer border-none transition-all mb-3 ${
+                copied
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "bg-white/10 text-white hover:bg-white/20 border border-white/20"
+              }`}
+            >
+              {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+              <span>{copied ? "Copiado!" : "Copiar Token"}</span>
+            </button>
+
+            {/* Go to login */}
             <button
               onClick={handleGoToLogin}
-              className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none transition-colors group"
+              disabled={!copied}
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none transition-all disabled:opacity-30 disabled:cursor-not-allowed group"
             >
               <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              <span>Ir para o Login</span>
+              <span>Já copiei, ir para Login</span>
             </button>
+
+            <p className="text-[11px] text-white/30 text-center mt-4">⚠️ Este token não será exibido novamente.</p>
           </div>
         </div>
       </div>
