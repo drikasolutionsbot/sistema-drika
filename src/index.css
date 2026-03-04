@@ -206,3 +206,12 @@
     ),
     repeating-linear-gradient(hsl(330 100% 71% / 0.15), hsl(330 80% 60% / 0.1));
 }
+
+/* Hide scrollbar */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

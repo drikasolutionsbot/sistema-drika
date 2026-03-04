@@ -123,7 +123,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "relative flex flex-col shrink-0 border-r border-primary/10 transition-all duration-300 overflow-hidden",
+          "relative flex flex-col shrink-0 border-r border-primary/10 transition-all duration-300 overflow-hidden scrollbar-none",
           collapsed ? "w-[68px] items-center" : "w-60"
         )}
       >
