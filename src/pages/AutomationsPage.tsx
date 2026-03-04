@@ -3,7 +3,7 @@ import {
   Zap, Plus, Trash2, Edit2, Power, PowerOff, RefreshCw, Search,
   Play, Clock, Activity, ChevronDown, ChevronRight, Eye, Copy,
   UserPlus, UserMinus, MessageSquare, Hash, AtSign, Gift, ShieldCheck,
-  Bell, Send, Globe, Tag, Star, Heart, Award, Megaphone, Ban, UserX,
+  Bell, Send, Tag, Star, Heart, Award, Megaphone, Ban, UserX,
   PenLine, Image,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -155,18 +155,6 @@ const ACTIONS: ActionDef[] = [
     { key: "title", label: "Título", type: "text", placeholder: "Título do anúncio" },
     { key: "description", label: "Descrição", type: "textarea", placeholder: "Conteúdo do anúncio" },
     { key: "color", label: "Cor (hex)", type: "text", placeholder: "#FF69B4" },
-  ]},
-  { key: "send_webhook", label: "Chamar Webhook / API", description: "Faz uma requisição HTTP para uma URL externa (ex: seu bot no Railway)", icon: Globe, color: "text-yellow-400 bg-yellow-500/10", configFields: [
-    { key: "url", label: "URL do Webhook", type: "text", placeholder: "https://drika-solutions24horas-production.up.railway.app/send" },
-    { key: "method", label: "Método HTTP", type: "select", options: [
-      { value: "POST", label: "POST" },
-      { value: "GET", label: "GET" },
-      { value: "PUT", label: "PUT" },
-      { value: "PATCH", label: "PATCH" },
-    ]},
-    { key: "authorization", label: "Authorization Header", type: "text", placeholder: "Bearer drika_bot_seguro_2026" },
-    { key: "channel_id", label: "Canal de destino (para {channel_id} no body)", type: "channel" },
-    { key: "body_template", label: "Body (JSON)", type: "textarea", placeholder: '{"channelId": "{channel_id}", "message": "✅ Pagamento confirmado! Pedido {order} do cliente {username}."}' },
   ]},
 ];
 
