@@ -112,11 +112,14 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => { fetchTenant(); }, [user]);
 
-  const isPlanExpired = !!(
-    tenant?.plan === "pro" &&
-    tenant?.plan_expires_at &&
-    new Date(tenant.plan_expires_at) < new Date()
-  );
+  const isPlanExpired = (() => {
+    if (!tenant) return false;
+    if (tenant.plan === "expired") return true;
+    if (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) {
+      return true;
+    }
+    return false;
+  })();
 
   return (
     <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: fetchTenant, isPlanExpired }}>

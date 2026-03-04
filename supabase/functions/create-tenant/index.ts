@@ -61,7 +61,11 @@ serve(async (req) => {
       throw new Error("Você já possui uma loja. Acesse o dashboard.");
     }
 
-    // Create tenant
+    // Create tenant with 4-day free trial
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setDate(trialEnd.getDate() + 4);
+
     const { data: tenant, error: tenantError } = await supabaseAdmin
       .from("tenants")
       .insert({
@@ -69,6 +73,9 @@ serve(async (req) => {
         discord_guild_id,
         primary_color: primary_color || "#FF69B4",
         secondary_color: secondary_color || "#FFD700",
+        plan: "free",
+        plan_started_at: now.toISOString(),
+        plan_expires_at: trialEnd.toISOString(),
       })
       .select()
       .single();

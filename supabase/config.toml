@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.subscription-webhook]
 verify_jwt = false
+
+[functions.check-expired-plans]
+verify_jwt = false

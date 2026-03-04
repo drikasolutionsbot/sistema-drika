@@ -1,7 +1,41 @@
-import { ShieldOff } from "lucide-react";
+import { useState } from "react";
+import { ShieldOff, Loader2, QrCode } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import drikaLogo from "@/assets/drika_logo_crown.png";
 
 const PlanExpiredPage = () => {
+  const { tenant, refetch } = useTenant();
+  const [loading, setLoading] = useState(false);
+  const [pixData, setPixData] = useState<{ brcode: string; amount_cents: number } | null>(null);
+
+  const handleRenew = async () => {
+    if (!tenant) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-subscription-pix", {
+        body: { tenant_id: tenant.id },
+      });
+      if (error || data?.error) throw new Error(data?.error || "Erro ao gerar pagamento");
+      setPixData({ brcode: data.brcode, amount_cents: data.amount_cents });
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar pagamento. Contacte o suporte.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyPix = () => {
+    if (pixData?.brcode) {
+      navigator.clipboard.writeText(pixData.brcode);
+      toast.success("Código PIX copiado!");
+    }
+  };
+
+  const planLabel = tenant?.plan === "pro" ? "Pro" : "Teste Grátis (4 dias)";
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center relative overflow-hidden login-pattern-bg">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10" />
@@ -15,17 +49,51 @@ const PlanExpiredPage = () => {
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-white mb-2">Assinatura Expirada</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            {tenant?.plan === "pro" ? "Assinatura Expirada" : "Período de Teste Encerrado"}
+          </h1>
           <p className="text-white/60 text-sm mb-6">
-            Seu plano <span className="text-primary font-semibold">Drika Solutions Pro</span> expirou. 
+            Seu plano <span className="text-primary font-semibold">{planLabel}</span> expirou. 
             O acesso ao painel foi bloqueado até a renovação.
           </p>
 
-          <div className="rounded-xl bg-white/5 border border-white/10 p-4 mb-6">
-            <p className="text-white/80 text-sm">
-              Entre em contato com o suporte para renovar sua assinatura e recuperar o acesso completo ao painel.
-            </p>
-          </div>
+          {pixData ? (
+            <div className="space-y-4 mb-6">
+              <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+                <p className="text-white/80 text-xs mb-2">Copie o código PIX abaixo e pague para renovar:</p>
+                <div className="bg-black/30 rounded-lg p-3 break-all text-xs text-white/90 font-mono max-h-24 overflow-y-auto">
+                  {pixData.brcode}
+                </div>
+                <p className="text-primary text-sm font-semibold mt-2">
+                  R$ {(pixData.amount_cents / 100).toFixed(2)}
+                </p>
+              </div>
+              <Button onClick={handleCopyPix} className="w-full rounded-full" variant="outline">
+                <QrCode className="h-4 w-4 mr-2" />
+                Copiar código PIX
+              </Button>
+              <Button onClick={() => refetch()} variant="ghost" className="w-full text-white/60 text-xs">
+                Já paguei — verificar status
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3 mb-6">
+              <Button
+                onClick={handleRenew}
+                disabled={loading}
+                className="w-full h-11 rounded-full bg-primary hover:bg-primary/90 text-white font-medium"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Renovar Plano Pro via PIX
+              </Button>
+
+              <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+                <p className="text-white/80 text-sm">
+                  Ou entre em contato com o suporte para renovar manualmente.
+                </p>
+              </div>
+            </div>
+          )}
 
           <a
             href="https://wa.me/5548996915303"
