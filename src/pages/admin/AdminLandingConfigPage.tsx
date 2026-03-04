@@ -63,7 +63,7 @@ const AdminLandingConfigPage = () => {
         video_url: form.video_url || null,
         video_type: form.video_type,
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq("id", configId);
     setSaving(false);
     if (error) {
@@ -97,9 +97,29 @@ const AdminLandingConfigPage = () => {
       .from("tenant-assets")
       .getPublicUrl(path);
     
-    setForm((prev) => ({ ...prev, video_url: urlData.publicUrl, video_type: "file" }));
+    const newUrl = urlData.publicUrl;
+    setForm((prev) => ({ ...prev, video_url: newUrl, video_type: "file" }));
+    
+    // Auto-save video URL to DB after upload
+    if (configId) {
+      const { error: updateError } = await supabase
+        .from("landing_config")
+        .update({
+          video_url: newUrl,
+          video_type: "file",
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", configId);
+      
+      if (updateError) {
+        toast.error("Vídeo enviado, mas erro ao salvar no banco");
+        console.error(updateError);
+      } else {
+        toast.success("Vídeo enviado e salvo com sucesso!");
+      }
+    }
+    
     setUploading(false);
-    toast.success("Vídeo enviado com sucesso!");
   };
 
   if (loading) {
