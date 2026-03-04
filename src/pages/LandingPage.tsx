@@ -63,12 +63,6 @@ const LandingPage = () => {
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-5 h-8 rounded-full border-2 border-white/20 flex items-start justify-center p-1">
-            <div className="w-1 h-2 rounded-full bg-primary/60" />
-          </div>
-        </div>
       </section>
 
       {/* ===== FEATURES ===== */}
