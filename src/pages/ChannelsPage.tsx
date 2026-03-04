@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Hash, Shield, Users, Volume2, Plus, Loader2, RefreshCw, Megaphone, Mic,
   MessageSquare, Save, Settings2, ShoppingBag, UserCheck, Gavel, Tag,
-  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X
+  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChannelPermissionsTab from "@/components/channels/ChannelPermissionsTab";
 import { Button } from "@/components/ui/button";
@@ -33,8 +34,8 @@ const channelSections = [
     bgColor: "bg-blue-500/10",
     borderColor: "border-blue-500/20",
     channels: [
-      { key: "logs_system", label: "Sistema", description: "Logs gerais do bot" },
-      { key: "logs_commands", label: "Comandos", description: "Uso de comandos" },
+      { key: "logs_system", label: "Sistema", description: "Logs gerais do bot", help: "Recebe logs de inicialização, erros internos, atualizações de configuração e status do bot." },
+      { key: "logs_commands", label: "Comandos", description: "Uso de comandos", help: "Registra quando um membro usa qualquer comando do bot (slash commands ou prefixo)." },
     ],
   },
   {
@@ -45,9 +46,9 @@ const channelSections = [
     bgColor: "bg-emerald-500/10",
     borderColor: "border-emerald-500/20",
     channels: [
-      { key: "logs_sales", label: "Compras", description: "Registro de vendas" },
-      { key: "logs_events", label: "Eventos de Compras", description: "Ações durante compra" },
-      { key: "logs_feedback", label: "Feedback", description: "Avaliações de clientes" },
+      { key: "logs_sales", label: "Compras", description: "Registro de vendas", help: "Envia um log sempre que um pedido é pago e entregue, com detalhes do produto, valor e comprador." },
+      { key: "logs_events", label: "Eventos de Compras", description: "Ações durante compra", help: "Registra cada etapa do fluxo de compra: criação do pedido, geração do PIX, expiração e cancelamentos." },
+      { key: "logs_feedback", label: "Feedback", description: "Avaliações de clientes", help: "Recebe as avaliações e comentários que os compradores enviam após receber o produto." },
     ],
   },
   {
@@ -58,11 +59,11 @@ const channelSections = [
     bgColor: "bg-violet-500/10",
     borderColor: "border-violet-500/20",
     channels: [
-      { key: "welcome", label: "Boas-vindas", description: "Mensagem de boas-vindas" },
-      { key: "member_join", label: "Entrada", description: "Novos membros" },
-      { key: "member_leave", label: "Saída", description: "Membros que saíram" },
-      { key: "member_messages", label: "Mensagens", description: "Atividade de mensagens" },
-      { key: "traffic", label: "Tráfego", description: "Fluxo de membros" },
+      { key: "welcome", label: "Boas-vindas", description: "Mensagem de boas-vindas", help: "Envia a mensagem/embed de boas-vindas configurada quando um novo membro entra no servidor." },
+      { key: "member_join", label: "Entrada", description: "Novos membros", help: "Registra um log simples com data/hora e informações do membro que acabou de entrar." },
+      { key: "member_leave", label: "Saída", description: "Membros que saíram", help: "Registra quando um membro sai ou é removido, incluindo cargos que possuía e tempo no servidor." },
+      { key: "member_messages", label: "Mensagens", description: "Atividade de mensagens", help: "Registra atividade de mensagens como edições e exclusões de mensagens dos membros." },
+      { key: "traffic", label: "Tráfego", description: "Fluxo de membros", help: "Envia resumos periódicos do fluxo de entrada/saída de membros do servidor." },
     ],
   },
   {
@@ -73,9 +74,9 @@ const channelSections = [
     bgColor: "bg-red-500/10",
     borderColor: "border-red-500/20",
     channels: [
-      { key: "logs_moderation_bans", label: "Bans", description: "Banimentos aplicados" },
-      { key: "logs_moderation_kicks", label: "Kicks", description: "Expulsões aplicadas" },
-      { key: "logs_moderation_timeouts", label: "Timeouts", description: "Silenciamentos" },
+      { key: "logs_moderation_bans", label: "Bans", description: "Banimentos aplicados", help: "Registra quando um membro é banido, incluindo o moderador responsável e o motivo." },
+      { key: "logs_moderation_kicks", label: "Kicks", description: "Expulsões aplicadas", help: "Registra quando um membro é expulso do servidor, com moderador e motivo." },
+      { key: "logs_moderation_timeouts", label: "Timeouts", description: "Silenciamentos", help: "Registra quando um membro recebe timeout (silenciamento), incluindo duração e motivo." },
     ],
   },
   {
@@ -86,11 +87,11 @@ const channelSections = [
     bgColor: "bg-amber-500/10",
     borderColor: "border-amber-500/20",
     channels: [
-      { key: "logs_roles_added", label: "Adicionados", description: "Cargos dados a membros" },
-      { key: "logs_roles_removed", label: "Removidos", description: "Cargos removidos de membros" },
-      { key: "logs_roles_created", label: "Criados", description: "Novos cargos criados" },
-      { key: "logs_roles_deleted", label: "Deletados", description: "Cargos excluídos" },
-      { key: "logs_roles_edited", label: "Editados", description: "Cargos modificados" },
+      { key: "logs_roles_added", label: "Adicionados", description: "Cargos dados a membros", help: "Registra quando um cargo é adicionado a um membro, seja manualmente ou por automação/compra." },
+      { key: "logs_roles_removed", label: "Removidos", description: "Cargos removidos de membros", help: "Registra quando um cargo é removido de um membro, incluindo expiração de VIP." },
+      { key: "logs_roles_created", label: "Criados", description: "Novos cargos criados", help: "Registra quando um novo cargo é criado no servidor Discord." },
+      { key: "logs_roles_deleted", label: "Deletados", description: "Cargos excluídos", help: "Registra quando um cargo existente é excluído do servidor." },
+      { key: "logs_roles_edited", label: "Editados", description: "Cargos modificados", help: "Registra quando as permissões, cor ou nome de um cargo são alterados." },
     ],
   },
   {
@@ -101,9 +102,9 @@ const channelSections = [
     bgColor: "bg-cyan-500/10",
     borderColor: "border-cyan-500/20",
     channels: [
-      { key: "logs_channels_created", label: "Criados", description: "Novos canais criados" },
-      { key: "logs_channels_edited", label: "Editados", description: "Canais modificados" },
-      { key: "logs_channels_deleted", label: "Deletados", description: "Canais excluídos" },
+      { key: "logs_channels_created", label: "Criados", description: "Novos canais criados", help: "Registra quando um novo canal de texto, voz ou categoria é criado no servidor." },
+      { key: "logs_channels_edited", label: "Editados", description: "Canais modificados", help: "Registra quando o nome, tópico ou permissões de um canal são alterados." },
+      { key: "logs_channels_deleted", label: "Deletados", description: "Canais excluídos", help: "Registra quando um canal é excluído do servidor." },
     ],
   },
   {
@@ -114,8 +115,8 @@ const channelSections = [
     bgColor: "bg-orange-500/10",
     borderColor: "border-orange-500/20",
     channels: [
-      { key: "logs_perms_added", label: "Adicionadas", description: "Permissões concedidas" },
-      { key: "logs_perms_removed", label: "Removidas", description: "Permissões revogadas" },
+      { key: "logs_perms_added", label: "Adicionadas", description: "Permissões concedidas", help: "Registra quando permissões são concedidas a um cargo ou membro em canais ou no servidor." },
+      { key: "logs_perms_removed", label: "Removidas", description: "Permissões revogadas", help: "Registra quando permissões são removidas de um cargo ou membro." },
     ],
   },
   {
@@ -126,8 +127,8 @@ const channelSections = [
     bgColor: "bg-pink-500/10",
     borderColor: "border-pink-500/20",
     channels: [
-      { key: "logs_tickets_opened", label: "Tickets Abertos", description: "Novos tickets" },
-      { key: "logs_tickets_closed", label: "Tickets Fechados", description: "Tickets encerrados" },
+      { key: "logs_tickets_opened", label: "Tickets Abertos", description: "Novos tickets", help: "Registra quando um membro abre um novo ticket de suporte pelo bot." },
+      { key: "logs_tickets_closed", label: "Tickets Fechados", description: "Tickets encerrados", help: "Registra quando um ticket é fechado, com informações do atendente e duração." },
     ],
   },
 ];
@@ -486,7 +487,21 @@ const ChannelsPage = () => {
                             return (
                               <div key={ch.key} className="flex items-center gap-4 rounded-lg bg-muted/30 px-4 py-3">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground">{ch.label}</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-medium text-foreground">{ch.label}</p>
+                                    {(ch as any).help && (
+                                      <TooltipProvider delayDuration={200}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground cursor-help shrink-0" />
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="max-w-[280px] text-xs">
+                                            {(ch as any).help}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                  </div>
                                   <p className="text-[11px] text-muted-foreground">{ch.description}</p>
                                 </div>
                                 <div className="w-56 shrink-0">
