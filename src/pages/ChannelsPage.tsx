@@ -189,6 +189,30 @@ const ChannelsPage = () => {
     setDraft(initial);
   }, [configs]);
 
+  // Realtime subscription for channel_configs
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`channel_configs_${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "channel_configs",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, refetch]);
+
   const hasChanges = useMemo(() => {
     const allKeys = new Set([
       ...Object.keys(draft),

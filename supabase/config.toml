@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.expire-pending-orders]
 verify_jwt = false
+
+[functions.manage-channel-configs]
+verify_jwt = false
