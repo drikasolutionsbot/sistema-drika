@@ -89,17 +89,8 @@ const LoginPage = () => {
             </button>
           </div>
 
-          {/* Signup link */}
+          {/* Terms */}
           <div className="text-center space-y-2">
-            <p className="text-sm text-white/60">
-              Não tem conta?{" "}
-              <button
-                onClick={() => navigate("/signup")}
-                className="text-primary hover:text-primary/80 font-semibold bg-transparent border-none cursor-pointer underline transition-colors text-sm p-0"
-              >
-                Criar conta
-              </button>
-            </p>
             <p className="text-center text-sm font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
               Ao entrar, você concorda com nossos{" "}
               <button
