@@ -1361,6 +1361,7 @@ export type Database = {
           verify_enabled: boolean | null
           verify_redirect_url: string | null
           verify_role_id: string | null
+          whatsapp: string | null
         }
         Insert: {
           banner_url?: string | null
@@ -1384,6 +1385,7 @@ export type Database = {
           verify_enabled?: boolean | null
           verify_redirect_url?: string | null
           verify_role_id?: string | null
+          whatsapp?: string | null
         }
         Update: {
           banner_url?: string | null
@@ -1407,6 +1409,7 @@ export type Database = {
           verify_enabled?: boolean | null
           verify_redirect_url?: string | null
           verify_role_id?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }

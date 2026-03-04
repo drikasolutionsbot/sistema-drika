@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.execute-automation]
 verify_jwt = false
+
+[functions.register-client]
+verify_jwt = false

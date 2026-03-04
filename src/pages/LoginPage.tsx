@@ -89,15 +89,27 @@ const LoginPage = () => {
             </button>
           </div>
 
-          <p className="text-center text-sm font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-            Ao entrar, você concorda com nossos{" "}
-            <button
-              onClick={() => setTermsOpen(true)}
-              className="underline text-white hover:text-primary transition-colors bg-transparent border-none cursor-pointer font-medium text-sm p-0"
-            >
-              Termos de Serviço
-            </button>
-          </p>
+          {/* Signup link */}
+          <div className="text-center space-y-2">
+            <p className="text-sm text-white/60">
+              Não tem conta?{" "}
+              <button
+                onClick={() => navigate("/signup")}
+                className="text-primary hover:text-primary/80 font-semibold bg-transparent border-none cursor-pointer underline transition-colors text-sm p-0"
+              >
+                Criar conta
+              </button>
+            </p>
+            <p className="text-center text-sm font-medium text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+              Ao entrar, você concorda com nossos{" "}
+              <button
+                onClick={() => setTermsOpen(true)}
+                className="underline text-white hover:text-primary transition-colors bg-transparent border-none cursor-pointer font-medium text-sm p-0"
+              >
+                Termos de Serviço
+              </button>
+            </p>
+          </div>
         </div>
       </div>
 
