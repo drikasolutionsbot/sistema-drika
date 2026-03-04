@@ -30,7 +30,7 @@ const CustomizationPage = () => {
   }, [tenant]);
 
   const botName = tenant?.name || "Drika Bot";
-  const botId = tenant?.bot_client_id || "000000000000000000";
+  const botId = tenant?.discord_guild_id || "000000000000000000";
 
   // Check bot status from Discord API
   const checkBotStatus = useCallback(async () => {
@@ -190,7 +190,7 @@ const CustomizationPage = () => {
             </div>
             <div className="pb-1 flex-1">
               <h2 className="text-lg font-bold text-foreground">{botName}</h2>
-              <p className="text-xs text-muted-foreground font-mono">Bot ID: {botId}</p>
+              <p className="text-xs text-muted-foreground font-mono">Server ID: {botId}</p>
             </div>
           </div>
         </div>
