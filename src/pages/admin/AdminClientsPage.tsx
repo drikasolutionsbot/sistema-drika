@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Trash2, Eye, EyeOff, Loader2, Users, Crown, Search, Settings } from "lucide-react";
+import { Plus, Key, Copy, Trash2, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone } from "lucide-react";
 
 const PLANS = [
   { value: "free", label: "Free", color: "text-muted-foreground bg-muted/50 border-border" },
@@ -335,12 +335,26 @@ const AdminClientsPage = () => {
                       className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => toggleExpand(tenant.id)}
                     >
-                      <div className="flex items-center gap-4">
-                        <div>
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                        <div className="min-w-0">
                           <p className="font-medium text-foreground">{tenant.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {tenant.discord_guild_id || "Sem Guild ID"}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                            {tenant.email && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Mail className="h-3 w-3" /> {tenant.email}
+                              </span>
+                            )}
+                            {tenant.whatsapp && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Phone className="h-3 w-3" /> {tenant.whatsapp}
+                              </span>
+                            )}
+                            {!tenant.email && !tenant.whatsapp && (
+                              <span className="text-xs text-muted-foreground font-mono">
+                                {tenant.discord_guild_id || "Sem contato"}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">

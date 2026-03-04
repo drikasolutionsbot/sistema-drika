@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
       .from("tenants")
       .insert({
         name: tenantName,
+        email: email,
         whatsapp: whatsapp || null,
         plan: "free",
       })
