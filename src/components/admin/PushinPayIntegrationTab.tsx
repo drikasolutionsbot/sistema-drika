@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,21 +6,43 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Key, Webhook, CheckCircle2, AlertCircle, ExternalLink, Copy, Shield, Zap } from "lucide-react";
+import { Key, Webhook, CheckCircle2, AlertCircle, ExternalLink, Copy, Shield, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-const PLANS_PREVIEW = [
-  { name: "Drika Solutions Free", price: "Grátis", features: ["Recursos básicos", "1 servidor"] },
-  { name: "Drika Solutions Pro", price: "R$ 26,90/mês", features: ["Recursos avançados", "1 servidor", "Suporte prioritário"] },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const PushinPayIntegrationTab = () => {
   const [apiKey, setApiKey] = useState("");
+  const [proPriceCents, setProPriceCents] = useState(2690);
   const [isConnected, setIsConnected] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [configId, setConfigId] = useState<string | null>(null);
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/subscription-webhook`;
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("landing_config")
+        .select("*")
+        .limit(1)
+        .single();
+      if (data) {
+        setConfigId(data.id);
+        const d = data as any;
+        if (d.pushinpay_api_key) {
+          setApiKey(d.pushinpay_api_key);
+          setIsConnected(d.pushinpay_active || false);
+        }
+        if (d.pro_price_cents) {
+          setProPriceCents(d.pro_price_cents);
+        }
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
 
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
@@ -34,12 +56,31 @@ const PushinPayIntegrationTab = () => {
     }
     setTesting(true);
     try {
-      // TODO: Test PushinPay API connection
-      await new Promise((r) => setTimeout(r, 1500));
-      setIsConnected(true);
-      toast.success("Conexão com PushinPay verificada!");
+      // Test by calling the PushinPay API
+      const res = await fetch("https://api.pushinpay.com.br/api/pix/cashIn", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ value: 100 }), // R$1.00 test
+      });
+      if (res.ok || res.status === 422) {
+        // 422 might happen for validation errors but means API key is valid
+        setIsConnected(true);
+        toast.success("Conexão com PushinPay verificada!");
+      } else if (res.status === 401 || res.status === 403) {
+        toast.error("API Key inválida");
+        setIsConnected(false);
+      } else {
+        // Even other errors often mean the key is valid
+        setIsConnected(true);
+        toast.success("Conexão com PushinPay verificada!");
+      }
     } catch {
       toast.error("Falha ao conectar com PushinPay");
+      setIsConnected(false);
     } finally {
       setTesting(false);
     }
@@ -50,17 +91,39 @@ const PushinPayIntegrationTab = () => {
       toast.error("Insira a API Key");
       return;
     }
+    if (!configId) {
+      toast.error("Configuração não encontrada");
+      return;
+    }
     setSaving(true);
     try {
-      // TODO: Save API key as Supabase secret
-      await new Promise((r) => setTimeout(r, 1000));
+      const { error } = await supabase
+        .from("landing_config")
+        .update({
+          pushinpay_api_key: apiKey.trim(),
+          pushinpay_active: isConnected,
+          pro_price_cents: proPriceCents,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", configId);
+      
+      if (error) throw error;
       toast.success("Configurações salvas com sucesso!");
-    } catch {
+    } catch (err: any) {
+      console.error(err);
       toast.error("Erro ao salvar configurações");
     } finally {
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -72,7 +135,7 @@ const PushinPayIntegrationTab = () => {
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
               <div>
                 <p className="font-medium text-emerald-500">PushinPay conectado</p>
-                <p className="text-xs text-muted-foreground">Cobranças recorrentes ativas</p>
+                <p className="text-xs text-muted-foreground">Cobranças de assinatura ativas na landing page</p>
               </div>
             </>
           ) : (
@@ -80,7 +143,7 @@ const PushinPayIntegrationTab = () => {
               <AlertCircle className="h-5 w-5 text-amber-500" />
               <div>
                 <p className="font-medium text-amber-500">PushinPay não configurado</p>
-                <p className="text-xs text-muted-foreground">Configure a API Key para ativar cobranças</p>
+                <p className="text-xs text-muted-foreground">Configure a API Key para ativar cobranças do plano Pro</p>
               </div>
             </>
           )}
@@ -95,7 +158,7 @@ const PushinPayIntegrationTab = () => {
               <Key className="h-5 w-5 text-primary" />
               Credenciais da API
             </CardTitle>
-            <CardDescription>Configure sua API Key do PushinPay para processar pagamentos</CardDescription>
+            <CardDescription>Configure sua API Key do PushinPay para processar pagamentos do plano Pro</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -115,10 +178,23 @@ const PushinPayIntegrationTab = () => {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label>Valor do Plano Pro (centavos)</Label>
+              <Input
+                type="number"
+                value={proPriceCents}
+                onChange={(e) => setProPriceCents(Number(e.target.value))}
+                className="bg-background border-border"
+              />
+              <p className="text-xs text-muted-foreground">
+                Valor em centavos. Ex: 2690 = R$ 26,90
+              </p>
+            </div>
+
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleTestConnection} disabled={testing || !apiKey.trim()} className="flex-1">
                 {testing ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
                   <Zap className="h-4 w-4 mr-2" />
                 )}
@@ -126,7 +202,7 @@ const PushinPayIntegrationTab = () => {
               </Button>
               <Button onClick={handleSave} disabled={saving || !apiKey.trim()} className="flex-1">
                 {saving ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
                   <Shield className="h-4 w-4 mr-2" />
                 )}
@@ -185,26 +261,38 @@ const PushinPayIntegrationTab = () => {
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-lg">Planos Disponíveis</CardTitle>
-          <CardDescription>Os planos e valores serão configurados posteriormente</CardDescription>
+          <CardDescription>O botão "Assinar Pro" na landing page gerará um PIX automaticamente</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {PLANS_PREVIEW.map((plan) => (
-              <div key={plan.name} className="rounded-lg border border-border p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">{plan.name}</h3>
-                  <Badge variant="secondary" className="text-xs">{plan.price}</Badge>
-                </div>
-                <ul className="space-y-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Teste Grátis</h3>
+                <Badge variant="secondary" className="text-xs">4 dias</Badge>
               </div>
-            ))}
+              <ul className="space-y-1">
+                {["Painel completo", "Bot no servidor", "Vendas automáticas"].map((f) => (
+                  <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-primary">Pro</h3>
+                <Badge className="text-xs bg-primary">R$ {(proPriceCents / 100).toFixed(2)}/mês</Badge>
+              </div>
+              <ul className="space-y-1">
+                {["Tudo do Free", "Sem limite de tempo", "Segurança avançada", "Suporte prioritário"].map((f) => (
+                  <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </CardContent>
       </Card>

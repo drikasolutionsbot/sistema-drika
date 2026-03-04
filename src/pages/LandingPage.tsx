@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X } from "lucide-react";
+import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2 } from "lucide-react";
 import drikaLogo from "@/assets/drika_logo_crown.png";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /* ── Scroll reveal ── */
 function useScrollReveal<T extends HTMLElement>(): RefObject<T> {
@@ -116,14 +117,117 @@ const VideoModal = ({ url, onClose }: { url: string; onClose: () => void }) => {
   );
 };
 
+/* ── Subscription Payment Modal ── */
+const SubscriptionPaymentModal = ({ onClose, tenantId }: { onClose: () => void; tenantId?: string }) => {
+  const [loading, setLoading] = useState(false);
+  const [brcode, setBrcode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    generatePix();
+  }, []);
+
+  const generatePix = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("generate-subscription-pix", {
+        body: { tenant_id: tenantId || "new_subscriber" },
+      });
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
+      if (data?.brcode) {
+        setBrcode(data.brcode);
+      }
+    } catch (err: any) {
+      console.error("Error generating subscription PIX:", err);
+      setError(err.message || "Erro ao gerar pagamento");
+    }
+    setLoading(false);
+  };
+
+  const handleCopy = () => {
+    if (!brcode) return;
+    navigator.clipboard.writeText(brcode);
+    setCopied(true);
+    toast.success("Código PIX copiado!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="relative w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
+          <X className="h-6 w-6" />
+        </button>
+        <div className="rounded-2xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl p-6 space-y-4">
+          <div className="text-center">
+            <img src={drikaLogo} alt="Drika" className="h-14 w-auto mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-white">Assinar Drika Solutions Pro</h3>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mt-2">
+              <Crown className="h-4 w-4" /> R$ 26,90/mês
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-white/50">Gerando pagamento PIX...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-6 space-y-3">
+              <p className="text-sm text-white/50">{error}</p>
+              <a
+                href="https://wa.me/5548996915303?text=Quero%20ativar%20o%20plano%20Drika%20Solutions%20Pro"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium cursor-pointer border-none transition-all px-6 py-2.5 text-sm"
+              >
+                Falar com Suporte
+              </a>
+            </div>
+          ) : brcode ? (
+            <div className="space-y-3">
+              <p className="text-sm text-white/50 text-center">Copie o código PIX e pague pelo seu banco:</p>
+              <div className="rounded-2xl border border-primary/20 bg-black/40 p-4">
+                <code className="block text-xs font-mono text-primary break-all leading-relaxed text-center">
+                  {brcode}
+                </code>
+              </div>
+              <button
+                onClick={handleCopy}
+                className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
+                  copied
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-white/10 text-white hover:bg-white/20"
+                }`}
+              >
+                {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                {copied ? "Copiado!" : "Copiar Código PIX"}
+              </button>
+              <p className="text-[11px] text-white/30 text-center">
+                Após o pagamento, seu plano será ativado automaticamente.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const LandingPage = () => {
   const navigate = useNavigate();
   const [videoOpen, setVideoOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [landingConfig, setLandingConfig] = useState<{
     stat_servers: number; stat_servers_label: string;
     stat_sales: number; stat_sales_label: string;
     stat_products: number; stat_products_label: string;
     video_url: string | null;
+    pushinpay_active: boolean;
+    pro_price_cents: number;
   } | null>(null);
 
   useEffect(() => {
@@ -131,6 +235,13 @@ const LandingPage = () => {
       if (data) setLandingConfig(data as any);
     });
   }, []);
+  const handleProClick = () => {
+    if (landingConfig?.pushinpay_active) {
+      setPaymentOpen(true);
+    } else {
+      navigate("/signup?plan=pro");
+    }
+  };
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden login-pattern-bg relative">
@@ -164,7 +275,7 @@ const LandingPage = () => {
                 Testar Grátis — 4 dias
               </span>
             </button>
-            <button onClick={() => navigate("/signup?plan=pro")} className="group px-6 py-3 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-semibold transition-all cursor-pointer border-none shadow-[0_0_30px_rgba(255,40,73,0.4)] animate-pulse-glow">
+            <button onClick={handleProClick} className="group px-6 py-3 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-semibold transition-all cursor-pointer border-none shadow-[0_0_30px_rgba(255,40,73,0.4)] animate-pulse-glow">
               <span className="flex items-center justify-center gap-2">
                 <Crown className="h-4 w-4" />
                 Assinar Pro — R$ 26,90/mês
@@ -321,6 +432,11 @@ const LandingPage = () => {
         <VideoModal url={landingConfig.video_url} onClose={() => setVideoOpen(false)} />
       )}
 
+      {/* Subscription Payment Modal */}
+      {paymentOpen && (
+        <SubscriptionPaymentModal onClose={() => setPaymentOpen(false)} />
+      )}
+
       {/* ===== 6. PRICING ===== */}
       <section className="relative z-10 py-12 px-4">
         <div className="max-w-xl mx-auto">
@@ -387,7 +503,7 @@ const LandingPage = () => {
                     ))}
                   </ul>
                   <div className="pricing-card-label backdrop-blur-sm bg-black/20 rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
-                    <button onClick={() => navigate("/signup?plan=pro")} className="w-full py-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,40,73,0.3)]">
+                    <button onClick={handleProClick} className="w-full py-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,40,73,0.3)]">
                       Assinar Pro <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>

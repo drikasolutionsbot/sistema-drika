@@ -116,3 +116,9 @@ verify_jwt = false
 
 [functions.delete-tenant]
 verify_jwt = false
+
+[functions.generate-subscription-pix]
+verify_jwt = false
+
+[functions.subscription-webhook]
+verify_jwt = false

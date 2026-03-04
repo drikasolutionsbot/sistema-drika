@@ -438,6 +438,9 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          pro_price_cents: number
+          pushinpay_active: boolean
+          pushinpay_api_key: string | null
           stat_products: number
           stat_products_label: string
           stat_sales: number
@@ -451,6 +454,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          pro_price_cents?: number
+          pushinpay_active?: boolean
+          pushinpay_api_key?: string | null
           stat_products?: number
           stat_products_label?: string
           stat_sales?: number
@@ -464,6 +470,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          pro_price_cents?: number
+          pushinpay_active?: boolean
+          pushinpay_api_key?: string | null
           stat_products?: number
           stat_products_label?: string
           stat_sales?: number
