@@ -51,7 +51,7 @@ const LandingPage = () => {
       </div>
 
       {/* ===== HERO ===== */}
-      <section className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-16">
+      <section className="relative z-10 min-h-[75vh] flex flex-col items-center justify-center px-4 py-12">
         <div className="text-center max-w-2xl mx-auto">
           <img
             src={drikaLogo}
