@@ -99,7 +99,7 @@ const LandingPage = () => {
       </section>
 
       {/* ===== FEATURES ===== */}
-      <section className="relative z-10 py-16 px-4">
+      <section className="relative z-10 py-6 px-4">
         <div className="max-w-3xl mx-auto grid md:grid-cols-3 gap-4">
           {[
             {
