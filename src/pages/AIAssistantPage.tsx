@@ -254,9 +254,7 @@ export default function AIAssistantPage() {
         {/* Input Side */}
         <div className="space-y-4">
           {/* Quick Prompts - Styled */}
-          <div className="relative overflow-hidden rounded-2xl border border-primary/10 p-5" style={{
-            background: 'linear-gradient(135deg, hsl(330 100% 97%) 0%, hsl(280 60% 97%) 50%, hsl(330 80% 96%) 100%)'
-          }}>
+          <div className="relative overflow-hidden rounded-2xl border border-primary/10 p-5 bg-card">
             <div className="absolute inset-0 opacity-[0.04]" style={{
               backgroundImage: `radial-gradient(circle at 0% 0%, hsl(330 100% 71% / 0.5) 0%, transparent 40%), radial-gradient(circle at 100% 100%, hsl(270 80% 60% / 0.3) 0%, transparent 40%)`
             }} />
@@ -309,9 +307,7 @@ export default function AIAssistantPage() {
               "absolute -inset-px rounded-2xl transition-opacity duration-500 opacity-0 group-focus-within/input:opacity-100",
               `bg-gradient-to-r ${selectedTool.gradient} blur-sm`
             )} />
-            <div className="relative rounded-2xl overflow-hidden border border-primary/10" style={{
-              background: 'linear-gradient(145deg, hsl(330 100% 97%) 0%, hsl(300 50% 97%) 50%, hsl(330 60% 96%) 100%)'
-            }}>
+            <div className="relative rounded-2xl overflow-hidden border border-primary/10 bg-card">
               <Textarea
                 placeholder={selectedTool.id === "image"
                   ? "Descreva a imagem que deseja gerar..."
@@ -360,9 +356,7 @@ export default function AIAssistantPage() {
             )}
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl border border-primary/10 min-h-[380px]" style={{
-            background: 'linear-gradient(160deg, hsl(330 100% 97%) 0%, hsl(260 50% 97%) 40%, hsl(330 70% 96%) 100%)'
-          }}>
+          <div className="relative overflow-hidden rounded-2xl border border-primary/10 min-h-[380px] bg-card">
             {/* Subtle grid texture */}
             <div className="absolute inset-0 opacity-[0.02]" style={{
               backgroundImage: `linear-gradient(rgba(200,100,200,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(200,100,200,0.15) 1px, transparent 1px)`,
