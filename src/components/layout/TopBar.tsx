@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import { WalletBadge } from "@/components/wallet/WalletBadge";
 import { Button } from "@/components/ui/button";
@@ -166,6 +167,7 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
 export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   const { user, signOut } = useAuth();
   const { tenant, tenantId } = useTenant();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const tokenSession = sessionStorage.getItem("token_session");
   const tokenData = tokenSession ? JSON.parse(tokenSession) : null;
@@ -286,6 +288,16 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         {tenant && <PlanBadge tenant={tenant} />}
         {/* Wallet */}
         <WalletBadge />
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="text-muted-foreground hover:text-foreground"
+          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+        >
+          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
         {/* Notifications */}
         <Popover open={notifOpen} onOpenChange={setNotifOpen}>
           <PopoverTrigger asChild>
