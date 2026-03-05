@@ -6,8 +6,9 @@ import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import {
   HandMetal, Send, MessageSquare, UserPlus, LogOut, Hash, Settings2, Eye, Save,
-  RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight, Sparkles, Shield, Bot
+  RefreshCw, Plus, ToggleLeft, ToggleRight, Sparkles, Shield, Bot
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -361,7 +362,7 @@ const WelcomePage = () => {
                 <span className="text-xs text-muted-foreground">Inline</span>
               </div>
               <Button variant="ghost" size="icon" onClick={() => removeField(embedKey, field.id)} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </Button>
             </div>
           ))}

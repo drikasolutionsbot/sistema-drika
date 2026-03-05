@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Copy, Eye, LayoutTemplate, Save, FolderOpen, Trash2, Loader2, Send, Hash } from "lucide-react";
+import { Copy, Eye, LayoutTemplate, Save, FolderOpen, Loader2, Send, Hash } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -365,7 +366,7 @@ const EmbedBuilder = () => {
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => deleteEmbed(saved.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <TrashIcon className="h-4 w-4" />
                   </Button>
                 </div>
               ))

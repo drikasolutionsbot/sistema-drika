@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, GripVertical, ChevronDown, ChevronUp, Package, Trash2, Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, GripVertical, ChevronDown, ChevronUp, Package, Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -247,7 +248,7 @@ const FieldExpandedContent = ({
               className="text-destructive hover:text-destructive"
               onClick={() => deleteField(field.id)}
             >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              <TrashIcon className="h-3.5 w-3.5 mr-1.5" />
               Remover
             </Button>
             <Button

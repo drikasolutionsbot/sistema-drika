@@ -1,4 +1,5 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -112,7 +113,7 @@ const EmbedForm = ({ embed, onChange }: EmbedFormProps) => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">Campo {idx + 1}</span>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeField(field.id)}>
-                    <Trash2 className="h-3 w-3" />
+                    <TrashIcon className="h-3 w-3" />
                   </Button>
                 </div>
                 <Input value={field.name} onChange={e => updateField(field.id, { name: e.target.value })} placeholder="Nome do campo" className="bg-sidebar border-border text-sm" />

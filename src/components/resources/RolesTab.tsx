@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, Trash2, Shield, Loader2, ChevronDown, ChevronRight, Save } from "lucide-react";
+import { Plus, Shield, Loader2, ChevronDown, ChevronRight, Save } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -309,7 +310,7 @@ export const RolesTab = () => {
                     {deletingId === role.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Trash2 className="h-4 w-4" />
+                      <TrashIcon className="h-4 w-4" />
                     )}
                   </Button>
                 </div>

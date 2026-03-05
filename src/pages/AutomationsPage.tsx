@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Zap, Plus, Trash2, Edit2, Power, PowerOff, RefreshCw, Search,
+  Zap, Plus, Edit2, Power, PowerOff, RefreshCw, Search,
   Play, Clock, Activity, ChevronDown, ChevronRight, Eye, Copy,
   MessageSquare, Hash, ShieldCheck,
   Bell, Send, Tag, Award, Megaphone, Ban, UserX,
   PenLine, Image,
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -510,7 +511,7 @@ const AutomationsPage = () => {
                           <Switch checked={auto.enabled} onCheckedChange={(v) => toggleAutomation(auto.id, v)}/>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5"/></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><TrashIcon className="h-3.5 w-3.5"/></Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -733,7 +734,7 @@ const AutomationsPage = () => {
                               {aDef?.description && <p className="text-[10px] text-muted-foreground">{aDef.description}</p>}
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAction(idx)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAction(idx)}><TrashIcon className="h-3.5 w-3.5"/></Button>
                         </div>
                         {aDef?.configFields.map((f) => (
                           <div key={f.key} className="space-y-1">
@@ -771,7 +772,7 @@ const AutomationsPage = () => {
                         </SelectContent>
                       </Select>
                       {renderConditionValue(cond, idx)}
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeCondition(idx)}><Trash2 className="h-3.5 w-3.5"/></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeCondition(idx)}><TrashIcon className="h-3.5 w-3.5"/></Button>
                     </div>
                   ))}
                 </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, RefreshCw, Send, Trash2, Eye } from "lucide-react";
+import { ArrowLeft, RefreshCw, Send, Eye } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -105,7 +106,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                <TrashIcon className="h-3.5 w-3.5 mr-1.5" />
                 Excluir
               </Button>
             </AlertDialogTrigger>

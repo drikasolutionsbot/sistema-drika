@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, Trash2, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle } from "lucide-react";
+import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -309,7 +310,7 @@ export default function ApprovalsPage() {
                           disabled={isProcessingThis}
                           className="text-muted-foreground hover:text-red-400"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <TrashIcon className="h-3.5 w-3.5" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent onClick={e => e.stopPropagation()}>

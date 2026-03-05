@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, GripVertical, Pencil, Check, X, FolderOpen } from "lucide-react";
+import { Plus, GripVertical, Pencil, Check, X, FolderOpen } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -165,7 +166,7 @@ export const CategoryManager = ({ categories, onCategoriesChange }: CategoryMana
                     onClick={() => handleDelete(cat.id)}
                     className="p-1 text-muted-foreground hover:text-destructive transition-colors"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <TrashIcon className="h-3.5 w-3.5" />
                   </button>
                 </>
               )}
