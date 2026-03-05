@@ -42,8 +42,6 @@ const navGroups = [
       { label: "Cargos", icon: ShieldCheck, path: "/roles" },
       { label: "Loja", icon: Store, path: "/store" },
       { label: "Proteção", icon: Shield, path: "/protection" },
-      { label: "Sorteios", icon: Gift, path: "/giveaways" },
-      { label: "VIPs", icon: Crown, path: "/vips" },
       { label: "Tickets", icon: Ticket, path: "/tickets" },
       { label: "eCloud", icon: Cloud, path: "/ecloud" },
     ],
