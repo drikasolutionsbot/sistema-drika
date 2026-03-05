@@ -1094,6 +1094,7 @@ export type Database = {
         Row: {
           auto_delivery_global: boolean
           created_at: string
+          customer_role_id: string | null
           delivery_instructions: string | null
           embed_color: string
           id: string
@@ -1116,6 +1117,7 @@ export type Database = {
         Insert: {
           auto_delivery_global?: boolean
           created_at?: string
+          customer_role_id?: string | null
           delivery_instructions?: string | null
           embed_color?: string
           id?: string
@@ -1138,6 +1140,7 @@ export type Database = {
         Update: {
           auto_delivery_global?: boolean
           created_at?: string
+          customer_role_id?: string | null
           delivery_instructions?: string | null
           embed_color?: string
           id?: string
