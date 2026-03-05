@@ -243,44 +243,14 @@ const LandingPage = () => {
     }
   };
 
-  const cascadingBars = useRef(
-    Array.from({ length: 60 }, (_, i) => ({
-      left: `${(i / 60) * 100}%`,
-      height: `${40 + ((i * 7 + 13) % 55)}%`,
-      opacity: 0.15 + ((i * 11 + 3) % 35) / 100,
-      width: `${12 + ((i * 5 + 7) % 10)}px`,
-    }))
-  ).current;
-
   return (
-    <div className="min-h-screen text-white overflow-x-hidden relative" style={{ background: 'linear-gradient(180deg, #050a18 0%, #0a1628 30%, #0d1f3c 60%, #050a18 100%)' }}>
-      {/* Cascading blue bars background */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        {cascadingBars.map((bar, i) => (
-          <div
-            key={i}
-            className="absolute bottom-0 rounded-t-full"
-            style={{
-              left: bar.left,
-              height: bar.height,
-              width: bar.width,
-              opacity: bar.opacity,
-              background: `linear-gradient(to top, hsl(217 91% 25%), hsl(217 91% 50%) 60%, hsl(217 91% 35%))`,
-              boxShadow: '0 0 8px hsl(217 91% 50% / 0.2)',
-            }}
-          />
-        ))}
-        {/* Top fade overlay */}
-        <div className="absolute inset-x-0 top-0 h-[30%] bg-gradient-to-b from-[#050a18] to-transparent z-[1]" />
-        {/* Center glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(37,99,235,0.08)_0%,_transparent_60%)] z-[1]" />
-      </div>
-
-      {/* Glow effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-[2]">
-        <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full blur-[200px] opacity-[0.06] bg-blue-500 animate-[pulse_6s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[15%] right-[15%] w-48 h-48 rounded-full blur-[150px] opacity-[0.04] bg-blue-400 animate-[pulse_8s_ease-in-out_infinite]" />
-      </div>
+    <div className="min-h-screen text-white overflow-x-hidden relative bg-black">
+      {/* Cascading pattern background */}
+      <div className="absolute inset-0 z-0 landing-pattern-bg opacity-90" />
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+      {/* Center glow */}
+      <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,_rgba(29,78,216,0.1)_0%,_transparent_60%)]" />
 
       {/* ===== 1. HERO ===== */}
       <section className="relative z-10 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
