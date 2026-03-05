@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
-  ChevronLeft, ChevronRight, ClipboardCheck, UserCheck,
+  ChevronLeft, ChevronRight, ClipboardCheck, UserCheck, Sparkles,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const navGroups = [
     label: "PRINCIPAL",
     items: [
       { label: "Visão Geral", icon: LayoutDashboard, path: "/dashboard" },
+      { label: "Assistente IA", icon: Sparkles, path: "/ai-assistant" },
     ],
   },
   {

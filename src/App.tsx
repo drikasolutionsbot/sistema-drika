@@ -41,6 +41,7 @@ import VerificationPage from "./pages/VerificationPage";
 import TermsPage from "./pages/TermsPage";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
+import AIAssistantPage from "./pages/AIAssistantPage";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,7 @@ const AppRoutes = () => (
     {/* Dashboard routes */}
     <Route element={<ProtectedRoute><TenantProvider><DashboardLayout /></TenantProvider></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/ai-assistant" element={<AIAssistantPage />} />
       <Route path="/store" element={<StorePage />} />
       <Route path="/channels" element={<ChannelsPage />} />
       <Route path="/coupons" element={<CouponsPage />} />
