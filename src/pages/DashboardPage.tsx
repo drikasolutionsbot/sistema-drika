@@ -9,9 +9,10 @@ import {
   Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader,
 } from "@/components/ui/dialog";
 import {
-  ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Trash2, Loader2, Shield,
+  ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Loader2, Shield,
   BarChart3, Eye,
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import MemberSearchModal from "@/components/dashboard/MemberSearchModal";
@@ -641,7 +642,7 @@ function PermissionPanel({
                 className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={onDelete}
               >
-                <Trash2 className="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </Button>
             )}
           </div>

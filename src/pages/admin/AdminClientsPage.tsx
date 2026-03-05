@@ -12,7 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Trash2, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { logAudit } from "@/lib/auditLog";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -553,7 +554,7 @@ const AdminClientsPage = () => {
                               {deletingTenant === tenant.id ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <TrashIcon className="h-3.5 w-3.5" />
                               )}
                             </Button>
                           </AlertDialogTrigger>
@@ -734,7 +735,7 @@ const AdminClientsPage = () => {
                                         onClick={() => handleRevokeToken(tk.id, tenant.id)}
                                         title="Revogar token"
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <TrashIcon className="h-3.5 w-3.5" />
                                       </Button>
                                     )}
                                   </TableCell>

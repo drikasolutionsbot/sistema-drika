@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Search, Terminal, Upload, Loader2, Plus, Trash2, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
+import { Search, Terminal, Upload, Loader2, Plus, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -360,7 +361,7 @@ export const CommandsTab = () => {
                               className="h-7 w-7 text-muted-foreground hover:text-destructive"
                               onClick={() => removeCommand(cmd.id)}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <TrashIcon className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </div>
@@ -491,7 +492,7 @@ export const CommandsTab = () => {
                         className="h-6 w-6 text-muted-foreground hover:text-destructive"
                         onClick={() => setNewOptions((prev) => prev.filter((_, i) => i !== index))}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <TrashIcon className="h-3 w-3" />
                       </Button>
                     </div>
 
@@ -577,7 +578,7 @@ export const CommandsTab = () => {
                               className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
                               onClick={() => removeChoice(index, ci)}
                             >
-                              <Trash2 className="h-2.5 w-2.5" />
+                              <TrashIcon className="h-2.5 w-2.5" />
                             </Button>
                           </div>
                         ))}

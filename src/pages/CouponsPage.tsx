@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, Tag, Trash2, Edit, Search } from "lucide-react";
+import { Plus, Tag, Edit, Search } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,7 +65,7 @@ const CouponsPage = () => {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground"><Edit className="h-3.5 w-3.5" /></Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive"><TrashIcon className="h-3.5 w-3.5" /></Button>
               </div>
             </div>
           ))}

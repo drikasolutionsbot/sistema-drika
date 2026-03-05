@@ -10,6 +10,7 @@ import {
   Ban, UserMinus, Volume2, MessageSquare, Hash, AtSign, Megaphone,
   Link, Clock, Smile, Globe, Mic, Video, Webhook, Bot
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -475,7 +476,7 @@ const RolesPage = () => {
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(role); }}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <TrashIcon className="h-4 w-4" />
                     </Button>
                     {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                   </div>

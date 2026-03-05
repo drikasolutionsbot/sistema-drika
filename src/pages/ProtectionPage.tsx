@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Shield, ShieldAlert, ShieldCheck, ShieldOff, Ban, Users, MessageSquare,
-  Zap, Link2, UserX, AlertTriangle, Clock, RefreshCw, Plus, Trash2,
+  Zap, Link2, UserX, AlertTriangle, Clock, RefreshCw, Plus,
   Settings2, Activity, Eye, EyeOff, Search, Check, X, Skull,
   Volume2, AtSign, Hash, Globe, Lock, Unlock, ChevronDown, ChevronRight,
   Siren, BellRing, RotateCcw,
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -619,7 +620,7 @@ const ProtectionPage = () => {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -647,7 +648,7 @@ const ProtectionPage = () => {
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
-                    <Trash2 className="h-4 w-4" /> Limpar Logs
+                    <TrashIcon className="h-4 w-4" /> Limpar Logs
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>

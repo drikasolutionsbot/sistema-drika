@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Plus,
-  Trash2,
   Ticket,
   Percent,
   DollarSign,
@@ -9,6 +8,7 @@ import {
   ChevronUp,
   Copy,
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -406,7 +406,7 @@ export const ProductDetailCoupons = ({ productId }: ProductDetailCouponsProps) =
                         className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
                         onClick={() => handleDelete(coupon.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                        <TrashIcon className="h-3.5 w-3.5 mr-1.5" />
                         Excluir
                       </Button>
                       <Button

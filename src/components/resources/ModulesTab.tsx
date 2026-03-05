@@ -1,8 +1,9 @@
 import { useState } from "react";
 import {
   HandMetal, Store, Shield, Gift, Crown, Link2, Ticket, Zap, Cloud, MessageSquare,
-  Plus, Trash2, Puzzle,
+  Plus, Puzzle,
 } from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,7 +137,7 @@ export const ModulesTab = () => {
                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
                     onClick={() => removeModule(mod.id)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <TrashIcon className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
