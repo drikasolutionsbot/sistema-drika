@@ -5,19 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  DollarSign, ShoppingCart, Package, TrendingUp, TrendingDown,
-  ArrowUpRight, Users, Clock,
+  DollarSign, ShoppingCart, TrendingUp, TrendingDown,
+  Users, Clock, CalendarIcon,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  BarChart, Bar, ResponsiveContainer,
+  BarChart, Bar,
 } from "recharts";
-import { format, parseISO, subDays, startOfDay } from "date-fns";
+import { format, parseISO, subDays, startOfDay, eachDayOfInterval, isWithinInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -29,6 +33,8 @@ interface Order {
   status: string;
   created_at: string;
 }
+
+type PeriodKey = "today" | "7d" | "30d" | "custom";
 
 const formatCurrency = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -50,10 +56,25 @@ const statusLabels: Record<string, string> = {
   refunded: "Reembolsado",
 };
 
+const PAID_STATUSES = ["paid", "delivered", "delivering"];
+
+const periodButtons: { key: PeriodKey; label: string }[] = [
+  { key: "today", label: "Hoje" },
+  { key: "7d", label: "7 dias" },
+  { key: "30d", label: "30 dias" },
+  { key: "custom", label: "Personalizado" },
+];
+
 export const DashboardOverview = () => {
   const { tenantId } = useTenant();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodKey>("30d");
+  const [customRange, setCustomRange] = useState<{ from: Date; to: Date }>({
+    from: subDays(new Date(), 7),
+    to: new Date(),
+  });
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -63,67 +84,115 @@ export const DashboardOverview = () => {
         .select("id, order_number, discord_user_id, discord_username, product_name, total_cents, status, created_at")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
       setOrders((data as Order[]) ?? []);
       setLoading(false);
     };
     fetch();
   }, [tenantId]);
 
-  const stats = useMemo(() => {
+  // Compute date range based on period
+  const dateRange = useMemo(() => {
     const now = new Date();
-    const thirtyDaysAgo = subDays(now, 30);
-    const sixtyDaysAgo = subDays(now, 60);
+    const todayStart = startOfDay(now);
+    switch (period) {
+      case "today":
+        return { start: todayStart, end: now };
+      case "7d":
+        return { start: startOfDay(subDays(now, 6)), end: now };
+      case "30d":
+        return { start: startOfDay(subDays(now, 29)), end: now };
+      case "custom":
+        return { start: startOfDay(customRange.from), end: new Date(startOfDay(customRange.to).getTime() + 86400000 - 1) };
+    }
+  }, [period, customRange]);
 
-    const current = orders.filter(o => new Date(o.created_at) >= thirtyDaysAgo);
-    const previous = orders.filter(o => {
+  // Previous period for comparison
+  const prevRange = useMemo(() => {
+    const duration = dateRange.end.getTime() - dateRange.start.getTime();
+    return {
+      start: new Date(dateRange.start.getTime() - duration),
+      end: new Date(dateRange.start.getTime() - 1),
+    };
+  }, [dateRange]);
+
+  // Filter orders by period
+  const filteredOrders = useMemo(() =>
+    orders.filter(o => {
       const d = new Date(o.created_at);
-      return d >= sixtyDaysAgo && d < thirtyDaysAgo;
-    });
+      return d >= dateRange.start && d <= dateRange.end;
+    }), [orders, dateRange]);
 
-    const paidStatuses = ["paid", "delivered", "delivering"];
-    const currentPaid = current.filter(o => paidStatuses.includes(o.status));
-    const previousPaid = previous.filter(o => paidStatuses.includes(o.status));
+  const prevOrders = useMemo(() =>
+    orders.filter(o => {
+      const d = new Date(o.created_at);
+      return d >= prevRange.start && d <= prevRange.end;
+    }), [orders, prevRange]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const currentPaid = filteredOrders.filter(o => PAID_STATUSES.includes(o.status));
+    const previousPaid = prevOrders.filter(o => PAID_STATUSES.includes(o.status));
 
     const revenue = currentPaid.reduce((s, o) => s + o.total_cents, 0);
     const prevRevenue = previousPaid.reduce((s, o) => s + o.total_cents, 0);
-    const revenueChange = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+    const revenueChange = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : revenue > 0 ? 100 : 0;
 
     const ordersCount = currentPaid.length;
     const prevOrdersCount = previousPaid.length;
-    const ordersChange = prevOrdersCount > 0 ? ((ordersCount - prevOrdersCount) / prevOrdersCount) * 100 : 0;
+    const ordersChange = prevOrdersCount > 0 ? ((ordersCount - prevOrdersCount) / prevOrdersCount) * 100 : ordersCount > 0 ? 100 : 0;
 
     const avgTicket = ordersCount > 0 ? revenue / ordersCount : 0;
     const prevAvgTicket = prevOrdersCount > 0 ? prevRevenue / prevOrdersCount : 0;
-    const avgChange = prevAvgTicket > 0 ? ((avgTicket - prevAvgTicket) / prevAvgTicket) * 100 : 0;
+    const avgChange = prevAvgTicket > 0 ? ((avgTicket - prevAvgTicket) / prevAvgTicket) * 100 : avgTicket > 0 ? 100 : 0;
 
     return { revenue, revenueChange, ordersCount, ordersChange, avgTicket, avgChange };
-  }, [orders]);
+  }, [filteredOrders, prevOrders]);
 
-  // Revenue chart data (last 14 days)
-  const revenueChartData = useMemo(() => {
-    const days: { date: string; revenue: number; orders: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const day = startOfDay(subDays(new Date(), i));
+  // Chart data based on selected period
+  const chartData = useMemo(() => {
+    if (period === "today") {
+      // Hourly chart for today
+      const hours: { date: string; revenue: number; orders: number }[] = [];
+      const today = startOfDay(new Date());
+      for (let h = 0; h < 24; h++) {
+        const hourStart = new Date(today.getTime() + h * 3600000);
+        const hourEnd = new Date(today.getTime() + (h + 1) * 3600000);
+        const hourOrders = filteredOrders.filter(o => {
+          if (!PAID_STATUSES.includes(o.status)) return false;
+          const d = new Date(o.created_at);
+          return d >= hourStart && d < hourEnd;
+        });
+        hours.push({
+          date: `${String(h).padStart(2, "0")}:00`,
+          revenue: hourOrders.reduce((s, o) => s + o.total_cents, 0) / 100,
+          orders: hourOrders.length,
+        });
+      }
+      return hours;
+    }
+
+    // Daily chart
+    const days = eachDayOfInterval({ start: dateRange.start, end: startOfDay(dateRange.end) });
+    return days.map(day => {
       const dayStr = format(day, "yyyy-MM-dd");
-      const dayOrders = orders.filter(o => {
-        if (!["paid", "delivered", "delivering"].includes(o.status)) return false;
+      const dayOrders = filteredOrders.filter(o => {
+        if (!PAID_STATUSES.includes(o.status)) return false;
         return format(parseISO(o.created_at), "yyyy-MM-dd") === dayStr;
       });
-      days.push({
-        date: format(day, "dd/MM", { locale: ptBR }),
+      return {
+        date: format(day, days.length > 14 ? "dd/MM" : "dd/MM", { locale: ptBR }),
         revenue: dayOrders.reduce((s, o) => s + o.total_cents, 0) / 100,
         orders: dayOrders.length,
-      });
-    }
-    return days;
-  }, [orders]);
+      };
+    });
+  }, [filteredOrders, period, dateRange]);
 
   // Top clients
   const topClients = useMemo(() => {
     const map = new Map<string, { username: string; total: number; count: number }>();
-    orders
-      .filter(o => ["paid", "delivered", "delivering"].includes(o.status))
+    filteredOrders
+      .filter(o => PAID_STATUSES.includes(o.status))
       .forEach(o => {
         const key = o.discord_user_id;
         const existing = map.get(key);
@@ -135,10 +204,19 @@ export const DashboardOverview = () => {
         }
       });
     return [...map.values()].sort((a, b) => b.total - a.total).slice(0, 5);
-  }, [orders]);
+  }, [filteredOrders]);
 
-  // Recent sales
-  const recentSales = useMemo(() => orders.slice(0, 6), [orders]);
+  // Recent sales (from filtered period)
+  const recentSales = useMemo(() => filteredOrders.slice(0, 6), [filteredOrders]);
+
+  const periodLabel = useMemo(() => {
+    switch (period) {
+      case "today": return "Hoje";
+      case "7d": return "7 dias";
+      case "30d": return "30 dias";
+      case "custom": return `${format(customRange.from, "dd/MM")} — ${format(customRange.to, "dd/MM")}`;
+    }
+  }, [period, customRange]);
 
   if (loading) {
     return (
@@ -161,7 +239,7 @@ export const DashboardOverview = () => {
 
   const statCards = [
     {
-      title: "Receita (30d)",
+      title: `Receita (${periodLabel})`,
       value: formatCurrency(stats.revenue),
       change: stats.revenueChange,
       icon: DollarSign,
@@ -169,7 +247,7 @@ export const DashboardOverview = () => {
       iconBg: "bg-primary/15 text-primary",
     },
     {
-      title: "Pedidos (30d)",
+      title: `Pedidos (${periodLabel})`,
       value: stats.ordersCount.toString(),
       change: stats.ordersChange,
       icon: ShoppingCart,
@@ -188,6 +266,62 @@ export const DashboardOverview = () => {
 
   return (
     <div className="space-y-6">
+      {/* Period Filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        {periodButtons.map(btn => (
+          btn.key === "custom" ? (
+            <Popover key={btn.key} open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={period === "custom" ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "gap-2 rounded-full text-xs font-medium",
+                    period === "custom" && "bg-primary text-primary-foreground"
+                  )}
+                  onClick={() => setPeriod("custom")}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {period === "custom"
+                    ? `${format(customRange.from, "dd/MM")} — ${format(customRange.to, "dd/MM")}`
+                    : "Personalizado"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={{ from: customRange.from, to: customRange.to }}
+                  onSelect={(range: any) => {
+                    if (range?.from) {
+                      setCustomRange({ from: range.from, to: range.to || range.from });
+                      setPeriod("custom");
+                      if (range.to) setCalendarOpen(false);
+                    }
+                  }}
+                  numberOfMonths={1}
+                  disabled={(date) => date > new Date()}
+                  className={cn("p-3 pointer-events-auto")}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <Button
+              key={btn.key}
+              variant={period === btn.key ? "default" : "outline"}
+              size="sm"
+              className={cn(
+                "rounded-full text-xs font-medium",
+                period === btn.key && "bg-primary text-primary-foreground"
+              )}
+              onClick={() => setPeriod(btn.key)}
+            >
+              {btn.label}
+            </Button>
+          )
+        ))}
+      </div>
+
       {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((card) => (
@@ -202,7 +336,7 @@ export const DashboardOverview = () => {
                 {card.change !== 0 && (
                   <div className={`inline-flex items-center gap-1 text-xs font-semibold ${card.change > 0 ? "text-emerald-400" : "text-destructive"}`}>
                     {card.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {card.change > 0 ? "+" : ""}{card.change.toFixed(1)}% vs mês anterior
+                    {card.change > 0 ? "+" : ""}{card.change.toFixed(1)}% vs período anterior
                   </div>
                 )}
               </div>
@@ -210,7 +344,6 @@ export const DashboardOverview = () => {
                 <card.icon className="h-5 w-5" />
               </div>
             </div>
-            {/* Decorative circle */}
             <div className="absolute -right-6 -bottom-6 h-24 w-24 rounded-full bg-primary/5 blur-xl" />
           </div>
         ))}
@@ -223,7 +356,9 @@ export const DashboardOverview = () => {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base font-semibold">Receita — Últimos 14 dias</CardTitle>
+                <CardTitle className="text-base font-semibold">
+                  Receita — {period === "today" ? "Por hora" : periodLabel}
+                </CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">Valores em R$</p>
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -238,7 +373,7 @@ export const DashboardOverview = () => {
           </CardHeader>
           <CardContent className="pt-0 pb-2">
             <ChartContainer config={chartConfig} className="h-[240px] w-full">
-              <AreaChart data={revenueChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -262,11 +397,11 @@ export const DashboardOverview = () => {
               <CardTitle className="text-base font-semibold">Top Clientes</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="text-xs text-muted-foreground">Clientes com maior volume de compras</p>
+            <p className="text-xs text-muted-foreground">No período selecionado</p>
           </CardHeader>
           <CardContent className="space-y-3">
             {topClients.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado ainda</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado neste período</p>
             ) : (
               topClients.map((client, i) => (
                 <div key={i} className="flex items-center gap-3">
@@ -308,7 +443,7 @@ export const DashboardOverview = () => {
           </CardHeader>
           <CardContent className="space-y-2">
             {recentSales.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma venda encontrada</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma venda neste período</p>
             ) : (
               recentSales.map(sale => (
                 <div key={sale.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60">
@@ -336,12 +471,14 @@ export const DashboardOverview = () => {
         {/* Orders Bar Chart */}
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Volume de Pedidos — 14 dias</CardTitle>
-            <p className="text-xs text-muted-foreground">Quantidade de pedidos por dia</p>
+            <CardTitle className="text-base font-semibold">
+              Volume de Pedidos — {period === "today" ? "Por hora" : periodLabel}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Quantidade de pedidos {period === "today" ? "por hora" : "por dia"}</p>
           </CardHeader>
           <CardContent className="pt-0 pb-2">
             <ChartContainer config={chartConfig} className="h-[240px] w-full">
-              <BarChart data={revenueChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} allowDecimals={false} />
