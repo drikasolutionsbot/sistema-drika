@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock } from "lucide-react";
+import { differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import { WalletBadge } from "@/components/wallet/WalletBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,60 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h atrás`;
   return `${Math.floor(hours / 24)}d atrás`;
 }
+
+const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string | null; plan_started_at: string | null } }) => {
+  const isPro = tenant.plan === "pro";
+  const planLabel = isPro ? "Pro" : "Free (Teste)";
+  
+  let timeLeft = "";
+  let isExpiring = false;
+  
+  if (tenant.plan_expires_at) {
+    const now = new Date();
+    const expires = new Date(tenant.plan_expires_at);
+    const diffMs = expires.getTime() - now.getTime();
+    
+    if (diffMs <= 0) {
+      timeLeft = "Expirado";
+      isExpiring = true;
+    } else {
+      const days = differenceInDays(expires, now);
+      const hours = differenceInHours(expires, now) % 24;
+      const mins = differenceInMinutes(expires, now) % 60;
+      
+      if (days > 0) {
+        timeLeft = `${days}d ${hours}h restantes`;
+      } else if (hours > 0) {
+        timeLeft = `${hours}h ${mins}m restantes`;
+      } else {
+        timeLeft = `${mins}m restantes`;
+      }
+      isExpiring = days < 2;
+    }
+  }
+
+  return (
+    <div className={`hidden sm:flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+      isPro
+        ? "bg-primary/10 border-primary/20 text-primary"
+        : isExpiring
+          ? "bg-destructive/10 border-destructive/20 text-destructive"
+          : "bg-muted border-border text-muted-foreground"
+    }`}>
+      <Crown className={`h-3.5 w-3.5 ${isPro ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
+      <span className="font-semibold">{planLabel}</span>
+      {timeLeft && (
+        <>
+          <span className="text-muted-foreground/50">•</span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {timeLeft}
+          </span>
+        </>
+      )}
+    </div>
+  );
+};
 
 export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   const { user, signOut } = useAuth();
@@ -160,6 +215,8 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {/* Plan Badge */}
+        {tenant && <PlanBadge tenant={tenant} />}
         {/* Wallet */}
         <WalletBadge />
         {/* Notifications */}

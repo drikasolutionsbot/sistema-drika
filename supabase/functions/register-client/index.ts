@@ -63,7 +63,9 @@ Deno.serve(async (req) => {
     const userId = authData.user.id;
     const tenantName = name || email.split("@")[0];
 
-    // 2. Create tenant
+    // 2. Create tenant with 4-day trial
+    const now = new Date();
+    const trialExpires = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
     const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
       .insert({
@@ -71,6 +73,8 @@ Deno.serve(async (req) => {
         email: email,
         whatsapp: whatsapp || null,
         plan: "free",
+        plan_started_at: now.toISOString(),
+        plan_expires_at: trialExpires.toISOString(),
       })
       .select()
       .single();
