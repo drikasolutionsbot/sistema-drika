@@ -254,9 +254,11 @@ export default function AIAssistantPage() {
         {/* Input Side */}
         <div className="space-y-4">
           {/* Quick Prompts - Styled */}
-          <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm p-5">
-            <div className="absolute inset-0 opacity-[0.02]" style={{
-              backgroundImage: `radial-gradient(circle at 100% 100%, hsl(330 100% 71% / 0.4) 0%, transparent 50%)`
+          <div className="relative overflow-hidden rounded-2xl border border-primary/10 p-5" style={{
+            background: 'linear-gradient(135deg, hsl(330 100% 97%) 0%, hsl(280 60% 97%) 50%, hsl(330 80% 96%) 100%)'
+          }}>
+            <div className="absolute inset-0 opacity-[0.04]" style={{
+              backgroundImage: `radial-gradient(circle at 0% 0%, hsl(330 100% 71% / 0.5) 0%, transparent 40%), radial-gradient(circle at 100% 100%, hsl(270 80% 60% / 0.3) 0%, transparent 40%)`
             }} />
             <div className="relative z-10 space-y-3">
               <div className="flex items-center gap-2">
@@ -307,7 +309,9 @@ export default function AIAssistantPage() {
               "absolute -inset-px rounded-2xl transition-opacity duration-500 opacity-0 group-focus-within/input:opacity-100",
               `bg-gradient-to-r ${selectedTool.gradient} blur-sm`
             )} />
-            <div className="relative rounded-2xl overflow-hidden border border-border/30 bg-card/80 backdrop-blur-sm">
+            <div className="relative rounded-2xl overflow-hidden border border-primary/10" style={{
+              background: 'linear-gradient(145deg, hsl(330 100% 97%) 0%, hsl(300 50% 97%) 50%, hsl(330 60% 96%) 100%)'
+            }}>
               <Textarea
                 placeholder={selectedTool.id === "image"
                   ? "Descreva a imagem que deseja gerar..."
@@ -356,11 +360,13 @@ export default function AIAssistantPage() {
             )}
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm min-h-[380px]">
+          <div className="relative overflow-hidden rounded-2xl border border-primary/10 min-h-[380px]" style={{
+            background: 'linear-gradient(160deg, hsl(330 100% 97%) 0%, hsl(260 50% 97%) 40%, hsl(330 70% 96%) 100%)'
+          }}>
             {/* Subtle grid texture */}
-            <div className="absolute inset-0 opacity-[0.015]" style={{
-              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-              backgroundSize: '20px 20px'
+            <div className="absolute inset-0 opacity-[0.02]" style={{
+              backgroundImage: `linear-gradient(rgba(200,100,200,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(200,100,200,0.15) 1px, transparent 1px)`,
+              backgroundSize: '24px 24px'
             }} />
             {/* Top gradient accent */}
             <div className={cn("absolute top-0 left-0 right-0 h-px bg-gradient-to-r opacity-30", selectedTool.gradient)} />
