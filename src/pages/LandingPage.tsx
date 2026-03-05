@@ -39,13 +39,13 @@ const ScrollReveal = ({ children, delay = 0, className = "" }: { children: React
 const FaqItem = ({ q, a }: { q: string; a: string }) => {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border border-white/10 rounded-xl overflow-hidden bg-black/30 backdrop-blur-sm">
+    <div className="border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 text-left text-sm font-semibold text-white/90 bg-transparent border-none cursor-pointer hover:bg-white/5 transition-colors"
       >
         {q}
-        <ChevronDown className={`h-4 w-4 text-primary shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-4 w-4 text-white/40 shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
       <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
         <p className="px-4 pb-4 text-xs text-white/50 leading-relaxed">{a}</p>
@@ -244,24 +244,24 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen text-white overflow-x-hidden login-pattern-bg relative">
-      <div className="absolute inset-0 bg-black/40 z-0" />
+    <div className="min-h-screen text-white overflow-x-hidden bg-black relative">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.03)_0%,_transparent_60%)] z-0" />
 
-      {/* Glow effects */}
+      {/* Glow effects — subtle white/neutral */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[200px] opacity-25 gradient-pink animate-[pulse_4s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[10%] right-[10%] w-60 h-60 rounded-full blur-[120px] opacity-15 gradient-gold animate-[pulse_6s_ease-in-out_infinite]" />
+        <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full blur-[200px] opacity-[0.04] bg-white animate-[pulse_6s_ease-in-out_infinite]" />
+        <div className="absolute bottom-[15%] right-[15%] w-48 h-48 rounded-full blur-[150px] opacity-[0.03] bg-white animate-[pulse_8s_ease-in-out_infinite]" />
       </div>
 
       {/* ===== 1. HERO ===== */}
       <section className="relative z-10 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
         <div className="text-center max-w-2xl mx-auto">
-          <img src={drikaLogo} alt="Drika Solutions" className="h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_50px_hsl(217_91%_60%/0.4)] animate-fade-in" />
+          <img src={drikaLogo} alt="Drika Solutions" className="h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] animate-fade-in" />
 
           <h1 className="text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
             Seu servidor Discord
             <br />
-            <span className="text-gradient-pink drop-shadow-none">no próximo nível</span>
+            <span className="text-white/90 drop-shadow-none">no próximo nível</span>
           </h1>
 
           <p className="text-sm md:text-base text-white/70 max-w-md mx-auto mb-8 animate-fade-in font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]" style={{ animationDelay: "0.1s" }}>
@@ -269,13 +269,13 @@ const LandingPage = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold transition-all cursor-pointer border-none shadow-[0_0_30px_hsl(217_91%_60%/0.4)]">
+            <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
               <span className="flex items-center justify-center gap-2">
                 <Zap className="h-4 w-4" />
                 Testar Grátis — 4 dias
               </span>
             </button>
-            <button onClick={handleProClick} className="group px-6 py-3 rounded-full bg-primary hover:bg-primary/90 text-white font-semibold transition-all cursor-pointer border-none shadow-[0_0_30px_hsl(217_91%_60%/0.4)] animate-pulse-glow">
+            <button onClick={handleProClick} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
               <span className="flex items-center justify-center gap-2">
                 <Crown className="h-4 w-4" />
                 Assinar Pro — R$ 26,90/mês
@@ -293,7 +293,7 @@ const LandingPage = () => {
           {/* Social proof */}
           <div className="mt-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
             <p className="text-xs text-white/40 font-medium">
-              Usado por <span className="text-primary font-bold">+120 servidores</span> no Discord
+              Usado por <span className="text-white font-bold">+120 servidores</span> no Discord
             </p>
           </div>
         </div>
@@ -308,8 +308,8 @@ const LandingPage = () => {
               { icon: TrendingUp, value: landingConfig?.stat_sales ?? 500, suffix: "+", label: landingConfig?.stat_sales_label ?? "Vendas processadas" },
               { icon: Package, value: landingConfig?.stat_products ?? 1200, suffix: "+", label: landingConfig?.stat_products_label ?? "Produtos entregues" },
             ].map((s) => (
-              <div key={s.label} className="text-center p-4 rounded-xl border border-white/5 bg-black/20 backdrop-blur-sm">
-                <s.icon className="h-5 w-5 text-primary mx-auto mb-2" />
+              <div key={s.label} className="text-center p-4 rounded-xl border border-white/10 bg-white/[0.02]">
+                <s.icon className="h-5 w-5 text-white/60 mx-auto mb-2" />
                 <div className="text-xl md:text-2xl font-extrabold font-display text-white">
                   <AnimatedCounter target={s.value} suffix={s.suffix} />
                 </div>
@@ -326,7 +326,7 @@ const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-8">
               <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Tudo que seu servidor <span className="text-gradient-pink">precisa</span>
+                Tudo que seu servidor <span className="text-white">precisa</span>
               </h2>
               <p className="text-xs text-white/40">Três pilares em uma única solução</p>
             </div>
@@ -350,8 +350,8 @@ const LandingPage = () => {
               },
             ].map((f, i) => (
               <ScrollReveal key={f.title} delay={0.1 * i}>
-                <div className="group rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md p-5 hover:border-primary/40 hover:bg-black/50 transition-all duration-300 h-full">
-                  <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-[0_0_20px_hsl(217_91%_60%/0.3)]">
+                <div className="group rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all duration-300 h-full">
+                  <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <f.icon className="h-5 w-5 text-white" />
                   </div>
                   <h3 className="text-base font-bold font-display mb-2">{f.title}</h3>
@@ -369,7 +369,7 @@ const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-8">
               <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Como <span className="text-gradient-pink">funciona</span>
+                Como <span className="text-white">funciona</span>
               </h2>
               <p className="text-xs text-white/40">3 passos para começar a vender</p>
             </div>
@@ -381,13 +381,13 @@ const LandingPage = () => {
               { step: "3", icon: ShoppingCart, title: "Comece a vender", desc: "Seus clientes compram direto no Discord. Pagamento e entrega automáticos." },
             ].map((s, i) => (
               <ScrollReveal key={s.step} delay={0.1 * i}>
-                <div className="flex items-start gap-4 p-4 rounded-2xl border border-white/10 bg-black/30 backdrop-blur-sm hover:border-primary/30 transition-all">
-                  <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center shrink-0 font-extrabold font-display text-sm shadow-[0_0_20px_hsl(217_91%_60%/0.3)]">
+                <div className="flex items-start gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all">
+                  <div className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center shrink-0 font-extrabold font-display text-sm">
                     {s.step}
                   </div>
                   <div>
                     <h3 className="text-sm font-bold font-display mb-1 flex items-center gap-2">
-                      <s.icon className="h-4 w-4 text-primary" />
+                      <s.icon className="h-4 w-4 text-white/60" />
                       {s.title}
                     </h3>
                     <p className="text-xs text-white/50 leading-relaxed">{s.desc}</p>
@@ -405,7 +405,7 @@ const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-8">
               <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Veja o bot <span className="text-gradient-pink">funcionando</span>
+                Veja o bot <span className="text-white">funcionando</span>
               </h2>
               <p className="text-xs text-white/40">Assista como é simples vender no Discord</p>
             </div>
@@ -414,11 +414,11 @@ const LandingPage = () => {
             {landingConfig?.video_url ? (
               <button
                 onClick={() => setVideoOpen(true)}
-                className="group w-full aspect-video rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm overflow-hidden relative cursor-pointer hover:border-primary/40 transition-all duration-300 bg-transparent"
+                className="group w-full aspect-video rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden relative cursor-pointer hover:border-white/20 transition-all duration-300 bg-transparent"
               >
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center shadow-[0_0_40px_hsl(217_91%_60%/0.5)] group-hover:scale-110 transition-transform">
-                    <Play className="h-7 w-7 text-white ml-1" />
+                  <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Play className="h-7 w-7 text-black ml-1" />
                   </div>
                 </div>
                 <div className="absolute bottom-4 left-0 right-0 text-center">
@@ -426,7 +426,7 @@ const LandingPage = () => {
                 </div>
               </button>
             ) : (
-              <div className="w-full aspect-video rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <div className="w-full aspect-video rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-center">
                 <p className="text-sm text-white/30">Vídeo em breve</p>
               </div>
             )}
@@ -450,7 +450,7 @@ const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-8">
               <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Escolha seu <span className="text-gradient-pink">plano</span>
+                Escolha seu <span className="text-white">plano</span>
               </h2>
               <p className="text-xs text-white/40">Comece grátis, evolua quando quiser</p>
             </div>
@@ -458,21 +458,21 @@ const LandingPage = () => {
           <div className="grid md:grid-cols-2 gap-6 pt-4 overflow-visible">
             {/* Free */}
             <ScrollReveal>
-              <div className="pricing-card group relative h-full transition-all duration-300 hover:scale-[1.03] bg-white">
+              <div className="pricing-card group relative h-full transition-all duration-300 hover:scale-[1.03] bg-[#111]">
                 <div className="relative z-10 p-5 flex flex-col h-full">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Teste Grátis</h3>
-                  <div className="text-2xl font-extrabold font-display mb-0.5 text-gray-900">4 dias</div>
-                  <p className="text-xs text-gray-400 mb-4">para experimentar tudo</p>
+                  <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-1">Teste Grátis</h3>
+                  <div className="text-2xl font-extrabold font-display mb-0.5 text-white">4 dias</div>
+                  <p className="text-xs text-white/40 mb-4">para experimentar tudo</p>
                   <ul className="space-y-1.5 mb-5 flex-1">
                     {["Painel completo", "Bot no seu servidor", "Vendas automáticas", "Sem cartão"].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
-                        <Check className="h-3 w-3 text-primary shrink-0" />
+                      <li key={f} className="flex items-center gap-2 text-xs text-white/60">
+                        <Check className="h-3 w-3 text-white/40 shrink-0" />
                         {f}
                       </li>
                     ))}
                   </ul>
                   <div className="pricing-card-label rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
-                    <button onClick={() => navigate("/signup")} className="w-full py-2 rounded-full bg-gradient-to-r from-[#1e3a5f] to-[#3b82f6] hover:opacity-90 text-white font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_hsl(217_91%_60%/0.3)]">
+                    <button onClick={() => navigate("/signup")} className="w-full py-2 rounded-full bg-white text-black hover:bg-white/90 font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm">
                       Começar <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -482,27 +482,27 @@ const LandingPage = () => {
 
             {/* Pro */}
             <ScrollReveal delay={0.15}>
-              <div className="pricing-card pricing-card--pro group relative h-full transition-all duration-300 hover:scale-[1.03] scale-[1.02] pt-4 bg-white">
+              <div className="pricing-card pricing-card--pro group relative h-full transition-all duration-300 hover:scale-[1.03] scale-[1.02] pt-4 bg-[#111] border border-white/20">
                 {/* Popular badge */}
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-1.5 text-[11px] font-bold text-white uppercase tracking-wider shadow-[0_0_25px_hsl(217_91%_60%/0.5)] animate-pulse-glow whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-1.5 text-[11px] font-bold text-black uppercase tracking-wider whitespace-nowrap">
                     <Crown className="h-3 w-3" /> Popular
                   </span>
                 </div>
                 <div className="relative z-10 p-5 pt-3 flex flex-col h-full">
-                  <h3 className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Pro</h3>
-                  <div className="text-2xl font-extrabold font-display mb-0.5 text-gray-900">R$ 26,90</div>
-                  <p className="text-xs text-gray-400 mb-4">por mês</p>
+                  <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-1">Pro</h3>
+                  <div className="text-2xl font-extrabold font-display mb-0.5 text-white">R$ 26,90</div>
+                  <p className="text-xs text-white/40 mb-4">por mês</p>
                   <ul className="space-y-1.5 mb-5 flex-1">
                     {["Tudo do Free", "Sem limite de tempo", "Segurança avançada", "Suporte prioritário"].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
-                        <Check className="h-3 w-3 text-primary shrink-0" />
+                      <li key={f} className="flex items-center gap-2 text-xs text-white/60">
+                        <Check className="h-3 w-3 text-white shrink-0" />
                         {f}
                       </li>
                     ))}
                   </ul>
                   <div className="pricing-card-label rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
-                    <button onClick={handleProClick} className="w-full py-2 rounded-full bg-gradient-to-r from-[#1e3a5f] to-[#3b82f6] hover:opacity-90 text-white font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_hsl(217_91%_60%/0.3)]">
+                     <button onClick={handleProClick} className="w-full py-2 rounded-full bg-white text-black hover:bg-white/90 font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm">
                       Assinar Pro <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -519,7 +519,7 @@ const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-8">
               <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Perguntas <span className="text-gradient-pink">frequentes</span>
+                Perguntas <span className="text-white">frequentes</span>
               </h2>
             </div>
           </ScrollReveal>
@@ -541,7 +541,7 @@ const LandingPage = () => {
 
       {/* ===== 8. FOOTER ===== */}
       <ScrollReveal>
-        <footer className="relative z-10 border-t border-white/15 py-5 px-4">
+        <footer className="relative z-10 border-t border-white/10 py-5 px-4">
           <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <img src={drikaLogo} alt="Drika" className="h-6 w-auto" />
