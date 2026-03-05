@@ -49,38 +49,38 @@ div[style*="Edit with Lovable"],
   }
 
   .dark {
-    --background: 225 25% 8%;
-    --foreground: 220 20% 95%;
-    --card: 225 25% 11%;
-    --card-foreground: 220 20% 95%;
-    --popover: 225 25% 11%;
-    --popover-foreground: 220 20% 95%;
+    --background: 225 25% 7%;
+    --foreground: 220 15% 93%;
+    --card: 225 22% 10%;
+    --card-foreground: 220 15% 93%;
+    --popover: 225 22% 10%;
+    --popover-foreground: 220 15% 93%;
     --primary: 330 100% 71%;
     --primary-foreground: 0 0% 100%;
     --secondary: 45 100% 50%;
     --secondary-foreground: 220 20% 10%;
-    --muted: 225 20% 16%;
-    --muted-foreground: 220 15% 55%;
+    --muted: 225 18% 15%;
+    --muted-foreground: 220 12% 65%;
     --accent: 330 80% 60%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 30%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 225 15% 18%;
-    --input: 225 15% 18%;
+    --border: 225 14% 20%;
+    --input: 225 16% 16%;
     --ring: 330 100% 71%;
     --sidebar-background: 225 30% 6%;
-    --sidebar-foreground: 220 15% 70%;
+    --sidebar-foreground: 220 12% 75%;
     --sidebar-primary: 330 100% 71%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 25% 14%;
+    --sidebar-accent: 225 22% 14%;
     --sidebar-accent-foreground: 330 100% 71%;
-    --sidebar-border: 225 15% 14%;
+    --sidebar-border: 225 14% 16%;
     --sidebar-ring: 330 100% 71%;
 
     --gold: 45 100% 50%;
     --gold-foreground: 220 20% 10%;
-    --surface: 225 25% 13%;
-    --surface-hover: 225 25% 16%;
+    --surface: 225 22% 12%;
+    --surface-hover: 225 22% 16%;
     --gradient-pink: linear-gradient(135deg, hsl(330 100% 71%), hsl(340 90% 55%));
     --gradient-gold: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 100% 45%));
     --gradient-dark: linear-gradient(180deg, hsl(225 30% 6%), hsl(225 25% 10%));
