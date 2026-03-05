@@ -18,34 +18,39 @@ const AdminLoginPage = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim(),
+      // Validate credentials and admin role entirely server-side
+      const { data, error } = await supabase.functions.invoke("validate-admin-login", {
+        body: { email: email.trim(), password: password.trim() },
       });
 
-      if (error) {
-        toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
+      if (error || data?.error) {
+        toast({
+          title: "Acesso negado",
+          description: data?.error || error?.message || "Credenciais inválidas.",
+          variant: "destructive",
+        });
         setLoading(false);
         return;
       }
 
-      // Check if user is super_admin
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .eq("role", "super_admin")
-        .maybeSingle();
+      if (data?.success && data?.session) {
+        // Set the session from the server-validated tokens
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
 
-      if (!roleData) {
-        await supabase.auth.signOut();
-        toast({ title: "Acesso negado", description: "Você não tem permissão de administrador.", variant: "destructive" });
-        setLoading(false);
-        return;
+        if (sessionError) {
+          toast({ title: "Erro ao iniciar sessão", description: sessionError.message, variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+
+        toast({ title: "Bem-vindo, Admin!" });
+        navigate("/admin", { replace: true });
+      } else {
+        toast({ title: "Erro", description: "Resposta inesperada do servidor.", variant: "destructive" });
       }
-
-      toast({ title: "Bem-vindo, Admin!" });
-      navigate("/admin", { replace: true });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }

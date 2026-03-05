@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.manage-admin-users]
 verify_jwt = false
+
+[functions.validate-admin-login]
+verify_jwt = false
