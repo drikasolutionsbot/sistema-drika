@@ -20,6 +20,9 @@ import { useRoles, type TenantRole } from "@/hooks/useRoles";
 import type { DiscordMember } from "@/components/dashboard/MemberSearchModal";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logTenantAudit, fetchTenantAuditLogs, type AuditLogEntry } from "@/lib/tenantAuditLog";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const DISCORD_CLIENT_ID = "1477916070508757092";
 const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
@@ -52,6 +55,10 @@ const DashboardPage = () => {
   const { permissions, loading: permLoading, addMember, savePermissions, removeMember } = usePermissions(tenant?.id ?? null);
   const { roles, loading: rolesLoading, createRole, updateRole, deleteRole } = useRoles(tenant?.id ?? null);
 
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   // Guild info state
   const [guildInfo, setGuildInfo] = useState<{ member_count: number; presence_count: number; icon: string | null } | null>(null);
 
@@ -65,6 +72,19 @@ const DashboardPage = () => {
       }
     });
   }, [tenant?.discord_guild_id]);
+
+  // Fetch audit logs
+  const loadAuditLogs = async () => {
+    if (!tenant?.id) return;
+    setAuditLoading(true);
+    const logs = await fetchTenantAuditLogs(tenant.id, 10);
+    setAuditLogs(logs);
+    setAuditLoading(false);
+  };
+
+  useEffect(() => {
+    loadAuditLogs();
+  }, [tenant?.id]);
 
   const selectedMember = permissions.find(p => p.id === selectedMemberId) ?? null;
   const selectedRole = roles.find(r => r.id === selectedRoleId) ?? null;
@@ -96,7 +116,14 @@ const DashboardPage = () => {
     setSavingMember(true);
     const result = await savePermissions(selectedMember.id, memberDraft);
     setSavingMember(false);
-    if (result) { setMemberDraft({}); toast.success("Permissões salvas!"); }
+    if (result) {
+      setMemberDraft({});
+      toast.success("Permissões salvas!");
+      if (tenantId) {
+        await logTenantAudit(tenantId, "save_permissions", "membro", selectedMember.discord_display_name || selectedMember.discord_username, selectedMember.id, memberDraft);
+        loadAuditLogs();
+      }
+    }
     else toast.error("Erro ao salvar.");
   };
 
@@ -140,6 +167,10 @@ const DashboardPage = () => {
         setSelectedRoleId(result.id);
         setRoleDraft({});
         toast.success(`Cargo "${result.name}" criado no Discord!`);
+        if (tenantId) {
+          await logTenantAudit(tenantId, "create_role", "cargo", result.name, result.id);
+          loadAuditLogs();
+        }
       }
     } catch {
       toast.error("Erro ao criar cargo no Discord.");
@@ -154,6 +185,10 @@ const DashboardPage = () => {
     await deleteRole(role.id);
     if (selectedRoleId === role.id) { setSelectedRoleId(null); setRoleDraft({}); }
     toast.success(`Cargo "${role.name}" removido do Discord.`);
+    if (tenantId) {
+      await logTenantAudit(tenantId, "delete_role", "cargo", role.name, role.id);
+      loadAuditLogs();
+    }
   };
 
   // --- Common handlers ---
@@ -164,7 +199,26 @@ const DashboardPage = () => {
       discord_display_name: member.displayName,
       discord_avatar_url: member.avatar ?? null,
     });
-    if (result) { setSelectedMemberId(result.id); setMemberDraft({}); }
+    if (result) {
+      setSelectedMemberId(result.id);
+      setMemberDraft({});
+      if (tenantId) {
+        await logTenantAudit(tenantId, "add_member", "membro", member.displayName || member.username, member.id);
+        loadAuditLogs();
+      }
+    }
+  };
+
+  const getAuditActionLabel = (action: string) => {
+    const map: Record<string, string> = {
+      create: "criou", update: "atualizou", delete: "removeu",
+      activate: "ativou", deactivate: "desativou",
+      switch_server: "trocou o servidor para", save_permissions: "editou permissões de",
+      add_member: "adicionou", remove_member: "removeu",
+      create_role: "criou o cargo", delete_role: "removeu o cargo",
+      add_stock: "adicionou estoque em", deliver_order: "entregou pedido de",
+    };
+    return map[action] || action;
   };
 
   if (tenantLoading || !tenant) {
@@ -208,6 +262,11 @@ const DashboardPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Servidor alterado com sucesso!");
+      if (tenantId) {
+        const guild = guilds.find(g => g.id === guildId);
+        await logTenantAudit(tenantId, "switch_server", "servidor", guild?.name || guildId, guildId);
+        loadAuditLogs();
+      }
       refetch();
       setServerModalOpen(false);
     } catch (err: any) {
@@ -274,7 +333,31 @@ const DashboardPage = () => {
         </div>
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3">Auditoria</h2>
-          <p className="text-sm text-muted-foreground">Nenhum registro de auditoria encontrado.</p>
+          {auditLoading ? (
+            <div className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
+          ) : auditLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum registro de auditoria encontrado.</p>
+          ) : (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-none">
+              {auditLogs.map(log => (
+                <div key={log.id} className="flex items-start gap-3 rounded-lg bg-muted/50 px-3 py-2.5 text-sm">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase">
+                    {(log.actor_name || "S")[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground">
+                      <span className="text-primary">{log.actor_name || "Sistema"}</span>{" "}
+                      <span className="text-muted-foreground font-normal">{getAuditActionLabel(log.action)}</span>{" "}
+                      {log.entity_name && <span className="font-semibold">{log.entity_name}</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {log.entity_type} • {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
