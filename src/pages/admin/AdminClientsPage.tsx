@@ -245,8 +245,14 @@ const AdminClientsPage = () => {
   };
   const getExportData = () => filteredTenants.map((t) => ({
     Nome: t.name || "",
+    Plano: (t.plan || "free") === "pro" ? "Pro" : "Free",
+    "Guild ID": t.discord_guild_id || "",
     Email: t.email || "",
     WhatsApp: t.whatsapp || "",
+    "Início do Plano": t.plan_started_at ? format(new Date(t.plan_started_at), "dd/MM/yyyy HH:mm") : "",
+    "Expira em": t.plan_expires_at ? format(new Date(t.plan_expires_at), "dd/MM/yyyy HH:mm") : "",
+    "Criado em": t.created_at ? format(new Date(t.created_at), "dd/MM/yyyy HH:mm") : "",
+    Status: t.plan === "pro" && t.plan_expires_at && new Date(t.plan_expires_at) < new Date() ? "Expirado" : "Ativo",
   }));
 
   const handleExportExcel = () => {
@@ -258,17 +264,18 @@ const AdminClientsPage = () => {
   };
 
   const handleExportPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "landscape" });
     doc.setFontSize(16);
     doc.text("Clientes - Drika Solutions", 14, 20);
     doc.setFontSize(10);
     doc.text(`Exportado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 28);
     const data = getExportData();
+    const headers = Object.keys(data[0] || {});
     autoTable(doc, {
       startY: 35,
-      head: [["Nome", "Email", "WhatsApp"]],
-      body: data.map((r) => [r.Nome, r.Email, r.WhatsApp]),
-      styles: { fontSize: 9 },
+      head: [headers],
+      body: data.map((r) => headers.map((h) => (r as any)[h])),
+      styles: { fontSize: 8 },
       headStyles: { fillColor: [255, 40, 73] },
     });
     doc.save(`clientes_${format(new Date(), "dd-MM-yyyy")}.pdf`);
