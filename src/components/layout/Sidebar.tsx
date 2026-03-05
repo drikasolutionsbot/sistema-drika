@@ -19,7 +19,7 @@ const navGroups = [
     label: "PRINCIPAL",
     items: [
       { label: "Visão Geral", icon: LayoutDashboard, path: "/dashboard" },
-      { label: "Assistente IA", icon: Sparkles, path: "/ai-assistant" },
+      { label: "Gerador IA", icon: Sparkles, path: "/ai-assistant" },
     ],
   },
   {
