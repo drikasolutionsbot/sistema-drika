@@ -269,7 +269,7 @@ const LandingPage = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full border-2 border-white/30 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:border-white/50 text-white font-semibold transition-all cursor-pointer">
+            <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-semibold transition-all cursor-pointer border-none shadow-[0_0_30px_rgba(255,40,73,0.4)]">
               <span className="flex items-center justify-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />
                 Testar Grátis — 4 dias
