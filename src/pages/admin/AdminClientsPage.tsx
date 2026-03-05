@@ -13,17 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Plus, Key, Copy, Trash2, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-
-const logAudit = async (action: string, entity_type: string, entity_id: string | null, entity_name: string | null, details?: Record<string, any>) => {
-  try {
-    await (supabase as any).from("admin_audit_logs").insert({
-      admin_email: (await supabase.auth.getUser()).data.user?.email || null,
-      admin_user_id: (await supabase.auth.getUser()).data.user?.id || null,
-      action, entity_type, entity_id, entity_name, details: details || {},
-    });
-  } catch {}
-};
+import { logAudit } from "@/lib/auditLog";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";

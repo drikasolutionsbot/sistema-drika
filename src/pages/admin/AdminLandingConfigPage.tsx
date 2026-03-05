@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Users, TrendingUp, Package, Video, Save, Upload, Link, Loader2 } from "lucide-react";
+import { logAudit } from "@/lib/auditLog";
 
 const AdminLandingConfigPage = () => {
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,7 @@ const AdminLandingConfigPage = () => {
       toast.error("Erro ao salvar configurações");
       console.error(error);
     } else {
+      await logAudit("config_updated", "config", configId, "Landing Page", { fields: Object.keys(form) });
       toast.success("Configurações da landing page salvas!");
     }
   };

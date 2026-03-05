@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Key, Webhook, CheckCircle2, AlertCircle, ExternalLink, Copy, Shield, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auditLog";
 
 const PushinPayIntegrationTab = () => {
   const [apiKey, setApiKey] = useState("");
@@ -114,6 +115,11 @@ const PushinPayIntegrationTab = () => {
         .eq("id", configId);
       
       if (error) throw error;
+      await logAudit("config_updated", "config", configId, "PushinPay Integration", {
+        pro_price: `R$ ${(proPriceCents / 100).toFixed(2)}`,
+        auto_activate: autoActivate,
+        suspend_on_expire: suspendOnExpire,
+      });
       toast.success("Configurações salvas com sucesso!");
     } catch (err: any) {
       console.error(err);

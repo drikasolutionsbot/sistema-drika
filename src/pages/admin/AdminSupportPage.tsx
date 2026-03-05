@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, GripVertical, Save, X, Headphones } from "lucide-react";
+import { logAudit } from "@/lib/auditLog";
 
 interface SupportChannel {
   id: string;
@@ -74,12 +75,14 @@ const AdminSupportPage = () => {
           .update({ ...form, updated_at: new Date().toISOString() } as any)
           .eq("id", editing.id);
         if (error) throw error;
+        await logAudit("config_updated", "support_channel", editing.id, form.name);
         toast({ title: "Canal atualizado!" });
       } else {
         const { error } = await supabase
           .from("support_channels")
           .insert(form as any);
         if (error) throw error;
+        await logAudit("tenant_created", "support_channel", null, form.name);
         toast({ title: "Canal criado!" });
       }
       setEditing(null);
@@ -98,6 +101,8 @@ const AdminSupportPage = () => {
     if (error) {
       toast({ title: "Erro ao excluir", variant: "destructive" });
     } else {
+      const ch = channels.find(c => c.id === id);
+      await logAudit("tenant_deleted", "support_channel", id, ch?.name || id);
       if (editing?.id === id) handleCancel();
       toast({ title: "Canal excluído!" });
       fetchChannels();
