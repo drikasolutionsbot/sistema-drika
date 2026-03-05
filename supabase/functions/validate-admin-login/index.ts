@@ -14,14 +14,15 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { email, password } = await req.json();
     if (!email || !password) throw new Error("Email e senha são obrigatórios");
 
-    // Try to sign in with the provided credentials
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    // Use anon key client for authentication (signInWithPassword)
+    const anonClient = createClient(supabaseUrl, anonKey);
+    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
       email,
       password,
     });
@@ -35,8 +36,9 @@ serve(async (req) => {
 
     const userId = signInData.user.id;
 
-    // Check if the user has super_admin role using service role (bypasses RLS)
-    const { data: roleData } = await supabase
+    // Use service role client to check roles (bypasses RLS)
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data: roleData } = await serviceClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
@@ -44,7 +46,8 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
-      // Sign out the session we just created server-side
+      // Sign out the session we just created
+      await anonClient.auth.signOut();
       return new Response(JSON.stringify({ error: "Acesso negado. Este email não tem permissão de administrador." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
