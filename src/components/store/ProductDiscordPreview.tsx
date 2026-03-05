@@ -28,6 +28,7 @@ interface ProductDiscordPreviewProps {
   product: Product;
   storeName?: string;
   fields?: PreviewField[];
+  embedColor?: string;
 }
 
 const formatPrice = (cents: number) =>
@@ -39,10 +40,11 @@ const typeLabels: Record<string, string> = {
   hybrid: "Híbrido",
 };
 
-export const ProductDiscordPreview = ({ product, storeName, fields = [] }: ProductDiscordPreviewProps) => {
+export const ProductDiscordPreview = ({ product, storeName, fields = [], embedColor }: ProductDiscordPreviewProps) => {
   const { tenant } = useTenant();
   const botName = storeName || tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
+  const sideColor = embedColor || "#5865F2";
 
   // Helper to render emoji - handles both unicode and discord custom format
   const renderEmoji = (emoji: string | null) => {
@@ -83,7 +85,7 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [] }: Produ
         </div>
 
         {/* Embed */}
-        <div className="flex rounded" style={{ borderLeft: "4px solid #5865F2" }}>
+        <div className="flex rounded" style={{ borderLeft: `4px solid ${sideColor}` }}>
           <div className="flex-1 p-3 space-y-2">
             {/* Title */}
             <p className="text-white font-semibold text-sm">

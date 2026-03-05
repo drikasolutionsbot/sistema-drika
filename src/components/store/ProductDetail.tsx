@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, RefreshCw, Send, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,8 @@ import { ProductDetailCoupons } from "./ProductDetailCoupons";
 import { ProductDetailHooks } from "./ProductDetailHooks";
 import { PostMessageModal } from "./PostMessageModal";
 import { ProductDiscordPreview } from "./ProductDiscordPreview";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface Category {
   id: string;
@@ -49,11 +51,22 @@ interface ProductDetailProps {
 }
 
 export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = [] }: ProductDetailProps) => {
+  const { tenantId } = useTenant();
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [embedColor, setEmbedColor] = useState("#5865F2");
   const [previewFields, setPreviewFields] = useState<Array<{ id: string; name: string; emoji: string | null; price_cents: number; compare_price_cents: number | null }>>([]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.functions.invoke("manage-store-config", {
+      body: { action: "get", tenant_id: tenantId },
+    }).then(({ data }) => {
+      if (data?.embed_color) setEmbedColor(data.embed_color);
+    });
+  }, [tenantId]);
 
   const handleChange = (updates: Partial<Product>) => {
     setEdited((prev) => ({ ...prev, ...updates }));
@@ -152,7 +165,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
                 <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
                 {showPreview && (
                   <div className="sticky top-4">
-                    <ProductDiscordPreview product={edited} />
+                    <ProductDiscordPreview product={edited} embedColor={embedColor} />
                   </div>
                 )}
               </div>
@@ -163,7 +176,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
                 <ProductDetailFields productId={product.id} onFieldsChange={setPreviewFields} />
                 {showPreview && (
                   <div className="sticky top-4">
-                    <ProductDiscordPreview product={edited} fields={previewFields} />
+                    <ProductDiscordPreview product={edited} fields={previewFields} embedColor={embedColor} />
                   </div>
                 )}
               </div>
