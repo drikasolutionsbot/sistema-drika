@@ -47,16 +47,22 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
   const planLabel = isPro ? "Pro" : "Free (Teste)";
   
   let timeLeft = "";
+  let expiresLabel = "";
   let isExpiring = false;
+  let isExpired = false;
   
   if (tenant.plan_expires_at) {
     const now = new Date();
     const expires = new Date(tenant.plan_expires_at);
     const diffMs = expires.getTime() - now.getTime();
+
+    // Format expiration date
+    expiresLabel = expires.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
     
     if (diffMs <= 0) {
       timeLeft = "Expirado";
       isExpiring = true;
+      isExpired = true;
     } else {
       const days = differenceInDays(expires, now);
       const hours = differenceInHours(expires, now) % 24;
@@ -74,25 +80,86 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
   }
 
   return (
-    <div className={`hidden sm:flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
-      isPro
-        ? "bg-primary/10 border-primary/20 text-primary"
-        : isExpiring
-          ? "bg-destructive/10 border-destructive/20 text-destructive"
-          : "bg-muted border-border text-muted-foreground"
-    }`}>
-      <Crown className={`h-3.5 w-3.5 ${isPro ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
-      <span className="font-semibold">{planLabel}</span>
-      {timeLeft && (
-        <>
-          <span className="text-muted-foreground/50">•</span>
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {timeLeft}
-          </span>
-        </>
-      )}
-    </div>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className={`hidden sm:flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors cursor-pointer outline-none ${
+          isExpired
+            ? "bg-destructive/15 border-destructive/30 text-destructive animate-pulse"
+            : isPro
+              ? "bg-primary/10 border-primary/20 text-primary"
+              : isExpiring
+                ? "bg-destructive/10 border-destructive/20 text-destructive"
+                : "bg-muted border-border text-muted-foreground"
+        }`}>
+          <Crown className={`h-3.5 w-3.5 ${isExpired ? "text-destructive" : isPro ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
+          <span className="font-semibold">{planLabel}</span>
+          {timeLeft && (
+            <>
+              <span className="text-muted-foreground/50">•</span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {timeLeft}
+              </span>
+            </>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-0 bg-card border-border">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Crown className={`h-5 w-5 ${isPro ? "text-primary" : "text-muted-foreground"}`} />
+            <h4 className="text-sm font-bold">Plano {planLabel}</h4>
+          </div>
+          
+          {tenant.plan_started_at && (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Início</span>
+              <span className="font-medium">{new Date(tenant.plan_started_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+            </div>
+          )}
+          
+          {expiresLabel && (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Expira em</span>
+              <span className={`font-semibold ${isExpired ? "text-destructive" : isExpiring ? "text-destructive" : ""}`}>{expiresLabel}</span>
+            </div>
+          )}
+
+          {timeLeft && (
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Tempo restante</span>
+              <span className={`font-semibold ${isExpired || isExpiring ? "text-destructive" : "text-primary"}`}>{timeLeft}</span>
+            </div>
+          )}
+
+          <div className="border-t border-border pt-3">
+            {isExpired ? (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                <p className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Acesso bloqueado
+                </p>
+                <p className="text-xs text-destructive/70 mt-1">
+                  Todos os recursos estão suspensos. Assine o plano Pro para liberar o acesso novamente.
+                </p>
+              </div>
+            ) : isExpiring ? (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                <p className="text-xs text-destructive/80">
+                  ⚠️ Seu plano está prestes a expirar. Após o vencimento, o painel será <strong>bloqueado automaticamente</strong> até a renovação.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg bg-primary/5 border border-primary/10 p-3">
+                <p className="text-xs text-muted-foreground">
+                  ✅ Seu plano está ativo. Ao expirar, o acesso será bloqueado até que o plano Pro seja renovado.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
