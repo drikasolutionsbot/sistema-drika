@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-// Badge replaced by custom wallet-tx-badge CSS
 import { toast } from "@/hooks/use-toast";
 import {
   Wallet,
@@ -117,7 +116,6 @@ export const WalletTab = () => {
   const fmt = (cents: number) =>
     (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  // Compute last 7 days of deposits for bar chart
   const weeklyBars = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = subDays(new Date(), 6 - i);
@@ -136,7 +134,6 @@ export const WalletTab = () => {
     return days.map((d) => ({ ...d, pct: Math.max((d.total / max) * 100, 8) }));
   }, [transactions]);
 
-  // Earned this month vs last month
   const { thisMonth, lastMonth, changePercent } = useMemo(() => {
     const now = new Date();
     const thisMonthKey = format(now, "yyyy-MM");
@@ -170,15 +167,14 @@ export const WalletTab = () => {
       {/* ---- Premium Income Card ---- */}
       <div className="wallet-card-wrapper">
         <div className="wallet-card">
-          {/* Top Section */}
           <div className="wallet-card-top">
             <div className="wallet-card-header">
               <div className="flex items-center gap-3">
                 <div className="wallet-icon-ring">
-                  <Wallet className="h-5 w-5 text-white" />
+                  <Wallet className="h-5 w-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-white/50 font-medium tracking-wider uppercase">Receita</p>
+                  <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">Receita</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="wallet-amount">
                       {balanceVisible ? fmt(thisMonth) : "••••••"}
@@ -200,20 +196,19 @@ export const WalletTab = () => {
             </div>
 
             {lastMonth > 0 && (
-              <p className="text-[11px] text-white/40 mt-1 ml-[52px]">
+              <p className="text-[11px] text-muted-foreground mt-1 ml-[52px]">
                 Comparado a {fmt(lastMonth)} mês passado
               </p>
             )}
 
-            {/* Stats Row */}
             <div className="wallet-stats-row">
               <div className="wallet-stat">
                 <div className="wallet-stat-icon bg-emerald-500/20">
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Total Recebido</p>
-                  <p className="text-sm font-bold text-white">{balanceVisible ? fmt(wallet?.total_earned_cents ?? 0) : "••••"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Recebido</p>
+                  <p className="text-sm font-bold text-foreground">{balanceVisible ? fmt(wallet?.total_earned_cents ?? 0) : "••••"}</p>
                 </div>
               </div>
               <div className="wallet-stat">
@@ -221,8 +216,8 @@ export const WalletTab = () => {
                   <DollarSign className="h-3.5 w-3.5 text-orange-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Total Sacado</p>
-                  <p className="text-sm font-bold text-white">{balanceVisible ? fmt(wallet?.total_withdrawn_cents ?? 0) : "••••"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Sacado</p>
+                  <p className="text-sm font-bold text-foreground">{balanceVisible ? fmt(wallet?.total_withdrawn_cents ?? 0) : "••••"}</p>
                 </div>
               </div>
               <div className="wallet-stat">
@@ -230,14 +225,13 @@ export const WalletTab = () => {
                   <Wallet className="h-3.5 w-3.5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Saldo</p>
-                  <p className="text-sm font-bold text-white">{balanceVisible ? fmt(wallet?.balance_cents ?? 0) : "••••"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo</p>
+                  <p className="text-sm font-bold text-foreground">{balanceVisible ? fmt(wallet?.balance_cents ?? 0) : "••••"}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Bar Chart */}
           <div className="wallet-chart">
             {weeklyBars.map((bar, i) => (
               <div key={bar.date} className="wallet-bar-col">
@@ -265,11 +259,11 @@ export const WalletTab = () => {
           <div className="wallet-section-icon">
             <ArrowUpRight className="h-4 w-4 text-primary" />
           </div>
-          <h3 className="text-white font-display font-semibold text-sm">Solicitar Saque</h3>
+          <h3 className="text-foreground font-display font-semibold text-sm">Solicitar Saque</h3>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 mt-4">
           <div className="space-y-2">
-            <Label className="text-white/50 text-xs uppercase tracking-wider">Valor (R$)</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Valor (R$)</Label>
             <Input
               placeholder="0,00"
               value={withdrawAmount}
@@ -278,7 +272,7 @@ export const WalletTab = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-white/50 text-xs uppercase tracking-wider">Chave PIX para receber</Label>
+            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave PIX para receber</Label>
             <Input
               placeholder="CPF, email, telefone ou chave aleatória"
               value={withdrawPix}
@@ -288,7 +282,7 @@ export const WalletTab = () => {
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
-          <p className="text-[11px] text-white/30">
+          <p className="text-[11px] text-muted-foreground">
             Saques são processados pelo administrador em até 24h.
           </p>
           <Button onClick={handleWithdraw} disabled={submitting} className="gap-2 gradient-pink border-none text-primary-foreground hover:opacity-90">
@@ -304,10 +298,10 @@ export const WalletTab = () => {
           <div className="wallet-section-icon">
             <DollarSign className="h-4 w-4 text-primary" />
           </div>
-          <h3 className="text-white font-display font-semibold text-sm">Histórico de Transações</h3>
+          <h3 className="text-foreground font-display font-semibold text-sm">Histórico de Transações</h3>
         </div>
         {transactions.length === 0 ? (
-          <p className="text-sm text-white/30 text-center py-10">
+          <p className="text-sm text-muted-foreground text-center py-10">
             Nenhuma transação ainda
           </p>
         ) : (
@@ -325,10 +319,10 @@ export const WalletTab = () => {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-foreground">
                       {tx.type === "deposit" ? "Depósito" : "Saque"}
                     </p>
-                    <p className="text-[11px] text-white/30">
+                    <p className="text-[11px] text-muted-foreground">
                       {tx.description || "—"} · {formatDistanceToNow(new Date(tx.created_at), { addSuffix: true, locale: ptBR })}
                     </p>
                   </div>

@@ -173,29 +173,29 @@ const SettingsPage = () => {
                 <Paintbrush className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h3 className="text-white font-display font-semibold text-sm">White-label</h3>
-                <p className="text-[11px] text-white/30 mt-0.5">Personalize a identidade visual da sua loja</p>
+                <h3 className="text-foreground font-display font-semibold text-sm">White-label</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Personalize a identidade visual da sua loja</p>
               </div>
             </div>
             <form onSubmit={handleSaveBranding} className="space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-white/50 text-xs uppercase tracking-wider">Nome da Loja</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Nome da Loja</Label>
                   <Input name="name" defaultValue={tenant.name} className="wallet-input" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white/50 text-xs uppercase tracking-wider">Logo</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Logo</Label>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-white/10 bg-white/5">
-                      <Upload className="h-5 w-5 text-white/30" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/50">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white">Upload</Button>
+                    <Button type="button" variant="outline" size="sm">Upload</Button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white/50 text-xs uppercase tracking-wider">Cor Primária</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Cor Primária</Label>
                   <div className="flex gap-2 items-center">
-                    <label className="relative h-10 w-10 rounded-lg flex-shrink-0 cursor-pointer overflow-hidden border border-white/10" style={{ backgroundColor: tenant.primary_color || '#FF69B4' }}>
+                    <label className="relative h-10 w-10 rounded-lg flex-shrink-0 cursor-pointer overflow-hidden border border-border" style={{ backgroundColor: tenant.primary_color || '#FF69B4' }}>
                       <input
                         type="color"
                         name="primary_color_picker"
@@ -212,9 +212,9 @@ const SettingsPage = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-white/50 text-xs uppercase tracking-wider">Cor Secundária</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Cor Secundária</Label>
                   <div className="flex gap-2 items-center">
-                    <label className="relative h-10 w-10 rounded-lg flex-shrink-0 cursor-pointer overflow-hidden border border-white/10" style={{ backgroundColor: tenant.secondary_color || '#00d019' }}>
+                    <label className="relative h-10 w-10 rounded-lg flex-shrink-0 cursor-pointer overflow-hidden border border-border" style={{ backgroundColor: tenant.secondary_color || '#00d019' }}>
                       <input
                         type="color"
                         name="secondary_color_picker"
@@ -246,8 +246,8 @@ const SettingsPage = () => {
                   <QrCode className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-white font-display font-semibold text-sm">Chave PIX Estática</h3>
-                  <p className="text-[11px] text-white/30 mt-0.5">Usada para gerar QR Code e PIX copia e cola nos produtos</p>
+                  <h3 className="text-foreground font-display font-semibold text-sm">Chave PIX Estática</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Usada para gerar QR Code e PIX copia e cola nos produtos</p>
                 </div>
               </div>
 
@@ -258,17 +258,17 @@ const SettingsPage = () => {
                     <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-emerald-400">Chave PIX ativa</p>
-                      <p className="text-xs text-white/40 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {PIX_KEY_TYPES.find(t => t.value === tenant.pix_key_type)?.label || tenant.pix_key_type}
                       </p>
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
-                    <p className="text-[11px] text-white/40 uppercase tracking-wider mb-1">Chave cadastrada</p>
+                  <div className="rounded-xl bg-muted/50 border border-border px-4 py-3">
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Chave cadastrada</p>
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm text-white flex-1 truncate">{tenant.pix_key}</p>
-                      <Button type="button" size="icon" variant="ghost" onClick={copyPixKey} title="Copiar" className="text-white/40 hover:text-white h-8 w-8 shrink-0">
+                      <p className="font-mono text-sm text-foreground flex-1 truncate">{tenant.pix_key}</p>
+                      <Button type="button" size="icon" variant="ghost" onClick={copyPixKey} title="Copiar" className="text-muted-foreground hover:text-foreground h-8 w-8 shrink-0">
                         <Copy className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -278,7 +278,6 @@ const SettingsPage = () => {
                     <Button
                       onClick={() => setEditingPix(true)}
                       variant="outline"
-                      className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                     >
                       Editar chave
                     </Button>
@@ -307,7 +306,7 @@ const SettingsPage = () => {
                     </Button>
                     <PixGeneratorDialog
                       trigger={
-                        <Button className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white">
+                        <Button variant="outline">
                           <QrCode className="h-4 w-4 mr-2" /> Testar QR Code
                         </Button>
                       }
@@ -319,7 +318,7 @@ const SettingsPage = () => {
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label className="text-white/50 text-xs uppercase tracking-wider">Tipo de Chave</Label>
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wider">Tipo de Chave</Label>
                       <Select value={pixKeyType} onValueChange={setPixKeyType}>
                         <SelectTrigger className="wallet-input">
                           <SelectValue placeholder="Selecione o tipo" />
@@ -332,7 +331,7 @@ const SettingsPage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white/50 text-xs uppercase tracking-wider">Chave PIX</Label>
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave PIX</Label>
                       <Input
                         value={pixKey}
                         onChange={e => setPixKey(e.target.value)}
@@ -365,7 +364,6 @@ const SettingsPage = () => {
                           setEditingPix(false);
                         }}
                         variant="outline"
-                        className="border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                       >
                         Cancelar
                       </Button>
@@ -382,19 +380,19 @@ const SettingsPage = () => {
                   <Zap className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-white font-display font-semibold text-sm">Gateways de Pagamento</h3>
-                  <p className="text-[11px] text-white/30 mt-0.5">Ative gateways para gerar PIX dinâmico com valor e expiração automáticos</p>
+                  <h3 className="text-foreground font-display font-semibold text-sm">Gateways de Pagamento</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Ative gateways para gerar PIX dinâmico com valor e expiração automáticos</p>
                 </div>
               </div>
 
               {providersLoading ? (
                 <div className="space-y-3">
-                  {[1, 2].map(i => <Skeleton key={i} className="h-16 rounded-xl bg-white/5" />)}
+                  {[1, 2].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
                 </div>
               ) : providers.length === 0 ? (
-                <div className="rounded-xl bg-white/5 border border-white/8 p-6 text-center">
-                  <p className="text-sm text-white/40 mb-2">Nenhum gateway configurado ainda.</p>
-                  <p className="text-xs text-white/25">
+                <div className="rounded-xl bg-muted/50 border border-border p-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">Nenhum gateway configurado ainda.</p>
+                  <p className="text-xs text-muted-foreground/60">
                     Configure seus gateways na página de{" "}
                     <a href="/payments" className="text-primary hover:underline">Pagamentos</a>
                   </p>
@@ -404,12 +402,12 @@ const SettingsPage = () => {
                   {providers.map(p => (
                     <div key={p.id} className="wallet-tx-row">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-xs font-bold uppercase text-white/70">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-xs font-bold uppercase text-muted-foreground">
                           {p.provider_key.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white capitalize">{p.provider_key.replace(/_/g, " ")}</p>
-                          <p className="text-[11px] text-white/30">
+                          <p className="text-sm font-medium text-foreground capitalize">{p.provider_key.replace(/_/g, " ")}</p>
+                          <p className="text-[11px] text-muted-foreground">
                             {p.api_key_encrypted ? "Credenciais configuradas" : "Sem credenciais"}
                           </p>
                         </div>
@@ -430,7 +428,7 @@ const SettingsPage = () => {
 
               <a
                 href="/payments"
-                className="flex items-center justify-center gap-2 mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] hover:bg-white/5 transition-colors px-4 py-3 text-sm text-white/40 hover:text-white/60"
+                className="flex items-center justify-center gap-2 mt-4 rounded-xl border border-dashed border-border bg-muted/30 hover:bg-muted/60 transition-colors px-4 py-3 text-sm text-muted-foreground hover:text-foreground"
               >
                 <Zap className="h-4 w-4" />
                 Configurar outros gateways
@@ -448,25 +446,25 @@ const SettingsPage = () => {
                   <Shield className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-white font-display font-semibold text-sm">Usuários e Permissões</h3>
-                  <p className="text-[11px] text-white/30 mt-0.5">Gerencie os acessos ao painel</p>
+                  <h3 className="text-foreground font-display font-semibold text-sm">Usuários e Permissões</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Gerencie os acessos ao painel</p>
                 </div>
               </div>
-              <Button size="sm" className="gap-2 border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white">
+              <Button size="sm" variant="outline" className="gap-2">
                 <UserPlus className="h-3.5 w-3.5" /> Convidar
               </Button>
             </div>
             {rolesLoading ? (
-              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-14 rounded-xl bg-white/5" />)}</div>
+              <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
             ) : (
               <div className="space-y-2">
                 {userRoles.map(u => (
                   <div key={u.id} className="wallet-tx-row">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full gradient-pink text-xs font-bold text-white">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full gradient-pink text-xs font-bold text-primary-foreground">
                         {(u.profiles?.discord_username || "?")[0].toUpperCase()}
                       </div>
-                      <span className="text-sm font-medium text-white">{u.profiles?.discord_username || "Usuário"}</span>
+                      <span className="text-sm font-medium text-foreground">{u.profiles?.discord_username || "Usuário"}</span>
                     </div>
                     <Select defaultValue={u.role}>
                       <SelectTrigger className="w-32 wallet-input text-sm"><SelectValue /></SelectTrigger>
@@ -491,19 +489,19 @@ const SettingsPage = () => {
                 <Sparkles className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h3 className="text-white font-display font-semibold text-sm">Plano Atual</h3>
-                <p className="text-[11px] text-white/30 mt-0.5">Detalhes da sua assinatura</p>
+                <h3 className="text-foreground font-display font-semibold text-sm">Plano Atual</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Detalhes da sua assinatura</p>
               </div>
             </div>
 
             {/* Plan info card */}
-            <div className="rounded-xl bg-white/5 border border-white/8 p-5 space-y-4">
+            <div className="rounded-xl bg-muted/50 border border-border p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xl font-bold text-gradient-pink capitalize">
                     {tenant.plan === "pro" ? "Pro" : tenant.plan === "expired" ? "Expirado" : "Free (Trial)"}
                   </p>
-                  <p className="text-xs text-white/30 mt-1">Plano ativo</p>
+                  <p className="text-xs text-muted-foreground mt-1">Plano ativo</p>
                 </div>
                 <span className={`wallet-tx-badge ${tenant.plan === "expired" || (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) ? "failed" : "completed"}`}>
                   {tenant.plan === "expired" || (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) ? "Expirado" : "Ativo"}
@@ -513,20 +511,20 @@ const SettingsPage = () => {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 {tenant.plan_started_at && (
-                  <div className="rounded-lg bg-white/5 border border-white/8 p-3">
-                    <p className="text-[10px] text-white/30 uppercase tracking-wider">Início</p>
-                    <p className="text-sm font-medium text-white mt-1">
+                  <div className="rounded-lg bg-muted/50 border border-border p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Início</p>
+                    <p className="text-sm font-medium text-foreground mt-1">
                       {new Date(tenant.plan_started_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
                 )}
                 {tenant.plan_expires_at && (
-                  <div className="rounded-lg bg-white/5 border border-white/8 p-3">
-                    <p className="text-[10px] text-white/30 uppercase tracking-wider">Expira em</p>
+                  <div className="rounded-lg bg-muted/50 border border-border p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Expira em</p>
                     <p className={`text-sm font-medium mt-1 ${new Date(tenant.plan_expires_at) < new Date() ? "text-destructive" : "text-emerald-400"}`}>
                       {new Date(tenant.plan_expires_at).toLocaleDateString("pt-BR")}
                     </p>
-                    <p className="text-[10px] text-white/20 mt-0.5">
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                       {(() => {
                         const diff = Math.ceil((new Date(tenant.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                         if (diff < 0) return `Expirou há ${Math.abs(diff)} dia(s)`;
@@ -541,17 +539,17 @@ const SettingsPage = () => {
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="rounded-xl bg-white/5 border border-white/8 p-4 text-center">
-                <p className="text-lg font-bold text-white">∞</p>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Produtos</p>
+              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
+                <p className="text-lg font-bold text-foreground">∞</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Produtos</p>
               </div>
-              <div className="rounded-xl bg-white/5 border border-white/8 p-4 text-center">
-                <p className="text-lg font-bold text-white">∞</p>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Vendas</p>
+              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
+                <p className="text-lg font-bold text-foreground">∞</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Vendas</p>
               </div>
-              <div className="rounded-xl bg-white/5 border border-white/8 p-4 text-center">
-                <p className="text-lg font-bold text-white">24/7</p>
-                <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1">Suporte</p>
+              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
+                <p className="text-lg font-bold text-foreground">24/7</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Suporte</p>
               </div>
             </div>
           </div>

@@ -190,20 +190,20 @@ export default function AIAssistantPage() {
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/30 to-[#C44AFF]/30 border border-primary/20 flex items-center justify-center backdrop-blur-sm">
               <Brain className="h-8 w-8 text-primary drop-shadow-[0_0_8px_rgba(255,105,180,0.5)]" />
             </div>
-            <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-[#1a0a12] animate-pulse" />
+            <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-background animate-pulse" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Gerador IA</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Gerador IA</h1>
               <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-primary/20 text-primary border border-primary/30">
                 Beta
               </span>
             </div>
-            <p className="text-sm text-white/50 max-w-lg">
+            <p className="text-sm text-muted-foreground max-w-lg">
               Gere textos persuasivos, imagens, descrições e estratégias com inteligência artificial — tudo otimizado para Discord.
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-[11px] text-white/30">
+          <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground">
             <Zap className="h-3.5 w-3.5 text-yellow-500" />
             <span>Powered by AI</span>
           </div>

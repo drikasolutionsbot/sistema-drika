@@ -41,7 +41,6 @@ const ProUpgradeModal = () => {
       }
     } catch (err: any) {
       console.error("Error generating PIX:", err);
-      // Fallback: show manual info
     }
     setLoading(false);
   };
@@ -56,9 +55,9 @@ const ProUpgradeModal = () => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="bg-[#1a1a2e]/95 backdrop-blur-xl border-primary/20 text-white max-w-md">
+      <DialogContent className="bg-card/95 backdrop-blur-xl border-primary/20 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center text-white flex flex-col items-center gap-3">
+          <DialogTitle className="text-center text-foreground flex flex-col items-center gap-3">
             <img src={drikaLogo} alt="Drika" className="h-16 w-auto" />
             <span className="text-xl font-bold">Ativar Drika Solutions Pro</span>
           </DialogTitle>
@@ -69,7 +68,7 @@ const ProUpgradeModal = () => {
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mb-3">
               <Crown className="h-4 w-4" /> Plano Mensal
             </div>
-            <p className="text-3xl font-extrabold">R$ 26,90<span className="text-sm font-normal text-white/40">/mês</span></p>
+            <p className="text-3xl font-extrabold text-foreground">R$ 26,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
           </div>
 
           {loading ? (
@@ -78,8 +77,8 @@ const ProUpgradeModal = () => {
             </div>
           ) : pixCode ? (
             <div className="space-y-3">
-              <p className="text-sm text-white/50 text-center">Copie o código PIX abaixo e pague pelo seu banco:</p>
-              <div className="rounded-2xl border border-primary/20 bg-black/40 p-4">
+              <p className="text-sm text-muted-foreground text-center">Copie o código PIX abaixo e pague pelo seu banco:</p>
+              <div className="rounded-2xl border border-primary/20 bg-muted/50 p-4">
                 <code className="block text-xs font-mono text-primary break-all leading-relaxed text-center">
                   {pixCode}
                 </code>
@@ -89,19 +88,19 @@ const ProUpgradeModal = () => {
                 className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
                   copied
                     ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-white/10 text-white hover:bg-white/20"
+                    : "bg-muted text-foreground hover:bg-accent"
                 }`}
               >
                 {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                 {copied ? "Copiado!" : "Copiar Código PIX"}
               </button>
-              <p className="text-[11px] text-white/30 text-center">
+              <p className="text-[11px] text-muted-foreground text-center">
                 Após o pagamento, seu plano será ativado automaticamente.
               </p>
             </div>
           ) : (
             <div className="space-y-3 text-center">
-              <p className="text-sm text-white/50">
+              <p className="text-sm text-muted-foreground">
                 Entre em contato com nosso suporte para ativar o plano Pro via PIX.
               </p>
               <a
