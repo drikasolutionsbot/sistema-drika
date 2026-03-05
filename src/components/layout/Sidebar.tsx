@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, Shield,
-  Store, Zap, Gift, Crown, Ticket, Cloud, Headset, Settings,
+  Store, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck,
 } from "lucide-react";
 import logo from "@/assets/logo.png";

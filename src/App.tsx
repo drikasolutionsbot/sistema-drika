@@ -34,9 +34,6 @@ import RolesPage from "./pages/RolesPage";
 import WelcomePage from "./pages/WelcomePage";
 import AutomationsPage from "./pages/AutomationsPage";
 import ProtectionPage from "./pages/ProtectionPage";
-import InviteTrackingPage from "./pages/InviteTrackingPage";
-import GiveawaysPage from "./pages/GiveawaysPage";
-import VipsPage from "./pages/VipsPage";
 import ECloudPage from "./pages/ECloudPage";
 import SupportPage from "./pages/SupportPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
@@ -101,9 +98,6 @@ const AppRoutes = () => (
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/automations" element={<AutomationsPage />} />
       <Route path="/protection" element={<ProtectionPage />} />
-      <Route path="/invite-tracking" element={<InviteTrackingPage />} />
-      <Route path="/giveaways" element={<GiveawaysPage />} />
-      <Route path="/vips" element={<VipsPage />} />
       <Route path="/ecloud" element={<ECloudPage />} />
       <Route path="/support" element={<SupportPage />} />
     </Route>
