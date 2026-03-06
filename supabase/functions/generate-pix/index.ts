@@ -134,6 +134,110 @@ async function generateViaPushinPay(
   };
 }
 
+// ─── Gateway: Efí (Gerencianet) ────────────────────────────────────
+async function generateViaEfi(
+  clientId: string,
+  clientSecret: string,
+  amountBRL: number,
+  txId: string,
+  webhookUrl: string
+): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string }> {
+  // Step 1: Get OAuth token
+  const credentials = btoa(`${clientId}:${clientSecret}`);
+  const tokenRes = await fetch("https://pix.api.efipay.com.br/oauth/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ grant_type: "client_credentials" }),
+  });
+
+  if (!tokenRes.ok) {
+    throw new Error(`Efí OAuth error: ${tokenRes.status}`);
+  }
+
+  const tokenData = await tokenRes.json();
+  const accessToken = tokenData.access_token;
+
+  // Step 2: Create immediate charge (cob)
+  const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${txId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      calendario: { expiracao: 3600 },
+      valor: { original: amountBRL.toFixed(2) },
+      chave: "", // Will use the default key from Efí account
+      infoAdicionais: [{ nome: "Pagamento", valor: "PIX via Drika" }],
+    }),
+  });
+
+  if (!cobRes.ok) {
+    const err = await cobRes.json().catch(() => ({}));
+    throw new Error(err.mensagem || `Efí cob error: ${cobRes.status}`);
+  }
+
+  const cobData = await cobRes.json();
+
+  // Step 3: Get QR Code for the charge
+  const locId = cobData.loc?.id;
+  if (locId) {
+    const qrRes = await fetch(`https://pix.api.efipay.com.br/v2/loc/${locId}/qrcode`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (qrRes.ok) {
+      const qrData = await qrRes.json();
+      return {
+        brcode: qrData.qrcode || "",
+        qr_code_base64: qrData.imagemQrcode || undefined,
+        payment_id: cobData.txid || txId,
+      };
+    }
+  }
+
+  return {
+    brcode: cobData.pixCopiaECola || "",
+    payment_id: cobData.txid || txId,
+  };
+}
+
+// ─── Gateway: Mistic Pay ──────────────────────────────────────────
+async function generateViaMisticPay(
+  apiKey: string,
+  amountCents: number,
+  externalRef: string,
+  webhookUrl: string
+): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string }> {
+  const res = await fetch("https://api.misticpay.com/v1/pix/charge", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      amount: amountCents,
+      external_reference: externalRef,
+      webhook_url: webhookUrl,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.error || `Mistic Pay error: ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  return {
+    brcode: data.qr_code || data.brcode || data.pix_code || "",
+    qr_code_base64: data.qr_code_base64 || data.qr_code_image || undefined,
+    payment_id: data.id || data.charge_id || externalRef,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -148,13 +252,12 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1. Check for active payment provider (prefer dynamic PIX)
+    // 1. Check for active payment provider (all supported providers)
     const { data: providers } = await supabase
       .from("payment_providers")
-      .select("provider_key, api_key_encrypted, active")
+      .select("provider_key, api_key_encrypted, secret_key_encrypted, active")
       .eq("tenant_id", tenant_id)
-      .eq("active", true)
-      .in("provider_key", ["mercadopago", "pushinpay"]);
+      .eq("active", true);
 
     const activeProvider = providers?.find((p: any) => p.api_key_encrypted);
     const amount = amount_cents ? amount_cents / 100 : undefined;
@@ -164,18 +267,28 @@ serve(async (req) => {
     if (activeProvider && amount && amount > 0) {
       const providerKey = activeProvider.provider_key;
       const apiKey = activeProvider.api_key_encrypted;
+      const secretKey = activeProvider.secret_key_encrypted || "";
       const externalRef = tx_id || `PIX${Date.now()}`;
       const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenant_id}`;
       const description = product_name || "Pagamento PIX";
 
       let result: { brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string };
 
-      if (providerKey === "mercadopago") {
-        result = await generateViaMercadoPago(apiKey, amount, description, externalRef, webhookUrl);
-      } else if (providerKey === "pushinpay") {
-        result = await generateViaPushinPay(apiKey, amount_cents, webhookUrl);
-      } else {
-        throw new Error(`Provider ${providerKey} não suporta PIX dinâmico`);
+      switch (providerKey) {
+        case "mercadopago":
+          result = await generateViaMercadoPago(apiKey, amount, description, externalRef, webhookUrl);
+          break;
+        case "pushinpay":
+          result = await generateViaPushinPay(apiKey, amount_cents, webhookUrl);
+          break;
+        case "efi":
+          result = await generateViaEfi(apiKey, secretKey, amount, externalRef, webhookUrl);
+          break;
+        case "misticpay":
+          result = await generateViaMisticPay(apiKey, amount_cents, externalRef, webhookUrl);
+          break;
+        default:
+          throw new Error(`Provider ${providerKey} não suporta PIX dinâmico`);
       }
 
       return new Response(

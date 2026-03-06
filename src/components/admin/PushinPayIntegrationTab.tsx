@@ -14,6 +14,7 @@ import { logAudit } from "@/lib/auditLog";
 const PushinPayIntegrationTab = () => {
   const [apiKey, setApiKey] = useState("");
   const [proPriceCents, setProPriceCents] = useState(2690);
+  const [priceDisplay, setPriceDisplay] = useState("26.90");
   const [autoActivate, setAutoActivate] = useState(true);
   const [suspendOnExpire, setSuspendOnExpire] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -33,21 +34,37 @@ const PushinPayIntegrationTab = () => {
         .single();
       if (data) {
         setConfigId(data.id);
-        const d = data as any;
-        if (d.pushinpay_api_key) {
-          setApiKey(d.pushinpay_api_key);
-          setIsConnected(d.pushinpay_active || false);
+        if (data.pushinpay_api_key) {
+          setApiKey(data.pushinpay_api_key);
+          setIsConnected(data.pushinpay_active || false);
         }
-        if (d.pro_price_cents) {
-          setProPriceCents(d.pro_price_cents);
+        if (data.pro_price_cents) {
+          setProPriceCents(data.pro_price_cents);
+          setPriceDisplay((data.pro_price_cents / 100).toFixed(2));
         }
-        setAutoActivate(d.auto_activate_plan ?? true);
-        setSuspendOnExpire(d.suspend_on_expire ?? true);
+        setAutoActivate(data.auto_activate_plan ?? true);
+        setSuspendOnExpire(data.suspend_on_expire ?? true);
       }
       setLoading(false);
     };
     load();
   }, []);
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setPriceDisplay(val);
+  };
+
+  const handlePriceBlur = () => {
+    const parsed = parseFloat(priceDisplay.replace(",", "."));
+    if (!isNaN(parsed) && parsed > 0) {
+      const cents = Math.round(parsed * 100);
+      setProPriceCents(cents);
+      setPriceDisplay((cents / 100).toFixed(2));
+    } else {
+      setPriceDisplay((proPriceCents / 100).toFixed(2));
+    }
+  };
 
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
@@ -61,27 +78,16 @@ const PushinPayIntegrationTab = () => {
     }
     setTesting(true);
     try {
-      // Test by calling the PushinPay API
-      const res = await fetch("https://api.pushinpay.com.br/api/pix/cashIn", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ value: 100 }), // R$1.00 test
+      const { data, error } = await supabase.functions.invoke("test-payment", {
+        body: { provider_key: "pushinpay", api_key: apiKey.trim() },
       });
-      if (res.ok || res.status === 422) {
-        // 422 might happen for validation errors but means API key is valid
+      if (error) throw error;
+      if (data?.success) {
         setIsConnected(true);
-        toast.success("Conexão com PushinPay verificada!");
-      } else if (res.status === 401 || res.status === 403) {
-        toast.error("API Key inválida");
-        setIsConnected(false);
+        toast.success(data.message || "Conexão validada!");
       } else {
-        // Even other errors often mean the key is valid
-        setIsConnected(true);
-        toast.success("Conexão com PushinPay verificada!");
+        setIsConnected(false);
+        toast.error(data?.message || "Falha na validação");
       }
     } catch {
       toast.error("Falha ao conectar com PushinPay");
@@ -111,7 +117,7 @@ const PushinPayIntegrationTab = () => {
           auto_activate_plan: autoActivate,
           suspend_on_expire: suspendOnExpire,
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq("id", configId);
       
       if (error) throw error;
@@ -122,8 +128,8 @@ const PushinPayIntegrationTab = () => {
       });
       toast.success("Configurações salvas com sucesso!");
     } catch (err: any) {
-      console.error(err);
-      toast.error("Erro ao salvar configurações");
+      console.error("Save error:", err);
+      toast.error("Erro ao salvar configurações: " + (err.message || "Verifique as permissões"));
     } finally {
       setSaving(false);
     }
@@ -191,15 +197,21 @@ const PushinPayIntegrationTab = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Valor do Plano Pro (centavos)</Label>
-              <Input
-                type="number"
-                value={proPriceCents}
-                onChange={(e) => setProPriceCents(Number(e.target.value))}
-                className="bg-background border-border"
-              />
+              <Label>Valor do Plano Pro (R$)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={priceDisplay}
+                  onChange={handlePriceChange}
+                  onBlur={handlePriceBlur}
+                  className="bg-background border-border pl-10"
+                  placeholder="26.90"
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
-                Valor em centavos. Ex: 2690 = R$ 26,90
+                Valor em reais. Será convertido para centavos automaticamente ({proPriceCents} centavos)
               </p>
             </div>
 

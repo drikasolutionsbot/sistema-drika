@@ -101,6 +101,20 @@ const PaymentsPage = () => {
 
   const refetch = () => queryClient.invalidateQueries({ queryKey: ["payment-providers", tenantId] });
 
+  // Realtime subscription for payment_providers changes
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel("payment-providers-realtime")
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "payment_providers", filter: `tenant_id=eq.${tenantId}` },
+        () => { refetch(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId]);
+
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
 
   const handleSave = async (providerKey: string, apiKey: string, secretKey: string) => {
