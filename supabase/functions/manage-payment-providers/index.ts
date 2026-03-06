@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, tenant_id, provider_key, api_key, secret_key, provider_id } = await req.json();
+    const { action, tenant_id, provider_key, api_key, secret_key, provider_id, efi_cert_pem, efi_key_pem, efi_pix_key } = await req.json();
     if (!tenant_id) throw new Error("Missing tenant_id");
 
     const supabase = createClient(
@@ -45,26 +45,38 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existing) {
-        const { error } = await supabase
-          .from("payment_providers")
-          .update({
+        const updateData: any = {
             api_key_encrypted: api_key,
             secret_key_encrypted: secret_key || null,
             active: true,
             updated_at: new Date().toISOString(),
-          })
+          };
+          if (provider_key === "efi") {
+            updateData.efi_cert_pem = efi_cert_pem || null;
+            updateData.efi_key_pem = efi_key_pem || null;
+            updateData.efi_pix_key = efi_pix_key || null;
+          }
+          const { error } = await supabase
+          .from("payment_providers")
+          .update(updateData)
           .eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("payment_providers")
-          .insert({
+        const insertData: any = {
             tenant_id,
             provider_key,
             api_key_encrypted: api_key,
             secret_key_encrypted: secret_key || null,
             active: true,
-          });
+          };
+          if (provider_key === "efi") {
+            insertData.efi_cert_pem = efi_cert_pem || null;
+            insertData.efi_key_pem = efi_key_pem || null;
+            insertData.efi_pix_key = efi_pix_key || null;
+          }
+          const { error } = await supabase
+          .from("payment_providers")
+          .insert(insertData);
         if (error) throw error;
       }
 

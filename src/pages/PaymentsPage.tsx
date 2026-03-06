@@ -1,4 +1,5 @@
-import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap } from "lucide-react";
+import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key } from "lucide-react";
+import * as forge from "node-forge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +64,7 @@ const providers = [
       { key: "secret_key", label: "Client Secret", placeholder: "Client_Secret_..." },
     ],
     instructions: "No painel Efí, acesse API > Aplicações > Credenciais de Produção e copie Client ID e Client Secret.",
+    requiresCert: true,
   },
   {
     key: "misticpay",
@@ -82,6 +84,9 @@ interface PaymentProvider {
   api_key_encrypted: string | null;
   secret_key_encrypted: string | null;
   active: boolean;
+  efi_cert_pem?: string | null;
+  efi_key_pem?: string | null;
+  efi_pix_key?: string | null;
 }
 
 const PaymentsPage = () => {
@@ -117,7 +122,7 @@ const PaymentsPage = () => {
 
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
 
-  const handleSave = async (providerKey: string, apiKey: string, secretKey: string) => {
+  const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string }) => {
     if (!tenantId) return;
     try {
       const data = await invokeWithRetry("manage-payment-providers", {
@@ -126,6 +131,7 @@ const PaymentsPage = () => {
         provider_key: providerKey,
         api_key: apiKey,
         secret_key: secretKey,
+        ...extra,
       });
       if (data?.error) throw new Error(data.error);
       refetch();
@@ -205,7 +211,7 @@ interface ProviderFormProps {
   provider: typeof providers[0];
   config?: PaymentProvider;
   tenantId: string | null;
-  onSave: (key: string, api: string, secret: string) => void;
+  onSave: (key: string, api: string, secret: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string }) => void;
   onToggle: (id: string, active: boolean) => void;
 }
 
@@ -217,10 +223,20 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [efiPixKey, setEfiPixKey] = useState("");
+  const [efiCertPem, setEfiCertPem] = useState("");
+  const [efiKeyPem, setEfiKeyPem] = useState("");
+  const [certFileName, setCertFileName] = useState<string | null>(null);
+
+  const isEfi = provider.key === "efi";
 
   useEffect(() => {
     setApiKey(config?.api_key_encrypted || "");
     setSecretKey(config?.secret_key_encrypted || "");
+    setEfiPixKey(config?.efi_pix_key || "");
+    setEfiCertPem(config?.efi_cert_pem || "");
+    setEfiKeyPem(config?.efi_key_pem || "");
+    setCertFileName(config?.efi_cert_pem ? "Certificado carregado ✓" : null);
     setTestResult(null);
   }, [config?.id]);
 
@@ -233,6 +249,39 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
     toast({ title: "Webhook URL copiada!" });
   };
 
+  const handleP12Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const binary = forge.util.binary.raw.encode(new Uint8Array(arrayBuffer));
+      const p12Asn1 = forge.asn1.fromDer(binary);
+      const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, "");
+
+      const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+      const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+
+      const certBagList = certBags[forge.pki.oids.certBag] || [];
+      const keyBagList = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag] || [];
+
+      if (!certBagList.length || !keyBagList.length) {
+        throw new Error("Certificado ou chave não encontrados no arquivo");
+      }
+
+      const cert = certBagList[0].cert;
+      const key = keyBagList[0].key;
+      if (!cert || !key) throw new Error("Conteúdo inválido");
+
+      setEfiCertPem(forge.pki.certificateToPem(cert));
+      setEfiKeyPem(forge.pki.privateKeyToPem(key));
+      setCertFileName(file.name);
+      toast({ title: "Certificado carregado!", description: `${file.name} convertido com sucesso` });
+    } catch (err: any) {
+      console.error("P12 parse error:", err);
+      toast({ title: "Erro ao ler certificado", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
@@ -241,6 +290,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
         provider_key: provider.key,
         api_key: apiKey,
         secret_key: secretKey,
+        ...(isEfi ? { cert_pem: efiCertPem, key_pem: efiKeyPem } : {}),
       });
       setTestResult(data);
       if (data?.success) {
@@ -258,7 +308,8 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(provider.key, apiKey, secretKey);
+    const extra = isEfi ? { efi_cert_pem: efiCertPem, efi_key_pem: efiKeyPem, efi_pix_key: efiPixKey } : undefined;
+    await onSave(provider.key, apiKey, secretKey, extra);
     setSaving(false);
   };
 
@@ -341,6 +392,64 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           </div>
         )}
       </div>
+
+      {/* Efí-specific: PIX Key + Certificate Upload */}
+      {isEfi && (
+        <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+            <span className="text-sm font-semibold text-foreground">Configuração PIX (Efí)</span>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Key className="h-3.5 w-3.5 text-muted-foreground" />
+              Chave PIX (cadastrada na Efí)
+            </Label>
+            <Input
+              placeholder="email@exemplo.com, CPF, CNPJ ou chave aleatória"
+              value={efiPixKey}
+              onChange={e => setEfiPixKey(e.target.value)}
+              className="bg-muted border-none font-mono text-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+              Certificado mTLS (.p12)
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Faça o download do certificado de produção no painel Efí (API &gt; Meus Certificados) e envie aqui. O arquivo <code className="text-primary">.p12</code> será convertido automaticamente.
+            </p>
+            <div className="flex items-center gap-3">
+              <label className="flex-1 cursor-pointer">
+                <div className={`flex items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 transition-colors ${
+                  certFileName ? "border-emerald-500/30 bg-emerald-500/5" : "border-border hover:border-primary/40"
+                }`}>
+                  {certFileName ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      <span className="text-sm text-emerald-400">{certFileName}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Clique para enviar o certificado .p12</span>
+                    </>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept=".p12,.pfx,.pem"
+                  onChange={handleP12Upload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Test Result */}
       {testResult && (

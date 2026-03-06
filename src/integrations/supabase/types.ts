@@ -629,6 +629,9 @@ export type Database = {
           active: boolean
           api_key_encrypted: string | null
           created_at: string
+          efi_cert_pem: string | null
+          efi_key_pem: string | null
+          efi_pix_key: string | null
           id: string
           provider_key: string
           secret_key_encrypted: string | null
@@ -639,6 +642,9 @@ export type Database = {
           active?: boolean
           api_key_encrypted?: string | null
           created_at?: string
+          efi_cert_pem?: string | null
+          efi_key_pem?: string | null
+          efi_pix_key?: string | null
           id?: string
           provider_key: string
           secret_key_encrypted?: string | null
@@ -649,6 +655,9 @@ export type Database = {
           active?: boolean
           api_key_encrypted?: string | null
           created_at?: string
+          efi_cert_pem?: string | null
+          efi_key_pem?: string | null
+          efi_pix_key?: string | null
           id?: string
           provider_key?: string
           secret_key_encrypted?: string | null
