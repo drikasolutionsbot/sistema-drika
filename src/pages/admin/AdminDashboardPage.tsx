@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Users, Store, CreditCard, DollarSign, TrendingUp, ShoppingCart, Crown, Ticket, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, Store, CreditCard, DollarSign, TrendingUp, ShoppingCart, Crown, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { format, subDays, startOfMonth } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -16,23 +16,26 @@ const PLAN_ICONS: Record<string, string> = {
   pro: "⚡",
 };
 
+const STATUS_MAP: Record<string, string> = {
+  paid: "paid",
+  pending: "pending_payment",
+};
+
 const AdminDashboardPage = () => {
   const [stats, setStats] = useState({
     tenants: 0,
-    orders: 0,
-    ordersThisMonth: 0,
-    ordersLastMonth: 0,
+    subscriptions: 0,
+    subsThisMonth: 0,
+    subsLastMonth: 0,
     revenue: 0,
     revenueThisMonth: 0,
     revenueLastMonth: 0,
-    products: 0,
-    tickets: 0,
-    paidOrders: 0,
+    paidSubs: 0,
   });
   const [planDistribution, setPlanDistribution] = useState<{ name: string; value: number; color: string }[]>([]);
   const [revenueChart, setRevenueChart] = useState<{ date: string; revenue: number }[]>([]);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [topTenants, setTopTenants] = useState<{ name: string; revenue: number; orders: number }[]>([]);
+  const [recentSubs, setRecentSubs] = useState<any[]>([]);
+  const [topTenants, setTopTenants] = useState<{ name: string; revenue: number; payments: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,16 +44,17 @@ const AdminDashboardPage = () => {
       const monthStart = startOfMonth(now).toISOString();
       const lastMonthStart = startOfMonth(subDays(startOfMonth(now), 1)).toISOString();
 
-      const [tenantsRes, ordersRes, productsRes, ticketsRes, recentRes] = await Promise.all([
+      const [tenantsRes, subsRes, recentRes] = await Promise.all([
         supabase.from("tenants").select("id, name, plan"),
-        supabase.from("orders").select("total_cents, status, created_at, tenant_id"),
-        supabase.from("products").select("id", { count: "exact", head: true }),
-        supabase.from("tickets").select("id", { count: "exact", head: true }),
-        supabase.from("orders").select("id, product_name, discord_username, total_cents, status, created_at").order("created_at", { ascending: false }).limit(8),
+        supabase.from("subscription_payments").select("id, tenant_id, plan, status, amount_cents, paid_at, created_at"),
+        supabase.from("subscription_payments")
+          .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
+          .order("created_at", { ascending: false })
+          .limit(8),
       ]);
 
       const tenants = tenantsRes.data || [];
-      const orders = ordersRes.data || [];
+      const subs = subsRes.data || [];
 
       // Plan distribution
       const planCounts: Record<string, number> = {};
@@ -66,31 +70,31 @@ const AdminDashboardPage = () => {
         }))
       );
 
-      // Revenue chart (last 30 days)
+      // Revenue chart (last 30 days) - based on subscription_payments
       const last30 = subDays(now, 30);
       const dailyMap: Record<string, number> = {};
       for (let i = 0; i < 30; i++) {
         const d = format(subDays(now, 29 - i), "dd/MM");
         dailyMap[d] = 0;
       }
-      orders.forEach((o) => {
-        if ((o.status === "paid" || o.status === "delivered") && new Date(o.created_at) >= last30) {
-          const d = format(new Date(o.created_at), "dd/MM");
-          if (dailyMap[d] !== undefined) dailyMap[d] += o.total_cents / 100;
+      subs.forEach((s) => {
+        if (s.status === "paid" && s.paid_at && new Date(s.paid_at) >= last30) {
+          const d = format(new Date(s.paid_at), "dd/MM");
+          if (dailyMap[d] !== undefined) dailyMap[d] += s.amount_cents / 100;
         }
       });
       setRevenueChart(Object.entries(dailyMap).map(([date, revenue]) => ({ date, revenue })));
 
-      // Top tenants by revenue
-      const tenantRevMap: Record<string, { name: string; revenue: number; orders: number }> = {};
-      orders.forEach((o) => {
-        if (o.status === "paid" || o.status === "delivered") {
-          if (!tenantRevMap[o.tenant_id]) {
-            const t = tenants.find((t) => t.id === o.tenant_id);
-            tenantRevMap[o.tenant_id] = { name: t?.name || "Desconhecido", revenue: 0, orders: 0 };
+      // Top tenants by subscription revenue
+      const tenantRevMap: Record<string, { name: string; revenue: number; payments: number }> = {};
+      subs.forEach((s) => {
+        if (s.status === "paid") {
+          if (!tenantRevMap[s.tenant_id]) {
+            const t = tenants.find((t) => t.id === s.tenant_id);
+            tenantRevMap[s.tenant_id] = { name: t?.name || "Desconhecido", revenue: 0, payments: 0 };
           }
-          tenantRevMap[o.tenant_id].revenue += o.total_cents;
-          tenantRevMap[o.tenant_id].orders += 1;
+          tenantRevMap[s.tenant_id].revenue += s.amount_cents;
+          tenantRevMap[s.tenant_id].payments += 1;
         }
       });
       setTopTenants(
@@ -100,26 +104,24 @@ const AdminDashboardPage = () => {
       );
 
       // Monthly stats
-      const thisMonthOrders = orders.filter((o) => o.created_at >= monthStart);
-      const lastMonthOrders = orders.filter((o) => o.created_at >= lastMonthStart && o.created_at < monthStart);
-      const paidStatuses = ["paid", "delivered"];
-      const revenueThisMonth = thisMonthOrders.filter((o) => paidStatuses.includes(o.status)).reduce((s, o) => s + o.total_cents, 0);
-      const revenueLastMonth = lastMonthOrders.filter((o) => paidStatuses.includes(o.status)).reduce((s, o) => s + o.total_cents, 0);
+      const paidSubs = subs.filter((s) => s.status === "paid");
+      const thisMonthSubs = subs.filter((s) => s.created_at >= monthStart);
+      const lastMonthSubs = subs.filter((s) => s.created_at >= lastMonthStart && s.created_at < monthStart);
+      const revenueThisMonth = thisMonthSubs.filter((s) => s.status === "paid").reduce((sum, s) => sum + s.amount_cents, 0);
+      const revenueLastMonth = lastMonthSubs.filter((s) => s.status === "paid").reduce((sum, s) => sum + s.amount_cents, 0);
 
       setStats({
         tenants: tenants.length,
-        orders: orders.length,
-        ordersThisMonth: thisMonthOrders.length,
-        ordersLastMonth: lastMonthOrders.length,
-        revenue: orders.filter((o) => paidStatuses.includes(o.status)).reduce((s, o) => s + o.total_cents, 0),
+        subscriptions: subs.length,
+        subsThisMonth: thisMonthSubs.length,
+        subsLastMonth: lastMonthSubs.length,
+        revenue: paidSubs.reduce((sum, s) => sum + s.amount_cents, 0),
         revenueThisMonth,
         revenueLastMonth,
-        products: productsRes.count || 0,
-        tickets: ticketsRes.count || 0,
-        paidOrders: orders.filter((o) => paidStatuses.includes(o.status)).length,
+        paidSubs: paidSubs.length,
       });
 
-      setRecentOrders(recentRes.data || []);
+      setRecentSubs(recentRes.data || []);
       setLoading(false);
     };
     fetchAll();
@@ -128,22 +130,22 @@ const AdminDashboardPage = () => {
   const revenueGrowth = stats.revenueLastMonth > 0
     ? ((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth * 100).toFixed(1)
     : stats.revenueThisMonth > 0 ? "100" : "0";
-  const ordersGrowth = stats.ordersLastMonth > 0
-    ? ((stats.ordersThisMonth - stats.ordersLastMonth) / stats.ordersLastMonth * 100).toFixed(1)
-    : stats.ordersThisMonth > 0 ? "100" : "0";
+  const subsGrowth = stats.subsLastMonth > 0
+    ? ((stats.subsThisMonth - stats.subsLastMonth) / stats.subsLastMonth * 100).toFixed(1)
+    : stats.subsThisMonth > 0 ? "100" : "0";
 
   const cards = [
     { title: "Total de Clientes", value: stats.tenants, icon: Users, color: "text-primary", change: null },
-    { title: "Pedidos do Mês", value: stats.ordersThisMonth, icon: ShoppingCart, color: "text-blue-400", change: `${Number(ordersGrowth) >= 0 ? "+" : ""}${ordersGrowth}%` },
+    { title: "Assinaturas do Mês", value: stats.subsThisMonth, icon: ShoppingCart, color: "text-blue-400", change: `${Number(subsGrowth) >= 0 ? "+" : ""}${subsGrowth}%` },
     { title: "Receita do Mês", value: `R$ ${(stats.revenueThisMonth / 100).toFixed(2)}`, icon: DollarSign, color: "text-emerald-400", change: `${Number(revenueGrowth) >= 0 ? "+" : ""}${revenueGrowth}%` },
-    { title: "Receita Total", value: `R$ ${(stats.revenue / 100).toFixed(2)}`, icon: TrendingUp, color: "text-amber-400", change: `${stats.paidOrders} pagos` },
+    { title: "Receita Total", value: `R$ ${(stats.revenue / 100).toFixed(2)}`, icon: TrendingUp, color: "text-amber-400", change: `${stats.paidSubs} pagos` },
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard Admin</h1>
-        <p className="text-muted-foreground">Visão geral do sistema</p>
+        <p className="text-muted-foreground">Visão geral das assinaturas do SaaS</p>
       </div>
 
       {/* Stat Cards */}
@@ -178,7 +180,7 @@ const AdminDashboardPage = () => {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-emerald-400" />
-              Receita (últimos 30 dias)
+              Receita de Assinaturas (últimos 30 dias)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -236,7 +238,6 @@ const AdminDashboardPage = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Center label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-2xl font-bold text-foreground">{stats.tenants}</span>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</span>
@@ -260,31 +261,34 @@ const AdminDashboardPage = () => {
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
+        {/* Recent Subscriptions */}
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-blue-400" />
-              Pedidos Recentes
+              Assinaturas Recentes
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {recentOrders.length === 0 && !loading ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nenhum pedido.</p>
+            {recentSubs.length === 0 && !loading ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Nenhuma assinatura registrada.</p>
             ) : (
               <div className="space-y-2">
-                {recentOrders.map((o) => (
-                  <div key={o.id} className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{o.product_name}</p>
-                      <p className="text-xs text-muted-foreground">{o.discord_username || "Usuário"}</p>
+                {recentSubs.map((s) => {
+                  const tenantName = (s.tenants as any)?.name || "Cliente";
+                  return (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">Plano {s.plan?.charAt(0).toUpperCase() + s.plan?.slice(1)}</p>
+                        <p className="text-xs text-muted-foreground">{tenantName}</p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <StatusBadge status={STATUS_MAP[s.status] || s.status} />
+                        <span className="text-sm font-mono font-medium">R$ {(s.amount_cents / 100).toFixed(2)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <StatusBadge status={o.status} />
-                      <span className="text-sm font-mono font-medium">R$ {(o.total_cents / 100).toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -295,7 +299,7 @@ const AdminDashboardPage = () => {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Store className="h-4 w-4 text-primary" />
-              Top Clientes por Receita
+              Top Clientes por Assinatura
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -306,13 +310,13 @@ const AdminDashboardPage = () => {
                 {topTenants.map((t, i) => (
                   <div key={t.name} className="flex items-center gap-3">
                     <span className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                      i === 0 ? "bg-amber-500/20 text-amber-500" : i === 1 ? "bg-muted text-muted-foreground" : "bg-muted text-muted-foreground"
+                      i === 0 ? "bg-amber-500/20 text-amber-500" : "bg-muted text-muted-foreground"
                     }`}>
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.orders} pedidos pagos</p>
+                      <p className="text-xs text-muted-foreground">{t.payments} pagamentos</p>
                     </div>
                     <span className="text-sm font-mono font-semibold text-emerald-500">
                       R$ {(t.revenue / 100).toFixed(2)}
@@ -329,28 +333,28 @@ const AdminDashboardPage = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <Store className="h-3.5 w-3.5" /> Produtos
+            <Users className="h-3.5 w-3.5" /> Clientes
           </div>
-          <p className="text-xl font-bold">{loading ? "..." : stats.products}</p>
+          <p className="text-xl font-bold">{loading ? "..." : stats.tenants}</p>
         </Card>
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <CreditCard className="h-3.5 w-3.5" /> Total de Pedidos
+            <CreditCard className="h-3.5 w-3.5" /> Total Assinaturas
           </div>
-          <p className="text-xl font-bold">{loading ? "..." : stats.orders}</p>
+          <p className="text-xl font-bold">{loading ? "..." : stats.subscriptions}</p>
         </Card>
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <Ticket className="h-3.5 w-3.5" /> Tickets
+            <Crown className="h-3.5 w-3.5" /> Pagos
           </div>
-          <p className="text-xl font-bold">{loading ? "..." : stats.tickets}</p>
+          <p className="text-xl font-bold">{loading ? "..." : stats.paidSubs}</p>
         </Card>
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
             <DollarSign className="h-3.5 w-3.5" /> Ticket Médio
           </div>
           <p className="text-xl font-bold">
-            {loading ? "..." : stats.paidOrders > 0 ? `R$ ${(stats.revenue / stats.paidOrders / 100).toFixed(2)}` : "R$ 0,00"}
+            {loading ? "..." : stats.paidSubs > 0 ? `R$ ${(stats.revenue / stats.paidSubs / 100).toFixed(2)}` : "R$ 0,00"}
           </p>
         </Card>
       </div>
