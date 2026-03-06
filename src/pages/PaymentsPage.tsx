@@ -84,6 +84,9 @@ interface PaymentProvider {
   api_key_encrypted: string | null;
   secret_key_encrypted: string | null;
   active: boolean;
+  efi_cert_pem?: string | null;
+  efi_key_pem?: string | null;
+  efi_pix_key?: string | null;
 }
 
 const PaymentsPage = () => {
