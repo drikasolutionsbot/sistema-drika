@@ -1,0 +1,284 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Save, Palette, Type, Image, MessageSquare } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/contexts/TenantContext";
+import { toast } from "sonner";
+
+interface TicketEmbedData {
+  ticket_embed_title: string;
+  ticket_embed_description: string;
+  ticket_embed_color: string;
+  ticket_embed_image_url: string;
+  ticket_embed_thumbnail_url: string;
+  ticket_embed_footer: string;
+  ticket_embed_button_label: string;
+  ticket_channel_id: string;
+}
+
+const defaults: TicketEmbedData = {
+  ticket_embed_title: "🎫 Ticket de Suporte",
+  ticket_embed_description: "Seu ticket foi criado com sucesso! Aguarde atendimento.",
+  ticket_embed_color: "#5865F2",
+  ticket_embed_image_url: "",
+  ticket_embed_thumbnail_url: "",
+  ticket_embed_footer: "",
+  ticket_embed_button_label: "📩 Abrir Ticket",
+  ticket_channel_id: "",
+};
+
+const TicketEmbedConfig = () => {
+  const { tenantId } = useTenant();
+  const [data, setData] = useState<TicketEmbedData>(defaults);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    const fetch = async () => {
+      const { data: config } = await supabase
+        .from("store_configs")
+        .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_channel_id")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (config) {
+        setData({
+          ticket_embed_title: config.ticket_embed_title || defaults.ticket_embed_title,
+          ticket_embed_description: config.ticket_embed_description || defaults.ticket_embed_description,
+          ticket_embed_color: config.ticket_embed_color || defaults.ticket_embed_color,
+          ticket_embed_image_url: config.ticket_embed_image_url || "",
+          ticket_embed_thumbnail_url: config.ticket_embed_thumbnail_url || "",
+          ticket_embed_footer: config.ticket_embed_footer || "",
+          ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
+          ticket_channel_id: config.ticket_channel_id || "",
+        });
+      }
+      setLoading(false);
+    };
+    fetch();
+  }, [tenantId]);
+
+  const handleSave = async () => {
+    if (!tenantId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("store_configs")
+        .update({
+          ticket_embed_title: data.ticket_embed_title || null,
+          ticket_embed_description: data.ticket_embed_description || null,
+          ticket_embed_color: data.ticket_embed_color || "#5865F2",
+          ticket_embed_image_url: data.ticket_embed_image_url || null,
+          ticket_embed_thumbnail_url: data.ticket_embed_thumbnail_url || null,
+          ticket_embed_footer: data.ticket_embed_footer || null,
+          ticket_embed_button_label: data.ticket_embed_button_label || null,
+          ticket_channel_id: data.ticket_channel_id || null,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("tenant_id", tenantId);
+      if (error) throw error;
+      toast.success("Configuração do ticket salva!");
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const update = (key: keyof TicketEmbedData, value: string) => {
+    setData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Form */}
+      <div className="space-y-5">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Type className="h-4 w-4 text-primary" />
+              Textos do Embed
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Título do Embed</Label>
+              <Input
+                value={data.ticket_embed_title}
+                onChange={(e) => update("ticket_embed_title", e.target.value)}
+                placeholder="🎫 Ticket de Suporte"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={data.ticket_embed_description}
+                onChange={(e) => update("ticket_embed_description", e.target.value)}
+                placeholder="Seu ticket foi criado com sucesso!"
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Variáveis: {"{user}"} {"{product}"} {"{ticket_id}"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Texto do Botão</Label>
+              <Input
+                value={data.ticket_embed_button_label}
+                onChange={(e) => update("ticket_embed_button_label", e.target.value)}
+                placeholder="📩 Abrir Ticket"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Footer</Label>
+              <Input
+                value={data.ticket_embed_footer}
+                onChange={(e) => update("ticket_embed_footer", e.target.value)}
+                placeholder="Texto do rodapé (opcional)"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Image className="h-4 w-4 text-primary" />
+              Imagens & Aparência
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Palette className="h-3.5 w-3.5" />
+                Cor do Embed
+              </Label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  value={data.ticket_embed_color}
+                  onChange={(e) => update("ticket_embed_color", e.target.value)}
+                  className="h-10 w-12 rounded border border-border cursor-pointer bg-transparent"
+                />
+                <Input
+                  value={data.ticket_embed_color}
+                  onChange={(e) => update("ticket_embed_color", e.target.value)}
+                  placeholder="#5865F2"
+                  className="flex-1 font-mono"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>URL da Imagem</Label>
+              <Input
+                value={data.ticket_embed_image_url}
+                onChange={(e) => update("ticket_embed_image_url", e.target.value)}
+                placeholder="https://exemplo.com/imagem.png"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>URL da Thumbnail</Label>
+              <Input
+                value={data.ticket_embed_thumbnail_url}
+                onChange={(e) => update("ticket_embed_thumbnail_url", e.target.value)}
+                placeholder="https://exemplo.com/thumb.png"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>ID do Canal de Tickets</Label>
+              <Input
+                value={data.ticket_channel_id}
+                onChange={(e) => update("ticket_channel_id", e.target.value)}
+                placeholder="ID do canal do Discord"
+                className="font-mono"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Salvar Configuração
+        </Button>
+      </div>
+
+      {/* Discord Preview */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">Pré-visualização do Discord</h3>
+        <div className="rounded-lg bg-[#313338] p-4">
+          <div className="flex gap-3">
+            {/* Embed border */}
+            <div
+              className="w-1 rounded-full shrink-0"
+              style={{ backgroundColor: data.ticket_embed_color || "#5865F2" }}
+            />
+            <div className="flex-1 min-w-0 space-y-2">
+              {/* Title */}
+              {data.ticket_embed_title && (
+                <p className="font-semibold text-white text-sm">
+                  {data.ticket_embed_title}
+                </p>
+              )}
+              {/* Description */}
+              {data.ticket_embed_description && (
+                <p className="text-[#dbdee1] text-[13px] whitespace-pre-wrap">
+                  {data.ticket_embed_description}
+                </p>
+              )}
+              {/* Image */}
+              {data.ticket_embed_image_url && (
+                <img
+                  src={data.ticket_embed_image_url}
+                  alt="Embed"
+                  className="rounded max-h-48 mt-2"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              )}
+              {/* Footer */}
+              {data.ticket_embed_footer && (
+                <p className="text-[#a3a6aa] text-[11px] mt-2 pt-2 border-t border-[#3f4147]">
+                  {data.ticket_embed_footer}
+                </p>
+              )}
+            </div>
+            {/* Thumbnail */}
+            {data.ticket_embed_thumbnail_url && (
+              <img
+                src={data.ticket_embed_thumbnail_url}
+                alt="Thumb"
+                className="w-16 h-16 rounded object-cover shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+          </div>
+          {/* Button */}
+          {data.ticket_embed_button_label && (
+            <div className="mt-3">
+              <div
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium text-white"
+                style={{ backgroundColor: data.ticket_embed_color || "#5865F2" }}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                {data.ticket_embed_button_label}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TicketEmbedConfig;
