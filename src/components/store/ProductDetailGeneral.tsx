@@ -143,7 +143,7 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
       <section className="space-y-5">
         <h3 className="text-base font-bold text-foreground">Preço</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label className="text-sm font-bold">Preço (R$)</Label>
             <Input
@@ -163,11 +163,13 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-bold">Preço de Comparação <span className="font-normal text-muted-foreground">(Opcional — riscado)</span></Label>
+            <Label className="text-sm font-bold">
+              Preço Original <span className="font-normal text-muted-foreground">(Opcional — aparece riscado)</span>
+            </Label>
             <Input
               type="text"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder="Ex: 49.90"
               value={comparePriceDisplay}
               onChange={(e) => setComparePriceDisplay(e.target.value)}
               onBlur={() => {
@@ -184,6 +186,7 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
               }}
               className="bg-muted border-border"
             />
+            <p className="text-[11px] text-muted-foreground">Se preenchido, o preço acima será exibido como promocional e este aparecerá riscado.</p>
           </div>
         </div>
       </section>
