@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Save, Loader2, Hash, Palette, Truck, ShoppingBag, Eye, Shield } from "lucide-react";
+import { Save, Loader2, Hash, Palette, Truck, ShoppingBag, Eye, Shield, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
 
 interface StoreConfig {
   sales_channel_id: string;
@@ -56,12 +57,19 @@ const defaultConfig: StoreConfig = {
 
 const StoreGeneralSettings = () => {
   const { tenantId } = useTenant();
-  const [config, setConfig] = useState<StoreConfig>(defaultConfig);
+  const [serverConfig, setServerConfig] = useState<StoreConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [channels, setChannels] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [discordRoles, setDiscordRoles] = useState<any[]>([]);
+
+  const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<StoreConfig>(
+    "store-settings",
+    tenantId,
+    serverConfig,
+    !loading
+  );
 
   const fetchChannels = useCallback(async () => {
     if (!tenantId) return;
@@ -97,7 +105,7 @@ const StoreGeneralSettings = () => {
       });
       if (error) throw error;
       if (data) {
-        setConfig((prev) => ({ ...prev, ...data }));
+        setServerConfig((prev) => ({ ...prev, ...data }));
       }
     } catch (e: any) {
       console.error(e);
@@ -120,6 +128,7 @@ const StoreGeneralSettings = () => {
         body: { action: "upsert", tenant_id: tenantId, config },
       });
       if (error) throw error;
+      clearDraft();
       toast({ title: "Configurações da loja salvas! ✅" });
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
@@ -142,6 +151,15 @@ const StoreGeneralSettings = () => {
 
   return (
     <div className="space-y-6">
+      {hasDraft && (
+        <div className="flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5">
+          <p className="text-sm text-yellow-400">📝 Você tem alterações não salvas (rascunho local).</p>
+          <Button variant="ghost" size="sm" onClick={discardDraft} className="text-yellow-400 hover:text-yellow-300 gap-1.5">
+            <Undo2 className="h-3.5 w-3.5" />
+            Descartar
+          </Button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Configure as opções gerais da sua loja</p>
         <Button onClick={handleSave} disabled={saving} className="gap-2">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ShieldCheck, Save, Loader2, Send, Eye, Upload, X, ImageIcon } from "lucide-react";
+import { ShieldCheck, Save, Loader2, Send, Eye, Upload, X, ImageIcon, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,7 +36,7 @@ const defaultConfig: VerifyConfig = {
 
 const VerificationPage = () => {
   const { tenantId, tenant } = useTenant();
-  const [config, setConfig] = useState<VerifyConfig>(defaultConfig);
+  const [serverConfig, setServerConfig] = useState<VerifyConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -44,6 +45,13 @@ const VerificationPage = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<VerifyConfig>(
+    "verification",
+    tenantId,
+    serverConfig,
+    !loading
+  );
 
   const fetchData = useCallback(async () => {
     if (!tenantId) return;
@@ -71,7 +79,6 @@ const VerificationPage = () => {
       const discordRoles = Array.isArray(discordRolesRes.data?.roles) ? discordRolesRes.data.roles : [];
       const panelRoles = Array.isArray(panelRolesRes.data) ? panelRolesRes.data : [];
 
-      // Merge: panel roles that have discord_role_id are already in Discord list, so add panel-only ones
       const discordIds = new Set(discordRoles.map((r: any) => r.id));
       const panelOnly = panelRoles
         .filter((r: any) => r.discord_role_id && !discordIds.has(r.discord_role_id))
@@ -84,8 +91,7 @@ const VerificationPage = () => {
         body: { tenant_id: tenantId },
       });
       if (tenantData) {
-        setConfig(prev => ({
-          ...prev,
+        const loaded: VerifyConfig = {
           verify_enabled: tenantData.verify_enabled ?? false,
           verify_role_id: tenantData.verify_role_id ?? "",
           verify_channel_id: tenantData.verify_channel_id ?? "",
@@ -94,7 +100,8 @@ const VerificationPage = () => {
           verify_button_label: tenantData.verify_button_label ?? defaultConfig.verify_button_label,
           verify_embed_color: tenantData.verify_embed_color ?? defaultConfig.verify_embed_color,
           verify_image_url: tenantData.verify_image_url ?? "",
-        }));
+        };
+        setServerConfig(loaded);
       }
     } catch (e) {
       console.error(e);
@@ -127,6 +134,7 @@ const VerificationPage = () => {
         },
       });
       if (error) throw error;
+      clearDraft();
       toast({ title: "Verificação salva! ✅" });
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
@@ -179,6 +187,18 @@ const VerificationPage = () => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Draft banner */}
+      {hasDraft && (
+        <div className="flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5">
+          <p className="text-sm text-yellow-400">
+            📝 Você tem alterações não salvas (rascunho local).
+          </p>
+          <Button variant="ghost" size="sm" onClick={discardDraft} className="text-yellow-400 hover:text-yellow-300 gap-1.5">
+            <Undo2 className="h-3.5 w-3.5" />
+            Descartar
+          </Button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
