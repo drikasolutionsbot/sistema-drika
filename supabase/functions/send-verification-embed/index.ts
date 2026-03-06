@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -32,14 +32,14 @@ Deno.serve(async (req) => {
       .eq("id", tenant_id)
       .single();
 
-    if (tenantErr || !tenant?.bot_token_encrypted) {
+    const botToken = tenant?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
+
+    if (!botToken) {
       return new Response(JSON.stringify({ error: "Bot token not found" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const botToken = tenant.bot_token_encrypted;
 
     // Build embed
     const colorInt = parseInt((embed_color || "#5865F2").replace("#", ""), 16);
