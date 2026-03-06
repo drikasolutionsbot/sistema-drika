@@ -181,22 +181,18 @@ const TicketEmbedConfig = () => {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>URL da Imagem</Label>
-              <Input
-                value={data.ticket_embed_image_url}
-                onChange={(e) => update("ticket_embed_image_url", e.target.value)}
-                placeholder="https://exemplo.com/imagem.png"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>URL da Thumbnail</Label>
-              <Input
-                value={data.ticket_embed_thumbnail_url}
-                onChange={(e) => update("ticket_embed_thumbnail_url", e.target.value)}
-                placeholder="https://exemplo.com/thumb.png"
-              />
-            </div>
+            <ImageUploadField
+              label="Imagem do Embed"
+              value={data.ticket_embed_image_url}
+              onChange={(url) => update("ticket_embed_image_url", url)}
+              folder="ticket-embeds"
+            />
+            <ImageUploadField
+              label="Thumbnail do Embed"
+              value={data.ticket_embed_thumbnail_url}
+              onChange={(url) => update("ticket_embed_thumbnail_url", url)}
+              folder="ticket-embeds"
+            />
             <div className="space-y-2">
               <Label>ID do Canal de Tickets</Label>
               <Input
