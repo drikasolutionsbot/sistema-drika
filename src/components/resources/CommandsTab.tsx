@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, Terminal, Upload, Loader2, Plus, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
@@ -96,7 +96,13 @@ const emptyOption = (): CommandOption => ({
 });
 
 export const CommandsTab = () => {
-  const [commands, setCommands] = useState<BotCommand[]>(defaultCommands);
+  const [commands, setCommands] = useState<BotCommand[]>(() => {
+    const saved = localStorage.getItem("bot_commands");
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* ignore */ }
+    }
+    return defaultCommands;
+  });
   const [search, setSearch] = useState("");
   const [syncing, setSyncing] = useState(false);
   const { tenant } = useTenant();
@@ -106,6 +112,65 @@ export const CommandsTab = () => {
   const [newCategory, setNewCategory] = useState("Custom");
   const [newOptions, setNewOptions] = useState<CommandOption[]>([]);
   const [expandedCmd, setExpandedCmd] = useState<string | null>(null);
+  const hasAutoSynced = useRef(false);
+
+  // Persist commands to localStorage
+  useEffect(() => {
+    localStorage.setItem("bot_commands", JSON.stringify(commands));
+  }, [commands]);
+
+  const syncToDiscord = useCallback(async (cmds: BotCommand[], silent = false) => {
+    const enabledCommands = cmds.filter((c) => c.enabled);
+    if (enabledCommands.length === 0) return;
+
+    const guildId = tenant?.discord_guild_id || null;
+    if (!guildId) {
+      if (!silent) toast({ title: "Guild ID não configurado", description: "Configure o servidor Discord primeiro.", variant: "destructive" });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("register-commands", {
+        body: {
+          guild_id: guildId,
+          commands: enabledCommands.map((c) => ({
+            name: c.name,
+            description: c.description,
+            options: c.options,
+          })),
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (!silent) {
+        toast({
+          title: "Comandos sincronizados! ✅",
+          description: `${data?.registered ?? enabledCommands.length} comandos registrados no Discord.`,
+        });
+      }
+    } catch (err: any) {
+      if (!silent) {
+        toast({
+          title: "Erro ao sincronizar",
+          description: err.message || "Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }, [tenant]);
+
+  // Auto-sync on first mount when guild is available
+  useEffect(() => {
+    if (tenant?.discord_guild_id && !hasAutoSynced.current) {
+      hasAutoSynced.current = true;
+      syncToDiscord(commands, true);
+    }
+  }, [tenant?.discord_guild_id]);
 
   const filtered = commands.filter(
     (c) =>
@@ -180,71 +245,35 @@ export const CommandsTab = () => {
       opt.choices = (opt.choices || []).filter((c) => c.name.trim() && c.value.trim());
     }
 
-    setCommands((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        name: name.toLowerCase(),
-        description: newDesc.trim(),
-        category: newCategory,
-        enabled: true,
-        options: validOptions.length > 0 ? validOptions : undefined,
-      },
-    ]);
+    const newCmd: BotCommand = {
+      id: crypto.randomUUID(),
+      name: name.toLowerCase(),
+      description: newDesc.trim(),
+      category: newCategory,
+      enabled: true,
+      options: validOptions.length > 0 ? validOptions : undefined,
+    };
+    const updated = [...commands, newCmd];
+    setCommands(updated);
     resetForm();
     setCreateOpen(false);
     toast({ title: "Comando criado!" });
+    syncToDiscord(updated, true);
   };
 
   const removeCommand = (id: string) => {
-    setCommands((prev) => prev.filter((c) => c.id !== id));
+    const updated = commands.filter((c) => c.id !== id);
+    setCommands(updated);
+    syncToDiscord(updated, true);
   };
 
   const toggleCommand = (id: string) => {
-    setCommands((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
-    );
+    const updated = commands.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c));
+    setCommands(updated);
+    syncToDiscord(updated, true);
   };
 
-  const handleSync = async () => {
-    const enabledCommands = commands.filter((c) => c.enabled);
-    if (enabledCommands.length === 0) {
-      toast({ title: "Nenhum comando ativo para sincronizar", variant: "destructive" });
-      return;
-    }
-
-    setSyncing(true);
-    try {
-      const guildId = tenant?.discord_guild_id || null;
-
-      const { data, error } = await supabase.functions.invoke("register-commands", {
-        body: {
-          guild_id: guildId,
-          commands: enabledCommands.map((c) => ({
-            name: c.name,
-            description: c.description,
-            options: c.options,
-          })),
-        },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast({
-        title: "Comandos sincronizados! ✅",
-        description: `${data?.registered ?? enabledCommands.length} comandos registrados no Discord.`,
-      });
-    } catch (err: any) {
-      toast({
-        title: "Erro ao sincronizar",
-        description: err.message || "Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const handleSync = () => syncToDiscord(commands);
 
   const optionTypeSupportsChoices = (type: number) => type === 3 || type === 4 || type === 10;
 
