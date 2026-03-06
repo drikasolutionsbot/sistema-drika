@@ -58,13 +58,26 @@ const VerificationPage = () => {
       setChannels(ch.sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)));
       setCategories(cats.sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)));
 
-      // Fetch roles from Discord
-      const { data: roleData } = await supabase.functions.invoke("manage-roles", {
-        body: { action: "list_discord", tenant_id: tenantId },
-      });
-      if (Array.isArray(roleData?.roles)) {
-        setRoles(roleData.roles);
-      }
+      // Fetch roles from Discord + panel
+      const [discordRolesRes, panelRolesRes] = await Promise.all([
+        supabase.functions.invoke("manage-roles", {
+          body: { action: "list_discord", tenant_id: tenantId },
+        }),
+        supabase.functions.invoke("manage-roles", {
+          body: { action: "list", tenant_id: tenantId },
+        }),
+      ]);
+
+      const discordRoles = Array.isArray(discordRolesRes.data?.roles) ? discordRolesRes.data.roles : [];
+      const panelRoles = Array.isArray(panelRolesRes.data) ? panelRolesRes.data : [];
+
+      // Merge: panel roles that have discord_role_id are already in Discord list, so add panel-only ones
+      const discordIds = new Set(discordRoles.map((r: any) => r.id));
+      const panelOnly = panelRoles
+        .filter((r: any) => r.discord_role_id && !discordIds.has(r.discord_role_id))
+        .map((r: any) => ({ id: r.discord_role_id, name: r.name, position: 0 }));
+
+      setRoles([...discordRoles, ...panelOnly]);
 
       // Fetch tenant verify settings
       const { data: tenantData } = await supabase.functions.invoke("get-tenant", {
