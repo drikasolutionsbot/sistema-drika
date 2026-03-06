@@ -51,7 +51,9 @@ serve(async (req) => {
     const httpClient = Deno.createHttpClient({
       certChain: normalizedCert,
       privateKey: normalizedKey,
-    });
+      cert: normalizedCert,
+      key: normalizedKey,
+    } as any);
 
     // Step 1: Get OAuth token
     const credentials = btoa(`${config.efi_client_id}:${config.efi_client_secret}`);
