@@ -43,7 +43,8 @@ serve(async (req) => {
     const amountCents = config.pro_price_cents || 2690;
     const amountBRL = amountCents / 100;
     const webhookUrl = `${supabaseUrl}/functions/v1/subscription-webhook`;
-    const txId = `SUB${Date.now()}`;
+    // Efí exige txid com 26-35 caracteres alfanuméricos
+    const txId = crypto.randomUUID().replace(/-/g, "").slice(0, 30);
 
     // Normalize PEM line endings and create HTTP client with mTLS
     const normalizedCert = (config.efi_cert_pem || '').replace(/\r\n/g, '\n').trim();
