@@ -266,9 +266,9 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
     localStorage.setItem("read_notif_ids", JSON.stringify([...allIds]));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     sessionStorage.removeItem("token_session");
-    signOut();
+    try { await signOut(); } catch (_) {}
     window.location.href = "/login";
   };
 

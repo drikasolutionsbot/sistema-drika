@@ -81,7 +81,11 @@ const SidebarContent = ({ location, onNavigate }: { location: ReturnType<typeof 
 
       <div className="border-t border-sidebar-border p-2">
         <button
-          onClick={signOut}
+          onClick={async () => {
+            sessionStorage.removeItem("token_session");
+            try { await signOut(); } catch (_) {}
+            window.location.href = "/login";
+          }}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
         >
           <LogOut className="h-5 w-5" />
