@@ -1226,6 +1226,7 @@ export type Database = {
           amount_cents: number
           created_at: string
           id: string
+          metadata: Json | null
           paid_at: string | null
           payer_email: string | null
           payer_name: string | null
@@ -1242,6 +1243,7 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           id?: string
+          metadata?: Json | null
           paid_at?: string | null
           payer_email?: string | null
           payer_name?: string | null
@@ -1258,6 +1260,7 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           id?: string
+          metadata?: Json | null
           paid_at?: string | null
           payer_email?: string | null
           payer_name?: string | null
