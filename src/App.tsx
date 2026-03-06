@@ -109,6 +109,7 @@ const AppRoutes = () => (
       <Route path="/verification" element={<VerificationPage />} />
       <Route path="/ecloud" element={<ECloudPage />} />
       <Route path="/support" element={<SupportPage />} />
+      <Route path="/tutorials" element={<TutorialsPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
