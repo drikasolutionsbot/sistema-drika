@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Ticket, Clock, CheckCircle, MessageSquare, AlertCircle, Eye, RefreshCw, Search, Filter } from "lucide-react";
+import { Ticket, Clock, CheckCircle, MessageSquare, AlertCircle, Eye, RefreshCw, Search, Filter, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TicketEmbedConfig from "@/components/tickets/TicketEmbedConfig";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
