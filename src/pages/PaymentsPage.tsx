@@ -122,7 +122,7 @@ const PaymentsPage = () => {
 
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
 
-  const handleSave = async (providerKey: string, apiKey: string, secretKey: string) => {
+  const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string }) => {
     if (!tenantId) return;
     try {
       const data = await invokeWithRetry("manage-payment-providers", {
@@ -131,6 +131,7 @@ const PaymentsPage = () => {
         provider_key: providerKey,
         api_key: apiKey,
         secret_key: secretKey,
+        ...extra,
       });
       if (data?.error) throw new Error(data.error);
       refetch();
