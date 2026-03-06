@@ -102,31 +102,31 @@ div[style*="Edit with Lovable"],
 
 @layer utilities {
   .gradient-pink {
-    background: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
+    background: linear-gradient(135deg, hsl(330 100% 50%), hsl(340 90% 60%));
   }
   .gradient-gold {
-    background: linear-gradient(135deg, hsl(199 89% 48%), hsl(210 80% 45%));
+    background: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 100% 45%));
   }
   .gradient-dark-card {
-    background: linear-gradient(145deg, hsl(225 25% 13%), hsl(225 30% 10%));
+    background: linear-gradient(145deg, hsl(0 0% 10%), hsl(0 0% 7%));
   }
   .text-gradient-pink {
-    background: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
+    background: linear-gradient(135deg, hsl(330 100% 50%), hsl(340 90% 60%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .text-gradient-gold {
-    background: linear-gradient(135deg, hsl(199 89% 48%), hsl(210 80% 45%));
+    background: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 100% 45%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .glow-pink {
-    box-shadow: 0 0 20px hsl(217 91% 60% / 0.2), 0 0 60px hsl(217 91% 60% / 0.1);
+    box-shadow: 0 0 20px hsl(330 100% 50% / 0.2), 0 0 60px hsl(330 100% 50% / 0.1);
   }
   .glow-gold {
-    box-shadow: 0 0 20px hsl(199 89% 48% / 0.2), 0 0 60px hsl(199 89% 48% / 0.1);
+    box-shadow: 0 0 20px hsl(45 100% 50% / 0.2), 0 0 60px hsl(45 100% 50% / 0.1);
   }
 }
 
