@@ -134,14 +134,31 @@ async function generateViaPushinPay(
   };
 }
 
-// ─── Gateway: Efí (Gerencianet) ────────────────────────────────────
+// ─── Gateway: Efí (Gerencianet) with mTLS ─────────────────────────
 async function generateViaEfi(
   clientId: string,
   clientSecret: string,
   amountBRL: number,
   txId: string,
-  webhookUrl: string
+  webhookUrl: string,
+  certPem?: string,
+  keyPem?: string,
+  pixKey?: string
 ): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string }> {
+  const fetchOpts: any = {};
+
+  // Use mTLS if cert/key available
+  if (certPem && keyPem) {
+    const normalizedCert = certPem.replace(/\r\n/g, '\n').trim();
+    const normalizedKey = keyPem.replace(/\r\n/g, '\n').trim();
+    fetchOpts.client = Deno.createHttpClient({
+      certChain: normalizedCert,
+      privateKey: normalizedKey,
+      cert: normalizedCert,
+      key: normalizedKey,
+    } as any);
+  }
+
   // Step 1: Get OAuth token
   const credentials = btoa(`${clientId}:${clientSecret}`);
   const tokenRes = await fetch("https://pix.api.efipay.com.br/oauth/token", {
@@ -151,7 +168,8 @@ async function generateViaEfi(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ grant_type: "client_credentials" }),
-  });
+    ...fetchOpts,
+  } as any);
 
   if (!tokenRes.ok) {
     throw new Error(`Efí OAuth error: ${tokenRes.status}`);
@@ -161,19 +179,21 @@ async function generateViaEfi(
   const accessToken = tokenData.access_token;
 
   // Step 2: Create immediate charge (cob)
-  const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${txId}`, {
+  const safeTxId = txId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 30) || crypto.randomUUID().replace(/-/g, "").slice(0, 30);
+  const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${safeTxId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      calendario: { expiracao: 3600 },
+      calendario: { expiracao: 900 },
       valor: { original: amountBRL.toFixed(2) },
-      chave: "", // Will use the default key from Efí account
+      chave: pixKey || "",
       infoAdicionais: [{ nome: "Pagamento", valor: "PIX via Drika" }],
     }),
-  });
+    ...fetchOpts,
+  } as any);
 
   if (!cobRes.ok) {
     const err = await cobRes.json().catch(() => ({}));
@@ -187,20 +207,21 @@ async function generateViaEfi(
   if (locId) {
     const qrRes = await fetch(`https://pix.api.efipay.com.br/v2/loc/${locId}/qrcode`, {
       headers: { Authorization: `Bearer ${accessToken}` },
-    });
+      ...fetchOpts,
+    } as any);
     if (qrRes.ok) {
       const qrData = await qrRes.json();
       return {
         brcode: qrData.qrcode || "",
         qr_code_base64: qrData.imagemQrcode || undefined,
-        payment_id: cobData.txid || txId,
+        payment_id: cobData.txid || safeTxId,
       };
     }
   }
 
   return {
     brcode: cobData.pixCopiaECola || "",
-    payment_id: cobData.txid || txId,
+    payment_id: cobData.txid || safeTxId,
   };
 }
 
@@ -255,7 +276,7 @@ serve(async (req) => {
     // 1. Check for active payment provider (all supported providers)
     const { data: providers } = await supabase
       .from("payment_providers")
-      .select("provider_key, api_key_encrypted, secret_key_encrypted, active")
+      .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
       .eq("tenant_id", tenant_id)
       .eq("active", true);
 
@@ -282,7 +303,7 @@ serve(async (req) => {
           result = await generateViaPushinPay(apiKey, amount_cents, webhookUrl);
           break;
         case "efi":
-          result = await generateViaEfi(apiKey, secretKey, amount, externalRef, webhookUrl);
+          result = await generateViaEfi(apiKey, secretKey, amount, externalRef, webhookUrl, activeProvider.efi_cert_pem, activeProvider.efi_key_pem, activeProvider.efi_pix_key);
           break;
         case "misticpay":
           result = await generateViaMisticPay(apiKey, amount_cents, externalRef, webhookUrl);
