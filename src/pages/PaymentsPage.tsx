@@ -249,6 +249,39 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
     toast({ title: "Webhook URL copiada!" });
   };
 
+  const handleP12Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const binary = forge.util.binary.raw.encode(new Uint8Array(arrayBuffer));
+      const p12Asn1 = forge.asn1.fromDer(binary);
+      const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, "");
+
+      const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+      const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+
+      const certBagList = certBags[forge.pki.oids.certBag] || [];
+      const keyBagList = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag] || [];
+
+      if (!certBagList.length || !keyBagList.length) {
+        throw new Error("Certificado ou chave não encontrados no arquivo");
+      }
+
+      const cert = certBagList[0].cert;
+      const key = keyBagList[0].key;
+      if (!cert || !key) throw new Error("Conteúdo inválido");
+
+      setEfiCertPem(forge.pki.certificateToPem(cert));
+      setEfiKeyPem(forge.pki.privateKeyToPem(key));
+      setCertFileName(file.name);
+      toast({ title: "Certificado carregado!", description: `${file.name} convertido com sucesso` });
+    } catch (err: any) {
+      console.error("P12 parse error:", err);
+      toast({ title: "Erro ao ler certificado", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
@@ -257,6 +290,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
         provider_key: provider.key,
         api_key: apiKey,
         secret_key: secretKey,
+        ...(isEfi ? { cert_pem: efiCertPem, key_pem: efiKeyPem } : {}),
       });
       setTestResult(data);
       if (data?.success) {
@@ -274,7 +308,8 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave(provider.key, apiKey, secretKey);
+    const extra = isEfi ? { efi_cert_pem: efiCertPem, efi_key_pem: efiKeyPem, efi_pix_key: efiPixKey } : undefined;
+    await onSave(provider.key, apiKey, secretKey, extra);
     setSaving(false);
   };
 
