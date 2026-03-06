@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Outlet, Navigate, Link, useLocation } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, CreditCard, Users, LogOut, Headphones, Globe, Bell, Crown, UserPlus, Inbox, CheckCircle, BarChart3, ClipboardList, Shield } from "lucide-react";
+import { LayoutDashboard, CreditCard, Users, LogOut, Headphones, Globe, Bell, Crown, UserPlus, Inbox, CheckCircle, BarChart3, ClipboardList, Shield, Menu } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
@@ -40,11 +41,62 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d atrás`;
 }
 
+const SidebarContent = ({ location, onNavigate }: { location: ReturnType<typeof useLocation>; onNavigate?: () => void }) => {
+  const { signOut } = useAuth();
+
+  return (
+    <div className="flex h-full flex-col bg-sidebar">
+      <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-3">
+        <img src={logo} alt="Admin" className="h-9 w-9 object-contain" />
+        <div className="flex flex-col">
+          <span className="font-display text-lg font-bold leading-tight">
+            <span className="text-gradient-pink">ADMIN</span>{" "}
+            <span className="text-foreground">PANEL</span>
+          </span>
+          <span className="text-[10px] text-muted-foreground">Super Admin</span>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+              )}
+            >
+              <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-sidebar-border p-2">
+        <button
+          onClick={signOut}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Sair</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const AdminLayout = () => {
   const { isSuperAdmin, loading } = useAdmin();
-  const { signOut } = useAuth();
   const location = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotif[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     try {
@@ -109,7 +161,6 @@ export const AdminLayout = () => {
     if (isSuperAdmin) fetchNotifications();
   }, [isSuperAdmin, fetchNotifications]);
 
-  // Realtime
   useEffect(() => {
     if (!isSuperAdmin) return;
 
@@ -167,53 +218,25 @@ export const AdminLayout = () => {
 
   return (
     <div className="flex h-screen bg-background">
-      <aside className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar">
-        <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-3">
-          <img src={logo} alt="Admin" className="h-9 w-9 object-contain" />
-          <div className="flex flex-col">
-            <span className="font-display text-lg font-bold leading-tight">
-              <span className="text-gradient-pink">ADMIN</span>{" "}
-              <span className="text-foreground">PANEL</span>
-            </span>
-            <span className="text-[10px] text-muted-foreground">Super Admin</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-2 space-y-0.5">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                )}
-              >
-                <item.icon className={cn("h-5 w-5", isActive && "text-primary")} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="border-t border-sidebar-border p-2">
-          <button
-            onClick={signOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-            <span>Sair</span>
-          </button>
-        </div>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-64 flex-col border-r border-sidebar-border bg-sidebar">
+        <SidebarContent location={location} />
       </aside>
+
+      {/* Mobile sidebar drawer */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="p-0 w-64 border-r-0 [&>button]:hidden">
+          <SidebarContent location={location} onNavigate={() => setMobileOpen(false)} />
+        </SheetContent>
+      </Sheet>
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Admin TopBar */}
-        <header className="flex h-14 items-center justify-end border-b border-border bg-card px-6 gap-3">
+        <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:px-6 gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="md:hidden">
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="flex-1" />
           <Popover open={notifOpen} onOpenChange={setNotifOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
@@ -267,7 +290,7 @@ export const AdminLayout = () => {
           </Popover>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>
