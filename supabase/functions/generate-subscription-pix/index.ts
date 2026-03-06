@@ -13,13 +13,25 @@ serve(async (req) => {
   }
 
   try {
-    const { tenant_id, email } = await req.json();
-
-    if (!tenant_id) throw new Error("Missing tenant_id");
+    const { tenant_id, email, password, whatsapp, name } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Validate registration data for new subscribers
+    const isNewSubscriber = !tenant_id || tenant_id === "new_subscriber";
+    if (isNewSubscriber) {
+      if (!email || !password) throw new Error("Email e senha são obrigatórios");
+      if (password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres");
+
+      // Check if email already exists
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const emailExists = existingUsers?.users?.some(
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+      if (emailExists) throw new Error("Este email já está cadastrado");
+    }
 
     const { data: config, error: configErr } = await supabase
       .from("landing_config")
@@ -33,11 +45,16 @@ serve(async (req) => {
 
     const amountCents = config.pro_price_cents || 2690;
 
-    // Determine which provider to use
+    // For new subscribers, use a sentinel tenant_id
+    const effectiveTenantId = isNewSubscriber ? "00000000-0000-0000-0000-000000000000" : tenant_id;
+
+    // Store registration metadata for new subscribers
+    const metadata = isNewSubscriber ? { email, password, whatsapp: whatsapp || null, name: name || email.split("@")[0] } : {};
+
     if (config.efi_active && config.efi_client_id && config.efi_client_secret && config.efi_cert_pem && config.efi_key_pem) {
-      return await generateViaEfi(config, tenant_id, email, amountCents, supabase, supabaseUrl);
+      return await generateViaEfi(config, effectiveTenantId, email, amountCents, supabase, metadata);
     } else if (config.pushinpay_active && config.pushinpay_api_key) {
-      return await generateViaPushinPay(config, tenant_id, email, amountCents, supabase);
+      return await generateViaPushinPay(config, effectiveTenantId, email, amountCents, supabase, metadata);
     } else {
       throw new Error("Nenhum provedor de pagamento ativo. Ative Efí ou PushinPay no painel admin.");
     }
@@ -51,7 +68,7 @@ serve(async (req) => {
   }
 });
 
-async function generateViaEfi(config: any, tenant_id: string, email: string | undefined, amountCents: number, supabase: any, supabaseUrl: string) {
+async function generateViaEfi(config: any, tenant_id: string, email: string | undefined, amountCents: number, supabase: any, metadata: any) {
   const amountBRL = amountCents / 100;
   const txId = crypto.randomUUID().replace(/-/g, "").slice(0, 30);
 
@@ -64,7 +81,6 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
     key: normalizedKey,
   } as any);
 
-  // OAuth token
   const credentials = btoa(`${config.efi_client_id}:${config.efi_client_secret}`);
   const tokenRes = await fetch("https://pix.api.efipay.com.br/oauth/token", {
     method: "POST",
@@ -85,7 +101,6 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
 
-  // Create charge
   const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${txId}`, {
     method: "PUT",
     headers: {
@@ -126,7 +141,7 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
 
   const paymentId = cobData.txid || txId;
 
-  await supabase.from("subscription_payments").insert({
+  const { data: inserted } = await supabase.from("subscription_payments").insert({
     tenant_id,
     plan: "pro",
     amount_cents: amountCents,
@@ -134,9 +149,10 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
     payment_id: paymentId,
     payer_email: email || null,
     status: "pending",
-  });
+    metadata,
+  }).select("id").single();
 
-  console.log(`Subscription PIX generated via Efí for tenant ${tenant_id}, txid ${paymentId}`);
+  console.log(`Subscription PIX generated via Efí, txid ${paymentId}`);
 
   return new Response(
     JSON.stringify({
@@ -144,13 +160,14 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
       brcode,
       qr_code_base64: qrCodeBase64,
       payment_id: paymentId,
+      subscription_id: inserted?.id,
       amount_cents: amountCents,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
-async function generateViaPushinPay(config: any, tenant_id: string, email: string | undefined, amountCents: number, supabase: any) {
+async function generateViaPushinPay(config: any, tenant_id: string, email: string | undefined, amountCents: number, supabase: any, metadata: any) {
   const apiKey = config.pushinpay_api_key;
 
   const res = await fetch("https://api.pushinpay.com.br/api/pix/cashIn", {
@@ -176,7 +193,7 @@ async function generateViaPushinPay(config: any, tenant_id: string, email: strin
   const qrCodeBase64 = data.qr_code_base64 || null;
   const paymentId = data.id || data.transaction_id || crypto.randomUUID();
 
-  await supabase.from("subscription_payments").insert({
+  const { data: inserted } = await supabase.from("subscription_payments").insert({
     tenant_id,
     plan: "pro",
     amount_cents: amountCents,
@@ -184,9 +201,10 @@ async function generateViaPushinPay(config: any, tenant_id: string, email: strin
     payment_id: String(paymentId),
     payer_email: email || null,
     status: "pending",
-  });
+    metadata,
+  }).select("id").single();
 
-  console.log(`Subscription PIX generated via PushinPay for tenant ${tenant_id}, id ${paymentId}`);
+  console.log(`Subscription PIX generated via PushinPay, id ${paymentId}`);
 
   return new Response(
     JSON.stringify({
@@ -194,6 +212,7 @@ async function generateViaPushinPay(config: any, tenant_id: string, email: strin
       brcode,
       qr_code_base64: qrCodeBase64,
       payment_id: paymentId,
+      subscription_id: inserted?.id,
       amount_cents: amountCents,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }

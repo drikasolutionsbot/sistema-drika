@@ -117,34 +117,82 @@ const VideoModal = ({ url, onClose }: { url: string; onClose: () => void }) => {
   );
 };
 
-/* ── Subscription Payment Modal ── */
-const SubscriptionPaymentModal = ({ onClose, tenantId }: { onClose: () => void; tenantId?: string }) => {
+/* ── Subscription Payment Modal (Pro) ── */
+const SubscriptionPaymentModal = ({ onClose }: { onClose: () => void }) => {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<"form" | "pix" | "success">("form");
   const [loading, setLoading] = useState(false);
   const [brcode, setBrcode] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [tenantName, setTenantName] = useState<string | null>(null);
+  const [tokenCopied, setTokenCopied] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Form fields
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [name, setName] = useState("");
 
   useEffect(() => {
-    generatePix();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
-  const generatePix = async () => {
+  const handleSubmitForm = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError("Preencha email e senha");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("generate-subscription-pix", {
-        body: { tenant_id: tenantId || "new_subscriber" },
+        body: {
+          tenant_id: "new_subscriber",
+          email: email.trim(),
+          password,
+          whatsapp: whatsapp.trim() || null,
+          name: name.trim() || email.split("@")[0],
+        },
       });
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       if (data?.brcode) {
         setBrcode(data.brcode);
+        setPaymentId(data.payment_id);
+        setStep("pix");
+        startPolling(data.payment_id);
       }
     } catch (err: any) {
-      console.error("Error generating subscription PIX:", err);
       setError(err.message || "Erro ao gerar pagamento");
     }
     setLoading(false);
+  };
+
+  const startPolling = (pid: string) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const { data } = await supabase.functions.invoke("check-subscription-status", {
+          body: { payment_id: pid },
+        });
+        if (data?.status === "paid") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setToken(data.token || null);
+          setTenantName(data.tenant_name || null);
+          setStep("success");
+        }
+      } catch { /* ignore polling errors */ }
+    }, 3000);
   };
 
   const handleCopy = () => {
@@ -155,39 +203,93 @@ const SubscriptionPaymentModal = ({ onClose, tenantId }: { onClose: () => void; 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyToken = () => {
+    if (!token) return;
+    navigator.clipboard.writeText(token);
+    setTokenCopied(true);
+    toast.success("Token copiado!");
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={step === "success" ? undefined : onClose}>
       <div className="relative w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
-          <X className="h-6 w-6" />
-        </button>
+        {step !== "success" && (
+          <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
+            <X className="h-6 w-6" />
+          </button>
+        )}
         <div className="rounded-2xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl p-6 space-y-4">
           <div className="text-center">
             <img src={drikaLogo} alt="Drika" className="h-14 w-auto mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-white">Assinar Drika Solutions Pro</h3>
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mt-2">
-              <Crown className="h-4 w-4" /> R$ 26,90/mês
-            </div>
+            <h3 className="text-lg font-bold text-white">
+              {step === "success" ? "Conta Pro Ativada! 🎉" : "Assinar Drika Solutions Pro"}
+            </h3>
+            {step !== "success" && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mt-2">
+                <Crown className="h-4 w-4" /> R$ 26,90/mês
+              </div>
+            )}
           </div>
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-white/50">Gerando pagamento PIX...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-6 space-y-3">
-              <p className="text-sm text-white/50">{error}</p>
-              <a
-                href="https://wa.me/5548996915303?text=Quero%20ativar%20o%20plano%20Drika%20Solutions%20Pro"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium cursor-pointer border-none transition-all px-6 py-2.5 text-sm"
+          {/* Step 1: Registration Form */}
+          {step === "form" && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">Nome da Loja</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Minha Loja"
+                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">Email *</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">Senha *</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 mb-1 block">WhatsApp</label>
+                <input
+                  type="text"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+
+              {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+
+              <button
+                onClick={handleSubmitForm}
+                disabled={loading}
+                className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-white text-black font-semibold text-sm cursor-pointer border-none hover:bg-white/90 transition-all disabled:opacity-50"
               >
-                Falar com Suporte
-              </a>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                Gerar Pagamento PIX
+              </button>
             </div>
-          ) : brcode ? (
+          )}
+
+          {/* Step 2: PIX Payment */}
+          {step === "pix" && brcode && (
             <div className="space-y-3">
               <p className="text-sm text-white/50 text-center">Copie o código PIX e pague pelo seu banco:</p>
               <div className="rounded-2xl border border-primary/20 bg-black/40 p-4">
@@ -206,11 +308,66 @@ const SubscriptionPaymentModal = ({ onClose, tenantId }: { onClose: () => void; 
                 {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                 {copied ? "Copiado!" : "Copiar Código PIX"}
               </button>
-              <p className="text-[11px] text-white/30 text-center">
-                Após o pagamento, seu plano será ativado automaticamente.
-              </p>
+              <div className="flex items-center justify-center gap-2 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <p className="text-xs text-white/40">Aguardando confirmação do pagamento...</p>
+              </div>
             </div>
-          ) : null}
+          )}
+
+          {/* Step 3: Success - Token */}
+          {step === "success" && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
+                  <Check className="h-8 w-8 text-emerald-400" />
+                </div>
+                <p className="text-sm text-white/70">
+                  Pagamento confirmado! Seu plano Pro de 30 dias está ativo.
+                </p>
+                {tenantName && (
+                  <p className="text-xs text-white/40 mt-1">Loja: <span className="text-white/70 font-medium">{tenantName}</span></p>
+                )}
+              </div>
+
+              {token && (
+                <div className="space-y-2">
+                  <label className="text-xs text-white/50 block text-center">Seu Token de Acesso</label>
+                  <div className="rounded-2xl border border-emerald-500/20 bg-black/40 p-4">
+                    <code className="block text-xs font-mono text-emerald-400 break-all leading-relaxed text-center">
+                      {token}
+                    </code>
+                  </div>
+                  <button
+                    onClick={handleCopyToken}
+                    className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
+                      tokenCopied
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    {tokenCopied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                    {tokenCopied ? "Token Copiado!" : "Copiar Token"}
+                  </button>
+                  <p className="text-[11px] text-white/30 text-center">
+                    ⚠️ Guarde seu token! Use-o para acessar o painel.
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  onClose();
+                  navigate("/login");
+                }}
+                disabled={!tokenCopied}
+                className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-white text-black font-semibold text-sm cursor-pointer border-none hover:bg-white/90 transition-all disabled:opacity-30"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Ir para o Login
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

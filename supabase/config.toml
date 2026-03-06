@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.validate-admin-login]
 verify_jwt = false
+
+[functions.check-subscription-status]
+verify_jwt = false
