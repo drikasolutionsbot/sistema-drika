@@ -10,22 +10,45 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTenant } from "@/contexts/TenantContext";
 import EmbedBuilder from "@/components/customization/EmbedBuilder";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
+
+interface BotConfig {
+  bot_status: string;
+  bot_status_interval: string;
+  bot_prefix: string;
+}
+
+const defaultBotConfig: BotConfig = {
+  bot_status: "/panel",
+  bot_status_interval: "30",
+  bot_prefix: "d!",
+};
 
 const CustomizationPage = () => {
   const { tenant, tenantId, refetch } = useTenant();
-  const [status, setStatus] = useState("");
-  const [interval, setStatusInterval] = useState("30");
-  const [prefix, setPrefix] = useState("d!");
+
+  const [serverBotConfig, setServerBotConfig] = useState<BotConfig>(defaultBotConfig);
+  const [botConfigLoaded, setBotConfigLoaded] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [botOnline, setBotOnline] = useState<boolean | null>(null);
   const [checkingBot, setCheckingBot] = useState(false);
   const [guildInfo, setGuildInfo] = useState<{ name: string; member_count: number; presence_count: number; icon: string | null } | null>(null);
 
+  const { draft: botConfig, setDraft: setBotConfig, clearDraft } = useLocalDraft<BotConfig>(
+    "customization-bot",
+    tenantId,
+    serverBotConfig,
+    botConfigLoaded
+  );
+
   useEffect(() => {
     if (tenant) {
-      setStatus((tenant as any).bot_status || "/panel");
-      setStatusInterval(String((tenant as any).bot_status_interval || 30));
-      setPrefix((tenant as any).bot_prefix || "d!");
+      setServerBotConfig({
+        bot_status: (tenant as any).bot_status || "/panel",
+        bot_status_interval: String((tenant as any).bot_status_interval || 30),
+        bot_prefix: (tenant as any).bot_prefix || "d!",
+      });
+      setBotConfigLoaded(true);
     }
   }, [tenant]);
 
@@ -70,9 +93,14 @@ const CustomizationPage = () => {
         { event: "UPDATE", schema: "public", table: "tenants", filter: `id=eq.${tenantId}` },
         (payload) => {
           const row = payload.new as any;
-          setStatus(row.bot_status || "/panel");
-          setStatusInterval(String(row.bot_status_interval || 30));
-          setPrefix(row.bot_prefix || "d!");
+          const updated: BotConfig = {
+            bot_status: row.bot_status || "/panel",
+            bot_status_interval: String(row.bot_status_interval || 30),
+            bot_prefix: row.bot_prefix || "d!",
+          };
+          setServerBotConfig(updated);
+          setBotConfig(updated);
+          clearDraft();
           refetch();
           toast.info("🔄 Configurações atualizadas em tempo real");
         }
@@ -98,14 +126,15 @@ const CustomizationPage = () => {
         body: {
           tenant_id: tenantId,
           updates: {
-            bot_status: status,
-            bot_status_interval: parseInt(interval) || 30,
-            bot_prefix: prefix,
+            bot_status: botConfig.bot_status,
+            bot_status_interval: parseInt(botConfig.bot_status_interval) || 30,
+            bot_prefix: botConfig.bot_prefix,
           },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      clearDraft();
       toast.success("Configurações salvas e sincronizadas!");
       refetch();
     } catch (err: any) {
@@ -226,22 +255,22 @@ const CustomizationPage = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Status (um por linha)</label>
                 <Textarea
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+                  value={botConfig.bot_status}
+                  onChange={(e) => setBotConfig(prev => ({ ...prev, bot_status: e.target.value }))}
                   rows={4}
                   className="bg-background border-border resize-none font-mono text-sm"
                   placeholder={"/panel\nDrika Solutions\nOnline"}
                 />
                 <p className="text-xs text-muted-foreground">
-                  O bot alternará entre esses status a cada <strong>{interval}s</strong>.
+                  O bot alternará entre esses status a cada <strong>{botConfig.bot_status_interval}s</strong>.
                 </p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Intervalo de Status (segundos)</label>
                 <Input
                   type="number"
-                  value={interval}
-                  onChange={(e) => setStatusInterval(e.target.value)}
+                  value={botConfig.bot_status_interval}
+                  onChange={(e) => setBotConfig(prev => ({ ...prev, bot_status_interval: e.target.value }))}
                   className="bg-background border-border font-mono"
                   min={10}
                 />
@@ -305,12 +334,12 @@ const CustomizationPage = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Prefixo do Bot</label>
                   <Input
-                    value={prefix}
-                    onChange={(e) => setPrefix(e.target.value)}
+                    value={botConfig.bot_prefix}
+                    onChange={(e) => setBotConfig(prev => ({ ...prev, bot_prefix: e.target.value }))}
                     className="bg-background border-border font-mono"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Exemplo: <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono">{prefix}help</code>
+                    Exemplo: <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono">{botConfig.bot_prefix}help</code>
                   </p>
                 </div>
               </Card>

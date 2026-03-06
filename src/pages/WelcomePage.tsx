@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
 import {
   HandMetal, Send, MessageSquare, UserPlus, LogOut, Hash, Settings2, Eye, Save,
   RefreshCw, Plus, ToggleLeft, ToggleRight, Sparkles, Shield, Bot
@@ -110,7 +111,7 @@ const defaultConfig: WelcomeConfig = {
 
 const WelcomePage = () => {
   const { tenantId } = useTenant();
-  const [config, setConfig] = useState<WelcomeConfig>(defaultConfig);
+  const [serverConfig, setServerConfig] = useState<WelcomeConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -119,6 +120,13 @@ const WelcomePage = () => {
   const [roles, setRoles] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("welcome");
   const [previewTab, setPreviewTab] = useState<"welcome" | "dm" | "goodbye">("welcome");
+
+  const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<WelcomeConfig>(
+    "welcome",
+    tenantId,
+    serverConfig,
+    !loading
+  );
 
   const fetchConfig = useCallback(async () => {
     if (!tenantId) return;
@@ -129,7 +137,7 @@ const WelcomePage = () => {
       });
       if (error) throw error;
       if (data) {
-        setConfig({
+        setServerConfig({
           enabled: data.enabled ?? false,
           channel_enabled: data.channel_enabled ?? true,
           channel_id: data.channel_id ?? "",
@@ -197,6 +205,7 @@ const WelcomePage = () => {
         body: { action: "upsert", tenant_id: tenantId, config },
       });
       if (error) throw error;
+      clearDraft();
       toast.success("Configurações salvas com sucesso!");
     } catch (e: any) {
       toast.error(e.message || "Erro ao salvar");
