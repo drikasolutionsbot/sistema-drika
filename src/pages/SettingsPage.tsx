@@ -483,76 +483,7 @@ const SettingsPage = () => {
 
         {/* Plan Tab */}
         <TabsContent value="plan">
-          <div className="wallet-section">
-            <div className="wallet-section-header mb-5">
-              <div className="wallet-section-icon">
-                <Sparkles className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-foreground font-display font-semibold text-sm">Plano Atual</h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Detalhes da sua assinatura</p>
-              </div>
-            </div>
-
-            {/* Plan info card */}
-            <div className="rounded-xl bg-muted/50 border border-border p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xl font-bold text-gradient-pink capitalize">
-                    {tenant.plan === "pro" ? "Pro" : tenant.plan === "expired" ? "Expirado" : "Free (Trial)"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">Plano ativo</p>
-                </div>
-                <span className={`wallet-tx-badge ${tenant.plan === "expired" || (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) ? "failed" : "completed"}`}>
-                  {tenant.plan === "expired" || (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) ? "Expirado" : "Ativo"}
-                </span>
-              </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                {tenant.plan_started_at && (
-                  <div className="rounded-lg bg-muted/50 border border-border p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Início</p>
-                    <p className="text-sm font-medium text-foreground mt-1">
-                      {new Date(tenant.plan_started_at).toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                )}
-                {tenant.plan_expires_at && (
-                  <div className="rounded-lg bg-muted/50 border border-border p-3">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Expira em</p>
-                    <p className={`text-sm font-medium mt-1 ${new Date(tenant.plan_expires_at) < new Date() ? "text-destructive" : "text-emerald-400"}`}>
-                      {new Date(tenant.plan_expires_at).toLocaleDateString("pt-BR")}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                      {(() => {
-                        const diff = Math.ceil((new Date(tenant.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                        if (diff < 0) return `Expirou há ${Math.abs(diff)} dia(s)`;
-                        if (diff === 0) return "Expira hoje";
-                        return `Faltam ${diff} dia(s)`;
-                      })()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
-                <p className="text-lg font-bold text-foreground">∞</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Produtos</p>
-              </div>
-              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
-                <p className="text-lg font-bold text-foreground">∞</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Vendas</p>
-              </div>
-              <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
-                <p className="text-lg font-bold text-foreground">24/7</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Suporte</p>
-              </div>
-            </div>
-          </div>
+          <PlanTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
         </TabsContent>
 
       </Tabs>
