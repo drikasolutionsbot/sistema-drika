@@ -21,10 +21,10 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get admin PushinPay config from landing_config
+    // Get admin Efí config from landing_config
     const { data: config, error: configErr } = await supabase
       .from("landing_config")
-      .select("pushinpay_api_key, pushinpay_active, pro_price_cents")
+      .select("efi_client_id, efi_client_secret, efi_active, efi_pix_key, pro_price_cents")
       .limit(1)
       .single();
 
@@ -32,55 +32,93 @@ serve(async (req) => {
       throw new Error("Configuração de pagamento não encontrada");
     }
 
-    if (!config.pushinpay_api_key || !config.pushinpay_active) {
-      throw new Error("PushinPay não configurado. A dona precisa configurar no painel admin.");
+    if (!config.efi_client_id || !config.efi_client_secret || !config.efi_active) {
+      throw new Error("Efí não configurado. Configure no painel admin.");
     }
 
     const amountCents = config.pro_price_cents || 2690;
+    const amountBRL = amountCents / 100;
     const webhookUrl = `${supabaseUrl}/functions/v1/subscription-webhook`;
+    const txId = `SUB${Date.now()}`;
 
-    // Generate PIX via PushinPay
-    const res = await fetch("https://api.pushinpay.com.br/api/pix/cashIn", {
+    // Step 1: Get OAuth token
+    const credentials = btoa(`${config.efi_client_id}:${config.efi_client_secret}`);
+    const tokenRes = await fetch("https://pix.api.efipay.com.br/oauth/token", {
       method: "POST",
       headers: {
+        Authorization: `Basic ${credentials}`,
         "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${config.pushinpay_api_key}`,
+      },
+      body: JSON.stringify({ grant_type: "client_credentials" }),
+    });
+
+    if (!tokenRes.ok) {
+      const tokenErr = await tokenRes.text();
+      console.error("Efí OAuth error:", tokenErr);
+      throw new Error(`Erro de autenticação Efí: ${tokenRes.status}`);
+    }
+
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+
+    // Step 2: Create immediate charge (cob)
+    const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${txId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        value: amountCents,
-        webhook_url: webhookUrl,
+        calendario: { expiracao: 3600 },
+        valor: { original: amountBRL.toFixed(2) },
+        chave: config.efi_pix_key || "",
+        infoAdicionais: [{ nome: "Plano", valor: "Pro - Drika Hub" }],
       }),
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error("PushinPay error:", JSON.stringify(err));
-      throw new Error(err.message || `PushinPay error: ${res.status}`);
+    if (!cobRes.ok) {
+      const cobErr = await cobRes.json().catch(() => ({}));
+      console.error("Efí cob error:", JSON.stringify(cobErr));
+      throw new Error(cobErr.mensagem || `Erro ao criar cobrança: ${cobRes.status}`);
     }
 
-    const data = await res.json();
-    const paymentId = data.id;
-    const brcode = data.qr_code || "";
+    const cobData = await cobRes.json();
+    let brcode = cobData.pixCopiaECola || "";
+    let qrCodeBase64: string | null = null;
+
+    // Step 3: Get QR Code
+    const locId = cobData.loc?.id;
+    if (locId) {
+      const qrRes = await fetch(`https://pix.api.efipay.com.br/v2/loc/${locId}/qrcode`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (qrRes.ok) {
+        const qrData = await qrRes.json();
+        brcode = qrData.qrcode || brcode;
+        qrCodeBase64 = qrData.imagemQrcode || null;
+      }
+    }
+
+    const paymentId = cobData.txid || txId;
 
     // Create a subscription_payment record
     await supabase.from("subscription_payments").insert({
       tenant_id,
       plan: "pro",
       amount_cents: amountCents,
-      payment_provider: "pushinpay",
+      payment_provider: "efi",
       payment_id: paymentId,
       payer_email: email || null,
       status: "pending",
     });
 
-    console.log(`Subscription PIX generated for tenant ${tenant_id}, payment ${paymentId}`);
+    console.log(`Subscription PIX generated via Efí for tenant ${tenant_id}, txid ${paymentId}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         brcode,
-        qr_code_base64: data.qr_code_base64 || null,
+        qr_code_base64: qrCodeBase64,
         payment_id: paymentId,
         amount_cents: amountCents,
       }),

@@ -14,89 +14,56 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const paymentId = body?.id || body?.payment_id;
-    const status = body?.status;
-
     console.log("Subscription webhook received:", JSON.stringify(body));
-
-    if (!paymentId) {
-      return new Response(JSON.stringify({ success: true, ignored: true, reason: "No payment ID" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Find the subscription payment by payment_id
-    const { data: subPayment, error: subErr } = await supabase
-      .from("subscription_payments")
-      .select("*")
-      .eq("payment_id", String(paymentId))
-      .single();
+    // Efí sends: { pix: [{ txid, valor, horario, endToEndId, ... }] }
+    const pixArray = body?.pix;
+    if (!pixArray || !Array.isArray(pixArray) || pixArray.length === 0) {
+      // Fallback: try legacy PushinPay format
+      const paymentId = body?.id || body?.payment_id;
+      if (!paymentId) {
+        return new Response(JSON.stringify({ success: true, ignored: true, reason: "No PIX data" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
-    if (subErr || !subPayment) {
-      console.log("No matching subscription_payment for payment_id:", paymentId);
-      return new Response(JSON.stringify({ success: true, ignored: true, reason: "No matching subscription" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Legacy lookup by payment_id
+      return await processByPaymentId(supabase, String(paymentId));
     }
 
-    // Check if already processed
-    if (subPayment.status === "paid") {
-      console.log("Already processed:", paymentId);
-      return new Response(JSON.stringify({ success: true, already_processed: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Process Efí PIX notifications
+    for (const pix of pixArray) {
+      const txid = pix.txid;
+      if (!txid) continue;
+
+      // Find subscription by payment_id (txid)
+      const { data: subPayment, error: subErr } = await supabase
+        .from("subscription_payments")
+        .select("*")
+        .eq("payment_id", txid)
+        .single();
+
+      if (subErr || !subPayment) {
+        console.log("No matching subscription for txid:", txid);
+        continue;
+      }
+
+      if (subPayment.status === "paid") {
+        console.log("Already processed:", txid);
+        continue;
+      }
+
+      await activateSubscription(supabase, subPayment);
+      console.log(`Efí PIX confirmed for tenant ${subPayment.tenant_id}, txid ${txid}`);
     }
 
-    // Check admin config for auto_activate
-    const { data: config } = await supabase
-      .from("landing_config")
-      .select("auto_activate_plan")
-      .limit(1)
-      .single();
-
-    const autoActivate = config?.auto_activate_plan !== false;
-
-    // Mark as paid
-    const now = new Date();
-    const periodEnd = new Date(now);
-    periodEnd.setDate(periodEnd.getDate() + 30); // 30 days
-
-    await supabase
-      .from("subscription_payments")
-      .update({
-        status: "paid",
-        paid_at: now.toISOString(),
-        period_start: now.toISOString(),
-        period_end: periodEnd.toISOString(),
-        updated_at: now.toISOString(),
-      })
-      .eq("id", subPayment.id);
-
-    // Activate the tenant's plan only if auto_activate is enabled
-    if (autoActivate) {
-      await supabase
-        .from("tenants")
-        .update({
-          plan: "pro",
-          plan_started_at: now.toISOString(),
-          plan_expires_at: periodEnd.toISOString(),
-          updated_at: now.toISOString(),
-        })
-        .eq("id", subPayment.tenant_id);
-
-      console.log(`Subscription activated for tenant ${subPayment.tenant_id} until ${periodEnd.toISOString()}`);
-    } else {
-      console.log(`Payment recorded for tenant ${subPayment.tenant_id} but auto-activate is disabled`);
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, tenant_id: subPayment.tenant_id, plan: "pro", expires_at: periodEnd.toISOString() }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("subscription-webhook error:", message);
@@ -106,3 +73,69 @@ serve(async (req) => {
     });
   }
 });
+
+async function processByPaymentId(supabase: any, paymentId: string) {
+  const { data: subPayment, error: subErr } = await supabase
+    .from("subscription_payments")
+    .select("*")
+    .eq("payment_id", paymentId)
+    .single();
+
+  if (subErr || !subPayment) {
+    return new Response(JSON.stringify({ success: true, ignored: true, reason: "No matching subscription" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (subPayment.status === "paid") {
+    return new Response(JSON.stringify({ success: true, already_processed: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  await activateSubscription(supabase, subPayment);
+
+  return new Response(
+    JSON.stringify({ success: true, tenant_id: subPayment.tenant_id, plan: "pro" }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+async function activateSubscription(supabase: any, subPayment: any) {
+  const { data: config } = await supabase
+    .from("landing_config")
+    .select("auto_activate_plan")
+    .limit(1)
+    .single();
+
+  const autoActivate = config?.auto_activate_plan !== false;
+
+  const now = new Date();
+  const periodEnd = new Date(now);
+  periodEnd.setDate(periodEnd.getDate() + 30);
+
+  await supabase
+    .from("subscription_payments")
+    .update({
+      status: "paid",
+      paid_at: now.toISOString(),
+      period_start: now.toISOString(),
+      period_end: periodEnd.toISOString(),
+      updated_at: now.toISOString(),
+    })
+    .eq("id", subPayment.id);
+
+  if (autoActivate) {
+    await supabase
+      .from("tenants")
+      .update({
+        plan: "pro",
+        plan_started_at: now.toISOString(),
+        plan_expires_at: periodEnd.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq("id", subPayment.tenant_id);
+
+    console.log(`Subscription activated for tenant ${subPayment.tenant_id} until ${periodEnd.toISOString()}`);
+  }
+}
