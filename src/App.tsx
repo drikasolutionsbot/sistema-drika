@@ -19,6 +19,7 @@ import AdminLandingConfigPage from "./pages/admin/AdminLandingConfigPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import AdminAuditLogsPage from "./pages/admin/AdminAuditLogsPage";
 import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
+import AdminTutorialsPage from "./pages/admin/AdminTutorialsPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import StorePage from "./pages/StorePage";
@@ -43,6 +44,7 @@ import TermsPage from "./pages/TermsPage";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 import AIAssistantPage from "./pages/AIAssistantPage";
+import TutorialsPage from "./pages/TutorialsPage";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +84,7 @@ const AppRoutes = () => (
       <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
       <Route path="/admin/logs" element={<AdminAuditLogsPage />} />
       <Route path="/admin/permissoes" element={<AdminPermissionsPage />} />
+      <Route path="/admin/tutoriais" element={<AdminTutorialsPage />} />
     </Route>
 
     {/* Dashboard routes */}
@@ -106,6 +109,7 @@ const AppRoutes = () => (
       <Route path="/verification" element={<VerificationPage />} />
       <Route path="/ecloud" element={<ECloudPage />} />
       <Route path="/support" element={<SupportPage />} />
+      <Route path="/tutorials" element={<TutorialsPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

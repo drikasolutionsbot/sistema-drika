@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
-  ChevronLeft, ChevronRight, ClipboardCheck, UserCheck, Sparkles,
+  ChevronLeft, ChevronRight, ClipboardCheck, UserCheck, Sparkles, BookOpen,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -51,6 +51,7 @@ const navGroups = [
 ];
 
 const bottomItems = [
+  { label: "Tutoriais", icon: BookOpen, path: "/tutorials" },
   { label: "Suporte", icon: Headset, path: "/support" },
   { label: "Configurações", icon: Settings, path: "/settings" },
 ];

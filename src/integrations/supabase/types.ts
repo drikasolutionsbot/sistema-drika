@@ -1661,6 +1661,42 @@ export type Database = {
           },
         ]
       }
+      tutorials: {
+        Row: {
+          active: boolean
+          cover_url: string | null
+          created_at: string
+          id: string
+          sort_order: number | null
+          title: string
+          updated_at: string
+          video_type: string
+          video_url: string | null
+        }
+        Insert: {
+          active?: boolean
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          sort_order?: number | null
+          title: string
+          updated_at?: string
+          video_type?: string
+          video_url?: string | null
+        }
+        Update: {
+          active?: boolean
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          sort_order?: number | null
+          title?: string
+          updated_at?: string
+          video_type?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
