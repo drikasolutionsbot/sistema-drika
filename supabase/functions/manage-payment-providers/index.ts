@@ -62,15 +62,21 @@ serve(async (req) => {
           .eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("payment_providers")
-          .insert({
+        const insertData: any = {
             tenant_id,
             provider_key,
             api_key_encrypted: api_key,
             secret_key_encrypted: secret_key || null,
             active: true,
-          });
+          };
+          if (provider_key === "efi") {
+            insertData.efi_cert_pem = efi_cert_pem || null;
+            insertData.efi_key_pem = efi_key_pem || null;
+            insertData.efi_pix_key = efi_pix_key || null;
+          }
+          const { error } = await supabase
+          .from("payment_providers")
+          .insert(insertData);
         if (error) throw error;
       }
 
