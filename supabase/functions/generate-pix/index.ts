@@ -276,7 +276,7 @@ serve(async (req) => {
     // 1. Check for active payment provider (all supported providers)
     const { data: providers } = await supabase
       .from("payment_providers")
-      .select("provider_key, api_key_encrypted, secret_key_encrypted, active")
+      .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
       .eq("tenant_id", tenant_id)
       .eq("active", true);
 
