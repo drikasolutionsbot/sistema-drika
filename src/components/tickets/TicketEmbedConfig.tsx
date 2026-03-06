@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, Palette, Type, Image, MessageSquare } from "lucide-react";
 import ImageUploadField from "@/components/customization/ImageUploadField";
+import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -33,14 +34,42 @@ const defaults: TicketEmbedData = {
 };
 
 const TicketEmbedConfig = () => {
-  const { tenantId } = useTenant();
+  const { tenantId, tenant } = useTenant();
   const [data, setData] = useState<TicketEmbedData>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [channels, setChannels] = useState<{ id: string; name: string; parent_id?: string | null }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; position: number }[]>([]);
+
+  const guildId = tenant?.discord_guild_id || null;
+
+  const fetchChannels = useCallback(async () => {
+    if (!guildId) return;
+    try {
+      const { data: res } = await supabase.functions.invoke("discord-channels", {
+        body: { guild_id: guildId },
+      });
+      if (res?.channels) {
+        const cats = res.channels
+          .filter((c: any) => c.type === 4)
+          .map((c: any) => ({ id: c.id, name: c.name, position: c.position }))
+          .sort((a: any, b: any) => a.position - b.position);
+        const textChannels = res.channels
+          .filter((c: any) => c.type === 0 || c.type === 5)
+          .map((c: any) => ({ id: c.id, name: c.name, parent_id: c.parent_id }));
+        setCategories(cats);
+        setChannels(textChannels);
+      }
+    } catch {}
+  }, [guildId]);
+
+  useEffect(() => {
+    fetchChannels();
+  }, [fetchChannels]);
 
   useEffect(() => {
     if (!tenantId) return;
-    const fetch = async () => {
+    const load = async () => {
       const { data: config } = await supabase
         .from("store_configs")
         .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_channel_id")
@@ -60,7 +89,7 @@ const TicketEmbedConfig = () => {
       }
       setLoading(false);
     };
-    fetch();
+    load();
   }, [tenantId]);
 
   const handleSave = async () => {
@@ -194,13 +223,20 @@ const TicketEmbedConfig = () => {
               folder="ticket-embeds"
             />
             <div className="space-y-2">
-              <Label>ID do Canal de Tickets</Label>
-              <Input
+              <Label>Categoria/Canal de Tickets</Label>
+              <ChannelSelectWithCreate
                 value={data.ticket_channel_id}
-                onChange={(e) => update("ticket_channel_id", e.target.value)}
-                placeholder="ID do canal do Discord"
-                className="font-mono"
+                onChange={(val) => update("ticket_channel_id", val)}
+                channels={channels}
+                categories={categories}
+                onChannelCreated={fetchChannels}
+                tenantId={tenantId}
+                guildId={guildId}
+                placeholder="Selecione a categoria de tickets"
               />
+              <p className="text-xs text-muted-foreground">
+                Os tickets criados serão organizados dentro desta categoria/canal
+              </p>
             </div>
           </CardContent>
         </Card>
