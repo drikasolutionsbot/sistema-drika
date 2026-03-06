@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Sparkles, Crown, Loader2, Copy, Check, ExternalLink } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Sparkles, Crown, Loader2, Copy, Check, ExternalLink, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -11,11 +11,15 @@ interface Props {
   refetchTenant: () => void;
 }
 
+const PIX_EXPIRATION_SECONDS = 15 * 60; // 15 minutes
+
 const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [loading, setLoading] = useState(false);
   const [pixCode, setPixCode] = useState<string | null>(null);
   const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [pixExpired, setPixExpired] = useState(false);
 
   const isExpired = tenant.plan === "expired" || (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date());
   const isFree = tenant.plan === "free" || !tenant.plan;
@@ -31,11 +35,35 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       if (error || data?.error) throw new Error(data?.error || error?.message || "Erro ao gerar PIX");
       setPixCode(data.brcode || data.qr_code || "");
       setQrCodeBase64(data.qr_code_base64 || null);
+      setSecondsLeft(PIX_EXPIRATION_SECONDS);
+      setPixExpired(false);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Timer countdown
+  useEffect(() => {
+    if (!pixCode || secondsLeft <= 0) return;
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          setPixExpired(true);
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pixCode, secondsLeft > 0]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
   };
 
   const handleCopy = () => {
@@ -118,8 +146,17 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             <p className="text-3xl font-extrabold text-foreground">R$ 26,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
           </div>
 
-          {pixCode ? (
+          {pixCode && !pixExpired ? (
             <div className="space-y-3">
+              {/* Timer */}
+              <div className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 ${
+                secondsLeft <= 120 ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-400"
+              }`}>
+                <Clock className="h-4 w-4" />
+                <span className="text-sm font-mono font-semibold">{formatTime(secondsLeft)}</span>
+                <span className="text-xs">para pagar</span>
+              </div>
+
               {qrCodeBase64 && (
                 <div className="flex justify-center">
                   <img
@@ -152,6 +189,22 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   Já paguei — verificar status
                 </Button>
               </div>
+            </div>
+          ) : pixExpired ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 rounded-lg py-3 px-3 bg-destructive/10 text-destructive">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm font-semibold">PIX expirado</span>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">O tempo para pagamento acabou. Gere um novo código.</p>
+              <Button
+                onClick={handleUpgrade}
+                disabled={loading}
+                className="w-full h-11 rounded-full gradient-pink text-primary-foreground border-none hover:opacity-90"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
+                Gerar novo PIX
+              </Button>
             </div>
           ) : (
             <Button
