@@ -141,7 +141,7 @@ const StorePage = () => {
 
         <TabsContent value="products" className="mt-4">
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] min-h-[600px]">
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] min-h-[400px] lg:min-h-[600px]">
               {/* Left: Product list */}
               <ProductList
                 products={products}

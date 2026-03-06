@@ -273,17 +273,17 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="lg:hidden">
+    <header className="flex h-14 md:h-16 items-center justify-between border-b border-border bg-card px-3 md:px-6">
+      <div className="flex items-center gap-2 md:gap-4">
+        <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="lg:hidden shrink-0">
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="relative hidden sm:block">
+        <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Buscar..." className="w-64 bg-muted pl-9 border-none focus-visible:ring-primary" />
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 md:gap-3">
         {/* Plan Badge */}
         {tenant && <PlanBadge tenant={tenant} />}
         {/* Wallet */}

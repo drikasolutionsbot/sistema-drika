@@ -440,10 +440,10 @@ const AdminClientsPage = () => {
                   <div key={tenant.id} className={`rounded-lg border overflow-hidden ${isExpired ? "border-destructive/50 bg-destructive/5" : "border-border"}`}>
                     {/* Tenant row */}
                     <div
-                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between px-3 sm:px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
                       onClick={() => toggleExpand(tenant.id)}
                     >
-                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-foreground">{tenant.name}</p>
@@ -487,7 +487,7 @@ const AdminClientsPage = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                         {editingPlan === tenant.id ? (
                           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Select
