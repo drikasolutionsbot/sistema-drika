@@ -18,73 +18,73 @@ div[style*="Edit with Lovable"],
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 20% 10%;
+    --background: 0 0% 96%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 0 0% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
-    --primary: 217 91% 60%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 330 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 199 89% 48%;
+    --secondary: 330 60% 40%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 14% 90%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 217 80% 55%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 330 80% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 87%;
-    --input: 220 13% 87%;
-    --ring: 217 91% 60%;
+    --border: 0 0% 87%;
+    --input: 0 0% 87%;
+    --ring: 330 100% 50%;
     --radius: 0.75rem;
-    --sidebar-background: 220 20% 97%;
-    --sidebar-foreground: 220 10% 30%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 0 0% 96%;
+    --sidebar-foreground: 0 0% 25%;
+    --sidebar-primary: 330 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 60% 95%;
-    --sidebar-accent-foreground: 217 80% 40%;
-    --sidebar-border: 220 13% 90%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 330 60% 95%;
+    --sidebar-accent-foreground: 330 80% 35%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 330 100% 50%;
   }
 
   .dark {
-    --background: 225 25% 7%;
-    --foreground: 220 15% 93%;
-    --card: 225 22% 10%;
-    --card-foreground: 220 15% 93%;
-    --popover: 225 22% 10%;
-    --popover-foreground: 220 15% 93%;
-    --primary: 217 91% 60%;
+    --background: 0 0% 5%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 93%;
+    --primary: 330 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 199 89% 48%;
+    --secondary: 330 60% 40%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 225 18% 15%;
-    --muted-foreground: 220 12% 65%;
-    --accent: 217 80% 55%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 330 80% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 225 14% 20%;
-    --input: 225 16% 16%;
-    --ring: 217 91% 60%;
-    --sidebar-background: 225 30% 6%;
-    --sidebar-foreground: 220 12% 75%;
-    --sidebar-primary: 217 91% 60%;
+    --border: 0 0% 18%;
+    --input: 0 0% 14%;
+    --ring: 330 100% 50%;
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 0 0% 70%;
+    --sidebar-primary: 330 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 22% 14%;
-    --sidebar-accent-foreground: 217 91% 60%;
-    --sidebar-border: 225 14% 16%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 330 100% 50%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 330 100% 50%;
 
-    --gold: 199 89% 48%;
+    --gold: 45 100% 50%;
     --gold-foreground: 0 0% 100%;
-    --surface: 225 22% 12%;
-    --surface-hover: 225 22% 16%;
-    --gradient-pink: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
-    --gradient-gold: linear-gradient(135deg, hsl(199 89% 48%), hsl(210 80% 45%));
-    --gradient-dark: linear-gradient(180deg, hsl(225 30% 6%), hsl(225 25% 10%));
-    --shadow-glow: 0 0 30px hsl(217 91% 60% / 0.15);
+    --surface: 0 0% 10%;
+    --surface-hover: 0 0% 14%;
+    --gradient-pink: linear-gradient(135deg, hsl(330 100% 50%), hsl(340 90% 60%));
+    --gradient-gold: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 100% 45%));
+    --gradient-dark: linear-gradient(180deg, hsl(0 0% 4%), hsl(0 0% 8%));
+    --shadow-glow: 0 0 30px hsl(330 100% 50% / 0.15);
   }
 }
 
@@ -102,31 +102,31 @@ div[style*="Edit with Lovable"],
 
 @layer utilities {
   .gradient-pink {
-    background: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
+    background: linear-gradient(135deg, hsl(330 100% 50%), hsl(340 90% 60%));
   }
   .gradient-gold {
-    background: linear-gradient(135deg, hsl(199 89% 48%), hsl(210 80% 45%));
+    background: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 100% 45%));
   }
   .gradient-dark-card {
-    background: linear-gradient(145deg, hsl(225 25% 13%), hsl(225 30% 10%));
+    background: linear-gradient(145deg, hsl(0 0% 10%), hsl(0 0% 7%));
   }
   .text-gradient-pink {
-    background: linear-gradient(135deg, hsl(217 91% 60%), hsl(199 89% 48%));
+    background: linear-gradient(135deg, hsl(330 100% 50%), hsl(340 90% 60%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .text-gradient-gold {
-    background: linear-gradient(135deg, hsl(199 89% 48%), hsl(210 80% 45%));
+    background: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 100% 45%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .glow-pink {
-    box-shadow: 0 0 20px hsl(217 91% 60% / 0.2), 0 0 60px hsl(217 91% 60% / 0.1);
+    box-shadow: 0 0 20px hsl(330 100% 50% / 0.2), 0 0 60px hsl(330 100% 50% / 0.1);
   }
   .glow-gold {
-    box-shadow: 0 0 20px hsl(199 89% 48% / 0.2), 0 0 60px hsl(199 89% 48% / 0.1);
+    box-shadow: 0 0 20px hsl(45 100% 50% / 0.2), 0 0 60px hsl(45 100% 50% / 0.1);
   }
 }
 
@@ -163,7 +163,7 @@ div[style*="Edit with Lovable"],
 .login-pattern-bg {
   --sz: 15px;
   --c0: #000;
-  --c1: #1d4ed8;
+  --c1: #1a0a12;
   --ts: 50% / calc(var(--sz) * 8) calc(var(--sz) * 16);
   --dot: var(--c1) 0 calc(var(--sz) * 0.78), #fff0 calc(calc(var(--sz) * 0.78) + 1px) 100%;
   --dot2: radial-gradient(circle at 90% 0%, var(--dot)) var(--ts),
@@ -211,13 +211,13 @@ div[style*="Edit with Lovable"],
   }
 
 .admin-pattern-bg {
-  background-color: hsl(225 25% 8%);
+  background-color: hsl(0 0% 6%);
   background-image: repeating-radial-gradient(
       circle at 0 0,
       transparent 0,
-      hsl(225 25% 8%) 30px
+      hsl(0 0% 6%) 30px
     ),
-    repeating-linear-gradient(hsl(217 91% 60% / 0.15), hsl(217 80% 55% / 0.1));
+    repeating-linear-gradient(hsl(330 100% 50% / 0.08), hsl(330 80% 45% / 0.05));
 }
 
 .landing-pattern-bg {
