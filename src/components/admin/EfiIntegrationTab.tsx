@@ -81,6 +81,24 @@ const EfiIntegrationTab = () => {
     toast.success("URL do webhook copiada!");
   };
 
+  const handleToggleActive = async (checked: boolean) => {
+    if (!configId) return;
+    setTogglingActive(true);
+    try {
+      const { error } = await supabase
+        .from("landing_config")
+        .update({ efi_active: checked, updated_at: new Date().toISOString() } as any)
+        .eq("id", configId);
+      if (error) throw error;
+      setIsConnected(checked);
+      toast.success(checked ? "Efí ativado!" : "Efí desativado!");
+    } catch {
+      toast.error("Erro ao alterar status");
+    } finally {
+      setTogglingActive(false);
+    }
+  };
+
   const handleP12Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

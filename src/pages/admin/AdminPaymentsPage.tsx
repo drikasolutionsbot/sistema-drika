@@ -1,14 +1,15 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plug } from "lucide-react";
+import { CreditCard, Plug, Zap } from "lucide-react";
 import SubscriptionPaymentsTab from "@/components/admin/SubscriptionPaymentsTab";
 import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
+import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
 
 const AdminPaymentsPage = () => {
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Assinaturas</h1>
-        <p className="text-muted-foreground">Pagamentos de assinatura e integração com Efí</p>
+        <p className="text-muted-foreground">Pagamentos de assinatura e integração com provedores PIX</p>
       </div>
 
       <Tabs defaultValue="payments" className="space-y-6">
@@ -17,9 +18,13 @@ const AdminPaymentsPage = () => {
             <CreditCard className="h-4 w-4" />
             Pagamentos
           </TabsTrigger>
-          <TabsTrigger value="integration" className="gap-2">
+          <TabsTrigger value="efi" className="gap-2">
             <Plug className="h-4 w-4" />
-            Integração Efí
+            Efí
+          </TabsTrigger>
+          <TabsTrigger value="pushinpay" className="gap-2">
+            <Zap className="h-4 w-4" />
+            PushinPay
           </TabsTrigger>
         </TabsList>
 
@@ -27,8 +32,12 @@ const AdminPaymentsPage = () => {
           <SubscriptionPaymentsTab />
         </TabsContent>
 
-        <TabsContent value="integration">
+        <TabsContent value="efi">
           <EfiIntegrationTab />
+        </TabsContent>
+
+        <TabsContent value="pushinpay">
+          <PushinPayIntegrationTab />
         </TabsContent>
       </Tabs>
     </div>
