@@ -64,6 +64,7 @@ const channelSections = [
       { key: "member_leave", label: "Saída", description: "Membros que saíram", help: "Registra quando um membro sai ou é removido, incluindo cargos que possuía e tempo no servidor." },
       { key: "member_messages", label: "Mensagens", description: "Atividade de mensagens", help: "Registra atividade de mensagens como edições e exclusões de mensagens dos membros." },
       { key: "traffic", label: "Tráfego", description: "Fluxo de membros", help: "Envia resumos periódicos do fluxo de entrada/saída de membros do servidor." },
+      { key: "verification", label: "Verificação", description: "Eventos de verificação", help: "Canal para registrar eventos de verificação de membros e facilitar auditoria do processo." },
     ],
   },
   {
