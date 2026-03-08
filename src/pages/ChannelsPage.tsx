@@ -405,7 +405,7 @@ const ChannelsPage = () => {
             {loadingChannels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Sincronizar
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)} disabled={!guildId}>
+          <Button size="sm" className="gap-2" onClick={() => { setCreateForKey(null); setCreateOpen(true); }} disabled={!guildId}>
             <Plus className="h-4 w-4" /> Criar Canal
           </Button>
         </div>
