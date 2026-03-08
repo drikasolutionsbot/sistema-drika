@@ -12,8 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { tenant_id, channels } = await req.json();
-    // channels: Record<string, string | null>  e.g. { "logs_system": "123456", "logs_commands": null }
+    const { tenant_id, channels, action } = await req.json();
 
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "Missing tenant_id" }), {
@@ -22,6 +21,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // ─── LIST action ───
+    if (action === "list") {
+      const { data, error } = await supabase
+        .from("channel_configs")
+        .select("id, channel_key, discord_channel_id, created_at")
+        .eq("tenant_id", tenant_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return new Response(JSON.stringify(data || []), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // channels: Record<string, string | null>  e.g. { "logs_system": "123456", "logs_commands": null }
     if (!channels || typeof channels !== "object") {
       return new Response(JSON.stringify({ error: "Missing channels object" }), {
         status: 400,
