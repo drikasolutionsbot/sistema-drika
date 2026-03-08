@@ -354,10 +354,6 @@ const VerificationPage = () => {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file || !tenantId) return;
-                        if (file.size > 5 * 1024 * 1024) {
-                          toast({ title: "Arquivo muito grande", description: "Máximo 5MB", variant: "destructive" });
-                          return;
-                        }
                         setUploading(true);
                         try {
                           const ext = file.name.split(".").pop() || "png";
@@ -394,7 +390,7 @@ const VerificationPage = () => {
                       className="flex-1 text-xs"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Envie uma imagem ou cole uma URL. Máx 5MB.</p>
+                  <p className="text-[11px] text-muted-foreground">Envie uma imagem ou cole uma URL.</p>
                 </div>
               </div>
             </CardContent>
