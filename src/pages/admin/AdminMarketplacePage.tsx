@@ -188,7 +188,7 @@ const AdminMarketplacePage = () => {
     }
   };
 
-  const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2)}`;
+  const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
   const formatReais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
   const available = items.filter((i) => i.status === "available");
