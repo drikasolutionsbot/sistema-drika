@@ -256,7 +256,11 @@ const MarketplacePage = () => {
 
             {/* Button */}
             <Button
-              onClick={() => navigate("/settings")}
+              onClick={() => {
+                sessionStorage.setItem("pending_pro_upgrade", "true");
+                window.dispatchEvent(new Event("storage"));
+                navigate("/settings");
+              }}
               className="group relative z-10 w-full rounded-xl px-4 py-3.5 text-sm font-bold transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
             >
               Desbloquear Acesso

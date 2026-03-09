@@ -32,12 +32,17 @@ const ProUpgradeModal = () => {
   }, []);
 
   useEffect(() => {
-    const pending = sessionStorage.getItem("pending_pro_upgrade");
-    if (pending === "true" && tenantId) {
-      setOpen(true);
-      sessionStorage.removeItem("pending_pro_upgrade");
-      generatePix();
-    }
+    const checkPending = () => {
+      const pending = sessionStorage.getItem("pending_pro_upgrade");
+      if (pending === "true" && tenantId) {
+        setOpen(true);
+        sessionStorage.removeItem("pending_pro_upgrade");
+        generatePix();
+      }
+    };
+    checkPending();
+    window.addEventListener("storage", checkPending);
+    return () => window.removeEventListener("storage", checkPending);
   }, [tenantId]);
 
   const generatePix = async () => {
