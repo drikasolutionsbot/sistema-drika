@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { Sparkles, Crown, Loader2, Copy, Check, ExternalLink, Clock } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Sparkles, Crown, Loader2, Copy, Check, ExternalLink, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 
 interface Props {
   tenant: any;
@@ -12,6 +11,7 @@ interface Props {
 }
 
 const PIX_EXPIRATION_SECONDS = 15 * 60; // 15 minutes
+const POLL_INTERVAL_MS = 8000; // Poll every 8 seconds
 
 const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [loading, setLoading] = useState(false);
@@ -21,6 +21,10 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [pixExpired, setPixExpired] = useState(false);
   const [proPriceCents, setProPriceCents] = useState(2690);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isExpired = tenant.plan === "expired" || (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date());
   const isFree = tenant.plan === "free" || !tenant.plan;
@@ -33,9 +37,46 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     });
   }, []);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  // Start polling when we have a paymentId
+  const startPolling = useCallback((pid: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+
+    const poll = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("check-subscription-status", {
+          body: { payment_id: pid },
+        });
+        if (error) return;
+        
+        if (data?.status === "paid") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setPaymentConfirmed(true);
+          setPixCode(null);
+          toast({ title: "🎉 Pagamento confirmado!", description: "Seu plano Pro foi ativado com sucesso!" });
+          refetchTenant();
+        }
+      } catch {
+        // Silent fail, will retry
+      }
+    };
+
+    // Immediate first check
+    poll();
+    pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
+  }, [refetchTenant]);
+
   const handleUpgrade = async () => {
     if (!tenantId) return;
     setLoading(true);
+    setPaymentConfirmed(false);
     try {
       const { data, error } = await supabase.functions.invoke("generate-subscription-pix", {
         body: { tenant_id: tenantId },
@@ -45,6 +86,14 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       setQrCodeBase64(data.qr_code_base64 || null);
       setSecondsLeft(PIX_EXPIRATION_SECONDS);
       setPixExpired(false);
+      
+      const pid = data.payment_id;
+      setPaymentId(pid);
+      
+      // Start auto-polling for payment confirmation
+      if (pid) {
+        startPolling(pid);
+      }
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -59,6 +108,11 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           setPixExpired(true);
+          // Stop polling when expired
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
           clearInterval(interval);
           return 0;
         }
@@ -82,6 +136,35 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleManualCheck = async () => {
+    if (!paymentId) {
+      refetchTenant();
+      return;
+    }
+    setCheckingStatus(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-subscription-status", {
+        body: { payment_id: paymentId },
+      });
+      if (error) throw error;
+      
+      if (data?.status === "paid") {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        setPaymentConfirmed(true);
+        setPixCode(null);
+        toast({ title: "🎉 Pagamento confirmado!", description: "Seu plano Pro foi ativado!" });
+        refetchTenant();
+      } else {
+        toast({ title: "Aguardando pagamento", description: "O pagamento ainda não foi identificado. Tente novamente em alguns segundos." });
+      }
+    } catch {
+      toast({ title: "Erro ao verificar", variant: "destructive" });
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
   return (
     <div className="wallet-section">
       <div className="wallet-section-header mb-5">
@@ -93,6 +176,17 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           <p className="text-[11px] text-muted-foreground mt-0.5">Detalhes da sua assinatura</p>
         </div>
       </div>
+
+      {/* Payment confirmed banner */}
+      {paymentConfirmed && (
+        <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 mb-4 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-400">Pagamento confirmado!</p>
+            <p className="text-xs text-muted-foreground">Seu plano Pro está ativo por 30 dias.</p>
+          </div>
+        </div>
+      )}
 
       {/* Plan info card */}
       <div className="rounded-xl bg-muted/50 border border-border p-5 space-y-4">
@@ -190,11 +284,24 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                 {copied ? "Copiado!" : "Copiar Código PIX"}
               </button>
               <div className="flex flex-col items-center gap-2">
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Após o pagamento, seu plano será ativado automaticamente.
-                </p>
-                <Button onClick={() => refetchTenant()} variant="ghost" size="sm" className="text-xs text-muted-foreground">
-                  Já paguei — verificar status
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                  <p className="text-[11px] text-muted-foreground">
+                    Verificando pagamento automaticamente...
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleManualCheck} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs text-muted-foreground"
+                  disabled={checkingStatus}
+                >
+                  {checkingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  Já paguei — verificar agora
                 </Button>
               </div>
             </div>
