@@ -45,6 +45,7 @@ import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 import AIAssistantPage from "./pages/AIAssistantPage";
 import TutorialsPage from "./pages/TutorialsPage";
+import MarketplacePage from "./pages/MarketplacePage";
 import VerifyResultPage from "./pages/VerifyResultPage";
 
 const queryClient = new QueryClient();
