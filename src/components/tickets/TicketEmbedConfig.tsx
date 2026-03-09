@@ -267,6 +267,7 @@ const TicketEmbedConfig = () => {
             Enviar ao Canal
           </Button>
         </div>
+      </div>
 
       {/* Discord Preview */}
       <div className="space-y-3">
