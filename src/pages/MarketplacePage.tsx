@@ -258,7 +258,7 @@ const MarketplacePage = () => {
             <Button
               onClick={() => {
                 sessionStorage.setItem("pending_pro_upgrade", "true");
-                window.dispatchEvent(new Event("storage"));
+                window.dispatchEvent(new Event("pending_pro_upgrade"));
                 navigate("/settings");
               }}
               className="group relative z-10 w-full rounded-xl px-4 py-3.5 text-sm font-bold transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
