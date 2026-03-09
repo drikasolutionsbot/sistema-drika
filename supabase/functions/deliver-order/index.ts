@@ -375,7 +375,78 @@ serve(async (req) => {
       }
     }
 
-    const result = {
+    // 12. Send public sales announcement to sales_channel_id
+    if (storeConfig?.sales_channel_id) {
+      try {
+        const salesEmbedColor = storeConfig?.purchase_embed_color
+          ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16)
+          : 0xFF69B4;
+
+        const salesEmbed: any = {
+          author: {
+            name: tenant?.name || "Loja",
+            icon_url: tenant?.logo_url || undefined,
+          },
+          description: [
+            `**${order.discord_username || order.discord_user_id}**`,
+            "",
+            "🛒 **Compra Realizada!**",
+            "",
+            "**Carrinho**",
+            `1x ${order.product_name}`,
+            "",
+            "**Valor pago**",
+            `R$ ${(order.total_cents / 100).toFixed(2).replace(".", ",")}`,
+          ].join("\n"),
+          color: salesEmbedColor,
+          footer: {
+            text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+            icon_url: tenant?.logo_url || undefined,
+          },
+          timestamp: new Date().toISOString(),
+        };
+
+        if (storeConfig?.purchase_embed_thumbnail_url) {
+          salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
+        }
+
+        if (storeConfig?.purchase_embed_image_url) {
+          salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
+        }
+
+        // Add a "Comprar" button linking to the store
+        const salesPayload: any = {
+          embeds: [salesEmbed],
+          components: [
+            {
+              type: 1, // Action Row
+              components: [
+                {
+                  type: 2, // Button
+                  style: 5, // Link
+                  label: "Comprar",
+                  url: `https://discord.com/channels/${guildId}`,
+                  emoji: { name: "🛒" },
+                },
+              ],
+            },
+          ],
+        };
+
+        await fetch(`${DISCORD_API}/channels/${storeConfig.sales_channel_id}/messages`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(salesPayload),
+        });
+        console.log("Sales announcement sent to channel:", storeConfig.sales_channel_id);
+      } catch (salesErr) {
+        console.error("Failed to send sales announcement:", salesErr);
+      }
+    }
+
       success: true,
       order_id,
       items_delivered: stockItems.length,
