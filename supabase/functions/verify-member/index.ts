@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
 
   const tenantId = url.searchParams.get("tenant_id");
   const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state"); // state = tenant_id (passed through OAuth)
+  const state = url.searchParams.get("state");
 
   const clientId = "1477916070508757092";
   const clientSecret = Deno.env.get("DISCORD_CLIENT_SECRET")!;
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     // Get tenant config
     const { data: tenantData, error: tenantErr } = await supabase
       .from("tenants")
-      .select("verify_enabled, verify_role_id, discord_guild_id, bot_token_encrypted, name, logo_url")
+      .select("verify_enabled, verify_role_id, discord_guild_id, bot_token_encrypted, name, logo_url, verify_logs_channel_id")
       .eq("id", effectiveTenantId)
       .single();
 
@@ -152,6 +152,76 @@ Deno.serve(async (req) => {
       { onConflict: "tenant_id,discord_user_id" }
     );
 
+    // ─── Send verification log to Discord channel ───────────
+    const logsChannelId = tenantData.verify_logs_channel_id;
+    if (logsChannelId && botToken) {
+      try {
+        // Calculate account age in days
+        const snowflake = BigInt(discordUserId);
+        const createdTimestamp = Number((snowflake >> 22n) + 1420070400000n);
+        const accountAgeDays = Math.floor((Date.now() - createdTimestamp) / 86400000);
+
+        // Try to get user's IP from request headers
+        const ip = req.headers.get("cf-connecting-ip") 
+          || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+          || req.headers.get("x-real-ip") 
+          || "N/A";
+
+        const logEmbed = {
+          title: "✅ | Membro verificado",
+          color: 0x57F287,
+          fields: [
+            {
+              name: "👤 Usuário",
+              value: `<@${discordUserId}> (${discordUsername})`,
+              inline: false,
+            },
+            {
+              name: "📅 Conta no Discord",
+              value: `${accountAgeDays} dias no Discord.`,
+              inline: true,
+            },
+            {
+              name: "🔗 IP",
+              value: ip,
+              inline: true,
+            },
+          ],
+          thumbnail: discordAvatar ? { url: discordAvatar } : undefined,
+          timestamp: new Date().toISOString(),
+        };
+
+        const logPayload: any = {
+          embeds: [logEmbed],
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Ver localização",
+                  url: ip !== "N/A" ? `https://ipinfo.io/${ip}` : "https://ipinfo.io",
+                  emoji: { name: "🌐" },
+                },
+              ],
+            },
+          ],
+        };
+
+        await fetch(`${DISCORD_API}/channels/${logsChannelId}/messages`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(logPayload),
+        });
+      } catch (logErr) {
+        console.error("Failed to send verification log:", logErr);
+      }
+    }
+
     const serverName = tenantData.name || "o servidor";
 
     return htmlResponse(
@@ -167,8 +237,6 @@ Deno.serve(async (req) => {
 });
 
 function htmlResponse(title: string, message: string, color: string, logoUrl?: string | null): Response {
-  // NOTE: Supabase Edge Functions gateway forces `Content-Type: text/plain` for direct HTML,
-  // which makes browsers show the source code. So we always redirect to a UI route in the web app.
   const DEFAULT_VERIFY_REDIRECT = "https://drikabotteste.lovable.app/verify/result";
 
   const status = color === "#57F287" ? "success" : color === "#FEE75C" ? "warning" : "error";
@@ -200,4 +268,3 @@ function toPlainText(input: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
-

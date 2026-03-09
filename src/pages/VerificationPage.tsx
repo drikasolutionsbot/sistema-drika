@@ -17,6 +17,7 @@ interface VerifyConfig {
   verify_enabled: boolean;
   verify_role_id: string;
   verify_channel_id: string;
+  verify_logs_channel_id: string;
   verify_title: string;
   verify_description: string;
   verify_button_label: string;
@@ -29,6 +30,7 @@ const defaultConfig: VerifyConfig = {
   verify_enabled: false,
   verify_role_id: "",
   verify_channel_id: "",
+  verify_logs_channel_id: "",
   verify_title: "👑 Verificação",
   verify_description: "Clique no botão abaixo para se verificar em nosso servidor.\nA verificação é necessária para liberar acesso aos canais.",
   verify_button_label: "Verificar",
