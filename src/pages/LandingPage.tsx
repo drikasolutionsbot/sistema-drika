@@ -400,6 +400,10 @@ const LandingPage = () => {
     }
   };
 
+  const scrollToPlans = () => {
+    document.getElementById("planos")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen text-white overflow-x-hidden relative bg-black">
       {/* Cascading pattern background */}
@@ -408,6 +412,20 @@ const LandingPage = () => {
       <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-transparent to-black/60" />
       {/* Center glow */}
       <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,_rgba(29,78,216,0.1)_0%,_transparent_60%)]" />
+
+      {/* ===== STICKY NAV ===== */}
+      <nav className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 h-12">
+          <div className="flex items-center gap-2">
+            <img src={drikaLogo} alt="Drika" className="h-7 w-auto" />
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={scrollToPlans} className="text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+            <button onClick={() => navigate("/login")} className="text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
+            <button onClick={() => navigate("/signup")} className="text-xs px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all">Começar</button>
+          </div>
+        </div>
+      </nav>
 
       {/* ===== 1. HERO ===== */}
       <section className="relative z-10 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
@@ -431,10 +449,10 @@ const LandingPage = () => {
                 Testar Grátis — 4 dias
               </span>
             </button>
-            <button onClick={handleProClick} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
+            <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
               <span className="flex items-center justify-center gap-2">
                 <Crown className="h-4 w-4" />
-                Assinar Pro — R$ {((landingConfig?.pro_price_cents || 2690) / 100).toFixed(2).replace(".", ",")}/mês
+                Ver Planos
               </span>
             </button>
           </div>
