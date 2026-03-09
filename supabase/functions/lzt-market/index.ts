@@ -67,7 +67,21 @@ const RU_PT_MAP: Record<string, string> = {
 
 // Extract best available image URL from LZT item data
 function extractImageUrl(item: Record<string, unknown>): string | null {
-  // Try common image fields from LZT API
+  // 1. Try imagePreviewLinks array (some categories have preview images)
+  if (Array.isArray(item.imagePreviewLinks) && item.imagePreviewLinks.length > 0) {
+    const first = item.imagePreviewLinks[0];
+    if (typeof first === "string") return first;
+    if (typeof first === "object" && first !== null) {
+      const obj = first as Record<string, string>;
+      if (obj.image) return obj.image;
+      if (obj.url) return obj.url;
+    }
+  }
+  // 2. For Minecraft accounts, generate skin render from minecraft_id
+  if (item.minecraft_id && typeof item.minecraft_id === "string") {
+    return `https://crafatar.com/renders/body/${item.minecraft_id}?overlay&scale=4`;
+  }
+  // 3. Try common image fields
   if (item.primary_img && typeof item.primary_img === "string") return item.primary_img;
   if (item.ss && typeof item.ss === "object" && item.ss !== null) {
     const screenshots = Object.values(item.ss as Record<string, unknown>);
@@ -81,6 +95,11 @@ function extractImageUrl(item: Record<string, unknown>): string | null {
   }
   if (item.image_url && typeof item.image_url === "string") return item.image_url;
   if (item.thumbnail_url && typeof item.thumbnail_url === "string") return item.thumbnail_url;
+  // 4. Extract first image from descriptionHtml
+  if (item.descriptionHtml && typeof item.descriptionHtml === "string") {
+    const imgMatch = (item.descriptionHtml as string).match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (imgMatch && imgMatch[1]) return imgMatch[1];
+  }
   return null;
 }
 
@@ -131,9 +150,10 @@ serve(async (req) => {
       const data = await res.json();
       // Translate item
       if (data?.item) {
-        if (data.item.title) data.item.title_translated = translateRuToPt(data.item.title);
-        if (data.item.description) data.item.description_translated = translateRuToPt(data.item.description);
-        data.item.extracted_image_url = extractImageUrl(data.item);
+        const item = data.item;
+        item.title_translated = translateRuToPt(item.title_en || item.title || "");
+        item.description_translated = translateRuToPt(item.descriptionEnPlain || item.description_en || item.description || "");
+        item.extracted_image_url = extractImageUrl(item);
       }
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -159,8 +179,8 @@ serve(async (req) => {
       if (data?.items && typeof data.items === "object") {
         for (const key of Object.keys(data.items)) {
           const item = data.items[key];
-          if (item.title) item.title_translated = translateRuToPt(item.title);
-          if (item.description) item.description_translated = translateRuToPt(item.description);
+          item.title_translated = translateRuToPt(item.title_en || item.title || "");
+          item.description_translated = translateRuToPt(item.descriptionEnPlain || item.description_en || item.description || "");
           item.extracted_image_url = extractImageUrl(item);
         }
       }
@@ -177,9 +197,10 @@ serve(async (req) => {
       if (!res.ok) throw new Error(`LZT API error: ${res.status}`);
       const data = await res.json();
       if (data?.item) {
-        if (data.item.title) data.item.title_translated = translateRuToPt(data.item.title);
-        if (data.item.description) data.item.description_translated = translateRuToPt(data.item.description);
-        data.item.extracted_image_url = extractImageUrl(data.item);
+        const item = data.item;
+        item.title_translated = translateRuToPt(item.title_en || item.title || "");
+        item.description_translated = translateRuToPt(item.descriptionEnPlain || item.description_en || item.description || "");
+        item.extracted_image_url = extractImageUrl(item);
       }
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
