@@ -879,6 +879,24 @@ async function processPurchase(
     }
   }
 
+  // Get store config for branding
+  const { data: storeConfigForCheckout } = await supabase
+    .from("store_configs")
+    .select("store_banner_url, store_logo_url, store_title, payment_timeout_minutes")
+    .eq("tenant_id", tenantId)
+    .single();
+
+  const { data: tenantInfo } = await supabase
+    .from("tenants")
+    .select("name, logo_url")
+    .eq("id", tenantId)
+    .single();
+
+  const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || "Loja";
+  const storeLogo = storeConfigForCheckout?.store_logo_url || tenantInfo?.logo_url;
+  const storeBanner = storeConfigForCheckout?.store_banner_url;
+  const timeoutMin = storeConfigForCheckout?.payment_timeout_minutes || 30;
+
   // Send PIX to user via DM
   const dmChannelRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
     method: "POST",
@@ -890,28 +908,55 @@ async function processPurchase(
   if (dmChannelRes.ok) {
     const dmChannel = await dmChannelRes.json();
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
-    const embed = {
-      title: "🛒 Pedido criado!",
-      description: `Seu pedido **#${order.order_number}** foi criado.\nEfetue o pagamento via PIX para receber seu produto automaticamente.`,
-      color: 0xFEE75C,
+
+    const checkoutEmbed: any = {
+      title: `🛒 ${storeName} - Carrinho`,
+      description: `> <@${userId}>, escaneie o QR Code ou copie o código PIX!`,
+      color: 0x2B2D31,
       fields: [
-        { name: "📦 Produto", value: orderName, inline: true },
-        { name: "💰 Valor", value: formatBRL(priceCents), inline: true },
+        { name: "🕐 Informações do Pedido", value: `**${orderName}**`, inline: false },
+        { name: "💠 Pagamento PIX", value: `→ **Preço:** ${formatBRL(priceCents)}\n→ **Tempo Limite:** ${timeoutMin} minutos`, inline: false },
       ],
       image: { url: qrImageUrl },
-      footer: { text: "Copie o código abaixo e pague no app do seu banco • Expira em 30 min" },
+      footer: { 
+        text: `${storeName} • Pedido #${order.order_number}`,
+        icon_url: storeLogo || undefined,
+      },
       timestamp: new Date().toISOString(),
     };
 
-    // Send embed + brcode as separate content so mobile users can long-press to copy
+    if (storeLogo) {
+      checkoutEmbed.thumbnail = { url: storeLogo };
+    }
+
+    // Send: embed + brcode as plain text (easy copy on mobile) + cancel button
     await fetch(`${DISCORD_API}/channels/${dmChannel.id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        content: `📋 **PIX Copia e Cola:**\n${brcode}`,
-        embeds: [embed],
+        embeds: [checkoutEmbed],
       }),
     });
+
+    // Send brcode as separate message for easy mobile copy
+    await fetch(`${DISCORD_API}/channels/${dmChannel.id}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: `\`\`\`\n${brcode}\n\`\`\`\n↓ Após o pagamento, a conta será entregue automaticamente!`,
+        components: [{
+          type: 1,
+          components: [{
+            type: 2,
+            style: 4, // Danger (red)
+            label: "Cancelar Compra",
+            emoji: { name: "✕" },
+            custom_id: `cancel_order:${order.id}`,
+          }],
+        }],
+      }),
+    });
+
     dmSent = true;
   }
 
