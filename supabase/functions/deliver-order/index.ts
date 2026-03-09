@@ -9,6 +9,9 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+const formatBRL = (cents: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
