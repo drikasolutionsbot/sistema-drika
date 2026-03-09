@@ -13,6 +13,7 @@ const AdminLandingConfigPage = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
+  const [priceInput, setPriceInput] = useState("26.90");
   const [form, setForm] = useState({
     stat_servers: 120,
     stat_servers_label: "Servidores ativos",
@@ -45,6 +46,7 @@ const AdminLandingConfigPage = () => {
           video_type: (data.video_type as "url" | "file") || "url",
           pro_price_cents: data.pro_price_cents || 2690,
         });
+        setPriceInput(((data.pro_price_cents || 2690) / 100).toFixed(2));
       }
       setLoading(false);
     };
@@ -158,11 +160,19 @@ const AdminLandingConfigPage = () => {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Valor em R$</Label>
               <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={(form.pro_price_cents / 100).toFixed(2)}
-                onChange={(e) => setForm((p) => ({ ...p, pro_price_cents: Math.round(parseFloat(e.target.value || "0") * 100) }))}
+                type="text"
+                inputMode="decimal"
+                value={priceInput}
+                onChange={(e) => {
+                  const val = e.target.value.replace(",", ".");
+                  if (/^\d*\.?\d{0,2}$/.test(val) || val === "") {
+                    setPriceInput(val);
+                    const num = parseFloat(val || "0");
+                    if (!isNaN(num)) {
+                      setForm((p) => ({ ...p, pro_price_cents: Math.round(num * 100) }));
+                    }
+                  }
+                }}
                 placeholder="26.90"
               />
             </div>
