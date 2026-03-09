@@ -189,7 +189,7 @@ const AdminMarketplacePage = () => {
   };
 
   const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2)}`;
-  const formatUSD = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const formatReais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
   const available = items.filter((i) => i.status === "available");
   const sold = items.filter((i) => i.status === "sold");
