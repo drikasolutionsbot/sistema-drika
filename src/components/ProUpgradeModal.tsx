@@ -89,7 +89,7 @@ const ProUpgradeModal = () => {
         <DialogHeader>
           <DialogTitle className="text-center text-foreground flex flex-col items-center gap-3">
             <img src={drikaLogo} alt="Drika" className="h-16 w-auto" />
-            <span className="text-xl font-bold">Ativar Drika Solutions Pro</span>
+            <span className="text-xl font-bold">Ativar Drika Hub Pro</span>
           </DialogTitle>
         </DialogHeader>
 

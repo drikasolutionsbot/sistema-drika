@@ -4,6 +4,7 @@ import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, Trend
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import QRCode from "qrcode";
 
 /* ── Scroll reveal ── */
 function useScrollReveal<T extends HTMLElement>(): RefObject<T> {
@@ -123,6 +124,7 @@ const SubscriptionPaymentModal = ({ onClose, priceCents }: { onClose: () => void
   const [step, setStep] = useState<"form" | "pix" | "success">("form");
   const [loading, setLoading] = useState(false);
   const [brcode, setBrcode] = useState<string | null>(null);
+  const [qrSvg, setQrSvg] = useState<string>("");
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,6 +184,11 @@ const SubscriptionPaymentModal = ({ onClose, priceCents }: { onClose: () => void
       if (data?.brcode) {
         setBrcode(data.brcode);
         setPaymentId(data.payment_id);
+        // Generate QR code SVG
+        try {
+          const svg = await QRCode.toString(data.brcode, { type: "svg", width: 180, margin: 2, color: { dark: "#000000", light: "#ffffff" }, errorCorrectionLevel: "M" });
+          setQrSvg(svg);
+        } catch {}
         setStep("pix");
         startPolling(data.payment_id);
       }
@@ -244,7 +251,7 @@ const SubscriptionPaymentModal = ({ onClose, priceCents }: { onClose: () => void
             <div className="relative text-center">
               <img src={drikaLogo} alt="Drika" className="h-16 w-auto mx-auto mb-3 drop-shadow-[0_0_20px_rgba(255,0,100,0.3)]" />
               <h3 className="text-xl font-bold text-white tracking-tight">
-                {step === "success" ? "Conta Pro Ativada! 🎉" : "Assinar Drika Solutions Pro"}
+                {step === "success" ? "Conta Pro Ativada! 🎉" : "Assinar Drika Hub Pro"}
               </h3>
               {step !== "success" && (
                 <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 px-5 py-2 text-sm font-semibold text-primary mt-3 shadow-[0_0_15px_rgba(255,0,100,0.15)]">
@@ -294,9 +301,17 @@ const SubscriptionPaymentModal = ({ onClose, priceCents }: { onClose: () => void
             {/* Step 2: PIX Payment */}
             {step === "pix" && brcode && (
               <div className="space-y-4">
-                <p className="text-sm text-white/50 text-center">Copie o código PIX e pague pelo seu banco:</p>
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
-                  <code className="block text-xs font-mono text-primary break-all leading-relaxed text-center">
+                {/* QR Code */}
+                {qrSvg && (
+                  <div className="flex justify-center">
+                    <div className="rounded-2xl bg-white p-3 shadow-[0_0_30px_rgba(255,0,100,0.1)]">
+                      <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-white/40 text-center">Escaneie o QR Code ou copie o código abaixo:</p>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
+                  <code className="block text-[10px] font-mono text-primary break-all leading-relaxed text-center">
                     {brcode}
                   </code>
                 </div>
