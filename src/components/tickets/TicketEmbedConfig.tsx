@@ -41,6 +41,7 @@ const TicketEmbedConfig = () => {
   const [data, setData] = useState<TicketEmbedData>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [channels, setChannels] = useState<{ id: string; name: string; parent_id?: string | null }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string; position: number }[]>([]);
 
