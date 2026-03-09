@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Palette, Type, Image, MessageSquare } from "lucide-react";
+import { Loader2, Save, Palette, Type, Image, MessageSquare, Send } from "lucide-react";
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { DiscordButtonStylePicker, getDiscordButtonStyles, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";

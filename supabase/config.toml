@@ -143,3 +143,6 @@ verify_jwt = false
 
 [functions.discord-guild-invites]
 verify_jwt = false
+
+[functions.send-ticket-embed]
+verify_jwt = false
