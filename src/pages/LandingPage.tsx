@@ -223,168 +223,161 @@ const SubscriptionPaymentModal = ({ onClose, priceCents }: { onClose: () => void
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={step === "success" ? undefined : onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={step === "success" ? undefined : onClose}>
       <div className="relative w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         {step !== "success" && (
-          <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
+          <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer z-20">
             <X className="h-6 w-6" />
           </button>
         )}
-        <div className="rounded-2xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl p-6 space-y-4">
-          <div className="text-center">
-            <img src={drikaLogo} alt="Drika" className="h-14 w-auto mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-white">
-              {step === "success" ? "Conta Pro Ativada! 🎉" : "Assinar Drika Solutions Pro"}
-            </h3>
-            {step !== "success" && (
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mt-2">
-                <Crown className="h-4 w-4" /> R$ {(priceCents / 100).toFixed(2).replace(".", ",")}/mês
+
+        {/* Glass card with gradient border */}
+        <div className="relative rounded-3xl overflow-hidden">
+          {/* Animated gradient border */}
+          <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-primary/60 via-white/10 to-primary/30 animate-pulse" style={{ animationDuration: '3s' }} />
+          
+          {/* Inner glass content */}
+          <div className="relative rounded-3xl bg-black/60 backdrop-blur-2xl p-7 space-y-5">
+            {/* Top glow effect */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative text-center">
+              <img src={drikaLogo} alt="Drika" className="h-16 w-auto mx-auto mb-3 drop-shadow-[0_0_20px_rgba(255,0,100,0.3)]" />
+              <h3 className="text-xl font-bold text-white tracking-tight">
+                {step === "success" ? "Conta Pro Ativada! 🎉" : "Assinar Drika Solutions Pro"}
+              </h3>
+              {step !== "success" && (
+                <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 px-5 py-2 text-sm font-semibold text-primary mt-3 shadow-[0_0_15px_rgba(255,0,100,0.15)]">
+                  <Crown className="h-4 w-4" /> R$ {(priceCents / 100).toFixed(2).replace(".", ",")}/mês
+                </div>
+              )}
+            </div>
+
+            {/* Step 1: Registration Form */}
+            {step === "form" && (
+              <div className="relative space-y-3">
+                {[
+                  { label: "Nome da Loja", type: "text", value: name, onChange: (v: string) => setName(v), placeholder: "Minha Loja" },
+                  { label: "Email *", type: "email", value: email, onChange: (v: string) => setEmail(v), placeholder: "seu@email.com" },
+                  { label: "Senha *", type: "password", value: password, onChange: (v: string) => setPassword(v), placeholder: "Mínimo 6 caracteres" },
+                  { label: "WhatsApp", type: "text", value: whatsapp, onChange: (v: string) => setWhatsapp(v), placeholder: "(00) 00000-0000" },
+                ].map((field) => (
+                  <div key={field.label}>
+                    <label className="text-[11px] text-white/40 mb-1.5 block font-medium uppercase tracking-wider">{field.label}</label>
+                    <input
+                      type={field.type}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      placeholder={field.placeholder}
+                      className="w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/40 focus:bg-white/[0.08] focus:shadow-[0_0_15px_rgba(255,0,100,0.08)] transition-all duration-300"
+                    />
+                  </div>
+                ))}
+
+                {error && (
+                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5">
+                    <p className="text-xs text-red-400 text-center font-medium">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSubmitForm}
+                  disabled={loading}
+                  className="group w-full h-12 flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white font-semibold text-sm cursor-pointer border-none hover:shadow-[0_0_30px_rgba(255,0,100,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />}
+                  Gerar Pagamento PIX
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: PIX Payment */}
+            {step === "pix" && brcode && (
+              <div className="space-y-4">
+                <p className="text-sm text-white/50 text-center">Copie o código PIX e pague pelo seu banco:</p>
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
+                  <code className="block text-xs font-mono text-primary break-all leading-relaxed text-center">
+                    {brcode}
+                  </code>
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className={`w-full h-11 flex items-center justify-center gap-2 rounded-xl font-medium text-sm cursor-pointer border transition-all duration-300 ${
+                    copied
+                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                      : "bg-white/[0.06] text-white hover:bg-white/[0.1] border-white/[0.08]"
+                  }`}
+                >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied ? "Copiado!" : "Copiar Código PIX"}
+                </button>
+                <div className="flex items-center justify-center gap-2 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <p className="text-xs text-white/40">Aguardando confirmação do pagamento...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Success - Token */}
+            {step === "success" && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-400/5 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3 shadow-[0_0_25px_rgba(16,185,129,0.15)]">
+                    <Check className="h-8 w-8 text-emerald-400" />
+                  </div>
+                  <p className="text-sm text-white/70">
+                    Pagamento confirmado! Seu plano Pro de 30 dias está ativo.
+                  </p>
+                  {tenantName && (
+                    <p className="text-xs text-white/40 mt-1">Loja: <span className="text-white/70 font-medium">{tenantName}</span></p>
+                  )}
+                </div>
+
+                {token && (
+                  <div className="space-y-2">
+                    <label className="text-[11px] text-white/40 block text-center font-medium uppercase tracking-wider">Seu Token de Acesso</label>
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+                      <code className="block text-xs font-mono text-emerald-400 break-all leading-relaxed text-center">
+                        {token}
+                      </code>
+                    </div>
+                    <button
+                      onClick={handleCopyToken}
+                      className={`w-full h-11 flex items-center justify-center gap-2 rounded-xl font-medium text-sm cursor-pointer border transition-all duration-300 ${
+                        tokenCopied
+                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                          : "bg-white/[0.06] text-white hover:bg-white/[0.1] border-white/[0.08]"
+                      }`}
+                    >
+                      {tokenCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {tokenCopied ? "Token Copiado!" : "Copiar Token"}
+                    </button>
+                    <p className="text-[10px] text-white/25 text-center">
+                      ⚠️ Guarde seu token! Use-o para acessar o painel.
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate("/login");
+                  }}
+                  disabled={!tokenCopied}
+                  className="group w-full h-12 flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white font-semibold text-sm cursor-pointer border-none hover:shadow-[0_0_30px_rgba(255,0,100,0.3)] transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                >
+                  <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  Ir para o Login
+                </button>
               </div>
             )}
           </div>
-
-          {/* Step 1: Registration Form */}
-          {step === "form" && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-white/50 mb-1 block">Nome da Loja</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Minha Loja"
-                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-white/50 mb-1 block">Email *</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-white/50 mb-1 block">Senha *</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-white/50 mb-1 block">WhatsApp</label>
-                <input
-                  type="text"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  className="w-full h-10 rounded-lg bg-white/5 border border-white/10 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50 transition-colors"
-                />
-              </div>
-
-              {error && <p className="text-xs text-red-400 text-center">{error}</p>}
-
-              <button
-                onClick={handleSubmitForm}
-                disabled={loading}
-                className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-white text-black font-semibold text-sm cursor-pointer border-none hover:bg-white/90 transition-all disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                Gerar Pagamento PIX
-              </button>
-            </div>
-          )}
-
-          {/* Step 2: PIX Payment */}
-          {step === "pix" && brcode && (
-            <div className="space-y-3">
-              <p className="text-sm text-white/50 text-center">Copie o código PIX e pague pelo seu banco:</p>
-              <div className="rounded-2xl border border-primary/20 bg-black/40 p-4">
-                <code className="block text-xs font-mono text-primary break-all leading-relaxed text-center">
-                  {brcode}
-                </code>
-              </div>
-              <button
-                onClick={handleCopy}
-                className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
-                  copied
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : "bg-white/10 text-white hover:bg-white/20"
-                }`}
-              >
-                {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                {copied ? "Copiado!" : "Copiar Código PIX"}
-              </button>
-              <div className="flex items-center justify-center gap-2 py-2">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <p className="text-xs text-white/40">Aguardando confirmação do pagamento...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Success - Token */}
-          {step === "success" && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
-                  <Check className="h-8 w-8 text-emerald-400" />
-                </div>
-                <p className="text-sm text-white/70">
-                  Pagamento confirmado! Seu plano Pro de 30 dias está ativo.
-                </p>
-                {tenantName && (
-                  <p className="text-xs text-white/40 mt-1">Loja: <span className="text-white/70 font-medium">{tenantName}</span></p>
-                )}
-              </div>
-
-              {token && (
-                <div className="space-y-2">
-                  <label className="text-xs text-white/50 block text-center">Seu Token de Acesso</label>
-                  <div className="rounded-2xl border border-emerald-500/20 bg-black/40 p-4">
-                    <code className="block text-xs font-mono text-emerald-400 break-all leading-relaxed text-center">
-                      {token}
-                    </code>
-                  </div>
-                  <button
-                    onClick={handleCopyToken}
-                    className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
-                      tokenCopied
-                        ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-white/10 text-white hover:bg-white/20"
-                    }`}
-                  >
-                    {tokenCopied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                    {tokenCopied ? "Token Copiado!" : "Copiar Token"}
-                  </button>
-                  <p className="text-[11px] text-white/30 text-center">
-                    ⚠️ Guarde seu token! Use-o para acessar o painel.
-                  </p>
-                </div>
-              )}
-
-              <button
-                onClick={() => {
-                  onClose();
-                  navigate("/login");
-                }}
-                disabled={!tokenCopied}
-                className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-white text-black font-semibold text-sm cursor-pointer border-none hover:bg-white/90 transition-all disabled:opacity-30"
-              >
-                <ArrowRight className="h-4 w-4" />
-                Ir para o Login
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 };
+
 
 const LandingPage = () => {
   const navigate = useNavigate();
