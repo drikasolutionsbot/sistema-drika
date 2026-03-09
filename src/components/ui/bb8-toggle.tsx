@@ -52,7 +52,7 @@ const BB8Toggle = ({ checked, onChange }: BB8ToggleProps) => {
 
 const StyledWrapper = styled.div`
   .bb8-toggle {
-    --toggle-size: 10px;
+    --toggle-size: 7px;
     --toggle-width: 10.625em;
     --toggle-height: 5.625em;
     --toggle-offset: calc((var(--toggle-height) - var(--bb8-diameter)) / 2);
