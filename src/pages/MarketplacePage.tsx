@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ShoppingBag, Search, Filter, Star, Download, Eye, Tag, TrendingUp, Package, Sparkles } from "lucide-react";
+import { ShoppingBag, Search, Filter, Star, Download, Eye, Tag, TrendingUp, Package, Sparkles, Lock, Crown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useTenant } from "@/contexts/TenantContext";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -172,9 +174,14 @@ const MarketplaceCard = ({ item }: { item: MarketplaceItem }) => (
 );
 
 const MarketplacePage = () => {
+  const { tenant } = useTenant();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
+
+  const isPro = tenant?.plan === "pro";
+  const isLocked = !isPro;
 
   const filtered = mockItems
     .filter((item) => {
@@ -194,6 +201,34 @@ const MarketplacePage = () => {
     });
 
   const featured = mockItems.filter((i) => i.featured);
+
+  if (isLocked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] animate-fade-in">
+        <div className="relative flex flex-col items-center gap-6 rounded-2xl border border-primary/20 bg-card p-10 max-w-md text-center shadow-[0_0_60px_hsl(var(--primary)/0.08)]">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+            <Lock className="h-10 w-10 text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-extrabold font-display text-foreground">Marketplace Atacadão</h2>
+            <p className="text-sm text-muted-foreground">
+              O Marketplace é uma funcionalidade exclusiva para membros <span className="text-primary font-semibold">Pro</span>.
+            </p>
+            <p className="text-xs text-muted-foreground/60">
+              Faça upgrade do seu plano para acessar o marketplace e comprar/vender produtos em atacado.
+            </p>
+          </div>
+          <Button
+            onClick={() => navigate("/settings")}
+            className="rounded-full gap-2 px-8 h-11 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+          >
+            <Crown className="h-4 w-4" />
+            Seja Membro Pro
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
