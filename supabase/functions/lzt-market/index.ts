@@ -99,13 +99,13 @@ function extractImageUrl(item: Record<string, unknown>): string | null {
     const imgMatch = (item.descriptionHtml as string).match(/<img[^>]+src=["']([^"']+)["']/i);
     if (imgMatch && imgMatch[1]) return imgMatch[1];
   }
-  // 5. For Minecraft accounts, use mc-heads.net (reliable alternative to crafatar)
+  // 5. For Minecraft accounts, use vzge.me (reliable 3D render service)
   if (item.minecraft_id && typeof item.minecraft_id === "string") {
-    return `https://mc-heads.net/body/${item.minecraft_id}/right`;
+    return `https://vzge.me/full/256/${item.minecraft_id}`;
   }
-  // 6. Try login/username for Minecraft skin via mc-heads
-  if (item.login && typeof item.login === "string") {
-    return `https://mc-heads.net/body/${item.login}/right`;
+  // 6. Try login/username for Minecraft skin
+  if (item.minecraft_nickname && typeof item.minecraft_nickname === "string") {
+    return `https://vzge.me/full/256/${item.minecraft_nickname}`;
   }
   return null;
 }

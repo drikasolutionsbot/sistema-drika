@@ -52,6 +52,7 @@ serve(async (req) => {
       if (item?.category !== undefined) updates.category = item.category;
       if (item?.resale_price_cents !== undefined) updates.resale_price_cents = item.resale_price_cents;
       if (item?.status !== undefined) updates.status = item.status;
+      if (item?.image_url !== undefined) updates.image_url = item.image_url;
       updates.updated_at = new Date().toISOString();
 
       const { data, error } = await supabase
