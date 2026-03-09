@@ -637,7 +637,8 @@ serve(async (req) => {
           welcomeEmbed.footer = { text: storeConfig.ticket_embed_footer };
         }
 
-        await fetch(`${DISCORD_API}/channels/${ticketChannel.id}/messages`, {
+        // Pin the welcome message
+        const welcomeMsgRes = await fetch(`${DISCORD_API}/channels/${ticketChannel.id}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -649,27 +650,58 @@ serve(async (req) => {
                 components: [
                   {
                     type: 2,
-                    style: 1, // Primary (blurple)
-                    label: "🕐 Lembrar",
+                    style: 3, // Success (green)
+                    label: "Lembrar",
+                    emoji: { name: "🕐" },
                     custom_id: `ticket_remind_${ticket.id}`,
                   },
                   {
                     type: 2,
                     style: 2, // Secondary (grey)
-                    label: "✏️ Renomear",
-                    custom_id: `ticket_rename_${ticket.id}`,
+                    label: "Arquivar",
+                    emoji: { name: "📁" },
+                    custom_id: `ticket_close_${ticket.id}`,
                   },
+                ],
+              },
+              {
+                type: 1,
+                components: [
                   {
                     type: 2,
                     style: 4, // Danger (red)
-                    label: "🔒 Fechar Ticket",
-                    custom_id: `ticket_close_${ticket.id}`,
+                    label: "Deletar",
+                    emoji: { name: "🗑️" },
+                    custom_id: `ticket_delete_${ticket.id}`,
+                  },
+                ],
+              },
+              {
+                type: 1,
+                components: [
+                  {
+                    type: 5, // User Select Menu
+                    custom_id: `ticket_assign_${ticket.id}`,
+                    placeholder: "Selecione algum membro para Ação",
+                    min_values: 1,
+                    max_values: 1,
                   },
                 ],
               },
             ],
           }),
         });
+
+        // Pin the welcome message
+        if (welcomeMsgRes.ok) {
+          const welcomeMsg = await welcomeMsgRes.json();
+          try {
+            await fetch(`${DISCORD_API}/channels/${ticketChannel.id}/pins/${welcomeMsg.id}`, {
+              method: "PUT",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+          } catch (e) { console.error("Pin error:", e); }
+        }
 
         await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketChannel.id}>`);
         return ok();
