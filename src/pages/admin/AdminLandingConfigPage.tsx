@@ -13,6 +13,7 @@ const AdminLandingConfigPage = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
+  const [priceInput, setPriceInput] = useState("26.90");
   const [form, setForm] = useState({
     stat_servers: 120,
     stat_servers_label: "Servidores ativos",
