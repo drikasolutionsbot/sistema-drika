@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, Palette, Type, Image, MessageSquare } from "lucide-react";
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
+import { DiscordButtonStylePicker, getDiscordButtonStyles, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ interface TicketEmbedData {
   ticket_embed_thumbnail_url: string;
   ticket_embed_footer: string;
   ticket_embed_button_label: string;
+  ticket_embed_button_style: DiscordButtonStyle;
   ticket_channel_id: string;
 }
 
@@ -30,6 +32,7 @@ const defaults: TicketEmbedData = {
   ticket_embed_thumbnail_url: "",
   ticket_embed_footer: "",
   ticket_embed_button_label: "📩 Abrir Ticket",
+  ticket_embed_button_style: "glass",
   ticket_channel_id: "",
 };
 
@@ -72,7 +75,7 @@ const TicketEmbedConfig = () => {
     const load = async () => {
       const { data: config } = await supabase
         .from("store_configs")
-        .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_channel_id")
+        .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_channel_id")
         .eq("tenant_id", tenantId)
         .maybeSingle();
       if (config) {
@@ -84,6 +87,7 @@ const TicketEmbedConfig = () => {
           ticket_embed_thumbnail_url: config.ticket_embed_thumbnail_url || "",
           ticket_embed_footer: config.ticket_embed_footer || "",
           ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
+          ticket_embed_button_style: (config.ticket_embed_button_style as DiscordButtonStyle) || defaults.ticket_embed_button_style,
           ticket_channel_id: config.ticket_channel_id || "",
         });
       }
@@ -106,6 +110,7 @@ const TicketEmbedConfig = () => {
           ticket_embed_thumbnail_url: data.ticket_embed_thumbnail_url || null,
           ticket_embed_footer: data.ticket_embed_footer || null,
           ticket_embed_button_label: data.ticket_embed_button_label || null,
+          ticket_embed_button_style: data.ticket_embed_button_style || "glass",
           ticket_channel_id: data.ticket_channel_id || null,
           updated_at: new Date().toISOString(),
         } as any)
@@ -120,7 +125,7 @@ const TicketEmbedConfig = () => {
   };
 
   const update = (key: keyof TicketEmbedData, value: string) => {
-    setData((prev) => ({ ...prev, [key]: value }));
+    setData((prev) => ({ ...prev, [key]: value as any }));
   };
 
   if (loading) {
@@ -238,6 +243,11 @@ const TicketEmbedConfig = () => {
                 Os tickets criados serão organizados dentro desta categoria/canal
               </p>
             </div>
+            <DiscordButtonStylePicker
+              value={data.ticket_embed_button_style}
+              onChange={(style) => update("ticket_embed_button_style", style)}
+              label="Estilo do Botão"
+            />
           </CardContent>
         </Card>
 
@@ -297,16 +307,28 @@ const TicketEmbedConfig = () => {
             )}
           </div>
           {/* Button */}
-          {data.ticket_embed_button_label && (
-            <div className="mt-3">
-              <div
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-[#dbdee1] bg-white/5 backdrop-blur-md border border-white/10 shadow-lg"
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                {data.ticket_embed_button_label}
+          {data.ticket_embed_button_label && (() => {
+            const btnStyle = getDiscordButtonStyles(data.ticket_embed_button_style);
+            const isGlass = data.ticket_embed_button_style === "glass";
+            const isLink = data.ticket_embed_button_style === "link";
+            return (
+              <div className="mt-3">
+                <div
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium ${
+                    isGlass ? "bg-white/5 backdrop-blur-md border border-white/10 shadow-lg text-[#dbdee1]" :
+                    isLink ? "bg-transparent underline" : ""
+                  }`}
+                  style={{
+                    backgroundColor: isGlass || isLink ? undefined : btnStyle.bgColor,
+                    color: isGlass ? undefined : btnStyle.textColor,
+                  }}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {data.ticket_embed_button_label}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>
