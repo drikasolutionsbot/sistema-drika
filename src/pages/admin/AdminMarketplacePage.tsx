@@ -357,7 +357,9 @@ const AdminMarketplacePage = () => {
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {lztItems.map((item) => (
                     <div key={item.item_id} className="rounded-lg border border-border p-3 flex items-center gap-3 hover:border-primary/30 transition-colors">
-                      <div className="flex-1 min-w-0">
+                      {item.extracted_image_url && (
+                        <img src={item.extracted_image_url} alt="" className="h-10 w-10 rounded-md object-cover shrink-0 border border-border" />
+                      )}
                         <p className="text-sm font-medium truncate">{getItemDisplayTitle(item)}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>R$ {(item.price || 0).toFixed(2).replace('.', ',')}</span>
