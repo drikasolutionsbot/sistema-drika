@@ -179,8 +179,8 @@ serve(async (req) => {
       if (data?.items && typeof data.items === "object") {
         for (const key of Object.keys(data.items)) {
           const item = data.items[key];
-          if (item.title) item.title_translated = translateRuToPt(item.title);
-          if (item.description) item.description_translated = translateRuToPt(item.description);
+          item.title_translated = translateRuToPt(item.title_en || item.title || "");
+          item.description_translated = translateRuToPt(item.descriptionEnPlain || item.description_en || item.description || "");
           item.extracted_image_url = extractImageUrl(item);
         }
       }
