@@ -170,6 +170,32 @@ const SettingsPage = () => {
                 </div>
               </div>
 
+              {/* Como funciona */}
+              <details className="group rounded-xl border border-border bg-muted/30 overflow-hidden">
+                <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <HelpCircle className="h-4 w-4 text-primary shrink-0" />
+                  Como funciona o PIX Estático?
+                  <ChevronDown className="h-4 w-4 ml-auto transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="px-4 pb-4 space-y-3 text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">
+                  <p>
+                    Com o <span className="text-foreground font-medium">PIX Estático</span>, um QR Code é gerado automaticamente para cada pedido usando sua chave cadastrada. O cliente escaneia e paga normalmente.
+                  </p>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                    <p><span className="text-foreground font-medium">Entregas automáticas</span> — se o produto estiver configurado com entrega automática, o estoque será enviado assim que você aprovar o pagamento.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Shield className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+                    <p><span className="text-foreground font-medium">Aprovação manual</span> — como o PIX estático não possui webhook, a confirmação do pagamento é feita manualmente pela aba <span className="text-foreground font-medium">Aprovações</span> no painel ou pelos botões no Discord.</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Zap className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                    <p><span className="text-foreground font-medium">Quer aprovação automática?</span> — configure um gateway de pagamento (Mercadopago, Efí ou PushinPay) na seção abaixo para receber confirmações instantâneas via webhook.</p>
+                  </div>
+                </div>
+              </details>
+
               {/* Active PIX display */}
               {tenant?.pix_key && tenant?.pix_key_type && !editingPix ? (
                 <div className="space-y-4">
