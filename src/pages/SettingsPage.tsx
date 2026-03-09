@@ -151,20 +151,22 @@ const SettingsPage = () => {
         </div>
 
         <Tabs defaultValue={defaultTab} className="relative mt-5">
-          <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-auto gap-1">
-            <TabsTrigger value="branding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-4 py-2">
-              <Paintbrush className="h-4 w-4" /> Marca
-            </TabsTrigger>
-            <TabsTrigger value="pix" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-4 py-2">
-              <QrCode className="h-4 w-4" /> PIX
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-4 py-2">
-              <Users className="h-4 w-4" /> Usuários
-            </TabsTrigger>
-            <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-4 py-2">
-              <Crown className="h-4 w-4" /> Plano
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-6 px-6 scrollbar-none">
+            <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-auto gap-1 w-max min-w-full sm:w-auto">
+              <TabsTrigger value="branding" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Paintbrush className="h-4 w-4" /> <span className="hidden sm:inline">Marca</span><span className="sm:hidden">Marca</span>
+              </TabsTrigger>
+              <TabsTrigger value="pix" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <QrCode className="h-4 w-4" /> PIX
+              </TabsTrigger>
+              <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Users className="h-4 w-4" /> <span className="hidden sm:inline">Usuários</span><span className="sm:hidden">Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Crown className="h-4 w-4" /> Plano
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
         {/* Branding Tab */}
         <TabsContent value="branding">

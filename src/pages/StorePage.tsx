@@ -133,11 +133,13 @@ const StorePage = () => {
       </div>
 
       <Tabs defaultValue="products">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="products">Produtos</TabsTrigger>
-          <TabsTrigger value="categories">Categorias</TabsTrigger>
-          <TabsTrigger value="general">Geral</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+            <TabsTrigger value="products">Produtos</TabsTrigger>
+            <TabsTrigger value="categories">Categorias</TabsTrigger>
+            <TabsTrigger value="general">Geral</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="products" className="mt-4">
           <div className="rounded-xl border border-border bg-card overflow-hidden">

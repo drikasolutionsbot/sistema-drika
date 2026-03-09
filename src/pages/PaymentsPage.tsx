@@ -165,17 +165,20 @@ const PaymentsPage = () => {
         <Skeleton className="h-64" />
       ) : (
         <Tabs defaultValue="mercadopago">
-          <TabsList className="bg-muted">
-            {providers.map(p => {
-              const cfg = getConfig(p.key);
-              return (
-                <TabsTrigger key={p.key} value={p.key} className="gap-2">
-                  {p.name}
-                  {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+          <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+            <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+              {providers.map(p => {
+                const cfg = getConfig(p.key);
+                return (
+                  <TabsTrigger key={p.key} value={p.key} className="gap-2 text-xs sm:text-sm">
+                    <span className="hidden sm:inline">{p.name}</span>
+                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : "Efí"}</span>
+                    {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
 
           {providers.map(p => (
             <TabsContent key={p.key} value={p.key}>
@@ -311,17 +314,17 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`rounded-lg p-2.5 ${provider.color}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className={`rounded-lg p-2.5 shrink-0 ${provider.color}`}>
             <CreditCard className="h-5 w-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-semibold">{provider.name}</h3>
-            <p className="text-sm text-muted-foreground">{provider.instructions}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{provider.instructions}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           {config && (
             <>
               <Badge variant={config.active ? "default" : "secondary"}>

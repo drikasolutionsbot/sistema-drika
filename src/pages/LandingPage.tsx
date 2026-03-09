@@ -433,12 +433,12 @@ const LandingPage = () => {
       <nav className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-4xl mx-auto flex items-center justify-between px-4 h-12">
           <div className="flex items-center gap-2">
-            <img src={drikaLogo} alt="Drika" className="h-7 w-auto" />
+            <img src={drikaLogo} alt="Drika" className="h-6 sm:h-7 w-auto" />
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={scrollToPlans} className="text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
-            <button onClick={() => navigate("/login")} className="text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
-            <button onClick={() => navigate("/signup")} className="text-xs px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all">Começar</button>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button onClick={scrollToPlans} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+            <button onClick={() => navigate("/login")} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
+            <button onClick={() => navigate("/signup")} className="text-[11px] sm:text-xs px-3 sm:px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all">Começar</button>
           </div>
         </div>
       </nav>
@@ -446,9 +446,9 @@ const LandingPage = () => {
       {/* ===== 1. HERO ===== */}
       <section className="relative z-10 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
         <div className="text-center max-w-2xl mx-auto">
-          <img src={drikaLogo} alt="Drika Solutions" className="h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] animate-fade-in" />
+          <img src={drikaLogo} alt="Drika Solutions" className="h-20 sm:h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] animate-fade-in" />
 
-          <h1 className="text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
             Seu servidor Discord
             <br />
             <span className="text-white/90 drop-shadow-none">no próximo nível</span>
@@ -645,7 +645,7 @@ const LandingPage = () => {
               <p className="text-sm text-white/50">Soluções flexíveis para negócios em crescimento</p>
             </div>
           </ScrollReveal>
-          <div className="grid md:grid-cols-3 gap-5 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 items-start">
             {/* Trial / Free */}
             <ScrollReveal>
               <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-white/20">

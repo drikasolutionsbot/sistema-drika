@@ -147,11 +147,11 @@ const CustomizationPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Palette className="h-6 w-6 text-primary" />
-            <h1 className="font-display text-2xl font-bold">Personalização</h1>
+            <h1 className="font-display text-xl sm:text-2xl font-bold">Personalização</h1>
             {botOnline !== null && (
               <Badge variant={botOnline ? "default" : "destructive"} className="gap-1.5">
                 <span className={`h-2 w-2 rounded-full ${botOnline ? "bg-emerald-400 animate-pulse" : "bg-destructive-foreground"}`} />
@@ -159,11 +159,11 @@ const CustomizationPage = () => {
               </Badge>
             )}
           </div>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             Configure o <span className="font-semibold text-foreground">{botName}</span> para o seu estilo.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 hidden sm:flex">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -193,7 +193,7 @@ const CustomizationPage = () => {
               backgroundSize: "24px 24px",
             }}
           />
-          <div className="absolute top-4 right-4 flex gap-2">
+          <div className="absolute top-4 right-4 hidden sm:flex gap-2">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 backdrop-blur-sm border border-border text-[11px] font-medium text-muted-foreground">
               <Zap className="h-3 w-3 text-primary" /> Automações
             </span>
