@@ -92,6 +92,7 @@ const TicketEmbedConfig = () => {
           ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
           ticket_embed_button_style: (config.ticket_embed_button_style as DiscordButtonStyle) || defaults.ticket_embed_button_style,
           ticket_channel_id: config.ticket_channel_id || "",
+          ticket_logs_channel_id: (config as any).ticket_logs_channel_id || "",
         });
       }
       setLoading(false);
