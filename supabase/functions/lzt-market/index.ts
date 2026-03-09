@@ -8,24 +8,61 @@ const corsHeaders = {
 
 const LZT_BASE = "https://prod-api.lzt.market";
 
-// Simple Russian → Portuguese translation map for common gaming/account terms
+// Comprehensive Russian → Portuguese translation map for LZT Market
 const RU_PT_MAP: Record<string, string> = {
-  "Аккаунт": "Conta", "аккаунт": "conta", "Игра": "Jogo", "игра": "jogo",
-  "Почта": "E-mail", "почта": "e-mail", "Пароль": "Senha", "пароль": "senha",
-  "Баланс": "Saldo", "баланс": "saldo", "Уровень": "Nível", "уровень": "nível",
-  "Скины": "Skins", "скины": "skins", "Предметы": "Itens", "предметы": "itens",
-  "Подписка": "Assinatura", "подписка": "assinatura", "Премиум": "Premium", "премиум": "premium",
-  "Навсегда": "Para sempre", "навсегда": "para sempre",
+  // Minecraft specific
+  "МИД": "MFA", "Ява": "Java", "Коренная порода": "Bedrock",
+  "Ява и Коренная порода": "Java e Bedrock",
+  "Майнкрафт": "Minecraft", "майнкрафт": "minecraft",
+  "Бедрок": "Bedrock", "бедрок": "bedrock",
+  "Джава": "Java", "джава": "java",
+  "Плащ": "Capa", "плащ": "capa",
+  "Скин": "Skin", "скин": "skin",
+  "Гиперпиксель": "Hypixel",
+  // Account types
+  "Аккаунт": "Conta", "аккаунт": "conta",
   "Полный доступ": "Acesso total", "полный доступ": "acesso total",
   "Без привязки": "Sem vínculo", "без привязки": "sem vínculo",
   "С привязкой": "Com vínculo", "с привязкой": "com vínculo",
-  "Гарантия": "Garantia", "гарантия": "garantia",
-  "Автовыдача": "Entrega automática", "автовыдача": "entrega automática",
   "Смена данных": "Troca de dados", "смена данных": "troca de dados",
+  "Автовыдача": "Entrega automática", "автовыдача": "entrega automática",
+  // Gaming general
+  "Игра": "Jogo", "игра": "jogo", "Игры": "Jogos", "игры": "jogos",
+  "Скины": "Skins", "скины": "skins", "Предметы": "Itens", "предметы": "itens",
+  "Уровень": "Nível", "уровень": "nível",
+  "Баланс": "Saldo", "баланс": "saldo",
+  "Премиум": "Premium", "премиум": "premium",
+  "Подписка": "Assinatura", "подписка": "assinatura",
+  "Навсегда": "Para sempre", "навсегда": "para sempre",
+  "Гарантия": "Garantia", "гарантия": "garantia",
+  // Account details
+  "Почта": "E-mail", "почта": "e-mail",
+  "Пароль": "Senha", "пароль": "senha",
   "Личный": "Pessoal", "личный": "pessoal",
   "Рабочий": "Funcional", "рабочий": "funcional",
-  "Новый": "Novo", "новый": "novo",
+  "Новый": "Novo", "новый": "novo", "новая": "nova",
   "Старый": "Antigo", "старый": "antigo",
+  // Platforms
+  "Стим": "Steam", "стим": "steam",
+  "Эпик Геймс": "Epic Games",
+  "Ориджин": "Origin",
+  "Юбисофт": "Ubisoft",
+  "Баттлнет": "Battle.net",
+  "Райот": "Riot Games",
+  // Status/info
+  "Продано": "Vendido", "продано": "vendido",
+  "Доступно": "Disponível", "доступно": "disponível",
+  "Описание": "Descrição", "описание": "descrição",
+  "Категория": "Categoria", "категория": "categoria",
+  "Цена": "Preço", "цена": "preço",
+  "Купить": "Comprar", "купить": "comprar",
+  "Данные": "Dados", "данные": "dados",
+  "Выдача": "Entrega", "выдача": "entrega",
+  "Мгновенная": "Instantânea", "мгновенная": "instantânea",
+  "Восстановление": "Recuperação", "восстановление": "recuperação",
+  // Connectors
+  "и": "e", "или": "ou", "с": "com", "без": "sem", "на": "no", "для": "para",
+  "не": "não", "нет": "não", "да": "sim",
 };
 
 function translateRuToPt(text: string): string {
