@@ -408,15 +408,20 @@ const AdminMarketplacePage = () => {
 
               {urlItem && (
                 <div className="rounded-lg border border-border p-4 space-y-3">
-                  <div>
-                    <p className="font-semibold">{getItemDisplayTitle(urlItem)}</p>
-                    {urlItem.title && urlItem.title !== urlItem.title_translated && (
-                      <p className="text-xs text-muted-foreground opacity-50">{urlItem.title}</p>
+                  <div className="flex items-center gap-3">
+                    {urlItem.extracted_image_url && (
+                      <img src={urlItem.extracted_image_url} alt="" className="h-16 w-16 rounded-lg object-cover shrink-0 border border-border" />
                     )}
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <span>Preço: R$ {(urlItem.price || 0).toFixed(2).replace('.', ',')}</span>
-                    <span>ID: #{urlItem.item_id}</span>
+                    <div>
+                      <p className="font-semibold">{getItemDisplayTitle(urlItem)}</p>
+                      {urlItem.title && urlItem.title !== urlItem.title_translated && (
+                        <p className="text-xs text-muted-foreground opacity-50">{urlItem.title}</p>
+                      )}
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <span>Preço: R$ {(urlItem.price || 0).toFixed(2).replace('.', ',')}</span>
+                        <span>ID: #{urlItem.item_id}</span>
+                      </div>
+                    </div>
                   </div>
                   <Button
                     className="w-full gradient-pink text-primary-foreground border-none"
