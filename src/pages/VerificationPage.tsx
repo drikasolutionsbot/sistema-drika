@@ -455,7 +455,7 @@ const VerificationPage = () => {
                     <button
                       className="text-white text-xs font-medium px-4 py-1.5 rounded flex items-center gap-1.5 cursor-default border border-white/10 bg-white/10 backdrop-blur-sm"
                     >
-                      🔗 {config.verify_button_label || "Verificar"}
+                      {config.verify_button_label || "Verificar"}
                     </button>
                   );
                 }
@@ -463,7 +463,7 @@ const VerificationPage = () => {
                 if (isLink) {
                   return (
                     <button className="text-[#00AFF4] text-xs font-medium px-4 py-1.5 rounded flex items-center gap-1.5 cursor-default underline bg-transparent">
-                      🔗 {config.verify_button_label || "Verificar"}
+                      {config.verify_button_label || "Verificar"}
                     </button>
                   );
                 }
@@ -476,7 +476,7 @@ const VerificationPage = () => {
                       color: styleConfig.textColor,
                     }}
                   >
-                    🔗 {config.verify_button_label || "Verificar"}
+                    {config.verify_button_label || "Verificar"}
                   </button>
                 );
               })()}
