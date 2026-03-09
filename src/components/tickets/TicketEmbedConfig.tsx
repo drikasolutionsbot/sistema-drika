@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, Palette, Type, Image, MessageSquare } from "lucide-react";
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
+import { DiscordButtonStylePicker, getDiscordButtonStyles, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ interface TicketEmbedData {
   ticket_embed_thumbnail_url: string;
   ticket_embed_footer: string;
   ticket_embed_button_label: string;
+  ticket_embed_button_style: DiscordButtonStyle;
   ticket_channel_id: string;
 }
 
@@ -30,6 +32,7 @@ const defaults: TicketEmbedData = {
   ticket_embed_thumbnail_url: "",
   ticket_embed_footer: "",
   ticket_embed_button_label: "📩 Abrir Ticket",
+  ticket_embed_button_style: "glass",
   ticket_channel_id: "",
 };
 

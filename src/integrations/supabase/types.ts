@@ -1141,6 +1141,7 @@ export type Database = {
           tenant_id: string
           ticket_channel_id: string | null
           ticket_embed_button_label: string | null
+          ticket_embed_button_style: string | null
           ticket_embed_color: string | null
           ticket_embed_description: string | null
           ticket_embed_footer: string | null
@@ -1172,6 +1173,7 @@ export type Database = {
           tenant_id: string
           ticket_channel_id?: string | null
           ticket_embed_button_label?: string | null
+          ticket_embed_button_style?: string | null
           ticket_embed_color?: string | null
           ticket_embed_description?: string | null
           ticket_embed_footer?: string | null
@@ -1203,6 +1205,7 @@ export type Database = {
           tenant_id?: string
           ticket_channel_id?: string | null
           ticket_embed_button_label?: string | null
+          ticket_embed_button_style?: string | null
           ticket_embed_color?: string | null
           ticket_embed_description?: string | null
           ticket_embed_footer?: string | null
