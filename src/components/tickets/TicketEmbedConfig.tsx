@@ -392,7 +392,7 @@ const TicketEmbedConfig = () => {
             const isGlass = data.ticket_embed_button_style === "glass";
             const isLink = data.ticket_embed_button_style === "link";
             return (
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <div
                   className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium ${
                     isGlass ? "bg-white/5 backdrop-blur-md border border-white/10 shadow-lg text-[#dbdee1]" :
@@ -408,6 +408,21 @@ const TicketEmbedConfig = () => {
               </div>
             );
           })()}
+          {/* Action buttons preview (inside ticket) */}
+          <div className="mt-2 pt-2 border-t border-[#3f4147]">
+            <p className="text-[10px] text-[#a3a6aa] mb-2">Botões dentro do ticket:</p>
+            <div className="flex flex-wrap gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#5865F2] text-white">
+                🕐 Lembrar
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
+                ✏️ Renomear
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ed4245] text-white">
+                🔒 Fechar Ticket
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
