@@ -12,6 +12,14 @@ const ProUpgradeModal = () => {
   const [loading, setLoading] = useState(false);
   const [pixCode, setPixCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [proPriceCents, setProPriceCents] = useState(2690);
+
+  // Fetch pro price from landing_config
+  useEffect(() => {
+    supabase.from("landing_config").select("pro_price_cents").limit(1).single().then(({ data }) => {
+      if (data?.pro_price_cents) setProPriceCents(data.pro_price_cents);
+    });
+  }, []);
 
   useEffect(() => {
     const pending = sessionStorage.getItem("pending_pro_upgrade");
