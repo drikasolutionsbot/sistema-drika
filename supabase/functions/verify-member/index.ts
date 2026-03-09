@@ -444,6 +444,9 @@ function htmlResponse(title: string, message: string, color: string, logoUrl?: s
 </html>`;
 
   return new Response(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    },
   });
 }
