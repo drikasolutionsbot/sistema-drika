@@ -252,11 +252,21 @@ const TicketEmbedConfig = () => {
           </CardContent>
         </Card>
 
-        <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar Configuração
-        </Button>
-      </div>
+        <div className="flex gap-2">
+          <Button onClick={handleSave} disabled={saving || sending} className="flex-1 gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Salvar
+          </Button>
+          <Button
+            onClick={handleSend}
+            disabled={sending || saving || !data.ticket_channel_id}
+            variant="secondary"
+            className="flex-1 gap-2"
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Enviar ao Canal
+          </Button>
+        </div>
 
       {/* Discord Preview */}
       <div className="space-y-3">
