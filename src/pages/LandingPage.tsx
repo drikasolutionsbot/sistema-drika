@@ -376,18 +376,8 @@ const SubscriptionPaymentModal = ({ onClose, priceCents }: { onClose: () => void
       </div>
     </div>
   );
-                className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-white text-black font-semibold text-sm cursor-pointer border-none hover:bg-white/90 transition-all disabled:opacity-30"
-              >
-                <ArrowRight className="h-4 w-4" />
-                Ir para o Login
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 };
+
 
 const LandingPage = () => {
   const navigate = useNavigate();
