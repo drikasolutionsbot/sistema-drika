@@ -307,16 +307,28 @@ const TicketEmbedConfig = () => {
             )}
           </div>
           {/* Button */}
-          {data.ticket_embed_button_label && (
-            <div className="mt-3">
-              <div
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium text-[#dbdee1] bg-white/5 backdrop-blur-md border border-white/10 shadow-lg"
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                {data.ticket_embed_button_label}
+          {data.ticket_embed_button_label && (() => {
+            const btnStyle = getDiscordButtonStyles(data.ticket_embed_button_style);
+            const isGlass = data.ticket_embed_button_style === "glass";
+            const isLink = data.ticket_embed_button_style === "link";
+            return (
+              <div className="mt-3">
+                <div
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium ${
+                    isGlass ? "bg-white/5 backdrop-blur-md border border-white/10 shadow-lg text-[#dbdee1]" :
+                    isLink ? "bg-transparent underline" : ""
+                  }`}
+                  style={{
+                    backgroundColor: isGlass || isLink ? undefined : btnStyle.bgColor,
+                    color: isGlass ? undefined : btnStyle.textColor,
+                  }}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {data.ticket_embed_button_label}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>
