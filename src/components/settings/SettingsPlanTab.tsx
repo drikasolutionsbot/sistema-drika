@@ -151,7 +151,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           </div>
 
           <div className="text-center">
-            <p className="text-3xl font-extrabold text-foreground">R$ 26,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
+            <p className="text-3xl font-extrabold text-foreground">R$ {(proPriceCents / 100).toFixed(2).replace(".", ",")}<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
           </div>
 
           {pixCode && !pixExpired ? (
