@@ -671,7 +671,7 @@ serve(async (req) => {
           }),
         });
 
-        await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketThread.id}>`);
+        await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketChannel.id}>`);
         return ok();
       }
 
