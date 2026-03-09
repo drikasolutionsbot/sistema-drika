@@ -43,6 +43,7 @@ const AdminLandingConfigPage = () => {
           stat_products_label: data.stat_products_label,
           video_url: data.video_url || "",
           video_type: (data.video_type as "url" | "file") || "url",
+          pro_price_cents: data.pro_price_cents || 2690,
         });
       }
       setLoading(false);
