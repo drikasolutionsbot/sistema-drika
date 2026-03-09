@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
               type: 2,
               style: discordStyle,
               label: button_label || "📩 Abrir Ticket",
-              custom_id: `ticket_open_${tenant_id}`,
+              custom_id: `ticket_open_${tenant_id}_${channel_id}`,
             },
           ],
         },
