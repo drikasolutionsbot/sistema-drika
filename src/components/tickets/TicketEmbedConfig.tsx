@@ -44,24 +44,24 @@ const TicketEmbedConfig = () => {
   const guildId = tenant?.discord_guild_id || null;
 
   const fetchChannels = useCallback(async () => {
-    if (!guildId) return;
+    if (!guildId && !tenantId) return;
     try {
       const { data: res } = await supabase.functions.invoke("discord-channels", {
-        body: { guild_id: guildId },
+        body: guildId ? { guild_id: guildId } : { tenant_id: tenantId },
       });
-      if (res?.channels) {
-        const cats = res.channels
-          .filter((c: any) => c.type === 4)
-          .map((c: any) => ({ id: c.id, name: c.name, position: c.position }))
-          .sort((a: any, b: any) => a.position - b.position);
-        const textChannels = res.channels
-          .filter((c: any) => c.type === 0 || c.type === 5)
-          .map((c: any) => ({ id: c.id, name: c.name, parent_id: c.parent_id }));
-        setCategories(cats);
-        setChannels(textChannels);
+      if (res) {
+        // Edge function already returns pre-filtered channels and categories
+        if (res.categories) {
+          setCategories(res.categories);
+        }
+        if (res.channels) {
+          setChannels(res.channels);
+        }
       }
-    } catch {}
-  }, [guildId]);
+    } catch (err) {
+      console.error("Error fetching channels:", err);
+    }
+  }, [guildId, tenantId]);
 
   useEffect(() => {
     fetchChannels();
