@@ -81,7 +81,7 @@ const AdminTutorialsPage = () => {
     try {
       const ext = file.name.split(".").pop();
       const path = `tutorials/${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true });
+      const { error } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
       setter(urlData.publicUrl);
