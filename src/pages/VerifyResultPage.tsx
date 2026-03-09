@@ -21,6 +21,7 @@ const VerifyResultPage = () => {
   const status = safeStatus(params.get("status"));
   const title = params.get("title") || (status === "success" ? "Verificado com sucesso" : "Não foi possível verificar");
   const message = params.get("message") || "Você pode fechar esta aba e voltar ao Discord.";
+  const logoUrl = params.get("logo") || drikaLogo;
 
   const ui = useMemo(() => {
     if (status === "success") {
