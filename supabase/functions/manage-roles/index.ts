@@ -255,6 +255,37 @@ serve(async (req) => {
         });
       }
 
+      // Delete directly by Discord role ID (used by RolesTab)
+      case "delete_discord": {
+        const { role_id } = params;
+        if (!role_id) throw new Error("Missing role_id");
+
+        // Delete from Discord
+        const discordRes = await fetch(
+          `https://discord.com/api/v10/guilds/${guildId}/roles/${role_id}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${botToken}` },
+          }
+        );
+
+        if (!discordRes.ok && discordRes.status !== 404) {
+          const text = await discordRes.text();
+          throw new Error(`Discord API error [${discordRes.status}]: ${text}`);
+        }
+
+        // Also remove from tenant_roles if exists
+        await supabase
+          .from("tenant_roles")
+          .delete()
+          .eq("discord_role_id", role_id)
+          .eq("tenant_id", tenant_id);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
