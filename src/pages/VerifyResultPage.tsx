@@ -50,7 +50,7 @@ const VerifyResultPage = () => {
         <CardHeader className="space-y-4">
           <div className="flex items-center justify-between">
             <img
-              src={drikaLogo}
+              src={logoUrl}
               alt="DRIKA HUB"
               className="h-10 w-auto"
               loading="eager"
