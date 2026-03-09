@@ -184,6 +184,15 @@ const TicketEmbedConfig = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Form */}
       <div className="space-y-5">
+        {hasDraft && (
+          <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="text-sm text-muted-foreground">Rascunho não salvo recuperado</p>
+            <Button variant="ghost" size="sm" onClick={discardDraft} className="gap-1.5 text-xs">
+              <Undo2 className="h-3.5 w-3.5" />
+              Descartar
+            </Button>
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
