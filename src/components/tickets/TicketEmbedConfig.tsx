@@ -323,7 +323,6 @@ const TicketEmbedConfig = () => {
                     color: isGlass ? undefined : btnStyle.textColor,
                   }}
                 >
-                  <MessageSquare className="h-3.5 w-3.5" />
                   {data.ticket_embed_button_label}
                 </div>
               </div>
