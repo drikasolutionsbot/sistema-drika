@@ -81,8 +81,20 @@ const AdminTutorialsPage = () => {
     try {
       const ext = file.name.split(".").pop();
       const path = `tutorials/${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true, contentType: file.type });
-      if (error) throw error;
+      
+      // Use tus resumable upload for large files (>5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        const { data, error } = await supabase.storage.from("tenant-assets").upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+          duplex: 'half',
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true, contentType: file.type });
+        if (error) throw error;
+      }
+      
       const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
       setter(urlData.publicUrl);
       toast.success("Arquivo enviado!");
