@@ -76,7 +76,7 @@ const ProUpgradeModal = () => {
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mb-3">
               <Crown className="h-4 w-4" /> Plano Mensal
             </div>
-            <p className="text-3xl font-extrabold text-foreground">R$ 26,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
+            <p className="text-3xl font-extrabold text-foreground">R$ {(proPriceCents / 100).toFixed(2).replace(".", ",")}<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
           </div>
 
           {loading ? (
