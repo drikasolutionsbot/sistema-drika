@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductImageUpload } from "./ProductImageUpload";
 import { useTenant } from "@/contexts/TenantContext";
+import { DiscordButtonStylePicker, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
 
 interface Category {
   id: string;
@@ -29,6 +30,7 @@ interface Product {
   show_stock?: boolean;
   show_sold?: boolean;
   enable_instructions?: boolean;
+  button_style?: DiscordButtonStyle;
 }
 
 interface ProductDetailGeneralProps {
@@ -262,6 +264,16 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             />
           </div>
         </div>
+      </section>
+
+      {/* Section: Aparência do Botão */}
+      <section className="space-y-5">
+        <h3 className="text-base font-bold text-foreground">Aparência do Embed</h3>
+        <DiscordButtonStylePicker
+          value={product.button_style || "success"}
+          onChange={(style) => onChange({ button_style: style })}
+          label="Estilo do Botão de Comprar"
+        />
       </section>
     </div>
   );

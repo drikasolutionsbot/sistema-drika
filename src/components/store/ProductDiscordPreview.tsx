@@ -1,5 +1,6 @@
 import { Eye } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
+import { type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 
 interface Product {
   id: string;
@@ -14,6 +15,7 @@ interface Product {
   banner_url?: string | null;
   auto_delivery?: boolean;
   category_id?: string | null;
+  button_style?: DiscordButtonStyle;
 }
 
 interface PreviewField {
@@ -187,17 +189,42 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
 
         {/* Button row */}
         <div className="flex gap-2 mt-2">
-          <button className="bg-[#248046] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
-            🛒 Comprar
-          </button>
-          {fields.length > 0 && (
-            <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
-              📋 Variações
-            </button>
-          )}
-          <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
-            ℹ️ Detalhes
-          </button>
+          {(() => {
+            const style = product.button_style || "success";
+            const isGlass = style === "glass";
+            const isLink = style === "link";
+            const styleConfig = getDiscordButtonStyles(style);
+            
+            const buttonClasses = isGlass
+              ? "bg-white/10 backdrop-blur-sm border border-white/20 text-white"
+              : isLink
+                ? "bg-transparent text-[#00AFF4] underline"
+                : "";
+            
+            const buttonStyle = !isGlass && !isLink ? {
+              backgroundColor: styleConfig.bgColor,
+              color: styleConfig.textColor,
+            } : undefined;
+            
+            return (
+              <>
+                <button
+                  className={`text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default ${buttonClasses}`}
+                  style={buttonStyle}
+                >
+                  🛒 Comprar
+                </button>
+                {fields.length > 0 && (
+                  <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
+                    📋 Variações
+                  </button>
+                )}
+                <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
+                  ℹ️ Detalhes
+                </button>
+              </>
+            );
+          })()}
         </div>
       </div>
 
