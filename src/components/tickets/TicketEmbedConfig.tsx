@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Palette, Type, Image, MessageSquare, Send } from "lucide-react";
+import { Loader2, Save, Palette, Type, Image, MessageSquare, Send, Undo2 } from "lucide-react";
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { DiscordButtonStylePicker, getDiscordButtonStyles, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
 
 interface TicketEmbedData {
   ticket_embed_title: string;
@@ -40,12 +41,19 @@ const defaults: TicketEmbedData = {
 
 const TicketEmbedConfig = () => {
   const { tenantId, tenant } = useTenant();
-  const [data, setData] = useState<TicketEmbedData>(defaults);
+  const [serverData, setServerData] = useState<TicketEmbedData>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [channels, setChannels] = useState<{ id: string; name: string; parent_id?: string | null }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string; position: number }[]>([]);
+
+  const { draft: data, setDraft: setData, clearDraft, hasDraft, discardDraft } = useLocalDraft<TicketEmbedData>(
+    "ticket-embed",
+    tenantId,
+    serverData,
+    !loading
+  );
 
   const guildId = tenant?.discord_guild_id || null;
 
@@ -56,13 +64,8 @@ const TicketEmbedConfig = () => {
         body: guildId ? { guild_id: guildId } : { tenant_id: tenantId },
       });
       if (res) {
-        // Edge function already returns pre-filtered channels and categories
-        if (res.categories) {
-          setCategories(res.categories);
-        }
-        if (res.channels) {
-          setChannels(res.channels);
-        }
+        if (res.categories) setCategories(res.categories);
+        if (res.channels) setChannels(res.channels);
       }
     } catch (err) {
       console.error("Error fetching channels:", err);
@@ -76,13 +79,13 @@ const TicketEmbedConfig = () => {
   useEffect(() => {
     if (!tenantId) return;
     const load = async () => {
-      const { data: config } = await supabase
+      const { data: config } = await (supabase as any)
         .from("store_configs")
         .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_channel_id, ticket_logs_channel_id")
         .eq("tenant_id", tenantId)
         .maybeSingle();
       if (config) {
-        setData({
+        const loaded: TicketEmbedData = {
           ticket_embed_title: config.ticket_embed_title || defaults.ticket_embed_title,
           ticket_embed_description: config.ticket_embed_description || defaults.ticket_embed_description,
           ticket_embed_color: config.ticket_embed_color || defaults.ticket_embed_color,
@@ -92,8 +95,9 @@ const TicketEmbedConfig = () => {
           ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
           ticket_embed_button_style: (config.ticket_embed_button_style as DiscordButtonStyle) || defaults.ticket_embed_button_style,
           ticket_channel_id: config.ticket_channel_id || "",
-          ticket_logs_channel_id: (config as any).ticket_logs_channel_id || "",
-        });
+          ticket_logs_channel_id: config.ticket_logs_channel_id || "",
+        };
+        setServerData(loaded);
       }
       setLoading(false);
     };
@@ -104,7 +108,7 @@ const TicketEmbedConfig = () => {
     if (!tenantId) return;
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("store_configs")
         .update({
           ticket_embed_title: data.ticket_embed_title || null,
@@ -118,9 +122,11 @@ const TicketEmbedConfig = () => {
           ticket_channel_id: data.ticket_channel_id || null,
           ticket_logs_channel_id: data.ticket_logs_channel_id || null,
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq("tenant_id", tenantId);
       if (error) throw error;
+      clearDraft();
+      setServerData({ ...data });
       toast.success("Configuração do ticket salva!");
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
@@ -134,6 +140,8 @@ const TicketEmbedConfig = () => {
       toast.error("Selecione um canal antes de enviar.");
       return;
     }
+    // Save first, then send
+    await handleSave();
     setSending(true);
     try {
       const { data: res, error } = await supabase.functions.invoke("send-ticket-embed", {
@@ -176,6 +184,15 @@ const TicketEmbedConfig = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Form */}
       <div className="space-y-5">
+        {hasDraft && (
+          <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="text-sm text-muted-foreground">Rascunho não salvo recuperado</p>
+            <Button variant="ghost" size="sm" onClick={discardDraft} className="gap-1.5 text-xs">
+              <Undo2 className="h-3.5 w-3.5" />
+              Descartar
+            </Button>
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
