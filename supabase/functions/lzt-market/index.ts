@@ -179,6 +179,7 @@ serve(async (req) => {
       if (data?.item) {
         if (data.item.title) data.item.title_translated = translateRuToPt(data.item.title);
         if (data.item.description) data.item.description_translated = translateRuToPt(data.item.description);
+        data.item.extracted_image_url = extractImageUrl(data.item);
       }
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
