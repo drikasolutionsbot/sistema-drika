@@ -1570,6 +1570,7 @@ export type Database = {
           verify_embed_color: string | null
           verify_enabled: boolean | null
           verify_image_url: string | null
+          verify_logs_channel_id: string | null
           verify_redirect_url: string | null
           verify_role_id: string | null
           verify_title: string | null
@@ -1603,6 +1604,7 @@ export type Database = {
           verify_embed_color?: string | null
           verify_enabled?: boolean | null
           verify_image_url?: string | null
+          verify_logs_channel_id?: string | null
           verify_redirect_url?: string | null
           verify_role_id?: string | null
           verify_title?: string | null
@@ -1636,6 +1638,7 @@ export type Database = {
           verify_embed_color?: string | null
           verify_enabled?: boolean | null
           verify_image_url?: string | null
+          verify_logs_channel_id?: string | null
           verify_redirect_url?: string | null
           verify_role_id?: string | null
           verify_title?: string | null
