@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2 } from "lucide-react";
+import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles } from "lucide-react";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -400,6 +400,10 @@ const LandingPage = () => {
     }
   };
 
+  const scrollToPlans = () => {
+    document.getElementById("planos")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen text-white overflow-x-hidden relative bg-black">
       {/* Cascading pattern background */}
@@ -408,6 +412,20 @@ const LandingPage = () => {
       <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-transparent to-black/60" />
       {/* Center glow */}
       <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,_rgba(29,78,216,0.1)_0%,_transparent_60%)]" />
+
+      {/* ===== STICKY NAV ===== */}
+      <nav className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 h-12">
+          <div className="flex items-center gap-2">
+            <img src={drikaLogo} alt="Drika" className="h-7 w-auto" />
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={scrollToPlans} className="text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+            <button onClick={() => navigate("/login")} className="text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
+            <button onClick={() => navigate("/signup")} className="text-xs px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all">Começar</button>
+          </div>
+        </div>
+      </nav>
 
       {/* ===== 1. HERO ===== */}
       <section className="relative z-10 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
@@ -431,10 +449,10 @@ const LandingPage = () => {
                 Testar Grátis — 4 dias
               </span>
             </button>
-            <button onClick={handleProClick} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
+            <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
               <span className="flex items-center justify-center gap-2">
                 <Crown className="h-4 w-4" />
-                Assinar Pro — R$ {((landingConfig?.pro_price_cents || 2690) / 100).toFixed(2).replace(".", ",")}/mês
+                Ver Planos
               </span>
             </button>
           </div>
@@ -601,68 +619,117 @@ const LandingPage = () => {
       )}
 
       {/* ===== 6. PRICING ===== */}
-      <section className="relative z-10 py-12 px-4">
-        <div className="max-w-xl mx-auto">
+      <section id="planos" className="relative z-10 py-16 px-4">
+        <div className="max-w-4xl mx-auto">
           <ScrollReveal>
-            <div className="text-center mb-8">
-              <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Escolha seu <span className="text-white">plano</span>
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-4xl font-extrabold font-display mb-2">
+                Escolha o plano ideal <span className="text-primary">para você</span>
               </h2>
-              <p className="text-xs text-white/40">Comece grátis, evolua quando quiser</p>
+              <p className="text-sm text-white/50">Soluções flexíveis para negócios em crescimento</p>
             </div>
           </ScrollReveal>
-          <div className="grid md:grid-cols-2 gap-6 pt-4 overflow-visible">
-            {/* Free */}
+          <div className="grid md:grid-cols-3 gap-5 items-start">
+            {/* Trial / Free */}
             <ScrollReveal>
-              <div className="pricing-card group relative h-full transition-all duration-300 hover:scale-[1.03] bg-[#111]">
-                <div className="relative z-10 p-5 flex flex-col h-full">
-                  <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-1">Teste Grátis</h3>
-                  <div className="text-2xl font-extrabold font-display mb-0.5 text-white">4 dias</div>
-                  <p className="text-xs text-white/40 mb-4">para experimentar tudo</p>
-                  <ul className="space-y-1.5 mb-5 flex-1">
-                    {["Painel completo", "Bot no seu servidor", "Vendas automáticas", "Sem cartão"].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-white/60">
-                        <Check className="h-3 w-3 text-white/40 shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="pricing-card-label rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
-                    <button onClick={() => navigate("/signup")} className="w-full py-2 rounded-full bg-white text-black hover:bg-white/90 font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm">
-                      Começar <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+              <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-white/20">
+                <span className="inline-flex self-start items-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider">Gratuito</span>
+                <h3 className="text-xl font-extrabold font-display text-white mb-1">Trial</h3>
+                <p className="text-xs text-white/40 mb-5">Teste todas as funcionalidades por 4 dias gratuitamente.</p>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-xs text-white/50">R$</span>
+                  <span className="text-4xl font-extrabold font-display text-white">0</span>
+                  <span className="text-xs text-white/40">/4 dias</span>
                 </div>
+                <ul className="space-y-2.5 mb-6 flex-1">
+                  {[
+                    "Sistema de vendas completo",
+                    "Bot no seu servidor Discord",
+                    "Vendas automáticas via PIX",
+                    "Sistema de tickets",
+                    "Personalização básica",
+                    "Todas as funcionalidades inclusas",
+                  ].map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-xs text-white/60">
+                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={() => navigate("/signup")} className="w-full py-2.5 rounded-full bg-emerald-500 text-white font-semibold text-sm cursor-pointer border-none hover:bg-emerald-400 transition-all flex items-center justify-center gap-2">
+                  Testar Grátis <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
             </ScrollReveal>
 
-            {/* Pro */}
-            <ScrollReveal delay={0.15}>
-              <div className="pricing-card pricing-card--pro group relative h-full transition-all duration-300 hover:scale-[1.03] scale-[1.02] pt-4 bg-[#111] border border-white/20">
-                {/* Popular badge */}
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-1.5 text-[11px] font-bold text-black uppercase tracking-wider whitespace-nowrap">
-                    <Crown className="h-3 w-3" /> Popular
+            {/* Pro / Start */}
+            <ScrollReveal delay={0.1}>
+              <div className="relative rounded-2xl border border-primary/40 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-primary/60 shadow-[0_0_40px_rgba(168,85,247,0.08)]">
+                {/* Recommended badge */}
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1 text-[10px] font-bold text-white uppercase tracking-wider whitespace-nowrap shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                    <Sparkles className="h-3 w-3" /> Recomendado
                   </span>
                 </div>
-                <div className="relative z-10 p-5 pt-3 flex flex-col h-full">
-                  <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-1">Pro</h3>
-                  <div className="text-2xl font-extrabold font-display mb-0.5 text-white">R$ {((landingConfig?.pro_price_cents || 2690) / 100).toFixed(2).replace(".", ",")}</div>
-                  <p className="text-xs text-white/40 mb-4">por mês</p>
-                  <ul className="space-y-1.5 mb-5 flex-1">
-                    {["Tudo do Free", "Sem limite de tempo", "Segurança avançada", "Suporte prioritário"].map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-white/60">
-                        <Check className="h-3 w-3 text-white shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="pricing-card-label rounded-[.5rem_2rem] p-3 transition-all duration-500 hover:translate-x-1 hover:[transform:perspective(100px)_translateX(7px)_rotateX(3deg)_rotateY(3deg)]">
-                     <button onClick={handleProClick} className="w-full py-2 rounded-full bg-white text-black hover:bg-white/90 font-semibold transition-all cursor-pointer border-none flex items-center justify-center gap-2 text-sm">
-                      Assinar Pro <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                <span className="inline-flex self-start items-center rounded-full bg-primary/15 text-primary text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider mt-2">Mais Popular</span>
+                <h3 className="text-xl font-extrabold font-display text-white mb-1">Pro</h3>
+                <p className="text-xs text-white/40 mb-5">Solução completa para vendas e atendimento no Discord.</p>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-[10px] text-white/40">a partir de</span>
                 </div>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-xs text-white/50">R$</span>
+                  <span className="text-4xl font-extrabold font-display text-white">{((landingConfig?.pro_price_cents || 2690) / 100).toFixed(2).replace(".", ",")}</span>
+                  <span className="text-xs text-white/40">/mês</span>
+                </div>
+                <ul className="space-y-2.5 mb-6 flex-1">
+                  {[
+                    "Sistema de vendas completo",
+                    "Entrega automática de produtos",
+                    "Sistema de ticket profissional",
+                    "Proteção anti-fraude avançada",
+                    "Personalização completa",
+                    "Verificação OAuth2",
+                    "Suporte prioritário",
+                  ].map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-xs text-white/60">
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={handleProClick} className="w-full py-2.5 rounded-full bg-primary text-white font-semibold text-sm cursor-pointer border-none hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+                  Começar Agora <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </ScrollReveal>
+
+            {/* Enterprise */}
+            <ScrollReveal delay={0.2}>
+              <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-white/20">
+                <span className="inline-flex self-start items-center rounded-full bg-white/10 text-white/50 text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider">Em Desenvolvimento</span>
+                <h3 className="text-xl font-extrabold font-display text-white mb-1">Enterprise</h3>
+                <p className="text-xs text-white/40 mb-5">Recursos avançados para grandes servidores e empresas.</p>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-2xl font-extrabold font-display text-white/40">Em breve</span>
+                </div>
+                <ul className="space-y-2.5 mb-6 flex-1">
+                  {[
+                    "Todos os recursos do Pro",
+                    "Múltiplos bots por servidor",
+                    "API personalizada",
+                    "White-label completo",
+                    "Suporte dedicado 24/7",
+                  ].map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-xs text-white/40">
+                      <Check className="h-3.5 w-3.5 text-white/30 shrink-0 mt-0.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <button disabled className="w-full py-2.5 rounded-full bg-white/5 text-white/40 font-semibold text-sm cursor-not-allowed border border-white/10 flex items-center justify-center gap-2">
+                  Em Breve
+                </button>
               </div>
             </ScrollReveal>
           </div>
