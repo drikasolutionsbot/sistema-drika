@@ -1,0 +1,1 @@
+UPDATE public.marketplace_items SET image_url = 'https://vzge.me/full/256/bb6fd382a1464a039cd736c164f78de7' WHERE id = '7ad6db0c-065c-44dc-bca3-dc7494f2ff97';
