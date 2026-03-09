@@ -122,7 +122,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   })();
 
   return (
-    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: fetchTenant, isPlanExpired }}>
+    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired }}>
       {children}
     </TenantContext.Provider>
   );
