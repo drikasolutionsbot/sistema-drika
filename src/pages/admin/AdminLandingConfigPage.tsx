@@ -22,6 +22,7 @@ const AdminLandingConfigPage = () => {
     stat_products_label: "Produtos entregues",
     video_url: "",
     video_type: "url" as "url" | "file",
+    pro_price_cents: 2690,
   });
 
   useEffect(() => {
