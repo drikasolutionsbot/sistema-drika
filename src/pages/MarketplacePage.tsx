@@ -204,36 +204,65 @@ const MarketplacePage = () => {
 
   if (isLocked) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center p-8 animate-fade-in">
-        <div className="relative flex w-full max-w-[340px] flex-col items-center overflow-hidden rounded-2xl border border-border bg-card p-8 text-center shadow-2xl">
-          {/* Glow effect */}
-          <div className="absolute top-0 flex w-full justify-center">
-            <div className="h-32 w-3/4 rounded-full bg-primary/10 blur-[50px]"></div>
+      <div className="relative space-y-6 animate-fade-in min-h-[70vh]">
+        {/* Blurred background showing products */}
+        <div className="pointer-events-none select-none" aria-hidden="true">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+                <ShoppingBag className="h-6 w-6 text-primary" />
+                Marketplace Atacadão
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Produtos digitais com preços de atacado
+              </p>
+            </div>
           </div>
 
-          {/* Lock icon */}
-          <div className="relative z-10 mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-muted shadow-inner">
-            <Lock className="h-6 w-6 text-primary stroke-[2.5]" />
+          {/* Fake product grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {mockItems.map((item) => (
+              <MarketplaceCard key={item.id} item={item} />
+            ))}
           </div>
+        </div>
 
-          {/* Title */}
-          <h3 className="relative z-10 mb-3 flex items-center justify-center gap-2 text-[1.15rem] font-bold text-foreground tracking-wide">
-            Funcionalidade PRO <Sparkles className="h-4 w-4 text-accent" />
-          </h3>
+        {/* Blur overlay */}
+        <div className="absolute inset-0 backdrop-blur-[6px] bg-background/40 z-10" />
 
-          {/* Description */}
-          <p className="relative z-10 mb-8 px-2 text-[13px] leading-[1.6] text-muted-foreground">
-            Esta aba contém ferramentas avançadas. Torne-se membro PRO para desbloquear todo o potencial do seu negócio.
-          </p>
+        {/* Lock card on top */}
+        <div className="absolute inset-0 z-20 flex items-center justify-center p-8">
+          <div className="relative flex w-full max-w-[380px] flex-col items-center overflow-hidden rounded-2xl border border-primary/15 bg-card/80 backdrop-blur-xl p-8 text-center shadow-[0_0_60px_hsl(var(--primary)/0.1)]">
+            {/* Glow effect */}
+            <div className="absolute top-0 flex w-full justify-center">
+              <div className="h-32 w-3/4 rounded-full bg-primary/10 blur-[50px]"></div>
+            </div>
 
-          {/* Button */}
-          <Button
-            onClick={() => navigate("/settings")}
-            className="group relative z-10 w-full rounded-xl px-4 py-3.5 text-sm font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Desbloquear Acesso
-            <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1 stroke-[2.5]" />
-          </Button>
+            {/* Lock icon */}
+            <div className="relative z-10 mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-primary/20 bg-muted/80 backdrop-blur-sm shadow-inner">
+              <Lock className="h-6 w-6 text-primary stroke-[2.5]" />
+            </div>
+
+            {/* Title */}
+            <h3 className="relative z-10 mb-3 flex items-center justify-center gap-2 text-[1.15rem] font-bold text-foreground tracking-wide">
+              Funcionalidade PRO <Sparkles className="h-4 w-4 text-primary" />
+            </h3>
+
+            {/* Description */}
+            <p className="relative z-10 mb-8 px-2 text-[13px] leading-[1.6] text-muted-foreground">
+              Esta aba contém ferramentas avançadas. Torne-se membro PRO para desbloquear todo o potencial do seu negócio.
+            </p>
+
+            {/* Button */}
+            <Button
+              onClick={() => navigate("/settings")}
+              className="group relative z-10 w-full rounded-xl px-4 py-3.5 text-sm font-bold transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+            >
+              Desbloquear Acesso
+              <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1 stroke-[2.5]" />
+            </Button>
+          </div>
         </div>
       </div>
     );
