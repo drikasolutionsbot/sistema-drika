@@ -289,15 +289,11 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         {tenant && <PlanBadge tenant={tenant} />}
         {/* Wallet */}
         <WalletBadge />
-        {/* Theme Toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="text-muted-foreground hover:text-foreground"
-          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-        >
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        {/* Theme Toggle - BB8 */}
+        <BB8Toggle
+          checked={theme === "dark"}
+          onChange={(checked) => setTheme(checked ? "dark" : "light")}
+        />
         </Button>
         {/* Notifications */}
         <Popover open={notifOpen} onOpenChange={setNotifOpen}>
