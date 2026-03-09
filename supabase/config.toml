@@ -170,3 +170,6 @@ verify_jwt = false
 
 [functions.lzt-market]
 verify_jwt = false
+
+[functions.manage-marketplace]
+verify_jwt = false

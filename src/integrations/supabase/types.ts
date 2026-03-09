@@ -642,6 +642,65 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_items: {
+        Row: {
+          bought_at: string | null
+          bought_by_tenant_id: string | null
+          category: string | null
+          cost_cents: number
+          created_at: string
+          description: string | null
+          id: string
+          lzt_data: Json | null
+          lzt_item_id: number
+          payment_id: string | null
+          resale_price_cents: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          bought_at?: string | null
+          bought_by_tenant_id?: string | null
+          category?: string | null
+          cost_cents?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          lzt_data?: Json | null
+          lzt_item_id: number
+          payment_id?: string | null
+          resale_price_cents?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          bought_at?: string | null
+          bought_by_tenant_id?: string | null
+          category?: string | null
+          cost_cents?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          lzt_data?: Json | null
+          lzt_item_id?: number
+          payment_id?: string | null
+          resale_price_cents?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_items_bought_by_tenant_id_fkey"
+            columns: ["bought_by_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           affiliate_id: string | null
