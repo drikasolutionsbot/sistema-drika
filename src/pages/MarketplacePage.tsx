@@ -118,7 +118,7 @@ const MarketplaceCard = ({ item }: { item: MarketplaceItem }) => (
     {/* Image / gradient header */}
     <div className="relative h-32 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent flex items-center justify-center overflow-hidden">
       {item.featured && (
-        <Badge className="absolute top-2 right-2 bg-yellow-500/90 text-black text-[10px] gap-1">
+        <Badge className="absolute top-2 right-2 bg-accent text-accent-foreground text-[10px] gap-1">
           <Sparkles className="h-3 w-3" /> Destaque
         </Badge>
       )}
