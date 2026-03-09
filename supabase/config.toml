@@ -167,3 +167,6 @@ verify_jwt = false
 
 [functions.discord-guild-invites]
 verify_jwt = false
+
+[functions.lzt-market]
+verify_jwt = false
