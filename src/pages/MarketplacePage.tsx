@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { ShoppingCart, Tag, CreditCard, Package, History } from "lucide-react";
+import { ShoppingCart, Tag, CreditCard, Package, History, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import PixGeneratorDialog from "@/components/pix/PixGeneratorDialog";
+import { MarketplaceItemDetail } from "@/components/marketplace/MarketplaceItemDetail";
 
 interface MarketplaceItem {
   id: string;
@@ -24,11 +25,13 @@ interface MarketplaceItem {
   bought_at: string | null;
   created_at: string;
   image_url: string | null;
+  lzt_data: Record<string, unknown> | null;
 }
 
 const MarketplacePage = () => {
   const { tenantId, tenant } = useTenant();
   const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
+  const [detailItem, setDetailItem] = useState<MarketplaceItem | null>(null);
   const [pixOpen, setPixOpen] = useState(false);
 
   // Available items
@@ -65,7 +68,6 @@ const MarketplacePage = () => {
 
   const handleConfirmPurchase = () => {
     if (!selectedItem) return;
-    // Open PIX payment
     setPixOpen(true);
   };
 
@@ -125,7 +127,8 @@ const MarketplacePage = () => {
                       {catItems.map((item) => (
                         <div
                           key={item.id}
-                          className="rounded-xl border border-border bg-card hover:border-primary/40 transition-colors flex flex-col overflow-hidden"
+                          className="rounded-xl border border-border bg-card hover:border-primary/40 transition-colors flex flex-col overflow-hidden cursor-pointer"
+                          onClick={() => setDetailItem(item)}
                         >
                           {item.image_url && (
                             <div className="flex items-center justify-center bg-muted/30 border-b border-border py-3">
@@ -146,14 +149,24 @@ const MarketplacePage = () => {
                               <span className="text-lg font-bold text-primary">
                                 {formatBRL(item.resale_price_cents)}
                               </span>
-                              <Button
-                                size="sm"
-                                className="text-xs gradient-pink text-primary-foreground border-none hover:opacity-90"
-                                onClick={() => handleBuy(item)}
-                              >
-                                <CreditCard className="h-3 w-3 mr-1" />
-                                Comprar
-                              </Button>
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs h-8 w-8 p-0"
+                                  onClick={(e) => { e.stopPropagation(); setDetailItem(item); }}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="text-xs gradient-pink text-primary-foreground border-none hover:opacity-90"
+                                  onClick={(e) => { e.stopPropagation(); handleBuy(item); }}
+                                >
+                                  <CreditCard className="h-3 w-3 mr-1" />
+                                  Comprar
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -199,6 +212,35 @@ const MarketplacePage = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Detail dialog */}
+      <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
+        <DialogContent className="bg-card border-border max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{detailItem?.title}</DialogTitle>
+            <DialogDescription>Detalhes do produto</DialogDescription>
+          </DialogHeader>
+          {detailItem && (
+            <MarketplaceItemDetail
+              title={detailItem.title}
+              description={detailItem.description}
+              imageUrl={detailItem.image_url}
+              lztData={detailItem.lzt_data as Record<string, unknown> | null}
+              priceCents={detailItem.resale_price_cents}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDetailItem(null)}>Fechar</Button>
+            <Button
+              onClick={() => { handleBuy(detailItem!); setDetailItem(null); }}
+              className="gradient-pink text-primary-foreground border-none"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Comprar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Buy confirmation dialog */}
       <Dialog open={!!selectedItem && !pixOpen} onOpenChange={(open) => !open && setSelectedItem(null)}>
         <DialogContent className="bg-card border-border">
@@ -209,9 +251,6 @@ const MarketplacePage = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {selectedItem?.description && (
-              <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
-            )}
             <div className="rounded-lg bg-muted p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Valor</p>
               <p className="text-2xl font-bold text-primary">
