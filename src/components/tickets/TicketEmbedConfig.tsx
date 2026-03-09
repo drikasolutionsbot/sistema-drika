@@ -264,7 +264,7 @@ const TicketEmbedConfig = () => {
               folder="ticket-embeds"
             />
             <div className="space-y-2">
-              <Label>Categoria/Canal de Tickets</Label>
+              <Label>📂 Categoria/Canal de Tickets</Label>
               <ChannelSelectWithCreate
                 value={data.ticket_channel_id}
                 onChange={(val) => update("ticket_channel_id", val)}
@@ -273,10 +273,26 @@ const TicketEmbedConfig = () => {
                 onChannelCreated={fetchChannels}
                 tenantId={tenantId}
                 guildId={guildId}
-                placeholder="Selecione a categoria de tickets"
+                placeholder="Onde os tickets serão abertos"
               />
               <p className="text-xs text-muted-foreground">
                 Os tickets criados serão organizados dentro desta categoria/canal
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>📋 Canal de Logs de Tickets</Label>
+              <ChannelSelectWithCreate
+                value={data.ticket_logs_channel_id}
+                onChange={(val) => update("ticket_logs_channel_id", val)}
+                channels={channels}
+                categories={categories}
+                onChannelCreated={fetchChannels}
+                tenantId={tenantId}
+                guildId={guildId}
+                placeholder="Onde ficam os logs quando fechados"
+              />
+              <p className="text-xs text-muted-foreground">
+                Quando um ticket for fechado, o transcript será enviado neste canal
               </p>
             </div>
             <DiscordButtonStylePicker
