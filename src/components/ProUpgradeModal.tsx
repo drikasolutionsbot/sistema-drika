@@ -35,14 +35,15 @@ const ProUpgradeModal = () => {
     const checkPending = () => {
       const pending = sessionStorage.getItem("pending_pro_upgrade");
       if (pending === "true" && tenantId) {
-        setOpen(true);
         sessionStorage.removeItem("pending_pro_upgrade");
+        setOpen(true);
         generatePix();
       }
     };
     checkPending();
-    window.addEventListener("storage", checkPending);
-    return () => window.removeEventListener("storage", checkPending);
+    const handler = () => checkPending();
+    window.addEventListener("pending_pro_upgrade", handler);
+    return () => window.removeEventListener("pending_pro_upgrade", handler);
   }, [tenantId]);
 
   const generatePix = async () => {
@@ -77,8 +78,8 @@ const ProUpgradeModal = () => {
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
-    if (isOpen && !pixResult && !loading) {
-      generatePix();
+    if (!isOpen) {
+      setPixResult(null);
     }
   };
 
