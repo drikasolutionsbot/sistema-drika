@@ -125,7 +125,7 @@ const TicketEmbedConfig = () => {
   };
 
   const update = (key: keyof TicketEmbedData, value: string) => {
-    setData((prev) => ({ ...prev, [key]: value }));
+    setData((prev) => ({ ...prev, [key]: value as any }));
   };
 
   if (loading) {
