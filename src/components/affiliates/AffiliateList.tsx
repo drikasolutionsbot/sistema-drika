@@ -512,7 +512,7 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh }: Props) => {
               {/* Metrics */}
               <div className="grid grid-cols-4 gap-2">
                 <div className="rounded-xl bg-muted/20 border border-border/30 p-3 text-center">
-                  <p className="text-lg font-bold">{statsAffiliate.commission_percent}%</p>
+                  <p className="text-lg font-bold">{getCommissionLabel(statsAffiliate)}</p>
                   <p className="text-[10px] text-muted-foreground">Comissão</p>
                 </div>
                 <div className="rounded-xl bg-muted/20 border border-border/30 p-3 text-center">
@@ -525,7 +525,7 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh }: Props) => {
                 </div>
                 <div className="rounded-xl bg-muted/20 border border-border/30 p-3 text-center">
                   <p className="text-lg font-bold text-primary">
-                    {formatBRL(Math.round(statsAffiliate.total_revenue_cents * statsAffiliate.commission_percent / 100))}
+                    {formatBRL(calcCommission(statsAffiliate, statsAffiliate.total_revenue_cents))}
                   </p>
                   <p className="text-[10px] text-muted-foreground">Ganhos</p>
                 </div>
