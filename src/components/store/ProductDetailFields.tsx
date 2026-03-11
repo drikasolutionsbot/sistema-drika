@@ -264,11 +264,31 @@ const FieldExpandedContent = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="estoque" className="space-y-3">
+        <TabsContent value="estoque" className="space-y-4">
+          {/* Delivery quantity config */}
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Quantidade por Entrega</Label>
+            <p className="text-xs text-muted-foreground">
+              Quantos itens do estoque serão enviados por pedido na entrega automática.
+            </p>
+            <Input
+              type="number"
+              min={1}
+              value={field.delivery_quantity || 1}
+              onChange={(e) => updateField(field.id, { delivery_quantity: parseInt(e.target.value) || 1 })}
+              className="bg-muted border-border w-32"
+            />
+          </div>
+
           <div className="flex items-center justify-between rounded-lg bg-muted p-4">
             <div>
               <p className="text-sm font-medium">Estoque disponível</p>
               <p className="text-2xl font-bold">{stockCounts[field.id] || 0} itens</p>
+              {(field.delivery_quantity || 1) > 1 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ≈ {Math.floor((stockCounts[field.id] || 0) / (field.delivery_quantity || 1))} entregas possíveis
+                </p>
+              )}
             </div>
             <Button
               size="sm"
