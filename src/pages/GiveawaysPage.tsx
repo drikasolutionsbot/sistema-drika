@@ -11,12 +11,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Gift, Trophy, History, Plus, RefreshCw, Loader2 } from "lucide-react";
+import { Gift, Trophy, History, Plus, RefreshCw, Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import GiveawayCard from "@/components/giveaways/GiveawayCard";
 import CreateGiveawayForm from "@/components/giveaways/CreateGiveawayForm";
 import WinnersModal from "@/components/giveaways/WinnersModal";
+import EditGiveawayModal from "@/components/giveaways/EditGiveawayModal";
 
 interface Giveaway {
   id: string;
@@ -26,6 +27,7 @@ interface Giveaway {
   winners_count: number;
   ends_at: string;
   channel_id: string | null;
+  require_role_id?: string | null;
   status: string;
   winners: any[];
   entries_count: number;
@@ -36,8 +38,9 @@ export default function GiveawaysPage() {
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("active");
-  const [confirmAction, setConfirmAction] = useState<{ type: "draw" | "cancel"; id: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "draw" | "cancel" | "delete"; id: string; title?: string } | null>(null);
   const [winnersModal, setWinnersModal] = useState<{ title: string; winners: any[] } | null>(null);
+  const [editGiveaway, setEditGiveaway] = useState<Giveaway | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const { data: giveaways = [], isLoading } = useQuery<Giveaway[]>({
@@ -64,9 +67,10 @@ export default function GiveawaysPage() {
     if (!confirmAction || !tenantId) return;
     setActionLoading(true);
     try {
+      const actionMap = { draw: "draw", cancel: "cancel", delete: "delete" };
       const { data, error } = await supabase.functions.invoke("manage-giveaways", {
         body: {
-          action: confirmAction.type === "draw" ? "draw" : "cancel",
+          action: actionMap[confirmAction.type],
           tenant_id: tenantId,
           giveaway_id: confirmAction.id,
         },
@@ -76,7 +80,9 @@ export default function GiveawaysPage() {
       if (confirmAction.type === "draw" && data?.winners?.length) {
         setWinnersModal({ title: data.title, winners: data.winners });
         toast({ title: "🎉 Sorteio realizado com sucesso!" });
-      } else {
+      } else if (confirmAction.type === "delete") {
+        toast({ title: "🗑️ Sorteio excluído" });
+      } else if (confirmAction.type === "cancel") {
         toast({ title: "Sorteio cancelado" });
       }
       refetch();
@@ -109,6 +115,27 @@ export default function GiveawaysPage() {
     if (status === "ended") return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Encerrado</Badge>;
     if (status === "canceled") return <Badge variant="destructive">Cancelado</Badge>;
     return <Badge>Ativo</Badge>;
+  };
+
+  const getConfirmTitle = () => {
+    if (!confirmAction) return "";
+    if (confirmAction.type === "draw") return "🎉 Sortear agora?";
+    if (confirmAction.type === "cancel") return "Cancelar sorteio?";
+    return "Excluir sorteio?";
+  };
+
+  const getConfirmDescription = () => {
+    if (!confirmAction) return "";
+    if (confirmAction.type === "draw") return "Os vencedores serão selecionados aleatoriamente e anunciados no Discord.";
+    if (confirmAction.type === "cancel") return "O sorteio será cancelado. Você poderá ver no histórico.";
+    return `O sorteio "${confirmAction.title}" será excluído permanentemente. Esta ação não pode ser desfeita.`;
+  };
+
+  const getConfirmLabel = () => {
+    if (!confirmAction) return "";
+    if (confirmAction.type === "draw") return "Sortear";
+    if (confirmAction.type === "cancel") return "Cancelar sorteio";
+    return "Excluir";
   };
 
   return (
@@ -159,7 +186,7 @@ export default function GiveawaysPage() {
                   giveaway={g}
                   onDraw={(id) => setConfirmAction({ type: "draw", id })}
                   onCancel={(id) => setConfirmAction({ type: "cancel", id })}
-                  onEdit={() => {}}
+                  onEdit={(giveaway) => setEditGiveaway(giveaway)}
                 />
               ))}
             </div>
@@ -213,12 +240,20 @@ export default function GiveawaysPage() {
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(g.ends_at), "dd/MM/yyyy")}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-2">
                         {g.status === "ended" && (
                           <Button variant="outline" size="sm" onClick={() => handleReroll(g.id)} disabled={actionLoading}>
                             <RefreshCw className="h-4 w-4 mr-1" /> Re-sortear
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setConfirmAction({ type: "delete", id: g.id, title: g.title })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -242,20 +277,18 @@ export default function GiveawaysPage() {
       <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmAction?.type === "draw" ? "🎉 Sortear agora?" : "Cancelar sorteio?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmAction?.type === "draw"
-                ? "Os vencedores serão selecionados aleatoriamente e anunciados no Discord."
-                : "Esta ação não pode ser desfeita. O sorteio será cancelado definitivamente."}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{getConfirmTitle()}</AlertDialogTitle>
+            <AlertDialogDescription>{getConfirmDescription()}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm} disabled={actionLoading}>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              disabled={actionLoading}
+              className={confirmAction?.type === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
               {actionLoading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              {confirmAction?.type === "draw" ? "Sortear" : "Cancelar sorteio"}
+              {getConfirmLabel()}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -268,6 +301,16 @@ export default function GiveawaysPage() {
           onOpenChange={() => setWinnersModal(null)}
           title={winnersModal.title}
           winners={winnersModal.winners}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editGiveaway && (
+        <EditGiveawayModal
+          open={!!editGiveaway}
+          onOpenChange={(open) => !open && setEditGiveaway(null)}
+          giveaway={editGiveaway}
+          onSaved={refetch}
         />
       )}
     </div>

@@ -8,22 +8,20 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Gift, Loader2 } from "lucide-react";
+import { CalendarIcon, Gift, Loader2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 
-interface Channel {
-  id: string;
-  name: string;
-}
+interface Channel { id: string; name: string; }
+interface Role { id: string; name: string; color: string; discord_role_id?: string; }
 
 interface CreateGiveawayFormProps {
   onCreated: () => void;
 }
 
 export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProps) {
-  const { tenantId, tenant } = useTenant();
+  const { tenantId } = useTenant();
   const [title, setTitle] = useState("");
   const [prize, setPrize] = useState("");
   const [description, setDescription] = useState("");
@@ -31,19 +29,22 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("23:59");
   const [channelId, setChannelId] = useState("");
+  const [requireRoleId, setRequireRoleId] = useState("");
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingChannels, setLoadingChannels] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
     setLoadingChannels(true);
-    supabase.functions
-      .invoke("discord-channels", { body: { tenant_id: tenantId } })
-      .then(({ data }) => {
-        if (data?.channels) setChannels(data.channels);
-      })
-      .finally(() => setLoadingChannels(false));
+    Promise.all([
+      supabase.functions.invoke("discord-channels", { body: { tenant_id: tenantId } }),
+      supabase.functions.invoke("manage-roles", { body: { action: "list", tenant_id: tenantId } }),
+    ]).then(([chRes, rolesRes]) => {
+      if (chRes.data?.channels) setChannels(chRes.data.channels);
+      if (Array.isArray(rolesRes.data)) setRoles(rolesRes.data);
+    }).finally(() => setLoadingChannels(false));
   }, [tenantId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,6 +75,7 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
           winners_count: parseInt(winnersCount) || 1,
           ends_at: endsAt.toISOString(),
           channel_id: channelId || null,
+          require_role_id: requireRoleId || null,
         },
       });
       if (error || data?.error) throw new Error(data?.error || "Erro ao criar sorteio");
@@ -85,6 +87,7 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
       setDate(undefined);
       setTime("23:59");
       setChannelId("");
+      setRequireRoleId("");
       onCreated();
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
@@ -145,19 +148,45 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Canal do Discord (opcional)</Label>
-        <Select value={channelId} onValueChange={setChannelId}>
-          <SelectTrigger>
-            <SelectValue placeholder={loadingChannels ? "Carregando..." : "Selecione um canal"} />
-          </SelectTrigger>
-          <SelectContent>
-            {channels.map((c) => (
-              <SelectItem key={c.id} value={c.id}>#{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">O embed do sorteio será enviado automaticamente neste canal</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Canal do Discord (opcional)</Label>
+          <Select value={channelId} onValueChange={setChannelId}>
+            <SelectTrigger>
+              <SelectValue placeholder={loadingChannels ? "Carregando..." : "Selecione um canal"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nenhum</SelectItem>
+              {channels.map((c) => (
+                <SelectItem key={c.id} value={c.id}>#{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">O embed será enviado automaticamente neste canal</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5" /> Cargo obrigatório (opcional)
+          </Label>
+          <Select value={requireRoleId} onValueChange={setRequireRoleId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Nenhum (todos participam)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nenhum</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r.id} value={r.discord_role_id || r.id}>
+                  <span className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+                    {r.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Apenas membros com este cargo poderão participar</p>
+        </div>
       </div>
 
       <Button type="submit" disabled={loading} className="w-full sm:w-auto">
