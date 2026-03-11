@@ -7,6 +7,62 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+function escHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: string, status: string): string {
+  const now = new Date().toLocaleString("pt-BR");
+
+  let rows = "";
+  for (const m of msgs) {
+    const ts = new Date(m.timestamp).toLocaleString("pt-BR");
+    const author = m.author?.username || "Desconhecido";
+    const avatar = m.author?.avatar
+      ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=40`
+      : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.author?.id || "0") >> 22) % 6}.png`;
+    let content = escHtml(m.content || "");
+    if (!content && m.embeds?.length) content = "<em>[embed]</em>";
+    if (!content && m.attachments?.length) content = m.attachments.map((a: any) => `<a href="${escHtml(a.url)}">${escHtml(a.filename)}</a>`).join(", ");
+    if (!content) content = "<em>[sem conteúdo]</em>";
+    content = content.replace(/&lt;@!?(\d+)&gt;/g, '<span style="color:#7289da;font-weight:600">@user</span>');
+
+    rows += `<div style="display:flex;gap:12px;padding:8px 16px;border-bottom:1px solid #2f3136;">
+      <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:2px;" />
+      <div>
+        <div><strong style="color:#fff;">${escHtml(author)}</strong> <span style="color:#72767d;font-size:12px;">${ts}</span></div>
+        <div style="color:#dcddde;margin-top:2px;">${content}</div>
+      </div>
+    </div>`;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escHtml(serverName)} - ${escHtml(status)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #36393f; color: #dcddde; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; }
+    .header { background: #2f3136; padding: 20px; border-bottom: 2px solid #202225; }
+    .header h1 { color: #fff; font-size: 18px; }
+    .header p { color: #72767d; font-size: 12px; margin-top: 4px; }
+    .messages { padding: 8px 0; }
+    .footer { background: #2f3136; padding: 12px 16px; text-align: center; color: #72767d; font-size: 11px; border-top: 2px solid #202225; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${escHtml(serverName)} — Transcript</h1>
+    <p>${escHtml(ticketName)} · ${escHtml(status)} · Gerado em ${now}</p>
+  </div>
+  <div class="messages">${rows}</div>
+  <div class="footer">Transcript gerado automaticamente por Drika Hub</div>
+</body>
+</html>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -27,7 +83,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get bot token
+    // Get bot token + tenant name
     const { data: tenant } = await supabase
       .from("tenants")
       .select("bot_token_encrypted, name")
@@ -71,7 +127,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get ticket details
     const { data: ticket } = await supabase
       .from("tickets")
       .select("*")
@@ -85,7 +140,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get logs channel
     const { data: sc } = await supabase
       .from("store_configs")
       .select("ticket_logs_channel_id")
@@ -93,69 +147,62 @@ Deno.serve(async (req) => {
       .single();
 
     const channelToProcess = discord_channel_id || ticket.discord_channel_id;
+    const serverName = tenant?.name || "Servidor";
 
-    // Generate transcript
-    let transcript = "";
-    if (channelToProcess && sc?.ticket_logs_channel_id) {
+    // Fetch messages for transcript
+    let msgs: any[] = [];
+    if (channelToProcess) {
       try {
         const msgsRes = await fetch(`${DISCORD_API}/channels/${channelToProcess}/messages?limit=100`, {
           headers: { Authorization: `Bot ${botToken}` },
         });
         if (msgsRes.ok) {
-          const msgs = await msgsRes.json();
-          const sorted = msgs.reverse();
-          transcript = sorted.map((m: any) => {
-            const ts = new Date(m.timestamp).toLocaleString("pt-BR");
-            const author = m.author?.username || "Desconhecido";
-            const content = m.content || (m.embeds?.length ? "[embed]" : "[sem conteúdo]");
-            return `[${ts}] ${author}: ${content}`;
-          }).join("\n");
+          msgs = await msgsRes.json();
+          msgs = msgs.reverse();
         }
       } catch (e) { console.error("Transcript fetch error:", e); }
     }
 
-    // Send detailed log embed
-    if (sc?.ticket_logs_channel_id && action === "closed") {
-      const createdAt = new Date(ticket.created_at);
-      const closedAt = new Date();
-      const diffMs = closedAt.getTime() - createdAt.getTime();
-      const diffMin = Math.floor(diffMs / 60000);
-      const diffH = Math.floor(diffMin / 60);
-      const remainMin = diffMin % 60;
-      const totalTime = diffH > 0 ? `${diffH}h ${remainMin}m` : `${diffMin}m`;
+    const closedAt = new Date();
+    const statusLabel = action === "deleted" ? "Deletado" : "Fechado";
+    const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
 
+    // Generate HTML transcript
+    const htmlTranscript = msgs.length > 0
+      ? generateHtmlTranscript(msgs, serverName, ticketName, `Suporte · ${statusLabel.toLowerCase()}`)
+      : "";
+
+    // Send log embed + transcript to logs channel
+    if (sc?.ticket_logs_channel_id && action === "closed") {
       const logEmbed: any = {
-        title: "⚙️ Sistema de Logs",
+        title: `Ticket - ${statusLabel}`,
         color: 0x2B2D31,
         fields: [
-          { name: "➡️ Usuário que abriu:", value: `> <@${ticket.discord_user_id}>`, inline: false },
-          { name: "➡️ Usuário que fechou:", value: `> ${closed_by || "Painel"}`, inline: false },
-          { name: "➡️ Quem assumiu:", value: "> Ninguém Assumiu", inline: false },
-          { name: "📋 Código do Ticket:", value: `> ${ticket.discord_channel_id || ticket.id.slice(0, 20)}`, inline: false },
-          { name: "😊 Horário de abertura:", value: `> <t:${Math.floor(createdAt.getTime() / 1000)}:f> <t:${Math.floor(createdAt.getTime() / 1000)}:R>`, inline: false },
-          { name: "😔 Horário do fechamento:", value: `> <t:${Math.floor(closedAt.getTime() / 1000)}:f> (<t:${Math.floor(closedAt.getTime() / 1000)}:R>)`, inline: false },
-          { name: "➡️ Tempo total de atendimento:", value: `> ${totalTime}`, inline: false },
+          { name: "👤 Moderador", value: `${closed_by || "Painel"}\n@${closed_by || "painel"}`, inline: false },
         ],
         timestamp: closedAt.toISOString(),
       };
 
       if (ticket.product_name) {
-        logEmbed.fields.splice(3, 0, { name: "📦 Produto:", value: `> ${ticket.product_name}`, inline: false });
+        logEmbed.fields.push({ name: "📦 Produto", value: ticket.product_name, inline: false });
       }
 
-      await fetch(`${DISCORD_API}/channels/${sc.ticket_logs_channel_id}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ embeds: [logEmbed] }),
-      });
-
-      // Send transcript as file
-      if (transcript) {
+      if (htmlTranscript) {
         const formData = new FormData();
-        const blob = new Blob([transcript], { type: "text/plain" });
-        formData.append("files[0]", blob, `transcript-${ticket.discord_username || ticket.discord_user_id}-${ticket.id.slice(0, 8)}.txt`);
+        const blob = new Blob([htmlTranscript], { type: "text/html" });
+        formData.append("files[0]", blob, `transcript-${ticket.discord_channel_id || ticket.id.slice(0, 8)}.html`);
         formData.append("payload_json", JSON.stringify({
-          content: `📜 **Transcript do Ticket** — ${ticket.discord_username || ticket.discord_user_id}`,
+          embeds: [logEmbed],
+          components: [{
+            type: 1,
+            components: [{
+              type: 2,
+              style: 2,
+              label: "Ver transcript",
+              emoji: { name: "📜" },
+              custom_id: `transcript_view_${ticket.id}`,
+            }],
+          }],
         }));
 
         await fetch(`${DISCORD_API}/channels/${sc.ticket_logs_channel_id}/messages`, {
@@ -163,13 +210,18 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}` },
           body: formData,
         });
+      } else {
+        await fetch(`${DISCORD_API}/channels/${sc.ticket_logs_channel_id}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [logEmbed] }),
+        });
       }
     }
 
     // Archive and lock the thread if it exists
     if (channelToProcess && action === "closed") {
       try {
-        // Send closing message
         await fetch(`${DISCORD_API}/channels/${channelToProcess}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -182,14 +234,10 @@ Deno.serve(async (req) => {
           }),
         });
 
-        // Archive and lock the thread
         await fetch(`${DISCORD_API}/channels/${channelToProcess}`, {
           method: "PATCH",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            archived: true,
-            locked: true,
-          }),
+          body: JSON.stringify({ archived: true, locked: true }),
         });
       } catch (e) {
         console.error("Failed to archive ticket thread:", e);
