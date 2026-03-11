@@ -124,7 +124,7 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={setDate} disabled={(d) => d < new Date()} initialFocus className={cn("p-3 pointer-events-auto")} />
+              <Calendar mode="single" selected={date} onSelect={setDate} disabled={(d) => { const today = new Date(); today.setHours(0,0,0,0); return d < today; }} initialFocus className={cn("p-3 pointer-events-auto")} />
             </PopoverContent>
           </Popover>
         </div>
