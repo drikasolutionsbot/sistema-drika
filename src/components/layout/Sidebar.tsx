@@ -3,7 +3,7 @@ import {
   LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck, UserCheck, Sparkles, BookOpen,
-  ShoppingBag,
+  ShoppingBag, Gift, Crown,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
