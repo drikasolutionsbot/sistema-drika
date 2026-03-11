@@ -24,20 +24,33 @@ interface Props {
 }
 
 const AffiliateOverview = ({ affiliates, orders, payouts, loading }: Props) => {
-  const totalSales = affiliates.reduce((s, a) => s + a.total_sales, 0);
-  const totalRevenue = affiliates.reduce((s, a) => s + a.total_revenue_cents, 0);
+  // Derive all metrics from filtered orders/payouts instead of affiliate totals
+  const filteredSales = orders.length;
+  const filteredRevenue = orders.reduce((s, o) => s + o.total_cents, 0);
 
-  const totalCommissionEarned = useMemo(() => {
-    return affiliates.reduce((sum, aff) => {
-      return sum + Math.round(aff.total_revenue_cents * aff.commission_percent / 100);
-    }, 0);
+  // Build a map of affiliate commission rates
+  const affMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    affiliates.forEach(a => { m[a.id] = a.commission_percent; });
+    return m;
   }, [affiliates]);
+
+  const filteredCommission = useMemo(() => {
+    return orders.reduce((sum, o) => {
+      const pct = o.affiliate_id ? (affMap[o.affiliate_id] ?? 5) : 0;
+      return sum + Math.round(o.total_cents * pct / 100);
+    }, 0);
+  }, [orders, affMap]);
 
   const totalPaid = useMemo(() => {
     return payouts.filter(p => p.status === "paid").reduce((s, p) => s + p.amount_cents, 0);
   }, [payouts]);
 
-  const pendingPayout = totalCommissionEarned - totalPaid;
+  const pendingPayout = filteredCommission - totalPaid;
+
+  const convRate = orders.length > 0
+    ? ((orders.filter(o => o.status === "delivered" || o.status === "paid").length / orders.length) * 100)
+    : 0;
 
   const monthlyData = useMemo(() => {
     const months: Record<string, { month: string; vendas: number; receita: number }> = {};
@@ -52,37 +65,42 @@ const AffiliateOverview = ({ affiliates, orders, payouts, loading }: Props) => {
     return Object.values(months).slice(-6);
   }, [orders]);
 
+  // Top affiliates by sales in filtered period
   const topAffiliates = useMemo(() => {
-    return [...affiliates]
-      .sort((a, b) => b.total_sales - a.total_sales)
-      .slice(0, 5)
-      .map((a) => ({ name: a.name, value: a.total_sales }));
-  }, [affiliates]);
+    const salesByAff: Record<string, { name: string; value: number }> = {};
+    orders.forEach((o) => {
+      if (!o.affiliate_id) return;
+      const aff = affiliates.find(a => a.id === o.affiliate_id);
+      const name = aff?.name ?? "Desconhecido";
+      if (!salesByAff[o.affiliate_id]) salesByAff[o.affiliate_id] = { name, value: 0 };
+      salesByAff[o.affiliate_id].value += 1;
+    });
+    return Object.values(salesByAff)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [orders, affiliates]);
 
   const radarData = useMemo(() => {
     const activeCount = affiliates.filter(a => a.active).length;
-    const convRate = orders.length > 0
-      ? (orders.filter(o => o.status === "delivered" || o.status === "paid").length / orders.length) * 100
-      : 0;
     return [
       { metric: "Afiliados", value: Math.min(affiliates.length * 10, 100) },
-      { metric: "Vendas", value: Math.min(totalSales * 5, 100) },
-      { metric: "Receita", value: Math.min(totalRevenue / 1000, 100) },
+      { metric: "Vendas", value: Math.min(filteredSales * 5, 100) },
+      { metric: "Receita", value: Math.min(filteredRevenue / 1000, 100) },
       { metric: "Conversão", value: Math.min(convRate, 100) },
       { metric: "Ativos", value: activeCount > 0 ? Math.min(activeCount * 15, 100) : 0 },
-      { metric: "Comissão", value: Math.min(totalCommissionEarned / 500, 100) },
+      { metric: "Comissão", value: Math.min(filteredCommission / 500, 100) },
     ];
-  }, [affiliates, orders, totalSales, totalRevenue, totalCommissionEarned]);
+  }, [affiliates, filteredSales, filteredRevenue, convRate, filteredCommission]);
 
   const stats = [
     { label: "Total Afiliados", value: affiliates.length, icon: Users, accent: "from-pink-500 to-rose-600" },
     { label: "Ativos", value: affiliates.filter((a) => a.active).length, icon: Power, accent: "from-emerald-400 to-teal-500" },
-    { label: "Vendas via Afiliados", value: totalSales, icon: ShoppingCart, accent: "from-amber-400 to-orange-500" },
-    { label: "Receita Gerada", value: formatBRL(totalRevenue), icon: DollarSign, accent: "from-emerald-400 to-cyan-500" },
-    { label: "Comissão Total", value: formatBRL(totalCommissionEarned), icon: Percent, accent: "from-violet-500 to-purple-600" },
+    { label: "Vendas no Período", value: filteredSales, icon: ShoppingCart, accent: "from-amber-400 to-orange-500" },
+    { label: "Receita no Período", value: formatBRL(filteredRevenue), icon: DollarSign, accent: "from-emerald-400 to-cyan-500" },
+    { label: "Comissão no Período", value: formatBRL(filteredCommission), icon: Percent, accent: "from-violet-500 to-purple-600" },
     { label: "Comissão Paga", value: formatBRL(totalPaid), icon: Award, accent: "from-emerald-400 to-green-500" },
     { label: "Comissão Pendente", value: formatBRL(pendingPayout), icon: TrendingUp, accent: "from-amber-400 to-yellow-500" },
-    { label: "Taxa Conversão", value: orders.length > 0 ? `${((orders.filter(o => o.status === "delivered" || o.status === "paid").length / orders.length) * 100).toFixed(1)}%` : "0%", icon: Sparkles, accent: "from-pink-500 to-violet-500" },
+    { label: "Taxa Conversão", value: `${convRate.toFixed(1)}%`, icon: Sparkles, accent: "from-pink-500 to-violet-500" },
   ];
 
   if (loading) {
@@ -282,22 +300,36 @@ const AffiliateOverview = ({ affiliates, orders, payouts, loading }: Props) => {
         </div>
       </div>
 
-      {/* ── Ranking ── */}
-      {affiliates.length > 0 && (
-        <div className="relative rounded-2xl border border-border/50 bg-card/60 backdrop-blur-md p-5 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.02] via-transparent to-amber-500/[0.02] pointer-events-none" />
-          <h3 className="relative text-sm font-semibold mb-4 flex items-center gap-2">
-            <div className="p-1 rounded-md bg-amber-500/10">
-              <Award className="h-4 w-4 text-amber-400" />
-            </div>
-            Ranking de Afiliados
-          </h3>
-          <div className="space-y-2">
-            {[...affiliates]
-              .sort((a, b) => b.total_revenue_cents - a.total_revenue_cents)
-              .slice(0, 10)
-              .map((aff, i) => {
-                const commission = Math.round(aff.total_revenue_cents * aff.commission_percent / 100);
+      {/* ── Ranking (based on filtered period) ── */}
+      {affiliates.length > 0 && (() => {
+        // Calculate per-affiliate stats from filtered orders
+        const affStats: Record<string, { sales: number; revenue: number }> = {};
+        orders.forEach(o => {
+          if (!o.affiliate_id) return;
+          if (!affStats[o.affiliate_id]) affStats[o.affiliate_id] = { sales: 0, revenue: 0 };
+          affStats[o.affiliate_id].sales += 1;
+          affStats[o.affiliate_id].revenue += o.total_cents;
+        });
+        const ranked = affiliates
+          .map(a => ({ ...a, periodSales: affStats[a.id]?.sales ?? 0, periodRevenue: affStats[a.id]?.revenue ?? 0 }))
+          .filter(a => a.periodSales > 0)
+          .sort((a, b) => b.periodRevenue - a.periodRevenue)
+          .slice(0, 10);
+
+        if (ranked.length === 0) return null;
+
+        return (
+          <div className="relative rounded-2xl border border-border/50 bg-card/60 backdrop-blur-md p-5 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.02] via-transparent to-amber-500/[0.02] pointer-events-none" />
+            <h3 className="relative text-sm font-semibold mb-4 flex items-center gap-2">
+              <div className="p-1 rounded-md bg-amber-500/10">
+                <Award className="h-4 w-4 text-amber-400" />
+              </div>
+              Ranking de Afiliados (no período)
+            </h3>
+            <div className="space-y-2">
+              {ranked.map((aff, i) => {
+                const commission = Math.round(aff.periodRevenue * aff.commission_percent / 100);
                 return (
                   <div
                     key={aff.id}
@@ -307,15 +339,16 @@ const AffiliateOverview = ({ affiliates, orders, payouts, loading }: Props) => {
                       {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                     </span>
                     <span className="text-sm font-medium flex-1 truncate">{aff.name}</span>
-                    <span className="text-xs text-muted-foreground">{aff.total_sales} vendas</span>
-                    <span className="text-xs font-mono font-bold">{formatBRL(aff.total_revenue_cents)}</span>
+                    <span className="text-xs text-muted-foreground">{aff.periodSales} vendas</span>
+                    <span className="text-xs font-mono font-bold">{formatBRL(aff.periodRevenue)}</span>
                     <span className="text-xs text-primary font-semibold">{formatBRL(commission)} com.</span>
                   </div>
                 );
               })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
