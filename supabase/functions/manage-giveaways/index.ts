@@ -481,12 +481,13 @@ Deno.serve(async (req) => {
       if (eligible.length === 0) throw new Error("No eligible entries for reroll");
 
       const shuffled = [...eligible].sort(() => Math.random() - 0.5);
-      const newWinners = shuffled.slice(0, count || 1).map((e: any) => ({
+      const newWinnersRaw = shuffled.slice(0, count || 1).map((e: any) => ({
         discord_user_id: e.discord_user_id,
-        discord_username: e.discord_username,
+        discord_username: e.discord_username || e.discord_user_id,
         discord_avatar: e.discord_avatar || null,
         entered_at: e.entered_at || null,
       }));
+      const newWinners = await hydrateWinnersWithDiscordProfile(botToken, newWinnersRaw);
 
       const { data: updated, error } = await supabase
         .from("giveaways")
