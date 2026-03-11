@@ -61,10 +61,12 @@ serve(async (req) => {
       throw new Error("Você já possui uma loja. Acesse o dashboard.");
     }
 
-    // Create tenant with 4-day free trial
+    // Create tenant with 4-day free trial + auto referral code
     const now = new Date();
     const trialEnd = new Date(now);
     trialEnd.setDate(trialEnd.getDate() + 4);
+
+    const referralCode = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
 
     const { data: tenant, error: tenantError } = await supabaseAdmin
       .from("tenants")
@@ -76,6 +78,8 @@ serve(async (req) => {
         plan: "free",
         plan_started_at: now.toISOString(),
         plan_expires_at: trialEnd.toISOString(),
+        referral_code: referralCode,
+        referred_by_tenant_id: body.referred_by_tenant_id || null,
       })
       .select()
       .single();

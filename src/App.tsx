@@ -49,6 +49,7 @@ import TutorialsPage from "./pages/TutorialsPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import VerifyResultPage from "./pages/VerifyResultPage";
 import GiveawaysPage from "./pages/GiveawaysPage";
+import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +97,7 @@ const AppRoutes = () => (
       <Route path="/admin/permissoes" element={<AdminPermissionsPage />} />
       <Route path="/admin/tutoriais" element={<AdminTutorialsPage />} />
       <Route path="/admin/marketplace" element={<AdminMarketplacePage />} />
+      <Route path="/admin/afiliados" element={<AdminAffiliatesPage />} />
     </Route>
 
     {/* Dashboard routes */}

@@ -64,6 +64,40 @@ Deno.serve(async (req) => {
       });
     }
 
+    // REFERRAL STATS — for client panel (tenant sees their own referrals)
+    if (action === "referral_stats") {
+      // Find tenants referred by this tenant
+      const { data: referrals, error: refErr } = await supabase
+        .from("tenants")
+        .select("id, name, plan, created_at")
+        .eq("referred_by_tenant_id", tenant_id)
+        .order("created_at", { ascending: false });
+      if (refErr) throw refErr;
+
+      const total_referrals = referrals?.length ?? 0;
+      const total_paid_referrals = referrals?.filter((r: any) => r.plan === "pro").length ?? 0;
+
+      // Get config for bonus calculation
+      const { data: configData } = await supabase
+        .from("landing_config")
+        .select("referral_bonus_days, referral_bonus_credits_cents")
+        .limit(1)
+        .single();
+
+      const bonusDays = configData?.referral_bonus_days ?? 7;
+      const bonusCredits = configData?.referral_bonus_credits_cents ?? 500;
+
+      return new Response(JSON.stringify({
+        total_referrals,
+        total_paid_referrals,
+        total_bonus_days_earned: total_paid_referrals * bonusDays,
+        total_credits_earned: total_paid_referrals * bonusCredits,
+        referrals: referrals ?? [],
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ANALYTICS — aggregate data for charts
     if (action === "analytics") {
       const [affiliatesRes, ordersRes, payoutsRes] = await Promise.all([

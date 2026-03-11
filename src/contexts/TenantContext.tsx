@@ -24,6 +24,9 @@ interface Tenant {
   verify_enabled: boolean | null;
   verify_redirect_url: string | null;
   verify_role_id: string | null;
+  referral_code: string | null;
+  referred_by_tenant_id: string | null;
+  referral_credits_cents: number;
 }
 
 interface TenantContextType {
@@ -79,6 +82,9 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               verify_enabled: null,
               verify_redirect_url: null,
               verify_role_id: null,
+              referral_code: null,
+              referred_by_tenant_id: null,
+              referral_credits_cents: 0,
             });
           }
           setLoading(false);

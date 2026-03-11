@@ -647,6 +647,8 @@ export type Database = {
           pro_price_cents: number
           pushinpay_active: boolean
           pushinpay_api_key: string | null
+          referral_bonus_credits_cents: number
+          referral_bonus_days: number
           stat_products: number
           stat_products_label: string
           stat_sales: number
@@ -671,6 +673,8 @@ export type Database = {
           pro_price_cents?: number
           pushinpay_active?: boolean
           pushinpay_api_key?: string | null
+          referral_bonus_credits_cents?: number
+          referral_bonus_days?: number
           stat_products?: number
           stat_products_label?: string
           stat_sales?: number
@@ -695,6 +699,8 @@ export type Database = {
           pro_price_cents?: number
           pushinpay_active?: boolean
           pushinpay_api_key?: string | null
+          referral_bonus_credits_cents?: number
+          referral_bonus_days?: number
           stat_products?: number
           stat_products_label?: string
           stat_sales?: number
@@ -1803,6 +1809,9 @@ export type Database = {
           plan_expires_at: string | null
           plan_started_at: string | null
           primary_color: string | null
+          referral_code: string | null
+          referral_credits_cents: number
+          referred_by_tenant_id: string | null
           secondary_color: string | null
           updated_at: string
           verify_button_label: string | null
@@ -1837,6 +1846,9 @@ export type Database = {
           plan_expires_at?: string | null
           plan_started_at?: string | null
           primary_color?: string | null
+          referral_code?: string | null
+          referral_credits_cents?: number
+          referred_by_tenant_id?: string | null
           secondary_color?: string | null
           updated_at?: string
           verify_button_label?: string | null
@@ -1871,6 +1883,9 @@ export type Database = {
           plan_expires_at?: string | null
           plan_started_at?: string | null
           primary_color?: string | null
+          referral_code?: string | null
+          referral_credits_cents?: number
+          referred_by_tenant_id?: string | null
           secondary_color?: string | null
           updated_at?: string
           verify_button_label?: string | null
@@ -1885,7 +1900,15 @@ export type Database = {
           verify_title?: string | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenants_referred_by_tenant_id_fkey"
+            columns: ["referred_by_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tickets: {
         Row: {
