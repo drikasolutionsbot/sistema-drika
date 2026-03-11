@@ -153,26 +153,37 @@ const AdminClientsPage = () => {
     setSavingPlan(false);
   };
 
-  const handleRenewPlan = async (tenantId: string) => {
+  const handleRenewPlan = async (tenantId: string, days: number) => {
     setSavingPlan(true);
     try {
+      const tenant = tenants.find(t => t.id === tenantId);
       const now = new Date();
-      const updateData = {
-        plan: "pro",
-        plan_started_at: now.toISOString(),
-        plan_expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      // If tenant already has a future expiration, extend from that date; otherwise from now
+      const baseDate = tenant?.plan_expires_at && new Date(tenant.plan_expires_at) > now
+        ? new Date(tenant.plan_expires_at)
+        : now;
+      const newExpiry = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+      
+      const updateData: any = {
+        plan_expires_at: newExpiry.toISOString(),
       };
+      // If no plan_started_at yet, set it
+      if (!tenant?.plan_started_at) {
+        updateData.plan_started_at = now.toISOString();
+      }
+
       const { error } = await supabase
         .from("tenants")
         .update(updateData)
         .eq("id", tenantId);
       if (error) throw error;
-      const tenantName = tenants.find(t => t.id === tenantId)?.name || tenantId;
-      await logAudit("plan_changed", "tenant", tenantId, tenantName, { action: "renew_30d" });
+      const tenantName = tenant?.name || tenantId;
+      await logAudit("plan_days_added", "tenant", tenantId, tenantName, { days, new_expires: newExpiry.toISOString() });
       setTenants((prev) =>
         prev.map((t) => (t.id === tenantId ? { ...t, ...updateData } : t))
       );
-      toast({ title: "Plano renovado por +30 dias! ✅" });
+      toast({ title: `+${days} dias adicionados! ✅`, description: `Novo vencimento: ${format(newExpiry, "dd/MM/yyyy")}` });
+      setRenewDialogTenantId(null);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
