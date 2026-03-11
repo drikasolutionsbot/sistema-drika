@@ -158,7 +158,7 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh, adminMode }: 
     setStatsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("manage-affiliates", {
-        body: { action: "stats", tenant_id: tenantId, affiliate_id: aff.id },
+        body: { action: "stats", tenant_id: getTenantId(aff), affiliate_id: aff.id },
       });
       if (error) throw error;
       setStatsOrders(data?.orders ?? []);

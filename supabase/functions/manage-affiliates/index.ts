@@ -20,6 +20,33 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // ADMIN GLOBAL — fetch all affiliates, orders, payouts across tenants
+    if (action === "admin_global") {
+      const [affiliatesRes, ordersRes, payoutsRes] = await Promise.all([
+        supabase.from("affiliates").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("orders")
+          .select("id, order_number, product_name, total_cents, status, discord_username, created_at, affiliate_id, tenant_id")
+          .not("affiliate_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabase
+          .from("affiliate_payouts")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
+      if (affiliatesRes.error) throw affiliatesRes.error;
+      if (ordersRes.error) throw ordersRes.error;
+      if (payoutsRes.error) throw payoutsRes.error;
+      return new Response(JSON.stringify({
+        affiliates: affiliatesRes.data ?? [],
+        orders: ordersRes.data ?? [],
+        payouts: payoutsRes.data ?? [],
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // LIST affiliates
     if (action === "list") {
       const { data, error } = await supabase
