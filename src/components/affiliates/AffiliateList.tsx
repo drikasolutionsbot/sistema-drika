@@ -49,7 +49,8 @@ const emptyForm: AffiliateForm = {
   discord_username: "", email: "", whatsapp: "",
 };
 
-const AffiliateList = ({ affiliates, loading, tenantId, onRefresh }: Props) => {
+const AffiliateList = ({ affiliates, loading, tenantId, onRefresh, adminMode }: Props) => {
+  const getTenantId = (aff?: Affiliate | null) => tenantId || (aff as any)?.tenant_id || null;
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Affiliate | null>(null);
