@@ -58,7 +58,7 @@ export const statusLabels: Record<string, string> = {
 };
 
 export const payoutStatusLabels: Record<string, string> = {
-  pending: "Pendente",
+  pending: "Aguardando liberação da proprietária",
   paid: "Pago",
   canceled: "Cancelado",
 };

@@ -33,7 +33,7 @@ interface Props {
 const statusConfig: Record<string, { icon: typeof Clock; label: string; color: string; bg: string; border: string }> = {
   pending: {
     icon: Clock,
-    label: "Pendente",
+    label: "Aguardando liberação",
     color: "text-amber-400",
     bg: "bg-amber-400/10",
     border: "border-amber-400/30",
