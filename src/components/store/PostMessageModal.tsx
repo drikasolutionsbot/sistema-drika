@@ -40,12 +40,14 @@ interface PostMessageModalProps {
     banner_url?: string | null;
     auto_delivery?: boolean;
   };
+  embedColor?: string;
 }
 
 export const PostMessageModal = ({
   open,
   onOpenChange,
   product,
+  embedColor: externalEmbedColor,
 }: PostMessageModalProps) => {
   const { tenant, tenantId } = useTenant();
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
@@ -53,7 +55,7 @@ export const PostMessageModal = ({
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [posting, setPosting] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
-  const [embedColor, setEmbedColor] = useState<string>("#5865F2");
+  const [embedColor, setEmbedColor] = useState<string>(externalEmbedColor || "#5865F2");
 
   const guildId = tenant?.discord_guild_id;
 

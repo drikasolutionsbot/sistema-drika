@@ -268,6 +268,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
         open={postModalOpen}
         onOpenChange={setPostModalOpen}
         product={edited}
+        embedColor={embedColor}
       />
     </div>
   );
