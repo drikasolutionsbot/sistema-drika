@@ -96,9 +96,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ADMIN GLOBAL — fetch all affiliates, orders, payouts across tenants
+    // ADMIN GLOBAL — fetch all affiliates, orders, payouts across tenants + SaaS affiliates
     if (action === "admin_global") {
-      const [affiliatesRes, ordersRes, payoutsRes] = await Promise.all([
+      const [affiliatesRes, ordersRes, payoutsRes, tenantAffsRes] = await Promise.all([
         supabase.from("affiliates").select("*").order("created_at", { ascending: false }),
         supabase
           .from("orders")
@@ -110,14 +110,68 @@ Deno.serve(async (req) => {
           .from("affiliate_payouts")
           .select("*")
           .order("created_at", { ascending: false }),
+        // Fetch tenants who activated SaaS affiliate mode
+        supabase
+          .from("tenants")
+          .select("id, name, referral_code, email, whatsapp, plan, plan_expires_at, created_at, affiliate_active, referral_credits_cents")
+          .eq("affiliate_active", true)
+          .order("created_at", { ascending: false }),
       ]);
       if (affiliatesRes.error) throw affiliatesRes.error;
       if (ordersRes.error) throw ordersRes.error;
       if (payoutsRes.error) throw payoutsRes.error;
+
+      // Transform SaaS tenant affiliates into Affiliate-compatible shape
+      const saasAffiliates = (tenantAffsRes.data ?? []).map((t: any) => ({
+        id: `saas_${t.id}`,
+        name: t.name,
+        code: t.referral_code || "",
+        commission_type: "percent",
+        commission_percent: 0,
+        commission_fixed_cents: 0,
+        total_sales: 0,
+        total_revenue_cents: t.referral_credits_cents || 0,
+        active: true,
+        created_at: t.created_at,
+        discord_username: null,
+        email: t.email || null,
+        whatsapp: t.whatsapp || null,
+        // Extra SaaS fields for admin display
+        is_saas_affiliate: true,
+        plan: t.plan,
+        plan_expires_at: t.plan_expires_at,
+        tenant_id_ref: t.id,
+      }));
+
+      // Count referrals for each SaaS affiliate
+      const saasIds = (tenantAffsRes.data ?? []).map((t: any) => t.id);
+      let referralCounts: Record<string, { total: number; paid: number }> = {};
+      if (saasIds.length > 0) {
+        const { data: referredTenants } = await supabase
+          .from("tenants")
+          .select("id, plan, referred_by_tenant_id")
+          .in("referred_by_tenant_id", saasIds);
+        (referredTenants ?? []).forEach((rt: any) => {
+          const refId = rt.referred_by_tenant_id;
+          if (!referralCounts[refId]) referralCounts[refId] = { total: 0, paid: 0 };
+          referralCounts[refId].total += 1;
+          if (rt.plan === "pro") referralCounts[refId].paid += 1;
+        });
+        // Update saas affiliates with referral stats
+        saasAffiliates.forEach((sa: any) => {
+          const counts = referralCounts[sa.tenant_id_ref] || { total: 0, paid: 0 };
+          sa.total_sales = counts.total;
+        });
+      }
+
+      // Merge: SaaS affiliates first, then store affiliates
+      const allAffiliates = [...saasAffiliates, ...(affiliatesRes.data ?? [])];
+
       return new Response(JSON.stringify({
-        affiliates: affiliatesRes.data ?? [],
+        affiliates: allAffiliates,
         orders: ordersRes.data ?? [],
         payouts: payoutsRes.data ?? [],
+        referral_counts: referralCounts,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
