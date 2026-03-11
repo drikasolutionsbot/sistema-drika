@@ -70,7 +70,8 @@ Deno.serve(async (req) => {
             .select("bot_token_encrypted")
             .eq("id", tenant_id)
             .single();
-          if (tenant?.bot_token_encrypted) {
+          const botToken = tenant?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
+          if (botToken) {
             const embed = {
               color: 0xFEE75C,
               title: `🎉 SORTEIO: ${title}`,
@@ -81,21 +82,24 @@ Deno.serve(async (req) => {
             const res = await fetch(`https://discord.com/api/v10/channels/${channel_id}/messages`, {
               method: "POST",
               headers: {
-                Authorization: `Bot ${tenant.bot_token_encrypted}`,
+                Authorization: `Bot ${botToken}`,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({ embeds: [embed] }),
             });
             if (res.ok) {
               const msg = await res.json();
-              // Save message_id
               await supabase.from("giveaways").update({ message_id: msg.id }).eq("id", data.id);
-              // Add 🎉 reaction
               await fetch(`https://discord.com/api/v10/channels/${channel_id}/messages/${msg.id}/reactions/%F0%9F%8E%89/@me`, {
                 method: "PUT",
-                headers: { Authorization: `Bot ${tenant.bot_token_encrypted}` },
+                headers: { Authorization: `Bot ${botToken}` },
               });
+            } else {
+              const errText = await res.text();
+              console.error("Discord send failed:", res.status, errText);
             }
+          } else {
+            console.error("No bot token available for tenant:", tenant_id);
           }
         } catch (e) {
           console.error("Discord announce failed:", e);
@@ -212,7 +216,8 @@ Deno.serve(async (req) => {
             .select("bot_token_encrypted")
             .eq("id", tenant_id)
             .single();
-          if (tenant?.bot_token_encrypted) {
+          const botToken = tenant?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
+          if (botToken) {
             const winnerMentions = winners.map((w: any) => `<@${w.discord_user_id}>`).join(", ");
             const embed = {
               color: 0x57F287,
@@ -224,7 +229,7 @@ Deno.serve(async (req) => {
             await fetch(`https://discord.com/api/v10/channels/${giveaway.channel_id}/messages`, {
               method: "POST",
               headers: {
-                Authorization: `Bot ${tenant.bot_token_encrypted}`,
+                Authorization: `Bot ${botToken}`,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({ content: `🎉 ${winnerMentions}`, embeds: [embed] }),
