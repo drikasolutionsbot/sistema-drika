@@ -49,9 +49,10 @@ serve(async (req) => {
     const guildId = tenant?.discord_guild_id;
     if (!guildId) throw new Error("Guild ID not configured");
 
-    // 3. Determine stock to deliver
-    const fieldId = order.field_id;
+    // 3. Get product details + determine delivery type
+    let isAutoDelivery = false;
     let stockItems: any[] = [];
+    const fieldId = order.field_id;
 
     if (order.product_id) {
       const { data: product } = await supabase
@@ -61,7 +62,9 @@ serve(async (req) => {
         .eq("tenant_id", tenant_id)
         .single();
 
-      if (product?.auto_delivery) {
+      isAutoDelivery = !!product?.auto_delivery;
+
+      if (isAutoDelivery) {
         let targetFieldId = fieldId;
 
         if (!targetFieldId) {
@@ -105,160 +108,153 @@ serve(async (req) => {
       }
     }
 
-    // 4. Get ticket embed config
+    // 4. Get store config
     const { data: storeConfig } = await supabase
       .from("store_configs")
       .select("logs_channel_id, sales_channel_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_channel_id, customer_role_id, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url")
       .eq("tenant_id", tenant_id)
       .single();
 
-    // 5. Create a private ticket channel in the server
-    const ticketChannelName = `🎫┃pedido-${order.order_number}`;
+    // 5. Create a private thread for the delivery
+    // Resolve parent text channel from ticket_channel_id config
+    let parentChannelId: string | null = null;
+    const configuredChannelId = storeConfig?.ticket_channel_id || null;
 
-    // Get bot's own user ID for permissions
-    const botMeRes = await fetch(`${DISCORD_API}/users/@me`, {
+    if (configuredChannelId) {
+      try {
+        const chInfoRes = await fetch(`${DISCORD_API}/channels/${configuredChannelId}`, {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (chInfoRes.ok) {
+          const chInfo = await chInfoRes.json();
+          if (chInfo.type === 4) {
+            // Category — find first text channel inside
+            const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+            if (guildChRes.ok) {
+              const allChannels = await guildChRes.json();
+              const textCh = allChannels.find((c: any) => c.parent_id === configuredChannelId && c.type === 0);
+              if (textCh) parentChannelId = textCh.id;
+            }
+          } else if (chInfo.type === 0 || chInfo.type === 5) {
+            parentChannelId = configuredChannelId;
+          }
+        }
+      } catch (e) {
+        console.error("Error resolving ticket channel:", e);
+      }
+    }
+
+    // Fallback: try to find any text channel if no config
+    if (!parentChannelId) {
+      try {
+        const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (guildChRes.ok) {
+          const allChannels = await guildChRes.json();
+          const generalCh = allChannels.find((c: any) => c.type === 0);
+          if (generalCh) parentChannelId = generalCh.id;
+        }
+      } catch (e) {
+        console.error("Error finding fallback channel:", e);
+      }
+    }
+
+    if (!parentChannelId) throw new Error("No text channel available for creating delivery thread");
+
+    // Create private thread
+    const deliveryLabel = isAutoDelivery ? "⚡" : "📦";
+    const threadName = `${deliveryLabel}┃pedido-${order.order_number}`;
+
+    const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: threadName.substring(0, 100),
+        type: 12, // GUILD_PRIVATE_THREAD
+        auto_archive_duration: 10080,
+      }),
+    });
+
+    if (!createThreadRes.ok) {
+      const errText = await createThreadRes.text();
+      console.error("Failed to create delivery thread:", errText);
+      throw new Error(`Failed to create delivery thread: ${createThreadRes.status}`);
+    }
+
+    const ticketThread = await createThreadRes.json();
+    console.log(`Delivery thread created: ${ticketThread.id}`);
+
+    // Add buyer to the thread
+    await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${order.discord_user_id}`, {
+      method: "PUT",
       headers: { Authorization: `Bot ${botToken}` },
     });
-    const botMe = await botMeRes.json();
-
-    // Permission overwrites: deny @everyone, allow buyer + bot
-    const permissionOverwrites = [
-      {
-        id: guildId, // @everyone role (same as guild id)
-        type: 0, // role
-        deny: "1024", // VIEW_CHANNEL
-        allow: "0",
-      },
-      {
-        id: order.discord_user_id, // buyer
-        type: 1, // member
-        allow: "3072", // VIEW_CHANNEL + SEND_MESSAGES
-        deny: "0",
-      },
-      {
-        id: botMe.id, // bot
-        type: 1, // member
-        allow: "3072",
-        deny: "0",
-      },
-    ];
-
-    // If there's a ticket category channel configured, use it as parent
-    const channelPayload: any = {
-      name: ticketChannelName,
-      type: 0, // text channel
-      permission_overwrites: permissionOverwrites,
-    };
-
-    if (storeConfig?.ticket_channel_id) {
-      channelPayload.parent_id = storeConfig.ticket_channel_id;
-    }
-
-    const createChannelRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(channelPayload),
-    });
-
-    if (!createChannelRes.ok) {
-      const errText = await createChannelRes.text();
-      console.error("Failed to create ticket channel:", errText);
-      throw new Error(`Failed to create ticket channel: ${createChannelRes.status}`);
-    }
-
-    const ticketChannel = await createChannelRes.json();
-    console.log(`Ticket channel created: ${ticketChannel.id}`);
 
     // 6. Create ticket record in database
     await supabase.from("tickets").insert({
       tenant_id,
       discord_user_id: order.discord_user_id,
       discord_username: order.discord_username || null,
+      discord_channel_id: ticketThread.id,
       order_id: order.id,
       product_name: order.product_name,
-      status: "open",
+      status: isAutoDelivery && stockItems.length > 0 ? "delivered" : "open",
     });
 
-    // 7. Build and send embed in the ticket channel
-    const embedColor = storeConfig?.ticket_embed_color
-      ? parseInt(storeConfig.ticket_embed_color.replace("#", ""), 16)
-      : 0x57F287;
+    // 7. Build delivery embed
+    const embedColor = parseInt((storeConfig?.purchase_embed_color || "#57F287").replace("#", ""), 16);
 
-    const embedTitle = (storeConfig?.ticket_embed_title || "Compra realizada com sucesso! ✅")
-      .replace("{user}", order.discord_username || order.discord_user_id)
-      .replace("{product}", order.product_name)
-      .replace("{ticket_id}", `${order.order_number}`);
-
-    const embedDescription = (storeConfig?.ticket_embed_description || "Obrigado pela sua compra de **{product}**!")
-      .replace("{user}", `<@${order.discord_user_id}>`)
-      .replace("{product}", order.product_name)
-      .replace("{ticket_id}", `${order.order_number}`);
+    const deliveryTypeLabel = isAutoDelivery ? "⚡ Entrega Automática" : "📦 Entrega Manual";
+    const deliveryStatusText = isAutoDelivery
+      ? (stockItems.length > 0
+        ? "Seu produto foi entregue automaticamente! Confira o arquivo anexo abaixo."
+        : "⚠️ Estoque esgotado. Nossa equipe entrará em contato.")
+      : "Sua compra foi registrada! Aguarde a entrega pela nossa equipe.";
 
     const embed: any = {
-      title: embedTitle,
-      description: embedDescription,
+      title: storeConfig?.purchase_embed_title || "Compra realizada! ✅",
+      description: deliveryStatusText,
       color: embedColor,
       timestamp: new Date().toISOString(),
-      footer: { text: storeConfig?.ticket_embed_footer || tenant?.name || "Loja" },
+      footer: { text: storeConfig?.purchase_embed_footer || tenant?.name || "Loja" },
+      fields: [
+        { name: "📦 Produto", value: order.product_name, inline: true },
+        { name: "🔢 Pedido", value: `#${order.order_number}`, inline: true },
+        { name: "💰 Total", value: formatBRL(order.total_cents), inline: true },
+        { name: "🚚 Tipo de Entrega", value: deliveryTypeLabel, inline: true },
+      ],
     };
 
-    if (storeConfig?.ticket_embed_thumbnail_url) {
-      embed.thumbnail = { url: storeConfig.ticket_embed_thumbnail_url };
+    if (storeConfig?.purchase_embed_thumbnail_url) {
+      embed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
     } else if (tenant?.logo_url) {
       embed.thumbnail = { url: tenant.logo_url };
     }
 
-    if (storeConfig?.ticket_embed_image_url) {
-      embed.image = { url: storeConfig.ticket_embed_image_url };
+    if (storeConfig?.purchase_embed_image_url) {
+      embed.image = { url: storeConfig.purchase_embed_image_url };
     }
 
-    embed.fields = [
-      { name: "📦 Produto", value: order.product_name, inline: true },
-      { name: "🔢 Pedido", value: `#${order.order_number}`, inline: true },
-      { name: "💰 Total", value: `R$ ${(order.total_cents / 100).toFixed(2)}`, inline: true },
-    ];
-
-    // Mention the buyer first
+    // Mention the buyer
     const mentionContent = `<@${order.discord_user_id}> Seu pedido foi processado! 🎉`;
 
-    // Prepare form data for file attachment
+    // Send message (with file if auto-delivery with stock)
     const formData = new FormData();
     const payload: any = { content: mentionContent, embeds: [embed] };
 
-    if (stockItems.length > 0) {
+    if (isAutoDelivery && stockItems.length > 0) {
       const stockContent = stockItems.map((item: any) => item.content).join("\n");
       const blob = new Blob([stockContent], { type: "text/plain" });
       formData.append("files[0]", blob, `pedido-${order.order_number}.txt`);
-
-      embed.fields.push({
-        name: "📎 Entrega",
-        value: "Seu produto está no arquivo anexado abaixo.",
-        inline: false,
-      });
-
       payload.attachments = [{ id: 0, filename: `pedido-${order.order_number}.txt`, description: "Seu produto" }];
-    } else if (order.product_id) {
-      const { data: product } = await supabase
-        .from("products")
-        .select("auto_delivery")
-        .eq("id", order.product_id)
-        .single();
-
-      if (product?.auto_delivery) {
-        embed.fields.push({
-          name: "📎 Entrega",
-          value: "⚠️ Estoque esgotado. Nossa equipe entrará em contato.",
-          inline: false,
-        });
-      }
     }
 
     formData.append("payload_json", JSON.stringify(payload));
 
-    const sendRes = await fetch(`${DISCORD_API}/channels/${ticketChannel.id}/messages`, {
+    const sendRes = await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${botToken}` },
       body: formData,
@@ -266,7 +262,61 @@ serve(async (req) => {
 
     if (!sendRes.ok) {
       const errText = await sendRes.text();
-      console.error("Failed to send message in ticket channel:", errText);
+      console.error("Failed to send delivery message:", errText);
+    }
+
+    // For manual delivery: send a staff notification message
+    if (!isAutoDelivery) {
+      await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "📋 Entrega Manual Pendente",
+            description: `Este pedido requer entrega manual.\n\nPor favor, realize a entrega do produto e clique em **Marcar como Entregue** quando finalizar.`,
+            color: 0xFEE75C,
+            fields: [
+              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+              { name: "📦 Produto", value: order.product_name, inline: true },
+            ],
+          }],
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 3, // Success (green)
+                  label: "Marcar como Entregue",
+                  custom_id: `mark_delivered_${order.id}`,
+                },
+                {
+                  type: 2,
+                  style: 4, // Danger (red)
+                  label: "Cancelar Pedido",
+                  custom_id: `cancel_manual_${order.id}`,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+    }
+
+    // If auto-delivery was successful, archive thread after a delay
+    if (isAutoDelivery && stockItems.length > 0) {
+      // Send a completion message
+      await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "✅ Entrega Concluída",
+            description: "Seu produto foi entregue automaticamente! Se precisar de ajuda, entre em contato.",
+            color: 0x57F287,
+          }],
+        }),
+      });
     }
 
     // 8. Execute product hooks
@@ -306,24 +356,27 @@ serve(async (req) => {
       }
     }
 
-    // 10. Update order status to delivered
+    // 10. Update order status
+    const newStatus = isAutoDelivery && stockItems.length > 0 ? "delivered" : "paid";
     await supabase
       .from("orders")
-      .update({ status: "delivered", updated_at: new Date().toISOString() })
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq("id", order_id)
       .eq("tenant_id", tenant_id);
 
-    // 11. Log to store logs channel if configured — detailed embed like reference
+    // 11. Log to store logs channel
     if (storeConfig?.logs_channel_id) {
       try {
-        // Build detailed delivery log embed
         const deliveryLogEmbed: any = {
-          title: "🚀 Entrega realizada!",
-          description: `Usuário <@${order.discord_user_id}> teve seu pedido entregue.`,
-          color: 0x57F287,
+          title: isAutoDelivery ? "⚡ Entrega Automática" : "📦 Entrega Manual Pendente",
+          description: isAutoDelivery
+            ? `Usuário <@${order.discord_user_id}> teve seu pedido entregue automaticamente.`
+            : `Pedido de <@${order.discord_user_id}> aguardando entrega manual.`,
+          color: isAutoDelivery ? 0x57F287 : 0xFEE75C,
           fields: [
-            { name: "**Detalhes**", value: `${stockItems.length}x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+            { name: "**Detalhes**", value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
             { name: "**ID do Pedido**", value: order.id, inline: false },
+            { name: "**Tipo**", value: isAutoDelivery ? "⚡ Automática" : "📦 Manual", inline: true },
           ],
           footer: { text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` },
           timestamp: new Date().toISOString(),
@@ -341,19 +394,16 @@ serve(async (req) => {
           deliveryLogEmbed.thumbnail = { url: tenant.logo_url };
         }
 
-        // Send with stock file attached if there are items
-        if (stockItems.length > 0) {
+        // Send with stock file attached if auto-delivery
+        if (isAutoDelivery && stockItems.length > 0) {
           const stockContent = stockItems.map((item: any) => item.content).join("\n");
           const blob = new Blob([stockContent], { type: "text/plain" });
           const logFormData = new FormData();
           logFormData.append("files[0]", blob, `pedido-${order.order_number}.txt`);
-
-          const logPayload: any = {
+          logFormData.append("payload_json", JSON.stringify({
             embeds: [deliveryLogEmbed],
             attachments: [{ id: 0, filename: `pedido-${order.order_number}.txt`, description: "Conteúdo entregue" }],
-          };
-
-          logFormData.append("payload_json", JSON.stringify(logPayload));
+          }));
 
           await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
             method: "POST",
@@ -363,10 +413,7 @@ serve(async (req) => {
         } else {
           await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
             method: "POST",
-            headers: {
-              Authorization: `Bot ${botToken}`,
-              "Content-Type": "application/json",
-            },
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ embeds: [deliveryLogEmbed] }),
           });
         }
@@ -375,7 +422,7 @@ serve(async (req) => {
       }
     }
 
-    // 12. Send public sales announcement to sales_channel_id
+    // 12. Send public sales announcement
     if (storeConfig?.sales_channel_id) {
       try {
         const salesEmbedColor = storeConfig?.purchase_embed_color
@@ -409,24 +456,21 @@ serve(async (req) => {
         if (storeConfig?.purchase_embed_thumbnail_url) {
           salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
         }
-
         if (storeConfig?.purchase_embed_image_url) {
           salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
         }
 
-        // Add a "Comprar" button linking to the store
         const salesPayload: any = {
           embeds: [salesEmbed],
           components: [
             {
-              type: 1, // Action Row
+              type: 1,
               components: [
                 {
-                  type: 2, // Button
+                  type: 2,
                   style: 5, // Link
                   label: "Comprar",
                   url: `https://discord.com/channels/${guildId}`,
-                  emoji: { name: "🛒" },
                 },
               ],
             },
@@ -435,13 +479,10 @@ serve(async (req) => {
 
         await fetch(`${DISCORD_API}/channels/${storeConfig.sales_channel_id}/messages`, {
           method: "POST",
-          headers: {
-            Authorization: `Bot ${botToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify(salesPayload),
         });
-        console.log("Sales announcement sent to channel:", storeConfig.sales_channel_id);
+        console.log("Sales announcement sent");
       } catch (salesErr) {
         console.error("Failed to send sales announcement:", salesErr);
       }
@@ -450,8 +491,9 @@ serve(async (req) => {
     const result = {
       success: true,
       order_id,
+      delivery_type: isAutoDelivery ? "automatic" : "manual",
       items_delivered: stockItems.length,
-      ticket_channel_id: ticketChannel.id,
+      ticket_thread_id: ticketThread.id,
     };
 
     console.log("deliver-order result:", JSON.stringify(result));
@@ -505,10 +547,7 @@ async function executeHook(hook: any, order: any, tenant: any, botToken: string)
       if (!config.message) return;
       const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
         method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ recipient_id: order.discord_user_id }),
       });
       if (dmRes.ok) {
@@ -519,10 +558,7 @@ async function executeHook(hook: any, order: any, tenant: any, botToken: string)
           .replace("{order}", `#${order.order_number}`);
         await fetch(`${DISCORD_API}/channels/${dm.id}/messages`, {
           method: "POST",
-          headers: {
-            Authorization: `Bot ${botToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ content: msg }),
         });
       }
@@ -537,10 +573,7 @@ async function executeHook(hook: any, order: any, tenant: any, botToken: string)
         .replace("{order}", `#${order.order_number}`);
       await fetch(`${DISCORD_API}/channels/${config.channel_id}/messages`, {
         method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ content: msg }),
       });
       break;
