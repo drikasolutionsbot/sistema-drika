@@ -553,7 +553,7 @@ serve(async (req) => {
 
         const { data: storeConfig } = await supabase
           .from("store_configs")
-          .select("ticket_channel_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id")
+          .select("ticket_channel_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
           .eq("tenant_id", ticketTenantId)
           .single();
 
