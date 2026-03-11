@@ -277,7 +277,7 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
           type="button"
           variant="outline"
           onClick={() => {
-            saveDraft(draft);
+            setDraft({ ...draft });
             toast({ title: "✅ Rascunho salvo!", description: "Seu sorteio foi salvo localmente." });
           }}
           className="w-full sm:w-auto"
