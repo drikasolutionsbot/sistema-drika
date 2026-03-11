@@ -47,12 +47,13 @@ export const PostMessageModal = ({
   onOpenChange,
   product,
 }: PostMessageModalProps) => {
-  const { tenant } = useTenant();
+  const { tenant, tenantId } = useTenant();
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [posting, setPosting] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
+  const [embedColor, setEmbedColor] = useState<string>("#5865F2");
 
   const guildId = tenant?.discord_guild_id;
 
