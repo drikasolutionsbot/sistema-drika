@@ -102,12 +102,12 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh, adminMode }: 
       };
       if (editing) {
         await supabase.functions.invoke("manage-affiliates", {
-          body: { action: "update", tenant_id: tenantId, affiliate_id: editing.id, affiliate: payload },
+          body: { action: "update", tenant_id: effectiveTenantId, affiliate_id: editing.id, affiliate: payload },
         });
         toast({ title: "Afiliado atualizado ✅" });
       } else {
         await supabase.functions.invoke("manage-affiliates", {
-          body: { action: "create", tenant_id: tenantId, affiliate: payload },
+          body: { action: "create", tenant_id: effectiveTenantId, affiliate: payload },
         });
         toast({ title: "Afiliado criado ✅" });
       }
