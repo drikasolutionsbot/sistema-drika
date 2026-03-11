@@ -294,10 +294,11 @@ serve(async (req) => {
           return `${emoji} **${f.name}** — ${priceStr}${desc}`;
         });
 
+        const varEmbedColor = await getStoreEmbedColor(product.tenant_id);
         const embed = {
           title: `📋 Variações de ${product.name}`,
           description: fieldLines.join("\n"),
-          color: 0x2B2D31,
+          color: varEmbedColor,
         };
 
         return respondImmediate(interaction, { embeds: [embed] });
