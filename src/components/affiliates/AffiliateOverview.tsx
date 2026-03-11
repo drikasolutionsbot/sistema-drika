@@ -213,8 +213,8 @@ const AffiliateOverview = ({ affiliates, orders, payouts, loading }: Props) => {
                 {topAffiliates.map((a, i) => (
                   <div key={a.name} className="flex items-center gap-2.5 text-xs group/item">
                     <div
-                      className="h-2.5 w-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-card"
-                      style={{ background: COLORS[i % COLORS.length], ringColor: COLORS[i % COLORS.length] }}
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: COLORS[i % COLORS.length], boxShadow: `0 0 6px ${COLORS[i % COLORS.length]}` }}
                     />
                     <span className="truncate text-muted-foreground group-hover/item:text-foreground transition-colors">{a.name}</span>
                     <span className="ml-auto font-bold font-mono">{a.value}</span>
