@@ -86,7 +86,7 @@ const AffiliatesPage = () => {
   };
 
   const referralLink = tenant?.referral_code
-    ? `https://drikahub.com?ref=${tenant.referral_code}`
+    ? `${window.location.origin}?ref=${tenant.referral_code}`
     : null;
 
   const copyLink = () => {
