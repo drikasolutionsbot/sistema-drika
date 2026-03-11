@@ -1388,10 +1388,9 @@ async function processPurchase(
   // Check for active payment provider
   const { data: providers } = await supabase
     .from("payment_providers")
-    .select("provider_key, api_key_encrypted, active")
+    .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
     .eq("tenant_id", tenantId)
-    .eq("active", true)
-    .in("provider_key", ["mercadopago", "pushinpay"]);
+    .eq("active", true);
 
   const activeProvider = providers?.find((p: any) => p.api_key_encrypted);
   const amountBRL = priceCents / 100;
@@ -1413,6 +1412,27 @@ async function processPurchase(
       const result = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
       brcode = result.brcode;
       paymentId = result.payment_id;
+    } else if (providerKey === "efi") {
+      // Generate PIX via Efí using the generate-pix function
+      const pixRes = await fetch(`${supabaseUrl}/functions/v1/generate-pix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({ tenant_id: tenantId, amount_cents: priceCents, product_name: orderName, tx_id: externalRef }),
+      });
+      const pixData = await pixRes.json();
+      if (pixData.error) throw new Error(pixData.error);
+      brcode = pixData.brcode || "";
+      paymentId = pixData.payment_id || externalRef;
+    } else if (providerKey === "misticpay") {
+      const pixRes = await fetch(`${supabaseUrl}/functions/v1/generate-pix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({ tenant_id: tenantId, amount_cents: priceCents, product_name: orderName, tx_id: externalRef }),
+      });
+      const pixData = await pixRes.json();
+      if (pixData.error) throw new Error(pixData.error);
+      brcode = pixData.brcode || "";
+      paymentId = pixData.payment_id || externalRef;
     }
 
     // Update order with payment info
