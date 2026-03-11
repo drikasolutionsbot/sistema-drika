@@ -838,6 +838,7 @@ export type Database = {
           banner_url: string | null
           compare_price_cents: number | null
           created_at: string
+          delivery_quantity: number
           description: string | null
           emoji: string | null
           enable_credits: boolean
@@ -861,6 +862,7 @@ export type Database = {
           banner_url?: string | null
           compare_price_cents?: number | null
           created_at?: string
+          delivery_quantity?: number
           description?: string | null
           emoji?: string | null
           enable_credits?: boolean
@@ -884,6 +886,7 @@ export type Database = {
           banner_url?: string | null
           compare_price_cents?: number | null
           created_at?: string
+          delivery_quantity?: number
           description?: string | null
           emoji?: string | null
           enable_credits?: boolean

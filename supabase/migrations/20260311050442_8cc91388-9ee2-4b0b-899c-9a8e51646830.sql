@@ -1,0 +1,1 @@
+ALTER TABLE public.product_fields ADD COLUMN IF NOT EXISTS delivery_quantity integer NOT NULL DEFAULT 1;

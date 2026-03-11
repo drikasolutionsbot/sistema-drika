@@ -66,11 +66,12 @@ serve(async (req) => {
 
       if (isAutoDelivery) {
         let targetFieldId = fieldId;
+        let deliveryQty = 1;
 
         if (!targetFieldId) {
           const { data: fields } = await supabase
             .from("product_fields")
-            .select("id")
+            .select("id, delivery_quantity")
             .eq("product_id", order.product_id)
             .eq("tenant_id", tenant_id)
             .order("sort_order", { ascending: true })
@@ -78,6 +79,19 @@ serve(async (req) => {
 
           if (fields && fields.length > 0) {
             targetFieldId = fields[0].id;
+            deliveryQty = fields[0].delivery_quantity || 1;
+          }
+        } else {
+          // Fetch delivery_quantity for the specific field
+          const { data: fieldData } = await supabase
+            .from("product_fields")
+            .select("delivery_quantity")
+            .eq("id", targetFieldId)
+            .eq("tenant_id", tenant_id)
+            .single();
+
+          if (fieldData) {
+            deliveryQty = fieldData.delivery_quantity || 1;
           }
         }
 
@@ -89,7 +103,7 @@ serve(async (req) => {
             .eq("tenant_id", tenant_id)
             .eq("delivered", false)
             .order("created_at", { ascending: true })
-            .limit(1);
+            .limit(deliveryQty);
 
           if (items && items.length > 0) {
             stockItems = items;
