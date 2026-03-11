@@ -105,31 +105,50 @@ const TicketEmbedConfig = () => {
   }, [tenantId]);
 
   const handleSave = async () => {
-    if (!tenantId) return;
+    if (!tenantId) return false;
     setSaving(true);
     try {
-      const { error } = await (supabase as any)
-        .from("store_configs")
-        .update({
-          ticket_embed_title: data.ticket_embed_title || null,
-          ticket_embed_description: data.ticket_embed_description || null,
-          ticket_embed_color: data.ticket_embed_color || "#5865F2",
-          ticket_embed_image_url: data.ticket_embed_image_url || null,
-          ticket_embed_thumbnail_url: data.ticket_embed_thumbnail_url || null,
-          ticket_embed_footer: data.ticket_embed_footer || null,
-          ticket_embed_button_label: data.ticket_embed_button_label || null,
-          ticket_embed_button_style: data.ticket_embed_button_style || "glass",
-          ticket_channel_id: data.ticket_channel_id || null,
-          ticket_logs_channel_id: data.ticket_logs_channel_id || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("tenant_id", tenantId);
+      const configPayload = {
+        ticket_embed_title: data.ticket_embed_title || null,
+        ticket_embed_description: data.ticket_embed_description || null,
+        ticket_embed_color: data.ticket_embed_color || "#5865F2",
+        ticket_embed_image_url: data.ticket_embed_image_url || null,
+        ticket_embed_thumbnail_url: data.ticket_embed_thumbnail_url || null,
+        ticket_embed_footer: data.ticket_embed_footer || null,
+        ticket_embed_button_label: data.ticket_embed_button_label || null,
+        ticket_embed_button_style: data.ticket_embed_button_style || "glass",
+        ticket_channel_id: data.ticket_channel_id || null,
+        ticket_logs_channel_id: data.ticket_logs_channel_id || null,
+      };
+
+      const { data: savedConfig, error } = await supabase.functions.invoke("manage-store-config", {
+        body: {
+          action: "upsert",
+          tenant_id: tenantId,
+          config: configPayload,
+        },
+      });
+
       if (error) throw error;
+
       clearDraft();
-      setServerData({ ...data });
+      setServerData({
+        ticket_embed_title: savedConfig?.ticket_embed_title || data.ticket_embed_title,
+        ticket_embed_description: savedConfig?.ticket_embed_description || data.ticket_embed_description,
+        ticket_embed_color: savedConfig?.ticket_embed_color || data.ticket_embed_color,
+        ticket_embed_image_url: savedConfig?.ticket_embed_image_url || data.ticket_embed_image_url,
+        ticket_embed_thumbnail_url: savedConfig?.ticket_embed_thumbnail_url || data.ticket_embed_thumbnail_url,
+        ticket_embed_footer: savedConfig?.ticket_embed_footer || data.ticket_embed_footer,
+        ticket_embed_button_label: savedConfig?.ticket_embed_button_label || data.ticket_embed_button_label,
+        ticket_embed_button_style: (savedConfig?.ticket_embed_button_style as DiscordButtonStyle) || data.ticket_embed_button_style,
+        ticket_channel_id: savedConfig?.ticket_channel_id || data.ticket_channel_id,
+        ticket_logs_channel_id: savedConfig?.ticket_logs_channel_id || data.ticket_logs_channel_id,
+      });
       toast.success("Configuração do ticket salva!");
+      return true;
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -140,8 +159,10 @@ const TicketEmbedConfig = () => {
       toast.error("Selecione um canal antes de enviar.");
       return;
     }
-    // Save first, then send
-    await handleSave();
+
+    const saved = await handleSave();
+    if (!saved) return;
+
     setSending(true);
     try {
       const { data: res, error } = await supabase.functions.invoke("send-ticket-embed", {
