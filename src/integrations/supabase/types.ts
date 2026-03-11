@@ -1024,6 +1024,7 @@ export type Database = {
           active: boolean
           auto_delivery: boolean
           banner_url: string | null
+          button_style: string | null
           category_id: string | null
           compare_price_cents: number | null
           created_at: string
@@ -1045,6 +1046,7 @@ export type Database = {
           active?: boolean
           auto_delivery?: boolean
           banner_url?: string | null
+          button_style?: string | null
           category_id?: string | null
           compare_price_cents?: number | null
           created_at?: string
@@ -1066,6 +1068,7 @@ export type Database = {
           active?: boolean
           auto_delivery?: boolean
           banner_url?: string | null
+          button_style?: string | null
           category_id?: string | null
           compare_price_cents?: number | null
           created_at?: string
