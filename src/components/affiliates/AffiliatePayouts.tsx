@@ -233,6 +233,7 @@ const AffiliatePayouts = ({ affiliates, tenantId, payouts, onRefresh }: Props) =
                 <SelectContent>
                   <SelectItem value="pending">Pendente</SelectItem>
                   <SelectItem value="paid">Pago</SelectItem>
+                  <SelectItem value="canceled">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
