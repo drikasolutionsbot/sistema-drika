@@ -46,7 +46,7 @@ const AdminLoginPage = () => {
           return;
         }
 
-        toast({ title: "Bem-vindo, Admin!" });
+        toast({ title: "🛡️ Bem-vindo, Admin!", description: "Sessão iniciada com sucesso.", variant: "success" as any });
         navigate("/admin", { replace: true });
       } else {
         toast({ title: "Erro", description: "Resposta inesperada do servidor.", variant: "destructive" });

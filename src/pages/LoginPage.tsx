@@ -41,7 +41,7 @@ const LoginPage = () => {
           tenant_name: data.tenant_name,
           token: token.trim(),
         }));
-        toast({ title: `Bem-vindo! ${data.tenant_name}` });
+        toast({ title: `👋 Bem-vindo, ${data.tenant_name}!`, description: "Painel carregado com sucesso.", variant: "success" as any });
         navigate("/dashboard", { replace: true });
       }
     } catch (e: any) {
