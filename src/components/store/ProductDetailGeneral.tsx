@@ -97,16 +97,57 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
           </div>
         )}
 
-        {/* Entrega Automática */}
-        <div className="flex items-center justify-between py-1">
+        {/* Tipo de Entrega */}
+        <div className="space-y-3">
           <div>
-            <p className="text-sm font-bold">Entrega Automática</p>
-            <p className="text-xs text-muted-foreground">Ativa a entrega automática do produto</p>
+            <p className="text-sm font-bold">Tipo de Entrega</p>
+            <p className="text-xs text-muted-foreground">Escolha como o produto será entregue ao comprador</p>
           </div>
-          <Switch
-            checked={product.auto_delivery ?? false}
-            onCheckedChange={(val) => onChange({ auto_delivery: val })}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            {/* Automática */}
+            <button
+              type="button"
+              onClick={() => onChange({ auto_delivery: true })}
+              className={`relative flex flex-col items-start gap-2 rounded-xl border-2 p-4 transition-all text-left ${
+                product.auto_delivery
+                  ? "border-emerald-500 bg-emerald-500/5 shadow-[0_0_12px_-3px_rgba(16,185,129,0.3)]"
+                  : "border-border hover:border-muted-foreground/40"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚡</span>
+                <span className="text-sm font-bold text-foreground">Automática</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                O produto é entregue instantaneamente após o pagamento via arquivo .txt do estoque.
+              </p>
+              {product.auto_delivery && (
+                <div className="absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+            </button>
+
+            {/* Manual */}
+            <button
+              type="button"
+              onClick={() => onChange({ auto_delivery: false })}
+              className={`relative flex flex-col items-start gap-2 rounded-xl border-2 p-4 transition-all text-left ${
+                !product.auto_delivery
+                  ? "border-amber-500 bg-amber-500/5 shadow-[0_0_12px_-3px_rgba(245,158,11,0.3)]"
+                  : "border-border hover:border-muted-foreground/40"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📦</span>
+                <span className="text-sm font-bold text-foreground">Manual</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                A equipe recebe uma notificação e realiza a entrega manualmente pelo ticket.
+              </p>
+              {!product.auto_delivery && (
+                <div className="absolute top-2.5 right-2.5 h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -196,20 +237,6 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
       {/* Section: Tipo */}
       <section className="space-y-5">
         <h3 className="text-base font-bold text-foreground">Configurações</h3>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-bold">Tipo do Produto</Label>
-          <Select value={product.type} onValueChange={(val) => onChange({ type: val })}>
-            <SelectTrigger className="bg-muted border-border">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="digital_auto">Digital (Entrega Automática)</SelectItem>
-              <SelectItem value="service">Serviço</SelectItem>
-              <SelectItem value="hybrid">Híbrido</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
         {/* Toggles */}
         <div className="space-y-4">

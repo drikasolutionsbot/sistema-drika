@@ -24,6 +24,11 @@ interface Product {
   banner_url?: string | null;
   auto_delivery?: boolean;
   category_id?: string | null;
+  enable_credits?: boolean;
+  show_stock?: boolean;
+  show_sold?: boolean;
+  enable_instructions?: boolean;
+  button_style?: string;
 }
 
 const StorePage = () => {
@@ -69,12 +74,18 @@ const StorePage = () => {
           name: product.name,
           description: product.description,
           price_cents: product.price_cents,
+          compare_price_cents: product.compare_price_cents,
           type: product.type,
           active: product.active,
           icon_url: product.icon_url,
           banner_url: product.banner_url,
           auto_delivery: product.auto_delivery,
           category_id: product.category_id,
+          enable_credits: product.enable_credits,
+          show_stock: product.show_stock,
+          show_sold: product.show_sold,
+          enable_instructions: product.enable_instructions,
+          button_style: product.button_style,
         },
       },
     });

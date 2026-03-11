@@ -95,9 +95,11 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
               {product.name || "Produto sem nome"}
             </p>
 
-            {/* Auto delivery badge */}
-            {product.auto_delivery && (
+            {/* Delivery badge */}
+            {product.auto_delivery ? (
               <p className="text-[#57F287] text-xs font-semibold">⚡ Entrega Automática!</p>
+            ) : (
+              <p className="text-[#FEE75C] text-xs font-semibold">📦 Entrega Manual</p>
             )}
 
             {/* Description */}
@@ -123,18 +125,10 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
                 </div>
               </div>
               <div>
-                <p className="text-[#00b0f4] text-[10px] font-semibold">📦 Tipo</p>
-                <p className="text-[#dcddde] text-xs">{typeLabels[product.type] || product.type}</p>
-              </div>
-              {product.stock !== null && (
-                <div>
-                  <p className="text-[#00b0f4] text-[10px] font-semibold">📊 Estoque</p>
-                  <p className="text-[#dcddde] text-xs">{product.stock} disponíveis</p>
-                </div>
-              )}
-              <div>
-                <p className="text-[#00b0f4] text-[10px] font-semibold">🔄 Entrega</p>
-                <p className="text-[#dcddde] text-xs">{product.auto_delivery ? "Automática" : "Manual"}</p>
+                <p className="text-[#00b0f4] text-[10px] font-semibold">🚚 Entrega</p>
+                <p className={`text-xs font-medium ${product.auto_delivery ? "text-[#57F287]" : "text-[#FEE75C]"}`}>
+                  {product.auto_delivery ? "⚡ Automática" : "📦 Manual"}
+                </p>
               </div>
             </div>
 
