@@ -670,21 +670,18 @@ serve(async (req) => {
                     type: 2,
                     style: 3, // Success (green)
                     label: "Lembrar",
-                    emoji: { name: "🕐" },
                     custom_id: `ticket_remind_${ticket.id}`,
                   },
                   {
                     type: 2,
                     style: 2, // Secondary (grey)
                     label: "Renomear",
-                    emoji: { name: "✏️" },
                     custom_id: `ticket_rename_${ticket.id}`,
                   },
                   {
                     type: 2,
                     style: 2, // Secondary (grey)
                     label: "Arquivar",
-                    emoji: { name: "📁" },
                     custom_id: `ticket_close_${ticket.id}`,
                   },
                 ],
@@ -696,7 +693,6 @@ serve(async (req) => {
                     type: 2,
                     style: 4, // Danger (red)
                     label: "Deletar",
-                    emoji: { name: "🗑️" },
                     custom_id: `ticket_delete_${ticket.id}`,
                   },
                 ],
