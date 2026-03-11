@@ -1,7 +1,26 @@
-import { Plus, Users } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Plus, Users, Copy, Check, Search, Link2, BarChart3,
+  Percent, ShoppingCart, DollarSign, Eye, Power, PowerOff,
+  Edit2, ExternalLink, Award,
+} from "lucide-react";
+import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTenantQuery } from "@/hooks/useSupabaseQuery";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface Affiliate {
   id: string;
@@ -10,58 +29,424 @@ interface Affiliate {
   commission_percent: number;
   total_sales: number;
   total_revenue_cents: number;
+  active: boolean;
+  created_at: string;
 }
 
+interface AffiliateOrder {
+  id: string;
+  order_number: number;
+  product_name: string;
+  total_cents: number;
+  status: string;
+  discord_username: string | null;
+  created_at: string;
+}
+
+const formatBRL = (cents: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+const statusLabels: Record<string, string> = {
+  pending_payment: "Pendente",
+  paid: "Pago",
+  delivering: "Entregando",
+  delivered: "Entregue",
+  canceled: "Cancelado",
+  refunded: "Reembolsado",
+};
+
 const AffiliatesPage = () => {
-  const { data: affiliates = [], isLoading } = useTenantQuery<Affiliate>("affiliates", "affiliates");
+  const { tenantId } = useTenant();
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Affiliate | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: "", code: "", commission_percent: 5 });
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Stats modal
+  const [statsAffiliate, setStatsAffiliate] = useState<Affiliate | null>(null);
+  const [statsOrders, setStatsOrders] = useState<AffiliateOrder[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const fetchAffiliates = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-affiliates", {
+        body: { action: "list", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      setAffiliates(data?.affiliates ?? []);
+    } catch (e: any) {
+      toast({ title: "Erro ao carregar afiliados", description: e.message, variant: "destructive" });
+    }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { fetchAffiliates(); }, [fetchAffiliates]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: "", code: "", commission_percent: 5 });
+    setModalOpen(true);
+  };
+
+  const openEdit = (aff: Affiliate) => {
+    setEditing(aff);
+    setForm({ name: aff.name, code: aff.code, commission_percent: aff.commission_percent });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!tenantId || !form.name.trim() || !form.code.trim()) return;
+    setSaving(true);
+    try {
+      if (editing) {
+        await supabase.functions.invoke("manage-affiliates", {
+          body: { action: "update", tenant_id: tenantId, affiliate_id: editing.id, affiliate: form },
+        });
+        toast({ title: "Afiliado atualizado ✅" });
+      } else {
+        await supabase.functions.invoke("manage-affiliates", {
+          body: { action: "create", tenant_id: tenantId, affiliate: form },
+        });
+        toast({ title: "Afiliado criado ✅" });
+      }
+      setModalOpen(false);
+      fetchAffiliates();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const handleToggle = async (aff: Affiliate) => {
+    try {
+      await supabase.functions.invoke("manage-affiliates", {
+        body: { action: "update", tenant_id: tenantId, affiliate_id: aff.id, affiliate: { active: !aff.active } },
+      });
+      fetchAffiliates();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await supabase.functions.invoke("manage-affiliates", {
+        body: { action: "delete", tenant_id: tenantId, affiliate_id: id },
+      });
+      toast({ title: "Afiliado removido" });
+      fetchAffiliates();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const copyLink = (aff: Affiliate) => {
+    const link = `?ref=${aff.code}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(aff.id);
+    toast({ title: "Link copiado! 📋", description: `?ref=${aff.code}` });
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const openStats = async (aff: Affiliate) => {
+    setStatsAffiliate(aff);
+    setStatsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-affiliates", {
+        body: { action: "stats", tenant_id: tenantId, affiliate_id: aff.id },
+      });
+      if (error) throw error;
+      setStatsOrders(data?.orders ?? []);
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+    setStatsLoading(false);
+  };
+
+  const filtered = affiliates.filter(
+    (a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.code.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalSales = affiliates.reduce((s, a) => s + a.total_sales, 0);
+  const totalRevenue = affiliates.reduce((s, a) => s + a.total_revenue_cents, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold">Afiliados</h1>
-          <p className="text-muted-foreground">Gerencie seus afiliados e comissões</p>
+          <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" /> Afiliados
+          </h1>
+          <p className="text-muted-foreground text-sm">Gerencie links de indicação e acompanhe resultados</p>
         </div>
-        <Button className="gradient-pink text-primary-foreground border-none hover:opacity-90">
+        <Button onClick={openCreate} className="gradient-pink text-primary-foreground border-none hover:opacity-90">
           <Plus className="mr-2 h-4 w-4" /> Novo Afiliado
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[1,2,3].map(i => <Skeleton key={i} className="h-36" />)}</div>
-      ) : affiliates.length === 0 ? (
-        <p className="text-center text-muted-foreground py-8">Nenhum afiliado cadastrado</p>
+      {/* Summary cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Total Afiliados", value: affiliates.length, icon: Users, color: "text-primary" },
+          { label: "Ativos", value: affiliates.filter((a) => a.active).length, icon: Power, color: "text-emerald-400" },
+          { label: "Vendas via Afiliados", value: totalSales, icon: ShoppingCart, color: "text-amber-400" },
+          { label: "Receita Gerada", value: formatBRL(totalRevenue), icon: DollarSign, color: "text-emerald-400" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 space-y-1">
+            <div className="flex items-center gap-2">
+              <s.icon className={`h-4 w-4 ${s.color}`} />
+              <span className="text-xs text-muted-foreground">{s.label}</span>
+            </div>
+            <p className="text-xl font-bold font-display">{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome ou código..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-48 rounded-xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <Users className="h-8 w-8 text-primary" />
+          </div>
+          <p className="text-muted-foreground">
+            {search ? "Nenhum afiliado encontrado" : "Nenhum afiliado cadastrado ainda"}
+          </p>
+          {!search && (
+            <Button variant="outline" size="sm" onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Criar primeiro afiliado
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {affiliates.map((aff) => (
-            <div key={aff.id} className="rounded-xl border border-border bg-card p-5 space-y-4 hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full gradient-pink">
-                  <Users className="h-5 w-5 text-primary-foreground" />
+          {filtered.map((aff) => (
+            <div
+              key={aff.id}
+              className="group rounded-xl border border-border bg-card/50 backdrop-blur-sm p-5 space-y-4 hover:border-primary/30 transition-all"
+            >
+              {/* Top */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full gradient-pink">
+                    <Users className="h-5 w-5 text-primary-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{aff.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={aff.active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                        {aff.active ? "Ativo" : "Inativo"}
+                      </Badge>
+                      <span className="font-mono text-[10px] text-muted-foreground">{aff.code}</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-sm">{aff.name}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{aff.code}</p>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyLink(aff)}>
+                    {copiedId === aff.id ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(aff)}>
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
+
+              {/* Stats grid */}
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <p className="text-lg font-bold font-display">{aff.commission_percent}%</p>
-                  <p className="text-xs text-muted-foreground">Comissão</p>
+                <div className="rounded-lg bg-muted/30 py-2">
+                  <p className="text-sm font-bold font-display flex items-center justify-center gap-1">
+                    <Percent className="h-3 w-3 text-primary" /> {aff.commission_percent}%
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Comissão</p>
                 </div>
-                <div>
-                  <p className="text-lg font-bold font-display">{aff.total_sales}</p>
-                  <p className="text-xs text-muted-foreground">Vendas</p>
+                <div className="rounded-lg bg-muted/30 py-2">
+                  <p className="text-sm font-bold font-display">{aff.total_sales}</p>
+                  <p className="text-[10px] text-muted-foreground">Vendas</p>
                 </div>
-                <div>
-                  <p className="text-lg font-bold font-display">R$ {(aff.total_revenue_cents / 100).toFixed(0)}</p>
-                  <p className="text-xs text-muted-foreground">Receita</p>
+                <div className="rounded-lg bg-muted/30 py-2">
+                  <p className="text-sm font-bold font-display">{formatBRL(aff.total_revenue_cents)}</p>
+                  <p className="text-[10px] text-muted-foreground">Receita</p>
                 </div>
+              </div>
+
+              {/* Referral link */}
+              <div className="flex items-center gap-2 rounded-lg bg-muted/20 border border-border px-3 py-2">
+                <Link2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span className="text-xs font-mono text-muted-foreground truncate flex-1">?ref={aff.code}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copyLink(aff)}>
+                  {copiedId === aff.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                </Button>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={() => openStats(aff)}>
+                    <BarChart3 className="h-3.5 w-3.5" /> Ver pedidos
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5" onClick={() => handleToggle(aff)}>
+                    {aff.active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                    {aff.active ? "Desativar" : "Ativar"}
+                  </Button>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover afiliado?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        O afiliado <strong>{aff.name}</strong> será removido permanentemente. Pedidos vinculados não serão afetados.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(aff.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Create / Edit Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Afiliado" : "Novo Afiliado"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do afiliado</Label>
+              <Input
+                placeholder="Ex: João Silva"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Código de referência</Label>
+              <Input
+                placeholder="Ex: JOAO10"
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/\s/g, "") })}
+                className="font-mono uppercase"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Link de indicação: <span className="font-mono text-primary">?ref={form.code || "..."}</span>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Comissão (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={form.commission_percent}
+                onChange={(e) => setForm({ ...form, commission_percent: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !form.name.trim() || !form.code.trim()}
+              className="gradient-pink text-primary-foreground border-none"
+            >
+              {saving ? "Salvando..." : editing ? "Salvar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stats / Orders Modal */}
+      <Dialog open={!!statsAffiliate} onOpenChange={(o) => !o && setStatsAffiliate(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Pedidos de {statsAffiliate?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {statsAffiliate && (
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="rounded-lg bg-muted/30 p-3 text-center">
+                <p className="text-lg font-bold">{statsAffiliate.commission_percent}%</p>
+                <p className="text-[10px] text-muted-foreground">Comissão</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 p-3 text-center">
+                <p className="text-lg font-bold">{statsAffiliate.total_sales}</p>
+                <p className="text-[10px] text-muted-foreground">Vendas</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 p-3 text-center">
+                <p className="text-lg font-bold">{formatBRL(statsAffiliate.total_revenue_cents)}</p>
+                <p className="text-[10px] text-muted-foreground">Receita</p>
+              </div>
+            </div>
+          )}
+
+          {statsLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 rounded-lg" />)}
+            </div>
+          ) : statsOrders.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">Nenhum pedido vinculado a este afiliado</p>
+          ) : (
+            <div className="max-h-[300px] overflow-y-auto space-y-2">
+              {statsOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">#{order.order_number} — {order.product_name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {order.discord_username || "Desconhecido"} • {new Date(order.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <p className="text-sm font-bold">{formatBRL(order.total_cents)}</p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {statusLabels[order.status] || order.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
