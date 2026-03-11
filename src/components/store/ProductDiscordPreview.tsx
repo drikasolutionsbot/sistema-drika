@@ -213,11 +213,6 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
                 >
                   🛒 Comprar
                 </button>
-                {fields.length > 0 && (
-                  <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
-                    📋 Variações
-                  </button>
-                )}
                 <button className="bg-[#4f545c] text-white text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default">
                   ℹ️ Detalhes
                 </button>

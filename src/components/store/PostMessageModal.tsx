@@ -109,20 +109,20 @@ export const PostMessageModal = ({
           ...(product.compare_price_cents && product.compare_price_cents > product.price_cents
             ? [
                 {
-                  name: "~~Preço original~~",
+                  name: "**Preço original**",
                   value: `~~R$ ${(product.compare_price_cents / 100).toFixed(2).replace(".", ",")}~~`,
                   inline: true,
                 },
                 {
-                  name: "🔥 Preço promocional",
+                  name: "🔥 **Preço promocional**",
                   value: `**R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}**`,
                   inline: true,
                 },
               ]
             : [
                 {
-                  name: "Valor à vista",
-                  value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
+                  name: "**Valor à vista**",
+                  value: `R$  ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
                   inline: true,
                 },
               ]),
