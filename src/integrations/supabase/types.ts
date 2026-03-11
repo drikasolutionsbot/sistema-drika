@@ -152,7 +152,9 @@ export type Database = {
         Row: {
           active: boolean
           code: string
+          commission_fixed_cents: number
           commission_percent: number
+          commission_type: string
           created_at: string
           discord_username: string | null
           email: string | null
@@ -166,7 +168,9 @@ export type Database = {
         Insert: {
           active?: boolean
           code: string
+          commission_fixed_cents?: number
           commission_percent?: number
+          commission_type?: string
           created_at?: string
           discord_username?: string | null
           email?: string | null
@@ -180,7 +184,9 @@ export type Database = {
         Update: {
           active?: boolean
           code?: string
+          commission_fixed_cents?: number
           commission_percent?: number
+          commission_type?: string
           created_at?: string
           discord_username?: string | null
           email?: string | null
