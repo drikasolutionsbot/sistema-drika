@@ -56,7 +56,7 @@ const AffiliatePayouts = ({ affiliates, tenantId, payouts, onRefresh, adminMode 
       await supabase.functions.invoke("manage-affiliates", {
         body: {
           action: "create_payout",
-          tenant_id: tenantId,
+          tenant_id: effectiveTenantId,
           affiliate_id: form.affiliate_id,
           payout: {
             amount_cents: form.amount_cents,
