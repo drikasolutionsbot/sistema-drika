@@ -27,6 +27,7 @@ interface Tenant {
   referral_code: string | null;
   referred_by_tenant_id: string | null;
   referral_credits_cents: number;
+  affiliate_active: boolean;
 }
 
 interface TenantContextType {
