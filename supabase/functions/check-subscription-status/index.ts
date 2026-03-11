@@ -217,7 +217,7 @@ const SENTINEL_TENANT = "00000000-0000-0000-0000-000000000000";
 async function activateSubscription(supabase: any, subPayment: any) {
   const { data: config } = await supabase
     .from("landing_config")
-    .select("auto_activate_plan")
+    .select("auto_activate_plan, referral_bonus_days, referral_bonus_credits_cents")
     .limit(1)
     .single();
 
@@ -228,9 +228,10 @@ async function activateSubscription(supabase: any, subPayment: any) {
   periodEnd.setDate(periodEnd.getDate() + 30);
 
   const isNewSubscriber = subPayment.tenant_id === SENTINEL_TENANT;
+  const meta = subPayment.metadata || {};
+  const refCode = meta.ref_code || null;
 
   if (isNewSubscriber) {
-    const meta = subPayment.metadata || {};
     const { email, password, whatsapp, name } = meta;
 
     if (!email || !password) {
@@ -264,6 +265,18 @@ async function activateSubscription(supabase: any, subPayment: any) {
     const userId = authData.user.id;
     const tenantName = name || email.split("@")[0];
 
+    // Look up referring tenant by ref_code
+    let referredByTenantId: string | null = null;
+    if (refCode) {
+      const { data: referrer } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("referral_code", refCode)
+        .eq("affiliate_active", true)
+        .maybeSingle();
+      if (referrer) referredByTenantId = referrer.id;
+    }
+
     // 2. Create tenant
     const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
@@ -274,6 +287,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
         plan: "pro",
         plan_started_at: now.toISOString(),
         plan_expires_at: periodEnd.toISOString(),
+        referred_by_tenant_id: referredByTenantId,
       })
       .select()
       .single();
@@ -326,6 +340,11 @@ async function activateSubscription(supabase: any, subPayment: any) {
       updated_at: now.toISOString(),
     }).eq("id", subPayment.id);
 
+    // 6. Auto-create referral payout if referred
+    if (referredByTenantId) {
+      await processReferralReward(supabase, referredByTenantId, refCode, config, tenantName);
+    }
+
     console.log(`New Pro subscriber registered: tenant ${tenant.id}, email ${email}`);
   } else {
     // Existing tenant renewal
@@ -347,5 +366,43 @@ async function activateSubscription(supabase: any, subPayment: any) {
 
       console.log(`Subscription renewed for tenant ${subPayment.tenant_id}`);
     }
+  }
+}
+
+async function processReferralReward(supabase: any, referrerTenantId: string, refCode: string, config: any, referredName: string) {
+  try {
+    const { data: affiliate } = await supabase
+      .from("affiliates")
+      .select("id, total_sales")
+      .eq("tenant_id", referrerTenantId)
+      .eq("code", refCode)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (!affiliate) {
+      console.log(`No active affiliate found for tenant ${referrerTenantId} code ${refCode}`);
+      return;
+    }
+
+    const bonusDays = config?.referral_bonus_days ?? 7;
+    const bonusCredits = config?.referral_bonus_credits_cents ?? 500;
+
+    // Create pending payout for admin approval
+    await supabase.from("affiliate_payouts").insert({
+      tenant_id: referrerTenantId,
+      affiliate_id: affiliate.id,
+      amount_cents: bonusCredits,
+      status: "pending",
+      notes: `Indicação Pro: ${referredName} | +${bonusDays} dias bônus | Auto-gerado`,
+    });
+
+    // Increment affiliate sales count
+    await supabase.from("affiliates")
+      .update({ total_sales: (affiliate.total_sales || 0) + 1 })
+      .eq("id", affiliate.id);
+
+    console.log(`Referral payout created for affiliate ${affiliate.id}`);
+  } catch (err: any) {
+    console.error("processReferralReward error:", err.message);
   }
 }
