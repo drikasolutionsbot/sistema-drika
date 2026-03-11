@@ -47,6 +47,8 @@ const navGroups = [
       { label: "Proteção", icon: Shield, path: "/protection" },
       { label: "Verificação", icon: UserCheck, path: "/verification" },
       { label: "Tickets", icon: Ticket, path: "/tickets" },
+      { label: "Sorteios", icon: Gift, path: "/giveaways" },
+      { label: "VIPs", icon: Crown, path: "/vips" },
       { label: "eCloud", icon: Cloud, path: "/ecloud" },
     ],
   },
