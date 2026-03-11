@@ -4,6 +4,8 @@ import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { LayoutDashboard, CreditCard, Users, LogOut, Headphones, Globe, Bell, Crown, UserPlus, Inbox, CheckCircle, BarChart3, ClipboardList, Shield, Menu, BookOpen, Store } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useTheme } from "next-themes";
+import ThemeToggle from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +104,7 @@ const SidebarContent = ({ location, onNavigate }: { location: ReturnType<typeof 
 export const AdminLayout = () => {
   const { isSuperAdmin, loading } = useAdmin();
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotif[]>([]);
@@ -244,6 +247,7 @@ export const AdminLayout = () => {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex-1" />
+          <ThemeToggle checked={theme === "dark"} onChange={(checked) => setTheme(checked ? "dark" : "light")} />
           <Popover open={notifOpen} onOpenChange={setNotifOpen}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
