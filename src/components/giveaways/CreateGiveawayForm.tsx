@@ -248,11 +248,6 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
               <GiveawayEmbedConfigForm config={draft.embedConfig} onChange={(cfg) => updateField("embedConfig", cfg)} />
             </CollapsibleContent>
           </Collapsible>
-
-          <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gift className="h-4 w-4 mr-2" />}
-            Criar Sorteio
-          </Button>
         </div>
 
         {/* Right: Preview */}
@@ -271,6 +266,13 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
             </CollapsibleContent>
           </Collapsible>
         </div>
+      </div>
+
+      <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-4 pb-2 border-t border-border -mx-6 px-6">
+        <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gift className="h-4 w-4 mr-2" />}
+          Criar Sorteio
+        </Button>
       </div>
     </form>
   );
