@@ -57,18 +57,20 @@ function useCountdown(endsAt: string) {
 
 export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit }: GiveawayCardProps) {
   const { timeLeft, isExpired } = useCountdown(giveaway.ends_at);
+  const isEnded = giveaway.status === "ended";
+  const isFinished = isEnded || isExpired;
 
   return (
-    <Card className="relative overflow-hidden border-border/60 hover:shadow-lg transition-shadow">
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-accent" />
+    <Card className={`relative overflow-hidden border-border/60 hover:shadow-lg transition-shadow ${isFinished ? "opacity-80" : ""}`}>
+      <div className={`absolute top-0 left-0 right-0 h-1 ${isFinished ? "bg-gradient-to-r from-yellow-500 to-orange-500" : "bg-gradient-to-r from-primary to-accent"}`} />
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Gift className="h-5 w-5 text-primary" />
             {giveaway.title}
           </CardTitle>
-          <Badge variant={isExpired ? "destructive" : "default"} className="shrink-0">
-            {isExpired ? "Expirado" : "Ativo"}
+          <Badge variant={isFinished ? "secondary" : "default"} className={isFinished ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" : ""}>
+            {isEnded ? "Encerrado" : isExpired ? "⏰ Finalizado" : "Ativo"}
           </Badge>
         </div>
       </CardHeader>
@@ -85,7 +87,9 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit }: Giv
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="h-4 w-4" />
-            <span className={isExpired ? "text-destructive font-medium" : ""}>{timeLeft}</span>
+            <span className={isFinished ? "text-yellow-500 font-medium" : ""}>
+              {isFinished ? "⏰ Tempo esgotado" : timeLeft}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
@@ -103,8 +107,14 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit }: Giv
           )}
         </div>
 
+        {isExpired && !isEnded && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-2 text-xs text-yellow-500 text-center font-medium">
+            ⚠️ Tempo esgotado — clique em "Sortear" para finalizar
+          </div>
+        )}
+
         <div className="flex gap-2 pt-2">
-          <Button size="sm" onClick={() => onDraw(giveaway.id)} className="flex-1">
+          <Button size="sm" onClick={() => onDraw(giveaway.id)} className="flex-1" variant={isExpired && !isEnded ? "default" : "default"}>
             <Trophy className="h-4 w-4 mr-1" /> Sortear
           </Button>
           <Button size="sm" variant="outline" onClick={() => onEdit(giveaway)}>
