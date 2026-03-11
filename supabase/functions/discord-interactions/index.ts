@@ -146,59 +146,65 @@ serve(async (req) => {
     const getOption = (name: string) => options.find((o: any) => o.name === name)?.value;
 
     try {
-      // ─── /clear - Limpa mensagens do canal ────────────────
+      // ─── /clear - Limpa TODAS as mensagens do canal ──────
       if (commandName === "clear") {
-        const amount = getOption("quantidade") || getOption("amount") || 10;
-        const count = Math.min(Math.max(Number(amount), 1), 100);
-
-        // Check MANAGE_MESSAGES permission (bit 13 = 8192)
         const memberPerms = BigInt(interaction.member?.permissions || "0");
         if (!(memberPerms & BigInt(0x2000)) && !(memberPerms & BigInt(0x8))) {
           return respondImmediate(interaction, "❌ Você não tem permissão para limpar mensagens.");
         }
 
-        // Defer ephemeral
         await respondDeferred(interaction, botToken);
 
-        // Fetch messages
-        const msgsRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=${count}`, {
-          headers: { Authorization: `Bot ${botToken}` },
-        });
-
-        if (!msgsRes.ok) {
-          await editFollowup(interaction, botToken, "❌ Não foi possível buscar as mensagens.");
-          return ok();
-        }
-
-        const msgs = await msgsRes.json();
-        if (!Array.isArray(msgs) || msgs.length === 0) {
-          await editFollowup(interaction, botToken, "ℹ️ Nenhuma mensagem encontrada.");
-          return ok();
-        }
-
-        // Filter messages < 14 days old (Discord bulk delete limit)
         const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-        const deletable = msgs.filter((m: any) => new Date(m.timestamp).getTime() > twoWeeksAgo);
+        let totalDeleted = 0;
+        let hasMore = true;
 
-        if (deletable.length === 0) {
-          await editFollowup(interaction, botToken, "ℹ️ Nenhuma mensagem recente encontrada para deletar.");
-          return ok();
-        }
-
-        if (deletable.length === 1) {
-          await fetch(`${DISCORD_API}/channels/${channelId}/messages/${deletable[0].id}`, {
-            method: "DELETE",
+        while (hasMore) {
+          const msgsRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=100`, {
             headers: { Authorization: `Bot ${botToken}` },
           });
-        } else {
-          await fetch(`${DISCORD_API}/channels/${channelId}/messages/bulk-delete`, {
-            method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: deletable.map((m: any) => m.id) }),
-          });
+
+          if (!msgsRes.ok) break;
+
+          const msgs = await msgsRes.json();
+          if (!Array.isArray(msgs) || msgs.length === 0) { hasMore = false; break; }
+
+          const deletable = msgs.filter((m: any) => new Date(m.timestamp).getTime() > twoWeeksAgo);
+          const old = msgs.filter((m: any) => new Date(m.timestamp).getTime() <= twoWeeksAgo);
+
+          if (deletable.length >= 2) {
+            await fetch(`${DISCORD_API}/channels/${channelId}/messages/bulk-delete`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ messages: deletable.map((m: any) => m.id) }),
+            });
+            totalDeleted += deletable.length;
+          } else if (deletable.length === 1) {
+            await fetch(`${DISCORD_API}/channels/${channelId}/messages/${deletable[0].id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+            totalDeleted += 1;
+          }
+
+          // Delete old messages one by one
+          for (const m of old) {
+            try {
+              await fetch(`${DISCORD_API}/channels/${channelId}/messages/${m.id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bot ${botToken}` },
+              });
+              totalDeleted++;
+            } catch { /* skip */ }
+          }
+
+          if (msgs.length < 100) hasMore = false;
+
+          // Small delay to avoid rate limits
+          await new Promise(r => setTimeout(r, 1000));
         }
 
-        await editFollowup(interaction, botToken, `✅ ${deletable.length} mensagem(ns) deletada(s)!`);
+        await editFollowup(interaction, botToken, `✅ Canal limpo! ${totalDeleted} mensagem(ns) deletada(s).`);
         return ok();
       }
 
