@@ -100,8 +100,7 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh }: Props) => {
   };
 
   const getFullLink = (code: string) => {
-    const base = window.location.origin;
-    return `${base}?ref=${code}`;
+    return `https://drikahub.com?ref=${code}`;
   };
 
   const copyLink = (aff: Affiliate) => {
