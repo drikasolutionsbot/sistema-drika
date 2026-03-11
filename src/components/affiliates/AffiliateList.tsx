@@ -282,7 +282,10 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh }: Props) => {
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-muted/20 border border-border/30 py-2">
                     <p className="text-sm font-bold font-display flex items-center justify-center gap-1">
-                      <Percent className="h-3 w-3 text-primary" /> {aff.commission_percent}%
+                      {aff.commission_type === "fixed"
+                        ? <><DollarSign className="h-3 w-3 text-primary" /> {formatBRL(aff.commission_fixed_cents)}</>
+                        : <><Percent className="h-3 w-3 text-primary" /> {aff.commission_percent}%</>
+                      }
                     </p>
                     <p className="text-[10px] text-muted-foreground">Comissão</p>
                   </div>
