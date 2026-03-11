@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, tenant_id, affiliate, affiliate_id } = await req.json();
+    const { action, tenant_id, affiliate, affiliate_id, payout, payout_id } = await req.json();
     if (!tenant_id) throw new Error("Missing tenant_id");
 
     const supabase = createClient(
@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // LIST
+    // LIST affiliates
     if (action === "list") {
       const { data, error } = await supabase
         .from("affiliates")
@@ -33,23 +33,67 @@ Deno.serve(async (req) => {
       });
     }
 
-    // GET STATS (orders linked to affiliate)
+    // STATS — orders linked to affiliate + payout totals
     if (action === "stats") {
       if (!affiliate_id) throw new Error("Missing affiliate_id");
-      const { data: orders, error } = await supabase
-        .from("orders")
-        .select("id, order_number, product_name, total_cents, status, discord_username, created_at")
-        .eq("tenant_id", tenant_id)
-        .eq("affiliate_id", affiliate_id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return new Response(JSON.stringify({ orders: orders ?? [] }), {
+
+      const [ordersRes, payoutsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id, order_number, product_name, total_cents, status, discord_username, created_at")
+          .eq("tenant_id", tenant_id)
+          .eq("affiliate_id", affiliate_id)
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("affiliate_payouts")
+          .select("*")
+          .eq("tenant_id", tenant_id)
+          .eq("affiliate_id", affiliate_id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (ordersRes.error) throw ordersRes.error;
+      if (payoutsRes.error) throw payoutsRes.error;
+
+      return new Response(JSON.stringify({
+        orders: ordersRes.data ?? [],
+        payouts: payoutsRes.data ?? [],
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // CREATE
+    // ANALYTICS — aggregate data for charts
+    if (action === "analytics") {
+      const [affiliatesRes, ordersRes, payoutsRes] = await Promise.all([
+        supabase.from("affiliates").select("*").eq("tenant_id", tenant_id),
+        supabase
+          .from("orders")
+          .select("id, total_cents, status, affiliate_id, created_at")
+          .eq("tenant_id", tenant_id)
+          .not("affiliate_id", "is", null)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("affiliate_payouts")
+          .select("*")
+          .eq("tenant_id", tenant_id),
+      ]);
+
+      if (affiliatesRes.error) throw affiliatesRes.error;
+      if (ordersRes.error) throw ordersRes.error;
+      if (payoutsRes.error) throw payoutsRes.error;
+
+      return new Response(JSON.stringify({
+        affiliates: affiliatesRes.data ?? [],
+        orders: ordersRes.data ?? [],
+        payouts: payoutsRes.data ?? [],
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // CREATE affiliate
     if (action === "create") {
       if (!affiliate?.name || !affiliate?.code) throw new Error("name e code obrigatórios");
       const { data, error } = await supabase
@@ -69,7 +113,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // UPDATE
+    // UPDATE affiliate
     if (action === "update") {
       if (!affiliate_id) throw new Error("Missing affiliate_id");
       const updates: Record<string, unknown> = {};
@@ -91,13 +135,71 @@ Deno.serve(async (req) => {
       });
     }
 
-    // DELETE
+    // DELETE affiliate
     if (action === "delete") {
       if (!affiliate_id) throw new Error("Missing affiliate_id");
       const { error } = await supabase
         .from("affiliates")
         .delete()
         .eq("id", affiliate_id)
+        .eq("tenant_id", tenant_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // CREATE PAYOUT
+    if (action === "create_payout") {
+      if (!affiliate_id || !payout?.amount_cents) throw new Error("affiliate_id e amount_cents obrigatórios");
+      const { data, error } = await supabase
+        .from("affiliate_payouts")
+        .insert({
+          tenant_id,
+          affiliate_id,
+          amount_cents: payout.amount_cents,
+          status: payout.status ?? "pending",
+          notes: payout.notes ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return new Response(JSON.stringify({ payout: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // UPDATE PAYOUT (mark as paid, etc.)
+    if (action === "update_payout") {
+      if (!payout_id) throw new Error("Missing payout_id");
+      const updates: Record<string, unknown> = {};
+      if (payout?.status !== undefined) {
+        updates.status = payout.status;
+        if (payout.status === "paid") updates.paid_at = new Date().toISOString();
+      }
+      if (payout?.notes !== undefined) updates.notes = payout.notes;
+      updates.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("affiliate_payouts")
+        .update(updates)
+        .eq("id", payout_id)
+        .eq("tenant_id", tenant_id)
+        .select()
+        .single();
+      if (error) throw error;
+      return new Response(JSON.stringify({ payout: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // DELETE PAYOUT
+    if (action === "delete_payout") {
+      if (!payout_id) throw new Error("Missing payout_id");
+      const { error } = await supabase
+        .from("affiliate_payouts")
+        .delete()
+        .eq("id", payout_id)
         .eq("tenant_id", tenant_id);
       if (error) throw error;
       return new Response(JSON.stringify({ success: true }), {
