@@ -254,8 +254,8 @@ serve(async (req) => {
         const productId = parts[1];
         const fieldId = parts[2];
 
-        // Use DEFERRED_UPDATE_MESSAGE (type 6) to update existing message instead of creating new one
-        await respondDeferredUpdate(interaction, botToken);
+        // Use deferred ephemeral reply (type 5) so processPurchase can send a NEW checkout message
+        await respondDeferred(interaction, botToken);
 
         const { data: product } = await supabase.from("products").select("*").eq("id", productId).single();
         if (!product) { await editFollowup(interaction, botToken, "❌ Produto não encontrado."); return ok(); }
