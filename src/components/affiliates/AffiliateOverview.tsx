@@ -48,6 +48,39 @@ const SurrealFilters = () => (
         <feDisplacementMap in="SourceGraphic" in2="warp" scale="6" xChannelSelector="R" yChannelSelector="G" />
       </filter>
 
+      {/* Chromatic aberration / RGB split */}
+      <filter id="surreal-chromatic" x="-10%" y="-10%" width="120%" height="120%">
+        <feOffset in="SourceGraphic" dx="1.5" dy="0" result="red" />
+        <feOffset in="SourceGraphic" dx="-1.5" dy="0" result="blue" />
+        <feColorMatrix in="red" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="redOnly" />
+        <feColorMatrix in="blue" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blueOnly" />
+        <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="greenOnly" />
+        <feBlend in="redOnly" in2="greenOnly" mode="screen" result="rg" />
+        <feBlend in="rg" in2="blueOnly" mode="screen" />
+      </filter>
+
+      {/* Holographic / iridescent sheen */}
+      <filter id="surreal-holo" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02 0.06" numOctaves="4" seed="12" result="holo" />
+        <feColorMatrix in="holo" type="hueRotate" values="180" result="shifted" />
+        <feBlend in="SourceGraphic" in2="shifted" mode="color-dodge" result="holographic" />
+        <feComposite in="holographic" in2="SourceGraphic" operator="atop" />
+      </filter>
+
+      {/* Liquid morphing distortion */}
+      <filter id="surreal-liquid">
+        <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="3" seed="42" result="liquid" />
+        <feDisplacementMap in="SourceGraphic" in2="liquid" scale="4" xChannelSelector="R" yChannelSelector="B" />
+        <feGaussianBlur stdDeviation="0.5" />
+      </filter>
+
+      {/* Noise grain overlay */}
+      <filter id="surreal-grain" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="1" result="grain" />
+        <feColorMatrix in="grain" type="saturate" values="0" result="monoGrain" />
+        <feBlend in="SourceGraphic" in2="monoGrain" mode="soft-light" />
+      </filter>
+
       {/* Gradient definitions for bars */}
       <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor="hsl(330, 100%, 60%)" stopOpacity={1} />
