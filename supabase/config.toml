@@ -72,8 +72,6 @@ verify_jwt = false
 [functions.manage-categories]
 verify_jwt = false
 
-[functions.manage-vips]
-verify_jwt = false
 
 [functions.manage-protection]
 verify_jwt = false
@@ -87,8 +85,6 @@ verify_jwt = false
 [functions.manage-giveaways]
 verify_jwt = false
 
-[functions.check-expired-vips]
-verify_jwt = false
 
 [functions.deliver-order]
 verify_jwt = false
