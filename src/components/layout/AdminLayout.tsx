@@ -22,6 +22,7 @@ const navItems = [
   { label: "Permissões", icon: Shield, path: "/admin/permissoes" },
   { label: "Tutoriais", icon: BookOpen, path: "/admin/tutoriais" },
   { label: "Market Clientes", icon: Store, path: "/admin/marketplace" },
+  { label: "Afiliados", icon: UserPlus, path: "/admin/afiliados" },
 ];
 
 interface AdminNotif {
