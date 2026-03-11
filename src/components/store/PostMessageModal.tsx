@@ -47,12 +47,13 @@ export const PostMessageModal = ({
   onOpenChange,
   product,
 }: PostMessageModalProps) => {
-  const { tenant } = useTenant();
+  const { tenant, tenantId } = useTenant();
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [posting, setPosting] = useState(false);
   const [channelSearch, setChannelSearch] = useState("");
+  const [embedColor, setEmbedColor] = useState<string>("#5865F2");
 
   const guildId = tenant?.discord_guild_id;
 
@@ -74,8 +75,18 @@ export const PostMessageModal = ({
   }, [guildId]);
 
   useEffect(() => {
-    if (open) fetchChannels();
-  }, [open, fetchChannels]);
+    if (open) {
+      fetchChannels();
+      // Fetch embed color from store config
+      if (tenantId) {
+        supabase.functions.invoke("manage-store-config", {
+          body: { action: "get", tenant_id: tenantId },
+        }).then(({ data }) => {
+          if (data?.embed_color) setEmbedColor(data.embed_color);
+        });
+      }
+    }
+  }, [open, fetchChannels, tenantId]);
 
   const handlePost = async () => {
     if (!selectedChannel || !guildId) {
@@ -89,7 +100,7 @@ export const PostMessageModal = ({
       const embed: Record<string, any> = {
         title: `${product.name}`,
         description: `${autoDeliveryLine}${product.description || ""}`,
-        color: 0x2B2D31,
+        color: parseInt(embedColor.replace("#", ""), 16),
         fields: [
           ...(product.compare_price_cents && product.compare_price_cents > product.price_cents
             ? [

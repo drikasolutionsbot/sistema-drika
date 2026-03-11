@@ -141,6 +141,16 @@ serve(async (req) => {
     const userId = interaction.member?.user?.id || interaction.user?.id;
     const username = interaction.member?.user?.username || interaction.user?.username;
 
+    // Helper to get store embed color for a tenant
+    const getStoreEmbedColor = async (tid: string): Promise<number> => {
+      const { data: sc } = await supabase
+        .from("store_configs")
+        .select("embed_color")
+        .eq("tenant_id", tid)
+        .single();
+      return sc?.embed_color ? parseInt(sc.embed_color.replace("#", ""), 16) : 0x2B2D31;
+    };
+
     try {
       // ─── BUY PRODUCT ─────────────────────────────────────
       if (customId.startsWith("buy_product:")) {
@@ -203,13 +213,14 @@ serve(async (req) => {
             };
           });
 
+          const embedColorVal = await getStoreEmbedColor(tenantId);
           const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
           await editFollowup(interaction, botToken, {
             content: "",
             embeds: [{
               title: product.name,
               description: `${autoDelivery}${product.description || ""}`,
-              color: 0x2B2D31,
+              color: embedColorVal,
               image: product.banner_url ? { url: product.banner_url } : undefined,
               thumbnail: product.icon_url ? { url: product.icon_url } : undefined,
             }],
@@ -283,10 +294,11 @@ serve(async (req) => {
           return `${emoji} **${f.name}** — ${priceStr}${desc}`;
         });
 
+        const varEmbedColor = await getStoreEmbedColor(product.tenant_id);
         const embed = {
           title: `📋 Variações de ${product.name}`,
           description: fieldLines.join("\n"),
-          color: 0x2B2D31,
+          color: varEmbedColor,
         };
 
         return respondImmediate(interaction, { embeds: [embed] });
@@ -305,11 +317,12 @@ serve(async (req) => {
           .eq("product_id", productId)
           .eq("tenant_id", product.tenant_id);
 
+        const detailEmbedColor = await getStoreEmbedColor(product.tenant_id);
         const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
         const embed: any = {
           title: `ℹ️ ${product.name}`,
           description: `${autoDeliveryText}${product.description || "Sem descrição."}`,
-          color: 0x2B2D31,
+          color: detailEmbedColor,
           fields: [
             { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
             { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
@@ -1521,7 +1534,7 @@ async function processPurchase(
   // Get store config for branding
   const { data: storeConfigForCheckout } = await supabase
     .from("store_configs")
-    .select("store_banner_url, store_logo_url, store_title, payment_timeout_minutes")
+    .select("store_banner_url, store_logo_url, store_title, payment_timeout_minutes, embed_color")
     .eq("tenant_id", tenantId)
     .single();
 
@@ -1534,13 +1547,16 @@ async function processPurchase(
   const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || "Loja";
   const storeLogo = storeConfigForCheckout?.store_logo_url || tenantInfo?.logo_url;
   const timeoutMin = storeConfigForCheckout?.payment_timeout_minutes || 30;
+  const storeEmbedColor = storeConfigForCheckout?.embed_color
+    ? parseInt(storeConfigForCheckout.embed_color.replace("#", ""), 16)
+    : 0x2B2D31;
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
 
   const checkoutEmbed: any = {
     title: `🛒 ${storeName} - Carrinho`,
     description: `> <@${userId}>, escaneie o QR Code ou copie o código PIX abaixo!`,
-    color: 0x2B2D31,
+    color: storeEmbedColor,
     fields: [
       { name: "🕐 Informações do Pedido", value: `**${orderName}**`, inline: false },
       { name: "💠 Pagamento PIX", value: `→ **Preço:** ${formatBRL(priceCents)}\n→ **Tempo Limite:** ${timeoutMin} minutos`, inline: false },
