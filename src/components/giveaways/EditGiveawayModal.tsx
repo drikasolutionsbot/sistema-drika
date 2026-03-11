@@ -55,6 +55,7 @@ export default function EditGiveawayModal({ open, onOpenChange, giveaway, onSave
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingEmbed, setSavingEmbed] = useState(false);
+  const [embedConfig, setEmbedConfig] = useState<GiveawayEmbedConfig>(
     giveaway.embed_config && Object.keys(giveaway.embed_config).length > 0
       ? { ...defaultEmbedConfig, ...giveaway.embed_config }
       : { ...defaultEmbedConfig }
