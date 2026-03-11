@@ -32,6 +32,7 @@ interface Giveaway {
   winners: any[];
   entries_count: number;
   created_at: string;
+  embed_config?: any;
 }
 
 export default function GiveawaysPage() {
