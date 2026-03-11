@@ -994,6 +994,98 @@ serve(async (req) => {
         return ok();
       }
 
+      // ─── MARK DELIVERED (manual delivery button) ─────────
+      if (customId.startsWith("mark_delivered_")) {
+        const orderId = customId.replace("mark_delivered_", "");
+        await respondDeferredUpdate(interaction, botToken);
+
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+
+        // Update order to delivered
+        await supabase.from("orders").update({ status: "delivered", updated_at: new Date().toISOString() }).eq("id", orderId);
+
+        // Update ticket to delivered
+        await supabase
+          .from("tickets")
+          .update({ status: "delivered", updated_at: new Date().toISOString() })
+          .eq("order_id", orderId);
+
+        // Send confirmation in channel
+        const channelId = interaction.channel_id;
+        if (channelId) {
+          await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              embeds: [{
+                title: "✅ Entrega Confirmada",
+                description: `Pedido **#${order.order_number}** marcado como entregue por <@${userId}>.`,
+                color: 0x57F287,
+              }],
+            }),
+          });
+        }
+
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "✅ Pedido Entregue",
+            description: `Pedido **#${order.order_number}** (${order.product_name}) marcado como entregue.`,
+            color: 0x57F287,
+          }],
+          components: [],
+        });
+        return ok();
+      }
+
+      // ─── CANCEL MANUAL ORDER (button in delivery thread) ──
+      if (customId.startsWith("cancel_manual_")) {
+        const orderId = customId.replace("cancel_manual_", "");
+        await respondDeferredUpdate(interaction, botToken);
+
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+
+        await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
+        await supabase
+          .from("tickets")
+          .update({ status: "closed", closed_by: username || userId, closed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("order_id", orderId);
+
+        // Notify buyer via DM
+        try {
+          const dmChRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ recipient_id: order.discord_user_id }),
+          });
+          if (dmChRes.ok) {
+            const dmCh = await dmChRes.json();
+            await fetch(`${DISCORD_API}/channels/${dmCh.id}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                embeds: [{
+                  title: "❌ Pedido Cancelado",
+                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`,
+                  color: 0xED4245,
+                }],
+              }),
+            });
+          }
+        } catch (e) { console.error("DM cancel error:", e); }
+
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "❌ Pedido Cancelado",
+            description: `Pedido **#${order.order_number}** cancelado por <@${userId}>.`,
+            color: 0xED4245,
+          }],
+          components: [],
+        });
+        return ok();
+      }
+
       // ─── TICKET RENAME (modal to rename the channel) ──────────
       if (customId.startsWith("ticket_rename_")) {
         const ticketId = customId.replace("ticket_rename_", "");
