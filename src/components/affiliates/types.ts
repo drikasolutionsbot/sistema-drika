@@ -38,6 +38,16 @@ export interface AffiliatePayout {
 export const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
+export const getCommissionLabel = (aff: Affiliate) =>
+  aff.commission_type === "fixed"
+    ? formatBRL(aff.commission_fixed_cents)
+    : `${aff.commission_percent}%`;
+
+export const calcCommission = (aff: Affiliate, totalCents: number) =>
+  aff.commission_type === "fixed"
+    ? aff.commission_fixed_cents
+    : Math.round(totalCents * aff.commission_percent / 100);
+
 export const statusLabels: Record<string, string> = {
   pending_payment: "Pendente",
   paid: "Pago",

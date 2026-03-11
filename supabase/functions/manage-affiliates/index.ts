@@ -124,7 +124,9 @@ Deno.serve(async (req) => {
       const updates: Record<string, unknown> = {};
       if (affiliate?.name !== undefined) updates.name = affiliate.name;
       if (affiliate?.code !== undefined) updates.code = affiliate.code.toUpperCase().replace(/\s+/g, "");
+      if (affiliate?.commission_type !== undefined) updates.commission_type = affiliate.commission_type;
       if (affiliate?.commission_percent !== undefined) updates.commission_percent = affiliate.commission_percent;
+      if (affiliate?.commission_fixed_cents !== undefined) updates.commission_fixed_cents = affiliate.commission_fixed_cents;
       if (affiliate?.active !== undefined) updates.active = affiliate.active;
       if (affiliate?.discord_username !== undefined) updates.discord_username = affiliate.discord_username;
       if (affiliate?.email !== undefined) updates.email = affiliate.email;
