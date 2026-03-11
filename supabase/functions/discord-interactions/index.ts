@@ -1595,7 +1595,7 @@ async function processPurchase(
         type: 2,
         style: 4, // Danger (red)
         label: "Cancelar Compra",
-        emoji: { name: "✕" },
+        emoji: { name: "❌" },
         custom_id: `cancel_order:${order.id}`,
       }],
     }],
