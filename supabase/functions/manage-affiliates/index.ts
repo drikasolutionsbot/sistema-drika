@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     if (action === "toggle_affiliate") {
       const { data: tenantData, error: tErr } = await supabase
         .from("tenants")
-        .select("affiliate_active, referral_code")
+        .select("affiliate_active, referral_code, name, email, whatsapp")
         .eq("id", tenant_id)
         .single();
       if (tErr) throw tErr;
@@ -33,11 +33,13 @@ Deno.serve(async (req) => {
       const updates: Record<string, unknown> = { affiliate_active: newActive };
 
       // Generate referral_code if activating and doesn't have one
-      if (newActive && !tenantData.referral_code) {
+      let referralCode = tenantData.referral_code;
+      if (newActive && !referralCode) {
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         let code = "";
         for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-        updates.referral_code = code;
+        referralCode = code;
+        updates.referral_code = referralCode;
       }
 
       const { data, error } = await supabase
@@ -47,6 +49,45 @@ Deno.serve(async (req) => {
         .select("affiliate_active, referral_code")
         .single();
       if (error) throw error;
+
+      // Create or update a REAL affiliate record so it shows in admin affiliate list
+      if (newActive) {
+        // Check if affiliate record already exists for this tenant
+        const { data: existingAff } = await supabase
+          .from("affiliates")
+          .select("id")
+          .eq("tenant_id", tenant_id)
+          .eq("code", referralCode)
+          .maybeSingle();
+
+        if (!existingAff) {
+          await supabase.from("affiliates").insert({
+            tenant_id,
+            name: tenantData.name,
+            code: referralCode,
+            commission_type: "percent",
+            commission_percent: 0,
+            commission_fixed_cents: 0,
+            active: true,
+            email: tenantData.email || null,
+            whatsapp: tenantData.whatsapp || null,
+            discord_username: null,
+          });
+        } else {
+          await supabase.from("affiliates")
+            .update({ active: true })
+            .eq("id", existingAff.id);
+        }
+      } else {
+        // Deactivate the affiliate record
+        if (referralCode) {
+          await supabase.from("affiliates")
+            .update({ active: false })
+            .eq("tenant_id", tenant_id)
+            .eq("code", referralCode);
+        }
+      }
+
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
