@@ -540,18 +540,18 @@ const AdminClientsPage = () => {
                               <Settings className="h-3 w-3" />
                               {planInfo.label}
                             </button>
-                            {isPro && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 text-[10px] px-2 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
-                                onClick={() => handleRenewPlan(tenant.id)}
-                                disabled={savingPlan}
-                              >
-                                <CalendarClock className="h-3 w-3 mr-1" />
-                                Renovar +30d
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] px-2 border-primary/30 text-primary hover:bg-primary/10"
+                              onClick={() => {
+                                setRenewDialogTenantId(tenant.id);
+                                setRenewDays("30");
+                              }}
+                            >
+                              <CalendarClock className="h-3 w-3 mr-1" />
+                              + Dias
+                            </Button>
                           </div>
                         )}
                         <span className="text-xs text-muted-foreground hidden sm:inline">
