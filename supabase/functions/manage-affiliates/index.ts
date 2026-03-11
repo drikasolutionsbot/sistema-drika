@@ -20,6 +20,82 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // TOGGLE AFFILIATE MODE for a tenant
+    if (action === "toggle_affiliate") {
+      const { data: tenantData, error: tErr } = await supabase
+        .from("tenants")
+        .select("affiliate_active, referral_code")
+        .eq("id", tenant_id)
+        .single();
+      if (tErr) throw tErr;
+
+      const newActive = !tenantData.affiliate_active;
+      const updates: Record<string, unknown> = { affiliate_active: newActive };
+
+      // Generate referral_code if activating and doesn't have one
+      if (newActive && !tenantData.referral_code) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let code = "";
+        for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        updates.referral_code = code;
+      }
+
+      const { data, error } = await supabase
+        .from("tenants")
+        .update(updates)
+        .eq("id", tenant_id)
+        .select("affiliate_active, referral_code")
+        .single();
+      if (error) throw error;
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ADMIN LIST TENANT AFFILIATES — tenants with affiliate_active = true
+    if (action === "admin_tenant_affiliates") {
+      const [tenantsRes, configRes] = await Promise.all([
+        supabase
+          .from("tenants")
+          .select("id, name, plan, referral_code, referral_credits_cents, created_at, referred_by_tenant_id, affiliate_active")
+          .eq("affiliate_active", true)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("landing_config")
+          .select("referral_bonus_days, referral_bonus_credits_cents")
+          .limit(1)
+          .single(),
+      ]);
+      if (tenantsRes.error) throw tenantsRes.error;
+
+      // For each tenant-affiliate, count their referrals
+      const tenants = tenantsRes.data ?? [];
+      const tenantIds = tenants.map((t: any) => t.id);
+
+      let referralCounts: Record<string, { total: number; paid: number }> = {};
+      if (tenantIds.length > 0) {
+        const { data: allTenants } = await supabase
+          .from("tenants")
+          .select("id, plan, referred_by_tenant_id")
+          .in("referred_by_tenant_id", tenantIds);
+
+        (allTenants ?? []).forEach((t: any) => {
+          const refId = t.referred_by_tenant_id;
+          if (!referralCounts[refId]) referralCounts[refId] = { total: 0, paid: 0 };
+          referralCounts[refId].total += 1;
+          if (t.plan === "pro") referralCounts[refId].paid += 1;
+        });
+      }
+
+      return new Response(JSON.stringify({
+        tenants,
+        referral_counts: referralCounts,
+        config: configRes.data ?? { referral_bonus_days: 7, referral_bonus_credits_cents: 500 },
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ADMIN GLOBAL — fetch all affiliates, orders, payouts across tenants
     if (action === "admin_global") {
       const [affiliatesRes, ordersRes, payoutsRes] = await Promise.all([
