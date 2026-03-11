@@ -232,7 +232,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
 
     console.log(`New Pro subscriber registered: tenant ${tenant.id}, email ${email}`);
   } else {
-    // Existing tenant renewal
+    // Existing tenant renewal/upgrade
     await supabase.from("subscription_payments").update({
       status: "paid",
       paid_at: now.toISOString(),
@@ -250,6 +250,42 @@ async function activateSubscription(supabase: any, subPayment: any) {
       }).eq("id", subPayment.tenant_id);
 
       console.log(`Subscription renewed for tenant ${subPayment.tenant_id} until ${periodEnd.toISOString()}`);
+    }
+
+    // Check if this tenant was referred and this is their first Pro payment
+    const { data: tenantData } = await supabase
+      .from("tenants")
+      .select("referred_by_tenant_id, name")
+      .eq("id", subPayment.tenant_id)
+      .single();
+
+    if (tenantData?.referred_by_tenant_id) {
+      // Only reward on first Pro payment (no other paid subscriptions)
+      const { data: existingReward } = await supabase
+        .from("subscription_payments")
+        .select("id")
+        .eq("tenant_id", subPayment.tenant_id)
+        .eq("status", "paid")
+        .neq("id", subPayment.id)
+        .limit(1);
+
+      if (!existingReward || existingReward.length === 0) {
+        const { data: referrerTenant } = await supabase
+          .from("tenants")
+          .select("referral_code")
+          .eq("id", tenantData.referred_by_tenant_id)
+          .single();
+
+        if (referrerTenant?.referral_code) {
+          await processReferralReward(
+            supabase,
+            tenantData.referred_by_tenant_id,
+            referrerTenant.referral_code,
+            config,
+            tenantData.name || "Unknown"
+          );
+        }
+      }
     }
   }
 }
