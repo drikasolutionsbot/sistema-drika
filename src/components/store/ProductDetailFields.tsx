@@ -507,11 +507,9 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
                   field={field}
                   tenantId={tenantId}
                   saving={saving}
-                  stockCounts={stockCounts}
                   updateField={updateField}
                   saveField={saveField}
                   deleteField={deleteField}
-                  setStockModalFieldId={setStockModalFieldId}
                 />
               )}
             </div>
