@@ -86,7 +86,8 @@ const AffiliateList = ({ affiliates, loading, tenantId, onRefresh, adminMode }: 
   };
 
   const handleSave = async () => {
-    if (!tenantId || !form.name.trim() || !form.code.trim()) return;
+    const effectiveTenantId = getTenantId(editing);
+    if (!effectiveTenantId || !form.name.trim() || !form.code.trim()) return;
     setSaving(true);
     try {
       const payload = {
