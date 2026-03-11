@@ -11,6 +11,7 @@ const SignupPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const wantsPro = searchParams.get("plan") === "pro";
+  const refCode = searchParams.get("ref") || null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
