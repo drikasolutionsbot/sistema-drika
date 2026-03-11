@@ -35,6 +35,7 @@ interface Role {
   id: string;
   name: string;
   color: string;
+  discord_role_id?: string;
 }
 
 interface EditGiveawayModalProps {
