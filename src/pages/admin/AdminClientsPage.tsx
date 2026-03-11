@@ -51,6 +51,7 @@ const AdminClientsPage = () => {
   // Renew dialog
   const [renewDialogTenantId, setRenewDialogTenantId] = useState<string | null>(null);
   const [renewDays, setRenewDays] = useState("30");
+  const [renewPlan, setRenewPlan] = useState<string>("free");
 
   // Token generation
   const [tokenLabel, setTokenLabel] = useState("");
