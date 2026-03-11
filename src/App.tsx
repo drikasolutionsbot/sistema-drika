@@ -123,6 +123,8 @@ const AppRoutes = () => (
       <Route path="/ecloud" element={<ECloudPage />} />
       <Route path="/support" element={<SupportPage />} />
       <Route path="/tutorials" element={<TutorialsPage />} />
+      <Route path="/giveaways" element={<GiveawaysPage />} />
+      <Route path="/vips" element={<VipsPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
