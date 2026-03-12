@@ -67,6 +67,7 @@ serve(async (req) => {
     trialEnd.setDate(trialEnd.getDate() + 4);
 
     const referralCode = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
+    const verifySlug = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toLowerCase();
 
     // Extract Discord info from the authenticated user
     const discordUsername = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.user_name || null;
