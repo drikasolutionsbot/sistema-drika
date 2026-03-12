@@ -338,7 +338,8 @@ serve(async (req) => {
           } catch (e) { console.error("Channel check error:", e); }
         }
 
-        const threadName = `ticket-${username || userId}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+        const ticketSuffix = Date.now().toString(36).slice(-4);
+        const threadName = `ticket-${username || userId}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
         const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -933,7 +934,8 @@ serve(async (req) => {
         }
 
         // Create a private thread for this ticket
-        const threadName = `ticket-${username || userId}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+        const ticketSuffix = Date.now().toString(36).slice(-4);
+        const threadName = `ticket-${username || userId}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
 
         const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
           method: "POST",
