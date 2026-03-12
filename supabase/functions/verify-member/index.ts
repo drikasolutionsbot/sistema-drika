@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
               inline: true,
             },
           ],
-          thumbnail: discordAvatar ? { url: discordAvatar } : undefined,
+          thumbnail: tenantData.logo_url ? { url: tenantData.logo_url } : (discordAvatar ? { url: discordAvatar } : undefined),
           timestamp: new Date().toISOString(),
         };
 
