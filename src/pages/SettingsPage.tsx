@@ -128,6 +128,7 @@ const SettingsPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await refetchTenant();
+      clearPixDraft();
       toast({ title: "Chave PIX salva com sucesso!" });
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
