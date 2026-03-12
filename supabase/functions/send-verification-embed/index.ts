@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
               type: 2,
               style: 5,
               label: button_label || "Verificar",
-              url: `https://drikahub.com/verify/${tenant_id}`,
+              url: tenant?.verify_slug
+                ? `https://drikahub.com/verify/${tenant.verify_slug}`
+                : `https://drikahub.com/verify/${tenant_id}`,
             },
           ],
         },
