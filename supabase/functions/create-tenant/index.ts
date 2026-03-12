@@ -87,6 +87,7 @@ serve(async (req) => {
         referred_by_tenant_id: body.referred_by_tenant_id || null,
         owner_discord_username: discordUsername,
         owner_discord_id: discordId,
+        verify_slug: verifySlug,
       })
       .select()
       .single();
