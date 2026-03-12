@@ -372,7 +372,7 @@ serve(async (req) => {
               embeds: [{ title: storeConfig?.ticket_embed_title || "🎫 Ticket de Suporte", description: (storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8)), color: embedColor }],
               components: [
                 { type: 1, components: [
-                  { type: 2, style: 2, label: storeConfig?.ticket_embed_button_label || "Lembrar", custom_id: `ticket_remind_${ticket.id}` },
+                  { type: 2, style: 2, label: "Lembrar", custom_id: `ticket_remind_${ticket.id}` },
                   { type: 2, style: 2, label: "Renomear", custom_id: `ticket_rename_${ticket.id}` },
                   { type: 2, style: 2, label: "Arquivar", custom_id: `ticket_close_${ticket.id}` },
                   { type: 2, style: 4, label: "Deletar", custom_id: `ticket_delete_${ticket.id}` },
