@@ -7,9 +7,24 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  const tenantId = url.searchParams.get("tenant_id");
+  let tenantId = url.searchParams.get("tenant_id");
+  const slug = url.searchParams.get("slug");
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+
+  // Resolve slug to tenant_id
+  if (!tenantId && slug && !code) {
+    const { data: slugTenant } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("verify_slug", slug)
+      .single();
+    if (slugTenant) {
+      tenantId = slugTenant.id;
+    } else {
+      return htmlResponse("❌ Erro", "Link de verificação inválido.", "#ED4245");
+    }
+  }
 
   const clientId = "1477916070508757092";
   const clientSecret = Deno.env.get("DISCORD_CLIENT_SECRET")!;

@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     // Get bot token
     const { data: tenant, error: tenantErr } = await supabase
       .from("tenants")
-      .select("bot_token_encrypted, name, logo_url")
+      .select("bot_token_encrypted, name, logo_url, verify_slug")
       .eq("id", tenant_id)
       .single();
 
@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
               type: 2,
               style: 5,
               label: button_label || "Verificar",
-              url: `https://drikahub.com/verify/${tenant_id}`,
+              url: tenant?.verify_slug
+                ? `https://drikahub.com/verify/${tenant.verify_slug}`
+                : `https://drikahub.com/verify/${tenant_id}`,
             },
           ],
         },

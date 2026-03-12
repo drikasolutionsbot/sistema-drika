@@ -1830,6 +1830,7 @@ export type Database = {
           verify_logs_channel_id: string | null
           verify_redirect_url: string | null
           verify_role_id: string | null
+          verify_slug: string | null
           verify_title: string | null
           whatsapp: string | null
         }
@@ -1871,6 +1872,7 @@ export type Database = {
           verify_logs_channel_id?: string | null
           verify_redirect_url?: string | null
           verify_role_id?: string | null
+          verify_slug?: string | null
           verify_title?: string | null
           whatsapp?: string | null
         }
@@ -1912,6 +1914,7 @@ export type Database = {
           verify_logs_channel_id?: string | null
           verify_redirect_url?: string | null
           verify_role_id?: string | null
+          verify_slug?: string | null
           verify_title?: string | null
           whatsapp?: string | null
         }

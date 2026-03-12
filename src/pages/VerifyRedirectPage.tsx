@@ -4,13 +4,13 @@ import { useParams } from "react-router-dom";
 const SUPABASE_URL = "https://krudxivcuygykoswjbbx.supabase.co";
 
 const VerifyRedirectPage = () => {
-  const { tenantId } = useParams<{ tenantId: string }>();
+  const { slug } = useParams<{ slug: string }>();
 
   useEffect(() => {
-    if (tenantId) {
-      window.location.href = `${SUPABASE_URL}/functions/v1/verify-member?tenant_id=${tenantId}`;
+    if (slug) {
+      window.location.href = `${SUPABASE_URL}/functions/v1/verify-member?slug=${slug}`;
     }
-  }, [tenantId]);
+  }, [slug]);
 
   return (
     <div className="flex h-screen items-center justify-center bg-background">
