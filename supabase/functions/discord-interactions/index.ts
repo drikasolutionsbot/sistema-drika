@@ -1134,7 +1134,6 @@ serve(async (req) => {
                     type: 2,
                     style: 5, // Link
                     label: "Ir para o ticket",
-                    emoji: { name: "🔗" },
                     url: ticketUrl,
                   }],
                 }],
