@@ -111,29 +111,14 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
 
             {/* Fields */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
-              {product.compare_price_cents && product.compare_price_cents > product.price_cents ? (
-                <>
-                  <div>
-                    <p className="text-[#dcddde] text-[10px] font-semibold">**Preço original**</p>
-                    <p className="text-[#72767d] text-xs line-through">{formatPrice(product.compare_price_cents)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[#dcddde] text-[10px] font-semibold">🔥 **Preço promocional**</p>
-                    <p className="text-[#57F287] text-xs font-bold">{formatPrice(product.price_cents)}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-[#dcddde] text-[10px] font-semibold">**Valor à vista**</p>
-                    <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[#dcddde] text-[10px] font-semibold">Restam</p>
-                    <p className="text-[#dcddde] text-xs">{product.stock ?? 0}</p>
-                  </div>
-                </>
-              )}
+              <div>
+                <p className="text-[#dcddde] text-[10px] font-semibold">**Valor à vista**</p>
+                <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
+              </div>
+              <div>
+                <p className="text-[#dcddde] text-[10px] font-semibold">Restam</p>
+                <p className="text-[#dcddde] text-xs">{product.stock ?? 0}</p>
+              </div>
             </div>
 
             {/* Banner */}

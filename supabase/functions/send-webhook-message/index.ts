@@ -45,17 +45,14 @@ serve(async (req) => {
         .eq("tenant_id", tenant_id)
         .single();
 
-      // Add stock field to embed if no compare_price (show "Restam" next to price)
+      // Always add stock field "Restam"
       if (embeds && embeds.length > 0 && product) {
-        const hasPromo = embeds[0].fields?.some((f: any) => f.name?.includes("promocional"));
-        if (!hasPromo) {
-          embeds[0].fields = embeds[0].fields || [];
-          embeds[0].fields.push({
-            name: "Restam",
-            value: `${product.stock ?? 0}`,
-            inline: true,
-          });
-        }
+        embeds[0].fields = embeds[0].fields || [];
+        embeds[0].fields.push({
+          name: "Restam",
+          value: `${product.stock ?? 0}`,
+          inline: true,
+        });
       }
 
       // Prepend auto delivery badge to embed description if applicable

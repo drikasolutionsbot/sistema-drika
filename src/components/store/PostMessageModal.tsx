@@ -106,26 +106,11 @@ export const PostMessageModal = ({
         description: `${autoDeliveryLine}${product.description || ""}`,
         color: parseInt(embedColor.replace("#", ""), 16),
         fields: [
-          ...(product.compare_price_cents && product.compare_price_cents > product.price_cents
-            ? [
-                {
-                  name: "**Preço original**",
-                  value: `~~R$ ${(product.compare_price_cents / 100).toFixed(2).replace(".", ",")}~~`,
-                  inline: true,
-                },
-                {
-                  name: "🔥 **Preço promocional**",
-                  value: `**R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}**`,
-                  inline: true,
-                },
-              ]
-            : [
-                {
-                  name: "**Valor à vista**",
-                  value: `R$  ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
-                  inline: true,
-                },
-              ]),
+          {
+            name: "**Valor à vista**",
+            value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
+            inline: true,
+          },
         ],
         footer: {
           text: `Servidor de ${tenant?.name} • ${new Date().toLocaleString("pt-BR")}`,
