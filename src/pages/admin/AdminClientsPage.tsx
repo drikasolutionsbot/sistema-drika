@@ -705,6 +705,8 @@ const AdminClientsPage = () => {
                               )}
                             </DialogContent>
                           </Dialog>
+                            );
+                          })()}
                         </div>
 
                         {tenantTokens.length === 0 ? (
