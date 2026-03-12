@@ -115,7 +115,27 @@ Deno.serve(async (req) => {
       console.error("Role assign error:", roleError.message);
     }
 
-    // 4. Generate access token (expires in 4 days)
+    // 4. Generate access token only if none exists
+    const { data: existingToken } = await supabase
+      .from("access_tokens")
+      .select("token")
+      .eq("tenant_id", tenant.id)
+      .eq("revoked", false)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingToken) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tenant_id: tenant.id,
+          tenant_name: tenant.name,
+          token: existingToken.token,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const expiresAt = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString();
     const { data: tokenData, error: tokenError } = await supabase
       .from("access_tokens")
