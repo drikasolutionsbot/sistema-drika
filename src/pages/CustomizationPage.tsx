@@ -170,6 +170,7 @@ const CustomizationPage = () => {
         body: {
           tenant_id: tenantId,
           updates: {
+            name: config.server_name,
             bot_status: config.bot_status,
             bot_status_interval: parseInt(config.bot_status_interval) || 30,
             bot_prefix: config.bot_prefix,
