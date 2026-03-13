@@ -59,7 +59,7 @@ interface WelcomeConfig {
 const defaultEmbed: EmbedData = {
   color: "#2B2D31",
   title: "Bem-vindo(a)! 🎉",
-  description: "Olá {user}, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**. Aproveite sua estadia!",
+  description: "Olá **{username}**, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**. Aproveite sua estadia!",
   thumbnail_url: "{avatar}",
   image_url: "",
   footer_text: "Aproveite sua estadia!",
@@ -83,7 +83,7 @@ const defaultDmEmbed: EmbedData = {
 const defaultGoodbyeEmbed: EmbedData = {
   color: "#ED4245",
   title: "Até logo! 👋",
-  description: "{user} saiu do servidor. Agora somos {memberCount} membros.",
+  description: "**{username}** saiu do servidor. Agora somos **{memberCount}** membros.",
   thumbnail_url: "",
   image_url: "",
   footer_text: "",
