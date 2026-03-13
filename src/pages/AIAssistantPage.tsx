@@ -542,7 +542,7 @@ export default function AIAssistantPage() {
                               </div>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <span className="text-[11px] font-semibold text-foreground/70">P-CON IA está pensando</span>
+                              <span className="text-[11px] font-semibold text-foreground/70">Drika IA está pensando</span>
                               <div className="flex gap-1">
                                 <span className="h-1 w-1 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "0ms" }} />
                                 <span className="h-1 w-1 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "150ms" }} />
