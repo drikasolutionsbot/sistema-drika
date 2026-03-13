@@ -835,6 +835,7 @@ export type Database = {
       orders: {
         Row: {
           affiliate_id: string | null
+          checkout_thread_id: string | null
           coupon_id: string | null
           created_at: string
           discord_user_id: string
@@ -853,6 +854,7 @@ export type Database = {
         }
         Insert: {
           affiliate_id?: string | null
+          checkout_thread_id?: string | null
           coupon_id?: string | null
           created_at?: string
           discord_user_id: string
@@ -871,6 +873,7 @@ export type Database = {
         }
         Update: {
           affiliate_id?: string | null
+          checkout_thread_id?: string | null
           coupon_id?: string | null
           created_at?: string
           discord_user_id?: string
