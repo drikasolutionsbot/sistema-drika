@@ -1,8 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, DollarSign, Palette, Box, Hash, ShieldCheck, Shield,
+  LayoutDashboard, DollarSign, Server, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
-  ChevronLeft, ChevronRight, ClipboardCheck, UserCheck, Sparkles, BookOpen,
+  ChevronLeft, ChevronRight, ClipboardCheck, Sparkles, BookOpen,
   ShoppingBag, Gift, Users, HandMetal,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -34,7 +34,7 @@ const navGroups = [
   {
     label: "BOT",
     items: [
-      { label: "Personalização", icon: Palette, path: "/customization" },
+      { label: "Servidor", icon: Server, path: "/customization" },
       { label: "Recursos", icon: Box, path: "/resources" },
     ],
   },
@@ -46,7 +46,6 @@ const navGroups = [
       { label: "Loja", icon: Store, path: "/store" },
       { label: "Marketplace", icon: ShoppingBag, path: "/marketplace" },
       { label: "Proteção", icon: Shield, path: "/protection" },
-      { label: "Verificação", icon: UserCheck, path: "/verification" },
       { label: "Boas-vindas", icon: HandMetal, path: "/welcome" },
       { label: "Tickets", icon: Ticket, path: "/tickets" },
       { label: "Sorteios", icon: Gift, path: "/giveaways" },
