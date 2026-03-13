@@ -70,6 +70,7 @@ const CustomizationPage = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const guildInfoLoadedRef = useRef(false);
 
   const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<ServerConfig>(
     "server-config",
@@ -148,12 +149,10 @@ const CustomizationPage = () => {
       if (!error && guild && !guild.error) {
         setGuildInfo(guild);
         setBotOnline(true);
-        // Pre-fill server name from Discord guild if not yet set
-        if (guild.name) {
-          setConfig(prev => {
-            if (!prev.server_name) return { ...prev, server_name: guild.name };
-            return prev;
-          });
+        // Always pre-fill server name from Discord guild on first load
+        if (guild.name && !guildInfoLoadedRef.current) {
+          guildInfoLoadedRef.current = true;
+          setConfig(prev => ({ ...prev, server_name: guild.name }));
         }
       }
       else setBotOnline(false);

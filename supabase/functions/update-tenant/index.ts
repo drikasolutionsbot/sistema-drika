@@ -46,8 +46,10 @@ serve(async (req) => {
 
     // If name was updated, also rename the Discord guild
     if (safeUpdates.name && data.discord_guild_id) {
+      console.log("Attempting Discord guild rename to:", safeUpdates.name, "for guild:", data.discord_guild_id);
       try {
         const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+        console.log("Bot token available:", !!botToken);
         if (botToken) {
           const renameRes = await fetch(
             `https://discord.com/api/v10/guilds/${data.discord_guild_id}`,
@@ -60,14 +62,14 @@ serve(async (req) => {
               body: JSON.stringify({ name: safeUpdates.name }),
             }
           );
-          if (!renameRes.ok) {
-            const errBody = await renameRes.text();
-            console.error("Discord guild rename failed:", renameRes.status, errBody);
-          }
+          const resBody = await renameRes.text();
+          console.log("Discord guild rename response:", renameRes.status, resBody);
         }
       } catch (discordErr) {
         console.error("Discord guild rename error:", discordErr);
       }
+    } else {
+      console.log("Skipping Discord rename. name in updates:", !!safeUpdates.name, "guild_id:", data.discord_guild_id);
     }
 
     return new Response(JSON.stringify(data), {
