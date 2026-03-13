@@ -526,6 +526,59 @@ export type Database = {
           },
         ]
       }
+      ecloud_backups: {
+        Row: {
+          backup_type: string
+          completed_at: string | null
+          created_at: string
+          data: Json
+          id: string
+          members_count: number
+          orders_count: number
+          products_count: number
+          started_at: string
+          status: string
+          tenant_id: string
+          verified_count: number
+        }
+        Insert: {
+          backup_type?: string
+          completed_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          members_count?: number
+          orders_count?: number
+          products_count?: number
+          started_at?: string
+          status?: string
+          tenant_id: string
+          verified_count?: number
+        }
+        Update: {
+          backup_type?: string
+          completed_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          members_count?: number
+          orders_count?: number
+          products_count?: number
+          started_at?: string
+          status?: string
+          tenant_id?: string
+          verified_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ecloud_backups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       giveaway_entries: {
         Row: {
           discord_avatar: string | null

@@ -3,10 +3,12 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ECloudCharts } from "@/components/ecloud/ECloudCharts";
+import { ECloudDataTab } from "@/components/ecloud/ECloudDataTab";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, getStatusLabel } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Cloud,
   Activity,
@@ -302,146 +304,164 @@ const ECloudPage = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total de Membros"
-            value={guildInfo?.member_count?.toLocaleString("pt-BR") || "—"}
-            icon={Users}
-            change={guildInfo ? `${guildInfo.presence_count} online` : undefined}
-            changeType="positive"
-          />
-          <StatCard
-            title="Status do Bot"
-            value={botOnline ? "Ativo" : "Inativo"}
-            icon={botOnline ? Wifi : WifiOff}
-            change={botOnline ? "Respondendo normalmente" : "Sem resposta"}
-            changeType={botOnline ? "positive" : "negative"}
-          />
-          <StatCard
-            title="Servidor"
-            value={guildInfo?.name || tenant?.name || "—"}
-            icon={Server}
-            change={tenant?.discord_guild_id ? `ID: ${tenant.discord_guild_id}` : "Não vinculado"}
-            changeType="neutral"
-          />
-          <StatCard
-            title="Plano Atual"
-            value={plan.label}
-            icon={Crown}
-            change={plan.limits}
-            changeType="neutral"
-          />
-        </div>
-      )}
+      {/* Tabs */}
+      <Tabs defaultValue="monitor">
+        <TabsList className="bg-muted/50 border border-border rounded-xl p-1">
+          <TabsTrigger value="monitor" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
+            Monitor
+          </TabsTrigger>
+          <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
+            Dados & Backups
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Charts */}
-      {tenantId && <ECloudCharts tenantId={tenantId} />}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Logs */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="h-5 w-5 text-primary" />
-            <h2 className="font-display font-semibold text-lg">Atividade Recente</h2>
-          </div>
-
+        <TabsContent value="monitor" className="mt-6 space-y-6">
+          {/* Stats Grid */}
           {loading ? (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 rounded-lg" />
+                <Skeleton key={i} className="h-28 rounded-xl" />
               ))}
             </div>
-          ) : recentLogs.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma atividade recente</p>
           ) : (
-            <div className="space-y-2">
-              {recentLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-shrink-0">{logIcon(log.type)}</div>
-                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{log.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{log.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {log.orderStatus ? (
-                      <StatusBadge status={log.orderStatus} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                title="Total de Membros"
+                value={guildInfo?.member_count?.toLocaleString("pt-BR") || "—"}
+                icon={Users}
+                change={guildInfo ? `${guildInfo.presence_count} online` : undefined}
+                changeType="positive"
+              />
+              <StatCard
+                title="Status do Bot"
+                value={botOnline ? "Ativo" : "Inativo"}
+                icon={botOnline ? Wifi : WifiOff}
+                change={botOnline ? "Respondendo normalmente" : "Sem resposta"}
+                changeType={botOnline ? "positive" : "negative"}
+              />
+              <StatCard
+                title="Servidor"
+                value={guildInfo?.name || tenant?.name || "—"}
+                icon={Server}
+                change={tenant?.discord_guild_id ? `ID: ${tenant.discord_guild_id}` : "Não vinculado"}
+                changeType="neutral"
+              />
+              <StatCard
+                title="Plano Atual"
+                value={plan.label}
+                icon={Crown}
+                change={plan.limits}
+                changeType="neutral"
+              />
+            </div>
+          )}
+
+          {/* Charts */}
+          {tenantId && <ECloudCharts tenantId={tenantId} />}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Logs */}
+            <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-primary" />
+                <h2 className="font-display font-semibold text-lg">Atividade Recente</h2>
+              </div>
+
+              {loading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 rounded-lg" />
+                  ))}
+                </div>
+              ) : recentLogs.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma atividade recente</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-shrink-0">{logIcon(log.type)}</div>
+                       <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{log.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{log.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {log.orderStatus ? (
+                          <StatusBadge status={log.orderStatus} />
+                        ) : (
+                          statusIcon(log.status)
+                        )}
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Server Info */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="h-5 w-5 text-primary" />
+                <h2 className="font-display font-semibold text-lg">Drika Bot</h2>
+              </div>
+
+              {guildInfo ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 rounded-lg border border-border p-3 bg-muted/30">
+                    {guildInfo.icon ? (
+                      <img src={guildInfo.icon} alt="" className="h-12 w-12 rounded-full" />
                     ) : (
-                      statusIcon(log.status)
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Hash className="h-6 w-6 text-primary" />
+                      </div>
                     )}
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
-                    </span>
+                    <div>
+                      <p className="font-medium">{guildInfo.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {guildInfo.member_count.toLocaleString("pt-BR")} membros · {guildInfo.presence_count} online
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant={botOnline ? "default" : "destructive"}>
+                        {botOnline ? "Online" : "Offline"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Prefixo</span>
+                      <span className="text-sm font-mono font-medium">{(tenant as any)?.bot_prefix || "d!"}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Plano</span>
+                      <span className="text-sm font-medium">{plan.label}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Guild ID</span>
+                      <span className="text-xs font-mono text-muted-foreground">{tenant?.discord_guild_id || "—"}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {loading ? "Carregando..." : "Servidor não vinculado"}
+                </p>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Server Info */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-5 w-5 text-primary" />
-            <h2 className="font-display font-semibold text-lg">Drika Bot</h2>
           </div>
+        </TabsContent>
 
-          {guildInfo ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 rounded-lg border border-border p-3 bg-muted/30">
-                {guildInfo.icon ? (
-                  <img src={guildInfo.icon} alt="" className="h-12 w-12 rounded-full" />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Hash className="h-6 w-6 text-primary" />
-                  </div>
-                )}
-                <div>
-                  <p className="font-medium">{guildInfo.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {guildInfo.member_count.toLocaleString("pt-BR")} membros · {guildInfo.presence_count} online
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant={botOnline ? "default" : "destructive"}>
-                    {botOnline ? "Online" : "Offline"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <span className="text-sm text-muted-foreground">Prefixo</span>
-                  <span className="text-sm font-mono font-medium">{(tenant as any)?.bot_prefix || "d!"}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <span className="text-sm text-muted-foreground">Plano</span>
-                  <span className="text-sm font-medium">{plan.label}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <span className="text-sm text-muted-foreground">Guild ID</span>
-                  <span className="text-xs font-mono text-muted-foreground">{tenant?.discord_guild_id || "—"}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              {loading ? "Carregando..." : "Servidor não vinculado"}
-            </p>
-          )}
-        </div>
-      </div>
+        <TabsContent value="dados" className="mt-6">
+          {tenantId && <ECloudDataTab tenantId={tenantId} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
