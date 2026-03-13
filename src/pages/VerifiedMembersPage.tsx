@@ -54,6 +54,8 @@ const formatTimeAgo = (date: string) => {
 
 const getAvatarUrl = (userId: string, avatar: string | null) => {
   if (!avatar) return null;
+  // If already a full URL, use it directly
+  if (avatar.startsWith("http")) return avatar;
   return `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=64`;
 };
 
