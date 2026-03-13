@@ -299,19 +299,26 @@ export default function AIAssistantPage() {
             <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-background animate-pulse" />
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Gerador IA</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">P-CON IA</h1>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-green-500">IA Ativa</span>
+              </div>
               <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-primary/20 text-primary border border-primary/30">
-                Beta
+                Global
               </span>
             </div>
             <p className="text-sm text-muted-foreground max-w-lg">
-              Gere textos persuasivos, imagens, descrições e estratégias com inteligência artificial — tudo otimizado para Discord.
+              Inteligência artificial proprietária da Drika — gere textos, imagens, descrições e estratégias otimizadas para Discord.
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground">
-            <Zap className="h-3.5 w-3.5 text-yellow-500" />
-            <span>Powered by AI</span>
+          <div className="hidden sm:flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card/80 border border-border/30">
+              <Zap className="h-3.5 w-3.5 text-yellow-500" />
+              <span className="text-[11px] font-semibold text-foreground/80">P-CON Engine</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground/50">Multi-modelo inteligente</span>
           </div>
         </div>
       </div>
