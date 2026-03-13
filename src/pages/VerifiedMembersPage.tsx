@@ -121,23 +121,33 @@ const VerifiedMembersPage = ({ embedded }: { embedded?: boolean }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/customization")} className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold">Membros Verificados</h1>
-              <p className="text-sm text-muted-foreground">Visualize e gerencie dados de membros verificados.</p>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/customization")} className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold">Membros Verificados</h1>
+                <p className="text-sm text-muted-foreground">Visualize e gerencie dados de membros verificados.</p>
+              </div>
             </div>
           </div>
+          <Button variant="outline" size="sm" onClick={fetchMembers} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchMembers} disabled={loading} className="gap-2">
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Atualizar
-        </Button>
-      </div>
+      )}
+      {embedded && (
+        <div className="flex items-center justify-end">
+          <Button variant="outline" size="sm" onClick={fetchMembers} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

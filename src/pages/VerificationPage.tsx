@@ -210,17 +210,31 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            Verificação
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Configure a verificação de membros no seu servidor Discord
-          </p>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+              Verificação
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure a verificação de membros no seu servidor Discord
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handlePost} disabled={posting || !config.verify_channel_id} variant="outline" className="gap-2">
+              {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Enviar Embed
+            </Button>
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
+      )}
+      {embedded && (
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={handlePost} disabled={posting || !config.verify_channel_id} variant="outline" className="gap-2">
             {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Enviar Embed
@@ -230,7 +244,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
             Salvar
           </Button>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
         {/* Settings */}
