@@ -145,10 +145,20 @@ const CustomizationPage = () => {
       const { data: guild, error } = await supabase.functions.invoke("discord-guild-info", {
         body: { guild_id: tenant.discord_guild_id },
       });
-      if (!error && guild && !guild.error) { setGuildInfo(guild); setBotOnline(true); }
+      if (!error && guild && !guild.error) {
+        setGuildInfo(guild);
+        setBotOnline(true);
+        // Pre-fill server name from Discord guild if not yet set
+        if (guild.name) {
+          setConfig(prev => {
+            if (!prev.server_name) return { ...prev, server_name: guild.name };
+            return prev;
+          });
+        }
+      }
       else setBotOnline(false);
     } catch { setBotOnline(false); }
-  }, [tenant?.discord_guild_id]);
+  }, [tenant?.discord_guild_id, setConfig]);
 
   useEffect(() => {
     checkBotStatus();
