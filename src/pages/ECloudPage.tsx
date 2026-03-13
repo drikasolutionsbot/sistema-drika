@@ -3,10 +3,12 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ECloudCharts } from "@/components/ecloud/ECloudCharts";
+import { ECloudDataTab } from "@/components/ecloud/ECloudDataTab";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, getStatusLabel } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Cloud,
   Activity,
