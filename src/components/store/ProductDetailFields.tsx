@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, ChevronUp, ChevronDown, Package, Loader2, Copy, GripVertical } from "lucide-react";
+import { Plus, Search, ChevronUp, ChevronDown, Package, Loader2, Copy, GripVertical, Trash2 } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
