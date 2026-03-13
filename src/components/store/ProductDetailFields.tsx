@@ -232,7 +232,11 @@ const FieldEstoqueTab = ({
       });
       if (!error) {
         setStockItems((prev) => prev.filter((i) => i.id !== itemId));
-        setStockCount((prev) => prev - 1);
+        setStockCount((prev) => {
+          const newCount = prev - 1;
+          onStockChange?.(newCount);
+          return newCount;
+        });
         toast({ title: "Item removido!" });
       }
     } catch (e: any) {
