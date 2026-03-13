@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Server, Loader2, Save, Bot, Wifi, WifiOff, RefreshCw, ShieldCheck, Send,
   Upload, X, Eye, Undo2, ChevronRight
