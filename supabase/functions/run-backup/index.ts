@@ -213,14 +213,15 @@ Deno.serve(async (req) => {
 
       const exportData: any = {};
 
+      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
       // Members from Discord
-      if (tenant?.discord_guild_id && tenant?.bot_token_encrypted) {
+      if (tenant?.discord_guild_id && botToken) {
         let after = "0";
         const allMembers: any[] = [];
         for (let i = 0; i < 20; i++) {
           const res = await fetch(
             `${DISCORD_API}/guilds/${tenant.discord_guild_id}/members?limit=1000&after=${after}`,
-            { headers: { Authorization: `Bot ${tenant.bot_token_encrypted}` } }
+            { headers: { Authorization: `Bot ${botToken}` } }
           );
           if (!res.ok) break;
           const batch = await res.json();
