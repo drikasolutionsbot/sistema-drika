@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // GET STOCK COUNT for a product (general stock)
+    // GET STOCK COUNT + items for a product (general stock)
     if (action === "get_stock") {
       if (!product_id) {
         return new Response(JSON.stringify({ error: "product_id obrigatório" }), {
@@ -125,14 +125,35 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from("product_stock_items")
-        .select("*", { count: "exact", head: true })
+        .select("id, content, created_at")
         .eq("product_id", product_id)
         .eq("tenant_id", tenant_id)
-        .eq("delivered", false);
+        .eq("delivered", false)
+        .order("created_at", { ascending: false })
+        .limit(500);
       if (error) throw error;
-      return new Response(JSON.stringify({ stock: count || 0 }), {
+      return new Response(JSON.stringify({ stock: data?.length || 0, items: data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // DELETE a single stock item
+    if (action === "delete_stock_item") {
+      if (!stock_item_id) {
+        return new Response(JSON.stringify({ error: "stock_item_id obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await supabase
+        .from("product_stock_items")
+        .delete()
+        .eq("id", stock_item_id)
+        .eq("tenant_id", tenant_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
