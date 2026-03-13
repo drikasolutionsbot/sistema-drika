@@ -51,6 +51,7 @@ import VerifyResultPage from "./pages/VerifyResultPage";
 import VerifyRedirectPage from "./pages/VerifyRedirectPage";
 import GiveawaysPage from "./pages/GiveawaysPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
+import VerifiedMembersPage from "./pages/VerifiedMembersPage";
 
 const queryClient = new QueryClient();
 
