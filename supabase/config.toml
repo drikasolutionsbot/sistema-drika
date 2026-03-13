@@ -175,3 +175,6 @@ verify_jwt = false
 
 [functions.sync-welcome-members]
 verify_jwt = false
+
+[functions.run-backup]
+verify_jwt = false
