@@ -278,6 +278,9 @@ const CustomizationPage = () => {
           <TabsTrigger value="verificacao" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
             Verificação
           </TabsTrigger>
+          <TabsTrigger value="verificados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5" onClick={() => navigate("/verified-members")}>
+            Verificados
+          </TabsTrigger>
           <TabsTrigger value="embeds" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
             Embeds
           </TabsTrigger>
