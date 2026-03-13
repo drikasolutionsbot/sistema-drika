@@ -575,7 +575,7 @@ const FieldExpandedContent = ({
         </TabsContent>
 
         <TabsContent value="estoque">
-          <FieldEstoqueTab field={field} tenantId={tenantId} />
+          <FieldEstoqueTab field={field} tenantId={tenantId} updateField={handleUpdate} />
         </TabsContent>
 
         <TabsContent value="mensagens">
