@@ -208,8 +208,10 @@ const FieldEstoqueTab = ({
         body: { action: "get_stock", tenant_id: tenantId, product_id: field.product_id },
       });
       if (!error && !data?.error) {
-        setStockCount(data?.stock || 0);
+        const count = data?.stock || 0;
+        setStockCount(count);
         setStockItems(data?.items || []);
+        onStockChange?.(count);
       }
     } catch (e) {
       console.error(e);
