@@ -177,43 +177,32 @@ Deno.serve(async (req) => {
     const statusLabel = action === "deleted" ? "Deletado" : "Fechado";
     const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
 
-    // Generate HTML transcript
-    const htmlTranscript = msgs.length > 0
-      ? generateHtmlTranscript(msgs, serverName, ticketName, `Suporte · ${statusLabel.toLowerCase()}`)
-      : "";
-
-    // Send log embed + transcript to logs channel
-    if (sc?.ticket_logs_channel_id && action === "closed") {
+    // Send log + transcript as Discord embeds (viewable directly in channel)
+    if (sc?.ticket_logs_channel_id && (action === "closed" || action === "deleted")) {
       const logEmbed: any = {
         title: `Ticket - ${statusLabel}`,
-        color: 0x2B2D31,
+        color: action === "deleted" ? 0xED4245 : 0x2B2D31,
         fields: [
-          { name: "👤 Moderador", value: `${closed_by || "Painel"}\n@${closed_by || "painel"}`, inline: false },
+          { name: "👤 Moderador", value: `${closed_by || "Painel"}`, inline: true },
+          { name: "🎫 Ticket", value: ticketName, inline: true },
         ],
         timestamp: closedAt.toISOString(),
+        footer: { text: "Drika Hub • Transcript" },
       };
 
       if (ticket.product_name) {
-        logEmbed.fields.push({ name: "📦 Produto", value: ticket.product_name, inline: false });
+        logEmbed.fields.push({ name: "📦 Produto", value: ticket.product_name, inline: true });
       }
 
-      if (htmlTranscript) {
+      if (msgs.length > 0) {
+        const transcriptEmbeds = generateTranscriptEmbeds(msgs, serverName, ticketName, `Suporte · ${statusLabel.toLowerCase()}`);
+        const allEmbeds = [logEmbed, ...transcriptEmbeds].slice(0, 10);
+
+        const txtTranscript = generateTranscriptText(msgs, serverName, ticketName, `Suporte · ${statusLabel.toLowerCase()}`);
         const formData = new FormData();
-        const blob = new Blob([htmlTranscript], { type: "text/html" });
-        formData.append("files[0]", blob, `transcript-${ticket.discord_channel_id || ticket.id.slice(0, 8)}.html`);
-        formData.append("payload_json", JSON.stringify({
-          embeds: [logEmbed],
-          components: [{
-            type: 1,
-            components: [{
-              type: 2,
-              style: 2,
-              label: "Ver transcript",
-              emoji: { name: "📜" },
-              custom_id: `transcript_view_${ticket.id}`,
-            }],
-          }],
-        }));
+        const blob = new Blob([txtTranscript], { type: "text/plain; charset=utf-8" });
+        formData.append("files[0]", blob, `transcript-${ticketName}.txt`);
+        formData.append("payload_json", JSON.stringify({ embeds: allEmbeds }));
 
         await fetch(`${DISCORD_API}/channels/${sc.ticket_logs_channel_id}/messages`, {
           method: "POST",
