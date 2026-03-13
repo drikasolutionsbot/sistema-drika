@@ -5,6 +5,72 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Model rotation: ordered from cheapest/fastest to most expensive
+// When one hits rate limit (429), we try the next
+const TEXT_MODELS = [
+  "google/gemini-2.5-flash-lite",
+  "google/gemini-2.5-flash",
+  "google/gemini-3-flash-preview",
+  "openai/gpt-5-nano",
+  "openai/gpt-5-mini",
+  "google/gemini-2.5-pro",
+  "google/gemini-3.1-pro-preview",
+  "openai/gpt-5",
+];
+
+const IMAGE_MODELS = [
+  "google/gemini-2.5-flash-image",
+  "google/gemini-3.1-flash-image-preview",
+  "google/gemini-3-pro-image-preview",
+];
+
+async function tryModels(
+  models: string[],
+  buildBody: (model: string) => object,
+  apiKey: string,
+): Promise<{ response: Response; model: string }> {
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    console.log(`Trying model: ${model} (attempt ${i + 1}/${models.length})`);
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildBody(model)),
+    });
+
+    // If rate limited or payment required, try next model
+    if (response.status === 429 || response.status === 402) {
+      console.warn(`Model ${model} returned ${response.status}, trying next...`);
+      // Consume the body to free resources
+      await response.text();
+      if (i === models.length - 1) {
+        // Last model also failed
+        return {
+          response: new Response(
+            JSON.stringify({
+              error: response.status === 402
+                ? "Créditos insuficientes em todos os modelos. Adicione créditos ao workspace."
+                : "Limite de requisições excedido em todos os modelos. Tente novamente em alguns minutos.",
+            }),
+            { status: response.status, headers: { "Content-Type": "application/json" } },
+          ),
+          model,
+        };
+      }
+      continue;
+    }
+
+    return { response, model };
+  }
+
+  // Should never reach here
+  throw new Error("No models available");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -41,72 +107,64 @@ Inclua estilo, cores, composição, iluminação e mood.`,
 
     const systemPrompt = systemPrompts[type] || systemPrompts.copy;
 
-    // For image generation, we use the image model
+    // Image generation with fallback
     if (type === "image") {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages: [
-            { role: "user", content: prompt },
-          ],
+      const { response, model } = await tryModels(
+        IMAGE_MODELS,
+        (m) => ({
+          model: m,
+          messages: [{ role: "user", content: prompt }],
           modalities: ["image", "text"],
         }),
-      });
+        LOVABLE_API_KEY,
+      );
 
       if (!response.ok) {
-        const status = response.status;
-        if (status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (status === 402) return new Response(JSON.stringify({ error: "Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        const t = await response.text();
-        console.error("AI gateway image error:", status, t);
-        throw new Error("Erro ao gerar imagem");
+        // Already handled by tryModels (429/402 with message)
+        const body = await response.text();
+        return new Response(body, {
+          status: response.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       const data = await response.json();
       const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
       const text = data.choices?.[0]?.message?.content || "";
 
-      return new Response(JSON.stringify({ image_url: imageUrl, text }), {
+      return new Response(JSON.stringify({ image_url: imageUrl, text, model_used: model }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Text generation with streaming
+    // Text generation with streaming + fallback
     const messages = [
       { role: "system", content: systemPrompt },
       ...(context ? [{ role: "user", content: `Contexto: ${context}` }] : []),
       { role: "user", content: prompt },
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages,
-        stream: true,
-      }),
-    });
+    const { response, model } = await tryModels(
+      TEXT_MODELS,
+      (m) => ({ model: m, messages, stream: true }),
+      LOVABLE_API_KEY,
+    );
 
     if (!response.ok) {
-      const status = response.status;
-      if (status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ error: "Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const t = await response.text();
-      console.error("AI gateway error:", status, t);
-      throw new Error("Erro na IA");
+      const body = await response.text();
+      return new Response(body, {
+        status: response.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    console.log(`Streaming response from model: ${model}`);
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "X-Model-Used": model,
+      },
     });
   } catch (e) {
     console.error("ai-assistant error:", e);
