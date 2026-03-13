@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, GripVertical, ChevronDown, ChevronUp, Package, Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, ChevronUp, ChevronDown, Package, Loader2, Copy, GripVertical } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,9 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
-
 import { EmojiPicker } from "./EmojiPicker";
-import { ProductImageUpload } from "./ProductImageUpload";
+import { AddStockModal } from "./AddStockModal";
 
 interface ProductField {
   id: string;
@@ -42,6 +41,296 @@ interface ProductDetailFieldsProps {
   onFieldsChange?: (fields: ProductField[]) => void;
 }
 
+/* ── Field Geral sub-tab ── */
+const FieldGeralTab = ({
+  field,
+  updateField,
+}: {
+  field: ProductField;
+  updateField: (id: string, updates: Partial<ProductField>) => void;
+}) => {
+  const nameMaxLen = 256;
+  const descMaxLen = 1024;
+  const [priceDisplay, setPriceDisplay] = useState((field.price_cents / 100).toFixed(2).replace(".", ","));
+  const [comparePriceDisplay, setComparePriceDisplay] = useState(
+    field.compare_price_cents ? (field.compare_price_cents / 100).toFixed(2).replace(".", ",") : ""
+  );
+
+  useEffect(() => {
+    setPriceDisplay((field.price_cents / 100).toFixed(2).replace(".", ","));
+    setComparePriceDisplay(field.compare_price_cents ? (field.compare_price_cents / 100).toFixed(2).replace(".", ",") : "");
+  }, [field.id]);
+
+  return (
+    <div className="space-y-5">
+      {/* Name + Emoji */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">
+            Nome do Campo{" "}
+            <span className="font-normal text-muted-foreground">
+              ({(field.name || "").length}/{nameMaxLen})
+            </span>
+          </Label>
+          <Input
+            value={field.name}
+            onChange={(e) => {
+              if (e.target.value.length <= nameMaxLen) updateField(field.id, { name: e.target.value });
+            }}
+            className="bg-muted border-border"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">
+            Emoji <span className="font-normal text-muted-foreground">(Opcional)</span>
+          </Label>
+          <EmojiPicker
+            value={field.emoji}
+            onChange={(val) => updateField(field.id, { emoji: val })}
+          />
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label className="text-sm font-bold">
+          Descrição{" "}
+          <span className="font-normal text-muted-foreground">
+            ({(field.description || "").length}/{descMaxLen})
+          </span>
+        </Label>
+        <Textarea
+          value={field.description || ""}
+          onChange={(e) => {
+            if (e.target.value.length <= descMaxLen) updateField(field.id, { description: e.target.value });
+          }}
+          placeholder="Descrição do campo..."
+          className="bg-muted border-border min-h-[100px] resize-y"
+        />
+      </div>
+
+      {/* Price */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">Preço</Label>
+          <Input
+            type="text"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={priceDisplay}
+            onChange={(e) => setPriceDisplay(e.target.value)}
+            onBlur={() => {
+              const raw = priceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
+              const num = parseFloat(raw);
+              const cents = isNaN(num) ? 0 : Math.round(num * 100);
+              updateField(field.id, { price_cents: cents });
+              setPriceDisplay((cents / 100).toFixed(2).replace(".", ","));
+            }}
+            className="bg-muted border-border"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">
+            Preço de Comparação <span className="font-normal text-muted-foreground">(Opcional)</span>
+          </Label>
+          <Input
+            type="text"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={comparePriceDisplay}
+            onChange={(e) => setComparePriceDisplay(e.target.value)}
+            onBlur={() => {
+              const raw = comparePriceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
+              const num = parseFloat(raw);
+              if (!raw || isNaN(num) || num <= 0) {
+                updateField(field.id, { compare_price_cents: null });
+                setComparePriceDisplay("");
+              } else {
+                const cents = Math.round(num * 100);
+                updateField(field.id, { compare_price_cents: cents });
+                setComparePriceDisplay((cents / 100).toFixed(2).replace(".", ","));
+              }
+            }}
+            className="bg-muted border-border"
+          />
+        </div>
+      </div>
+
+      {/* Toggles */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold">Habilitar Créditos</p>
+            <p className="text-xs text-muted-foreground">Permitir pagamento com créditos</p>
+          </div>
+          <Switch
+            checked={field.enable_credits}
+            onCheckedChange={(val) => updateField(field.id, { enable_credits: val })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Field Estoque sub-tab ── */
+const FieldEstoqueTab = ({
+  field,
+  tenantId,
+}: {
+  field: ProductField;
+  tenantId: string | null;
+}) => {
+  const [stockCount, setStockCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [stockItems, setStockItems] = useState<Array<{ id: string; content: string }>>([]);
+  const [stockSearch, setStockSearch] = useState("");
+
+  const fetchStock = useCallback(async () => {
+    if (!tenantId || !field.product_id) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: { action: "get_stock", tenant_id: tenantId, product_id: field.product_id },
+      });
+      if (!error) {
+        setStockCount(data?.stock || 0);
+        setStockItems(data?.items || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  }, [tenantId, field.product_id]);
+
+  useEffect(() => {
+    fetchStock();
+  }, [fetchStock]);
+
+  return (
+    <div className="space-y-5">
+      {/* Controle de Estoque */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="w-0.5 h-5 bg-foreground rounded-full" />
+          <h4 className="text-sm font-bold">Controle de Estoque</h4>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold">Estoque Fictício</p>
+            <p className="text-xs text-muted-foreground">Ativar estoque fictício para este campo</p>
+          </div>
+          <Switch checked={false} />
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2">
+          <span className="text-muted-foreground mt-0.5">ℹ️</span>
+          <p className="text-xs text-muted-foreground">
+            O estoque fictício permite definir uma quantidade fixa para este campo, independente do estoque real.
+          </p>
+        </div>
+      </div>
+
+      {/* Estoque */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold">Estoque</h4>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="text-xs h-7" onClick={fetchStock}>
+              <span className="mr-1">↻</span> Atualizar
+            </Button>
+            <Button variant="outline" size="sm" className="text-xs h-7">
+              Modo Texto
+            </Button>
+          </div>
+        </div>
+
+        <Input
+          placeholder="Pesquisar item no estoque..."
+          value={stockSearch}
+          onChange={(e) => setStockSearch(e.target.value)}
+          className="bg-muted border-border"
+        />
+
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="min-h-[100px]">
+            {stockItems.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-6">Estoque vazio</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Adicionar Itens */}
+      <button
+        onClick={() => setAddModalOpen(true)}
+        className="w-full rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground hover:border-foreground/20 hover:text-foreground transition-colors flex items-center justify-center gap-2"
+      >
+        <Plus className="h-4 w-4" /> Adicionar Itens 📋
+      </button>
+
+      {tenantId && (
+        <AddStockModal
+          open={addModalOpen}
+          onOpenChange={setAddModalOpen}
+          productId={field.product_id}
+          tenantId={tenantId}
+          onAdded={() => {
+            fetchStock();
+            setAddModalOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ── Field Mensagens Automáticas sub-tab ── */
+const FieldMensagensTab = () => {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <div className="w-0.5 h-5 bg-foreground rounded-full" />
+        <h4 className="text-sm font-bold">Mensagens Automáticas</h4>
+      </div>
+
+      {/* Antes da Compra */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-bold">Mensagens Antes da Compra</p>
+          <p className="text-xs text-muted-foreground">
+            Selecione as mensagens automáticas que serão enviadas antes da compra deste produto
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="text-xs">
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          Adicionar Mensagens
+        </Button>
+      </div>
+
+      {/* Depois da Compra */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-bold">Mensagens Depois da Compra</p>
+          <p className="text-xs text-muted-foreground">
+            Selecione as mensagens automáticas que serão enviadas depois da compra deste produto
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="text-xs">
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          Adicionar Mensagens
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 /* ── Expanded content for a single field ── */
 const FieldExpandedContent = ({
   field,
@@ -50,6 +339,7 @@ const FieldExpandedContent = ({
   updateField,
   saveField,
   deleteField,
+  stockCount,
 }: {
   field: ProductField;
   tenantId: string | null;
@@ -57,226 +347,62 @@ const FieldExpandedContent = ({
   updateField: (id: string, updates: Partial<ProductField>) => void;
   saveField: (field: ProductField) => void;
   deleteField: (id: string) => void;
+  stockCount: number;
 }) => {
-  const [priceDisplay, setPriceDisplay] = useState((field.price_cents / 100).toFixed(2));
-  const [comparePriceDisplay, setComparePriceDisplay] = useState(
-    field.compare_price_cents ? (field.compare_price_cents / 100).toFixed(2) : ""
-  );
+  const [dirty, setDirty] = useState(false);
 
-  useEffect(() => {
-    setPriceDisplay((field.price_cents / 100).toFixed(2));
-    setComparePriceDisplay(field.compare_price_cents ? (field.compare_price_cents / 100).toFixed(2) : "");
-  }, [field.id]);
+  const handleUpdate = (id: string, updates: Partial<ProductField>) => {
+    updateField(id, updates);
+    setDirty(true);
+  };
 
   return (
     <div className="border-t border-border p-4">
       <Tabs defaultValue="geral">
         <TabsList className="bg-muted mb-4">
           <TabsTrigger value="geral">Geral</TabsTrigger>
-          <TabsTrigger value="entrega">Entrega</TabsTrigger>
+          <TabsTrigger value="estoque">Estoque ({stockCount})</TabsTrigger>
+          <TabsTrigger value="mensagens">Mensagens Automáticas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="geral" className="space-y-5">
-          {/* Name + Emoji */}
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-bold">Nome do Campo</Label>
-              <Input
-                value={field.name}
-                onChange={(e) => updateField(field.id, { name: e.target.value })}
-                className="bg-muted border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-bold">
-                Emoji <span className="font-normal text-muted-foreground">(Opcional)</span>
-              </Label>
-              <EmojiPicker
-                value={field.emoji}
-                onChange={(val) => updateField(field.id, { emoji: val })}
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Descrição</Label>
-            <Textarea
-              value={field.description || ""}
-              onChange={(e) => updateField(field.id, { description: e.target.value })}
-              placeholder="Descrição do campo..."
-              className="bg-muted border-border min-h-[80px] resize-none"
-            />
-          </div>
-
-          {/* Images */}
-          {tenantId && (
-            <div className="grid grid-cols-2 gap-4">
-              <ProductImageUpload
-                label="Ícone"
-                hint="PNG, JPG ou GIF — 128x128 recomendado"
-                currentUrl={field.icon_url}
-                onUploaded={(url) => updateField(field.id, { icon_url: url })}
-                onRemoved={() => updateField(field.id, { icon_url: null })}
-                tenantId={tenantId}
-                productId={`${field.product_id}/fields/${field.id}`}
-                aspect="square"
-              />
-              <ProductImageUpload
-                label="Banner"
-                hint="PNG ou JPG — 600x200 recomendado"
-                currentUrl={field.banner_url}
-                onUploaded={(url) => updateField(field.id, { banner_url: url })}
-                onRemoved={() => updateField(field.id, { banner_url: null })}
-                tenantId={tenantId}
-                productId={`${field.product_id}/fields/${field.id}`}
-                aspect="banner"
-              />
-            </div>
-          )}
-
-          {/* Price */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-bold">Preço (R$)</Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={priceDisplay}
-                onChange={(e) => setPriceDisplay(e.target.value)}
-                onBlur={() => {
-                  const raw = priceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
-                  const num = parseFloat(raw);
-                  const cents = isNaN(num) ? 0 : Math.round(num * 100);
-                  updateField(field.id, { price_cents: cents });
-                  setPriceDisplay((cents / 100).toFixed(2));
-                }}
-                className="bg-muted border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-bold">
-                Preço de Comparação <span className="font-normal text-muted-foreground">(Opcional)</span>
-              </Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={comparePriceDisplay}
-                onChange={(e) => setComparePriceDisplay(e.target.value)}
-                onBlur={() => {
-                  const raw = comparePriceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
-                  const num = parseFloat(raw);
-                  if (!raw || isNaN(num) || num <= 0) {
-                    updateField(field.id, { compare_price_cents: null });
-                    setComparePriceDisplay("");
-                  } else {
-                    const cents = Math.round(num * 100);
-                    updateField(field.id, { compare_price_cents: cents });
-                    setComparePriceDisplay((cents / 100).toFixed(2));
-                  }
-                }}
-                className="bg-muted border-border"
-              />
-            </div>
-          </div>
-
-          {/* Toggles */}
-          <div className="space-y-3">
-            {[
-              { key: "enable_credits" as const, label: "Habilitar Créditos", desc: "Permitir pagamento com créditos" },
-              { key: "is_subscription" as const, label: "Tornar Assinatura", desc: "Tornar o produto de assinatura recorrente" },
-              { key: "show_stock" as const, label: "Mostrar Estoque", desc: "Mostrar o estoque do produto" },
-              { key: "show_sold" as const, label: "Mostrar Vendidos", desc: "Mostrar o número de vendidos do produto" },
-              { key: "enable_instructions" as const, label: "Habilitar Instruções", desc: "Habilitar instruções do produto" },
-            ].map((toggle) => (
-              <div key={toggle.key} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold">{toggle.label}</p>
-                  <p className="text-xs text-muted-foreground">{toggle.desc}</p>
-                </div>
-                <Switch
-                  checked={field[toggle.key]}
-                  onCheckedChange={(val) => updateField(field.id, { [toggle.key]: val })}
-                />
-              </div>
-            ))}
-          </div>
-
-          {field.enable_instructions && (
-            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
-              <p className="text-xs text-yellow-400">
-                ⚠️ <strong>Atenção:</strong> Se você habilitar as instruções, a instrução padrão <strong>NÃO</strong> será exibida para esse produto.
-              </p>
-            </div>
-          )}
-
-          {/* Conditions */}
-          <div className="space-y-4">
-            <h4 className="text-base font-bold">Condições</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-bold">Requer Cargo</Label>
-                <Input
-                  value={field.require_role_id || ""}
-                  onChange={(e) => updateField(field.id, { require_role_id: e.target.value || null })}
-                  placeholder="ID do cargo"
-                  className="bg-muted border-border"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-bold">Quantidade Mínima</Label>
-                <Input
-                  type="number"
-                  value={field.min_quantity}
-                  onChange={(e) => updateField(field.id, { min_quantity: parseInt(e.target.value) || 1 })}
-                  className="bg-muted border-border"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-between pt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => deleteField(field.id)}
-            >
-              <TrashIcon className="h-3.5 w-3.5 mr-1.5" />
-              Remover
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => saveField(field)}
-              disabled={saving}
-              className="gradient-pink text-primary-foreground border-none hover:opacity-90"
-            >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
-              Salvar Campo
-            </Button>
-          </div>
+          <FieldGeralTab field={field} updateField={handleUpdate} />
         </TabsContent>
 
-        <TabsContent value="entrega" className="space-y-4">
-          {/* Delivery quantity config */}
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Quantidade por Entrega</Label>
-            <p className="text-xs text-muted-foreground">
-              Quantos itens do estoque geral serão enviados por pedido nesta variação.
-            </p>
-            <Input
-              type="number"
-              min={1}
-              value={field.delivery_quantity || 1}
-              onChange={(e) => updateField(field.id, { delivery_quantity: parseInt(e.target.value) || 1 })}
-              className="bg-muted border-border w-32"
-            />
-          </div>
+        <TabsContent value="estoque">
+          <FieldEstoqueTab field={field} tenantId={tenantId} />
+        </TabsContent>
+
+        <TabsContent value="mensagens">
+          <FieldMensagensTab />
         </TabsContent>
       </Tabs>
+
+      {/* Bottom bar */}
+      <div className="flex items-center justify-end pt-4 mt-4 border-t border-border gap-3">
+        <span className="text-sm text-muted-foreground mr-auto">
+          {dirty ? "Alterações não salvas" : ""}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setDirty(false)}
+        >
+          Limpar
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            saveField(field);
+            setDirty(false);
+          }}
+          disabled={saving}
+          className="bg-foreground text-background hover:bg-foreground/90"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+          Salvar
+        </Button>
+      </div>
     </div>
   );
 };
@@ -299,7 +425,6 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       });
       if (error) throw error;
       if (data?.fields) setFields(data.fields);
-      
     } catch (e: any) {
       console.error(e);
     }
@@ -324,7 +449,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
           action: "create",
           tenant_id: tenantId,
           product_id: productId,
-          field: { name: "Novo", description: "Novo produto", price_cents: 0, sort_order: fields.length },
+          field: { name: "Novo", description: "Descrição do novo campo", price_cents: 0, sort_order: fields.length },
         },
       });
       if (error) throw error;
@@ -390,29 +515,30 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
     }
   };
 
-  const moveField = async (index: number, direction: "up" | "down") => {
-    const swapIndex = direction === "up" ? index - 1 : index + 1;
-    if (swapIndex < 0 || swapIndex >= fields.length) return;
-
-    const newFields = [...fields];
-    [newFields[index], newFields[swapIndex]] = [newFields[swapIndex], newFields[index]];
-    // Update sort_order values
-    const updated = newFields.map((f, i) => ({ ...f, sort_order: i }));
-    setFields(updated);
-
-    // Persist both changed items
+  const duplicateField = async (field: ProductField) => {
+    if (!tenantId) return;
     try {
-      await Promise.all([
-        supabase.functions.invoke("manage-product-fields", {
-          body: { action: "update", tenant_id: tenantId, field_id: updated[index].id, field: { sort_order: index } },
-        }),
-        supabase.functions.invoke("manage-product-fields", {
-          body: { action: "update", tenant_id: tenantId, field_id: updated[swapIndex].id, field: { sort_order: swapIndex } },
-        }),
-      ]);
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "create",
+          tenant_id: tenantId,
+          product_id: productId,
+          field: {
+            name: `${field.name} (cópia)`,
+            description: field.description,
+            emoji: field.emoji,
+            price_cents: field.price_cents,
+            compare_price_cents: field.compare_price_cents,
+            sort_order: fields.length,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setFields([...fields, data]);
+      toast({ title: "Campo duplicado!" });
     } catch (e: any) {
-      toast({ title: "Erro ao reordenar", description: e.message, variant: "destructive" });
-      fetchFields();
+      toast({ title: "Erro ao duplicar", description: e.message, variant: "destructive" });
     }
   };
 
@@ -436,7 +562,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       {/* Add button */}
       <button
         onClick={addField}
-        className="w-full rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors flex items-center justify-center gap-2"
+        className="w-full rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground hover:border-foreground/20 hover:text-foreground transition-colors flex items-center justify-center gap-2"
       >
         Adicionar Campo <Plus className="h-4 w-4" />
       </button>
@@ -449,68 +575,79 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       ) : filtered.length > 0 ? (
         <div className="space-y-2">
           <h4 className="text-sm font-bold">Campos</h4>
-          {filtered.map((field, idx) => {
-            const realIndex = fields.findIndex(f => f.id === field.id);
+          {filtered.map((field) => {
+            const isExpanded = expandedId === field.id;
             return (
-            <div key={field.id} className="rounded-xl border border-border bg-card overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center">
-                {/* Reorder buttons */}
-                <div className="flex flex-col border-r border-border">
+              <div key={field.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center">
+                  <div className="px-2 text-muted-foreground/40">
+                    <GripVertical className="h-4 w-4" />
+                  </div>
+
                   <button
-                    onClick={() => moveField(realIndex, "up")}
-                    disabled={realIndex === 0}
-                    className="p-1.5 hover:bg-muted/50 disabled:opacity-20 transition-colors"
-                    title="Mover para cima"
+                    onClick={() => toggle(field.id)}
+                    className="flex-1 flex items-center gap-3 px-2 py-3 hover:bg-muted/50 transition-colors"
                   >
-                    <ArrowUp className="h-3 w-3 text-muted-foreground" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0 text-lg overflow-hidden">
+                      {field.icon_url ? (
+                        <img src={field.icon_url} alt={field.name} className="h-8 w-8 object-cover rounded-lg" />
+                      ) : field.emoji ? field.emoji : <Package className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="text-sm font-bold">{field.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{field.description}</p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-emerald-400">
+                          R$ {(field.price_cents / 100).toFixed(2).replace(".", ",")}
+                        </span>
+                        {field.compare_price_cents && field.compare_price_cents > 0 && (
+                          <span className="text-xs text-muted-foreground line-through">
+                            R$ {(field.compare_price_cents / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </button>
-                  <button
-                    onClick={() => moveField(realIndex, "down")}
-                    disabled={realIndex === fields.length - 1}
-                    className="p-1.5 hover:bg-muted/50 disabled:opacity-20 transition-colors"
-                    title="Mover para baixo"
-                  >
-                    <ArrowDown className="h-3 w-3 text-muted-foreground" />
-                  </button>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 px-3">
+                    <button
+                      onClick={() => toggle(field.id)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => duplicateField(field)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Duplicar"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteField(field.id)}
+                      className="p-1.5 text-destructive hover:text-destructive/80 transition-colors"
+                      title="Excluir"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  onClick={() => toggle(field.id)}
-                  className="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0 text-lg overflow-hidden">
-                    {field.icon_url ? (
-                      <img src={field.icon_url} alt={field.name} className="h-8 w-8 object-cover rounded-lg" />
-                    ) : field.emoji ? field.emoji : <Package className="h-4 w-4 text-primary" />}
-                  </div>
-                  <div className="text-left min-w-0 flex-1">
-                    <p className="text-sm font-bold">{field.name}</p>
-                    <p className="text-xs text-muted-foreground">{field.description}</p>
-                    <p className="text-xs font-bold text-emerald-400">
-                      R$ {(field.price_cents / 100).toFixed(2).replace(".", ",")}
-                    </p>
-                  </div>
-                  {expandedId === field.id ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
+                {/* Expanded content */}
+                {isExpanded && (
+                  <FieldExpandedContent
+                    field={field}
+                    tenantId={tenantId}
+                    saving={saving}
+                    updateField={updateField}
+                    saveField={saveField}
+                    deleteField={deleteField}
+                    stockCount={0}
+                  />
+                )}
               </div>
-
-              {/* Expanded content */}
-              {expandedId === field.id && (
-                <FieldExpandedContent
-                  field={field}
-                  tenantId={tenantId}
-                  saving={saving}
-                  updateField={updateField}
-                  saveField={saveField}
-                  deleteField={deleteField}
-                />
-              )}
-            </div>
             );
           })}
         </div>
@@ -524,7 +661,6 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
           <p className="text-sm">Nenhum campo encontrado</p>
         </div>
       )}
-
     </div>
   );
 };

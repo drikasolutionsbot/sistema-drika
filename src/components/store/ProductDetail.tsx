@@ -1,27 +1,12 @@
 import { useState, useEffect } from "react";
 import { type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
-import { ArrowLeft, RefreshCw, Send, Eye } from "lucide-react";
-import TrashIcon from "@/components/ui/trash-icon";
+import { ArrowLeft, RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductDetailGeneral } from "./ProductDetailGeneral";
 import { ProductDetailFields } from "./ProductDetailFields";
-import { ProductDetailCoupons } from "./ProductDetailCoupons";
 import { ProductDetailHooks } from "./ProductDetailHooks";
-import { ProductDetailStock } from "./ProductDetailStock";
 import { PostMessageModal } from "./PostMessageModal";
-import { ProductDiscordPreview } from "./ProductDiscordPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 
@@ -63,9 +48,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
   const [postModalOpen, setPostModalOpen] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
   const [embedColor, setEmbedColor] = useState("#5865F2");
-  const [previewFields, setPreviewFields] = useState<Array<{ id: string; name: string; emoji: string | null; price_cents: number; compare_price_cents: number | null }>>([]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -79,15 +62,6 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
   const handleChange = (updates: Partial<Product>) => {
     setEdited((prev) => ({ ...prev, ...updates }));
     setDirty(true);
-  };
-
-  const handleEmbedColorChange = (color: string) => {
-    setEmbedColor(color);
-    if (tenantId && /^#[0-9a-fA-F]{6}$/.test(color)) {
-      supabase.functions.invoke("manage-store-config", {
-        body: { action: "upsert", tenant_id: tenantId, config: { embed_color: color } },
-      });
-    }
   };
 
   const handleSave = () => {
@@ -119,47 +93,13 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
-                <TrashIcon className="h-3.5 w-3.5 mr-1.5" />
-                Excluir
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-card border-border">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir produto</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja excluir <strong>{product.name}</strong>? Esta ação não pode ser desfeita. Todos os campos, estoque, cupons e hooks vinculados serão removidos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="border-border">Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(product.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
           <Button variant="outline" size="sm" className="text-xs">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            Sincronizar
-          </Button>
-          <Button
-            variant={showPreview ? "default" : "outline"}
-            size="sm"
-            className="text-xs"
-            onClick={() => setShowPreview((p) => !p)}
-          >
-            <Eye className="h-3.5 w-3.5 mr-1.5" />
-            Preview
+            Sincronizar Mensagens
           </Button>
           <Button variant="outline" size="sm" className="text-xs" onClick={() => setPostModalOpen(true)}>
             <Send className="h-3.5 w-3.5 mr-1.5" />
-            Postar
+            Postar Mensagem
           </Button>
         </div>
       </div>
@@ -171,76 +111,17 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
             <TabsList className="bg-muted">
               <TabsTrigger value="geral">Geral</TabsTrigger>
               <TabsTrigger value="campos">Campos</TabsTrigger>
-              <TabsTrigger value="estoque">Estoque</TabsTrigger>
-              <TabsTrigger value="cupons">Cupons</TabsTrigger>
               <TabsTrigger value="hooks">Hooks</TabsTrigger>
             </TabsList>
           </div>
 
           <div className="px-6 py-4">
             <TabsContent value="geral" className="mt-0">
-              <div className={showPreview ? "grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6" : ""}>
-                <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
-                {showPreview && (
-                  <div className="sticky top-4 space-y-3">
-                    <ProductDiscordPreview product={edited} embedColor={embedColor} />
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground">Cor lateral do embed</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={embedColor}
-                          onChange={(e) => handleEmbedColorChange(e.target.value)}
-                          className="h-9 w-12 rounded border border-border cursor-pointer bg-transparent"
-                        />
-                        <input
-                          type="text"
-                          value={embedColor}
-                          onChange={(e) => handleEmbedColorChange(e.target.value)}
-                          className="flex-1 h-9 px-3 rounded-md border border-border bg-muted text-sm font-mono text-foreground"
-                        />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">A cor é salva automaticamente</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
             </TabsContent>
 
             <TabsContent value="campos" className="mt-0">
-              <div className={showPreview ? "grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6" : ""}>
-                <ProductDetailFields productId={product.id} onFieldsChange={setPreviewFields} />
-                {showPreview && (
-                  <div className="sticky top-4 space-y-3">
-                    <ProductDiscordPreview product={edited} fields={previewFields} embedColor={embedColor} />
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground">Cor lateral do embed</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={embedColor}
-                          onChange={(e) => handleEmbedColorChange(e.target.value)}
-                          className="h-9 w-12 rounded border border-border cursor-pointer bg-transparent"
-                        />
-                        <input
-                          type="text"
-                          value={embedColor}
-                          onChange={(e) => handleEmbedColorChange(e.target.value)}
-                          className="flex-1 h-9 px-3 rounded-md border border-border bg-muted text-sm font-mono text-foreground"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="estoque" className="mt-0">
-              <ProductDetailStock productId={product.id} />
-            </TabsContent>
-
-            <TabsContent value="cupons" className="mt-0">
-              <ProductDetailCoupons productId={product.id} />
+              <ProductDetailFields productId={product.id} />
             </TabsContent>
 
             <TabsContent value="hooks" className="mt-0">
@@ -252,23 +133,18 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
 
       {/* Unsaved changes bar */}
       {dirty && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-card animate-fade-in">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm text-muted-foreground">Alterações não salvas</span>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={handleDiscard}>
-              Limpar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              className="gradient-pink text-primary-foreground border-none hover:opacity-90"
-            >
-              Salvar
-            </Button>
-          </div>
+        <div className="flex items-center justify-end px-6 py-3 border-t border-border bg-card animate-fade-in gap-3">
+          <span className="text-sm text-muted-foreground mr-auto">Alterações não salvas</span>
+          <Button variant="ghost" size="sm" onClick={handleDiscard}>
+            Limpar
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
+            Salvar
+          </Button>
         </div>
       )}
 

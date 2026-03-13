@@ -1,7 +1,7 @@
 import { Search, Plus, Package, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -41,12 +41,6 @@ interface ProductListProps {
   onCategoryChange?: (id: string | null) => void;
 }
 
-const typeLabels: Record<string, string> = {
-  digital_auto: "Digital",
-  service: "Serviço",
-  hybrid: "Híbrido",
-};
-
 export const ProductList = ({
   products,
   isLoading,
@@ -68,14 +62,16 @@ export const ProductList = ({
       {/* Header */}
       <div className="p-4 border-b border-border space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Lista de produtos</h3>
-          <Button
-            size="sm"
+          <div className="flex items-center gap-2">
+            <div className="w-0.5 h-5 bg-foreground rounded-full" />
+            <h3 className="text-sm font-semibold text-foreground">Lista de produtos</h3>
+          </div>
+          <button
             onClick={onNewProduct}
-            className="gradient-pink text-primary-foreground border-none hover:opacity-90 h-8 text-xs"
+            className="flex items-center justify-center h-7 w-7 rounded-full border border-border hover:bg-muted transition-colors"
           >
-            <Plus className="h-3.5 w-3.5 mr-1" /> Novo
-          </Button>
+            <Plus className="h-3.5 w-3.5" />
+          </button>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -120,28 +116,45 @@ export const ProductList = ({
           </div>
         ) : (
           <div className="p-2 space-y-0.5">
-            {filtered.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => onSelect(product)}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-all duration-150",
-                  selectedId === product.id
-                    ? "bg-primary/10 border border-primary/20"
-                    : "hover:bg-muted/60 border border-transparent"
-                )}
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                  <Package className="h-4 w-4 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{product.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {product.stock !== null ? `${product.stock} variações` : typeLabels[product.type] || product.type}
-                  </p>
-                </div>
-              </button>
-            ))}
+            {filtered.map((product) => {
+              const hasStock = product.stock !== null && product.stock > 0;
+              const variationCount = product.stock ?? 0;
+
+              return (
+                <button
+                  key={product.id}
+                  onClick={() => onSelect(product)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-all duration-150",
+                    selectedId === product.id
+                      ? "bg-primary/10 border border-primary/20"
+                      : "hover:bg-muted/60 border border-transparent"
+                  )}
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{product.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      {product.active ? (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-red-500/40 text-red-400 bg-red-500/10">
+                          Postado
+                        </Badge>
+                      ) : null}
+                      {hasStock ? (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                          Em estoque
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {variationCount} variações
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

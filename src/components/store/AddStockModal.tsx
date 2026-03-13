@@ -1,10 +1,8 @@
 import { useState, useRef } from "react";
-import { FileText, Plus, Upload, Loader2 } from "lucide-react";
+import { FileText, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -32,9 +30,7 @@ export const AddStockModal = ({
 }: AddStockModalProps) => {
   const [adding, setAdding] = useState(false);
   const [singleItem, setSingleItem] = useState("");
-  const [batchMode, setBatchMode] = useState(false);
   const [batchContent, setBatchContent] = useState("");
-  const [delimiter, setDelimiter] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -74,8 +70,7 @@ export const AddStockModal = ({
   };
 
   const handleBatchAdd = () => {
-    const sep = delimiter || "\n";
-    const items = batchContent.split(sep);
+    const items = batchContent.split("\n");
     addItems(items);
     setBatchContent("");
   };
@@ -120,6 +115,9 @@ export const AddStockModal = ({
               <TabsTrigger value="manual" className="flex-1 gap-2">
                 <Plus className="h-3.5 w-3.5" /> Adicionar Item
               </TabsTrigger>
+              <TabsTrigger value="lines" className="flex-1 gap-2">
+                Linhas
+              </TabsTrigger>
             </TabsList>
 
             {/* File upload tab */}
@@ -155,63 +153,45 @@ export const AddStockModal = ({
 
             {/* Manual add tab */}
             <TabsContent value="manual" className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold">Modo em lote</Label>
-                <Switch checked={batchMode} onCheckedChange={setBatchMode} />
+              <div className="space-y-2">
+                <Label className="text-sm font-bold">Novo Item</Label>
+                <Textarea
+                  value={singleItem}
+                  onChange={(e) => setSingleItem(e.target.value)}
+                  placeholder="Digite o item aqui..."
+                  className="bg-muted border-border min-h-[80px] resize-none"
+                />
               </div>
+              <Button
+                onClick={handleSingleAdd}
+                disabled={adding || !singleItem.trim()}
+                className="w-full gap-2"
+              >
+                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> Adicionar Item</>}
+              </Button>
+            </TabsContent>
 
-              {batchMode ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold">Conteúdo em Lote</Label>
-                    <Textarea
-                      value={batchContent}
-                      onChange={(e) => setBatchContent(e.target.value)}
-                      placeholder="Um item por linha..."
-                      className="bg-muted border-border min-h-[120px] resize-none font-mono text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold">Delimitador</Label>
-                    <Input
-                      value={delimiter}
-                      onChange={(e) => setDelimiter(e.target.value)}
-                      placeholder="Ex: |, -, ---, ###"
-                      className="bg-muted border-border"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Deixe vazio para tratar cada linha como um item individual
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleBatchAdd}
-                    disabled={adding || !batchContent.trim()}
-                    className="w-full gap-2"
-                  >
-                    {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                    Adicionar Itens em Lote
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold">Novo Item</Label>
-                    <Textarea
-                      value={singleItem}
-                      onChange={(e) => setSingleItem(e.target.value)}
-                      placeholder="senha: 123 user: root"
-                      className="bg-muted border-border min-h-[80px] resize-none font-mono text-sm"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSingleAdd}
-                    disabled={adding || !singleItem.trim()}
-                    className="w-full gap-2"
-                  >
-                    {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> Adicionar Item</>}
-                  </Button>
-                </div>
-              )}
+            {/* Lines tab */}
+            <TabsContent value="lines" className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-bold">Conteúdo em Linhas</Label>
+                <Textarea
+                  value={batchContent}
+                  onChange={(e) => setBatchContent(e.target.value)}
+                  placeholder="Um item por linha..."
+                  className="bg-muted border-border min-h-[120px] resize-none font-mono text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Cada linha será tratada como um item individual do estoque
+                </p>
+              </div>
+              <Button
+                onClick={handleBatchAdd}
+                disabled={adding || !batchContent.trim()}
+                className="w-full gap-2"
+              >
+                {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> Adicionar Itens</>}
+              </Button>
             </TabsContent>
           </Tabs>
 

@@ -37,7 +37,7 @@ const StorePage = () => {
   const [selectModalOpen, setSelectModalOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const { tenantId } = useTenant();
+  const { tenantId, tenant } = useTenant();
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
@@ -54,7 +54,6 @@ const StorePage = () => {
     enabled: !!tenantId,
   });
 
-  // Fetch categories
   useEffect(() => {
     if (!tenantId) return;
     supabase.functions.invoke("manage-categories", {
@@ -98,9 +97,7 @@ const StorePage = () => {
     }
   };
 
-  const handleNewProduct = () => {
-    setSelectModalOpen(true);
-  };
+  const handleNewProduct = () => setSelectModalOpen(true);
 
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
@@ -140,7 +137,9 @@ const StorePage = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="font-display text-2xl font-bold">Loja</h1>
-        <p className="text-muted-foreground">Configure a loja do seu servidor</p>
+        <p className="text-muted-foreground">
+          Configure a loja da <strong>{tenant?.name || "..."}</strong>.
+        </p>
       </div>
 
       <Tabs defaultValue="products">
@@ -149,13 +148,14 @@ const StorePage = () => {
             <TabsTrigger value="products">Produtos</TabsTrigger>
             <TabsTrigger value="categories">Categorias</TabsTrigger>
             <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="coupons">Cupons</TabsTrigger>
+            <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="products" className="mt-4">
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] min-h-[400px] lg:min-h-[600px]">
-              {/* Left: Product list */}
               <ProductList
                 products={products}
                 isLoading={isLoading}
@@ -169,7 +169,6 @@ const StorePage = () => {
                 onCategoryChange={setSelectedCategoryId}
               />
 
-              {/* Right: Product detail */}
               <div className="flex-1">
                 {selectedProduct ? (
                   <ProductDetail
@@ -204,6 +203,18 @@ const StorePage = () => {
         <TabsContent value="general" className="mt-4">
           <div className="rounded-xl border border-border bg-card p-6">
             <StoreGeneralSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="coupons" className="mt-4">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <p className="text-muted-foreground text-sm">Gerenciamento de cupons em breve.</p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="affiliates" className="mt-4">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <p className="text-muted-foreground text-sm">Programa de afiliados em breve.</p>
           </div>
         </TabsContent>
       </Tabs>
