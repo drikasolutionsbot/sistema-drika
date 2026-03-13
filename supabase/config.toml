@@ -169,3 +169,6 @@ verify_jwt = false
 
 [functions.manage-affiliates]
 verify_jwt = false
+
+[functions.handle-member-join]
+verify_jwt = false
