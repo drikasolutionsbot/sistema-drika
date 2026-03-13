@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Server, Loader2, Save, Bot, Wifi, WifiOff, RefreshCw, ShieldCheck, Send,
-  Upload, X, Eye, Undo2, ChevronRight
+  Upload, X, Eye, Undo2, ChevronRight, Camera
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -70,7 +70,9 @@ const CustomizationPage = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const guildIconInputRef = useRef<HTMLInputElement>(null);
   const guildInfoLoadedRef = useRef(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
 
   const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<ServerConfig>(
     "server-config",
@@ -169,6 +171,43 @@ const CustomizationPage = () => {
     setCheckingBot(true);
     await checkBotStatus();
     setCheckingBot(false);
+  };
+
+  const handleGuildIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !tenantId) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem válida");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Imagem deve ter no máximo 8MB");
+      return;
+    }
+    setUploadingIcon(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { error } = await supabase.functions.invoke("update-tenant", {
+        body: {
+          tenant_id: tenantId,
+          guild_icon_base64: base64,
+        },
+      });
+      if (error) throw error;
+      toast.success("Ícone do servidor atualizado!");
+      guildInfoLoadedRef.current = false;
+      await checkBotStatus();
+    } catch (err: any) {
+      toast.error("Erro ao atualizar ícone: " + (err.message || "Tente novamente"));
+    } finally {
+      setUploadingIcon(false);
+      if (guildIconInputRef.current) guildIconInputRef.current.value = "";
+    }
   };
 
   const handleSave = async () => {
@@ -298,8 +337,14 @@ const CustomizationPage = () => {
                <div>
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Servidor Discord</Label>
                 <div className="flex items-center gap-3 mt-3 p-3 rounded-xl bg-background border border-border">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
-                    {guildInfo?.icon ? (
+                  <div
+                    className="relative h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer group"
+                    onClick={() => guildIconInputRef.current?.click()}
+                    title="Clique para alterar o ícone do servidor"
+                  >
+                    {uploadingIcon ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    ) : guildInfo?.icon ? (
                       <img
                         src={guildInfo.icon.startsWith("http") ? guildInfo.icon : `https://cdn.discordapp.com/icons/${tenant?.discord_guild_id}/${guildInfo.icon}.png?size=64`}
                         alt="" className="h-full w-full object-cover"
@@ -309,7 +354,17 @@ const CustomizationPage = () => {
                     ) : (
                       <Bot className="h-5 w-5 text-primary" />
                     )}
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                      <Camera className="h-4 w-4 text-white" />
+                    </div>
                   </div>
+                  <input
+                    ref={guildIconInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleGuildIconUpload}
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono text-muted-foreground">{guildId}</p>
                   </div>
