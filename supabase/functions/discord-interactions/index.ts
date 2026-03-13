@@ -964,6 +964,21 @@ serve(async (req) => {
         });
         return ok();
 
+      // ─── COPY PIX CODE (ephemeral) ────────────────────────
+      if (customId.startsWith("copy_pix:")) {
+        const orderId = customId.replace("copy_pix:", "");
+        const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, total_cents, product_name, order_number").eq("id", orderId).single();
+        if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        
+        // Regenerate brcode for display
+        const { data: tenant } = await supabase.from("tenants").select("name, pix_key").eq("id", order.tenant_id).single();
+        if (tenant?.pix_key) {
+          const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
+          return respondImmediate(interaction, `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``);
+        }
+        return respondImmediate(interaction, "📋 O código PIX está na mensagem acima.");
+      }
+
       // ─── TICKET OPEN (from ticket embed button) ───────────
       if (customId.startsWith("ticket_open_")) {
         // Parse: ticket_open_{tenantId}_{channelId}
