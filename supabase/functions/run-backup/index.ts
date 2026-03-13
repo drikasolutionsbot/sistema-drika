@@ -49,14 +49,15 @@ Deno.serve(async (req) => {
         let ordersCount = 0;
         let productsCount = 0;
 
+        const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
         // 1. Fetch Discord members
-        if (tenant.discord_guild_id && tenant.bot_token_encrypted) {
+        if (tenant.discord_guild_id && botToken) {
           let after = "0";
           const allMembers: any[] = [];
           for (let i = 0; i < 20; i++) { // max 20k members
             const res = await fetch(
               `${DISCORD_API}/guilds/${tenant.discord_guild_id}/members?limit=1000&after=${after}`,
-              { headers: { Authorization: `Bot ${tenant.bot_token_encrypted}` } }
+              { headers: { Authorization: `Bot ${botToken}` } }
             );
             if (!res.ok) break;
             const batch = await res.json();
