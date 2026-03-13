@@ -185,10 +185,12 @@ const FieldEstoqueTab = ({
   field,
   tenantId,
   updateField,
+  onStockChange,
 }: {
   field: ProductField;
   tenantId: string | null;
   updateField: (id: string, updates: Partial<ProductField>) => void;
+  onStockChange?: (count: number) => void;
 }) => {
   const [stockCount, setStockCount] = useState(0);
   const [loading, setLoading] = useState(true);
