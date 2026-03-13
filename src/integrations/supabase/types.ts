@@ -977,6 +977,8 @@ export type Database = {
           max_quantity: number | null
           min_quantity: number | null
           name: string
+          post_purchase_messages: Json
+          pre_purchase_messages: Json
           price_cents: number
           product_id: string
           require_role_id: string | null
@@ -1001,6 +1003,8 @@ export type Database = {
           max_quantity?: number | null
           min_quantity?: number | null
           name: string
+          post_purchase_messages?: Json
+          pre_purchase_messages?: Json
           price_cents?: number
           product_id: string
           require_role_id?: string | null
@@ -1025,6 +1029,8 @@ export type Database = {
           max_quantity?: number | null
           min_quantity?: number | null
           name?: string
+          post_purchase_messages?: Json
+          pre_purchase_messages?: Json
           price_cents?: number
           product_id?: string
           require_role_id?: string | null
