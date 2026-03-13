@@ -13,8 +13,41 @@ serve(async (req) => {
   }
 
   try {
-    const { tenant_id, updates } = await req.json();
+    const body = await req.json();
+    const { tenant_id, updates, guild_icon_base64 } = body;
     if (!tenant_id) throw new Error("Missing tenant_id");
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Handle guild icon update (separate flow)
+    if (guild_icon_base64) {
+      const { data: tenantData } = await supabase.from("tenants").select("discord_guild_id").eq("id", tenant_id).single();
+      if (!tenantData?.discord_guild_id) throw new Error("No Discord guild linked");
+      
+      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+      if (!botToken) throw new Error("Bot token not configured");
+
+      const iconRes = await fetch(
+        `https://discord.com/api/v10/guilds/${tenantData.discord_guild_id}`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ icon: guild_icon_base64 }),
+        }
+      );
+      if (!iconRes.ok) {
+        const errBody = await iconRes.text();
+        console.error("Discord guild icon update failed:", iconRes.status, errBody);
+        throw new Error("Falha ao atualizar ícone no Discord");
+      }
+      console.log("Discord guild icon updated successfully");
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!updates || Object.keys(updates).length === 0) {
       throw new Error("No updates provided");
     }
@@ -30,10 +63,6 @@ serve(async (req) => {
     if (Object.keys(safeUpdates).length === 0) {
       throw new Error("No valid fields to update");
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { data, error } = await supabase
       .from("tenants")
