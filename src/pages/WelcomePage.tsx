@@ -57,10 +57,10 @@ interface WelcomeConfig {
 }
 
 const defaultEmbed: EmbedData = {
-  color: "#57F287",
+  color: "#2B2D31",
   title: "Bem-vindo(a)! 🎉",
-  description: "Ficamos felizes em ter você aqui!\n\nUse `{user}` para mencionar, `{server}` para nome do servidor, `{memberCount}` para total de membros.",
-  thumbnail_url: "",
+  description: "Olá {user}, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**. Aproveite sua estadia!",
+  thumbnail_url: "{avatar}",
   image_url: "",
   footer_text: "Aproveite sua estadia!",
   footer_icon_url: "",
