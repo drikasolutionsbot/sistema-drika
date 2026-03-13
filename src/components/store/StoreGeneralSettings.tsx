@@ -210,14 +210,14 @@ const StoreGeneralSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Entrega */}
+        {/* Canais (placeholder to maintain grid) */}
         <Card className="border-border/50">
           <CardHeader className="pb-4">
             <CardTitle className="text-base flex items-center gap-2">
               <Truck className="h-4 w-4 text-primary" />
-              Entrega
+              Pagamento
             </CardTitle>
-            <CardDescription>Configurações de pagamento e entrega</CardDescription>
+            <CardDescription>Configurações de tempo limite de pagamento</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -231,23 +231,6 @@ const StoreGeneralSettings = () => {
                 className="mt-1"
               />
               <p className="text-[11px] text-muted-foreground mt-1">Pedido será cancelado automaticamente após este tempo</p>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
-              <div>
-                <p className="text-sm font-medium">Entrega Automática Global</p>
-                <p className="text-[11px] text-muted-foreground">Entregar itens do estoque automaticamente após pagamento</p>
-              </div>
-              <Switch checked={config.auto_delivery_global} onCheckedChange={(v) => update("auto_delivery_global", v)} />
-            </div>
-            <div>
-              <Label>Instruções de entrega</Label>
-              <Textarea
-                value={config.delivery_instructions}
-                onChange={(e) => update("delivery_instructions", e.target.value)}
-                placeholder="Instruções enviadas ao comprador junto com o produto..."
-                rows={3}
-                className="mt-1"
-              />
             </div>
           </CardContent>
         </Card>
