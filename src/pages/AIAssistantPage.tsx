@@ -447,13 +447,22 @@ export default function AIAssistantPage() {
         <div className="flex flex-col rounded-2xl border border-primary/10 bg-card overflow-hidden min-h-[500px]">
           {/* Chat Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-border/20 bg-card/80">
-            <div className="flex items-center gap-2">
-              <div className={cn("h-2 w-2 rounded-full", loading ? "bg-yellow-500 animate-pulse" : messages.length > 0 ? "bg-green-500" : "bg-muted-foreground/30")} />
+            <div className="flex items-center gap-3">
+              <div className={cn("h-2 w-2 rounded-full transition-all duration-500", loading ? "bg-yellow-500 animate-pulse shadow-[0_0_8px_rgba(234,179,8,0.6)]" : messages.length > 0 ? "bg-green-500" : "bg-muted-foreground/30")} />
               <p className="text-xs font-bold text-foreground/80 uppercase tracking-widest">
                 {activeSession ? activeSession.title.slice(0, 30) : selectedTool.label}
               </p>
+              {loading && (
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 animate-fade-in">
+                  <div className="relative h-3.5 w-3.5">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+                    <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-primary tracking-wide">P-CON processando...</span>
+                </div>
+              )}
             </div>
-            {messages.length > 0 && (
+            {messages.length > 0 && !loading && (
               <span className="text-[10px] text-muted-foreground/40">{messages.length} mensagens</span>
             )}
           </div>
