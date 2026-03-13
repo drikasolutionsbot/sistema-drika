@@ -299,7 +299,68 @@ const FieldEstoqueTab = ({
 };
 
 /* ── Field Mensagens Automáticas sub-tab ── */
-const FieldMensagensTab = () => {
+const FieldMensagensTab = ({
+  field,
+  updateField,
+}: {
+  field: ProductField;
+  updateField: (id: string, updates: Partial<ProductField>) => void;
+}) => {
+  const preMessages: AutoMessage[] = Array.isArray(field.pre_purchase_messages) ? field.pre_purchase_messages : [];
+  const postMessages: AutoMessage[] = Array.isArray(field.post_purchase_messages) ? field.post_purchase_messages : [];
+
+  const addMessage = (type: "pre" | "post") => {
+    const newMsg: AutoMessage = { id: crypto.randomUUID(), content: "" };
+    if (type === "pre") {
+      updateField(field.id, { pre_purchase_messages: [...preMessages, newMsg] });
+    } else {
+      updateField(field.id, { post_purchase_messages: [...postMessages, newMsg] });
+    }
+  };
+
+  const updateMessage = (type: "pre" | "post", msgId: string, content: string) => {
+    const list = type === "pre" ? preMessages : postMessages;
+    const updated = list.map((m) => (m.id === msgId ? { ...m, content } : m));
+    if (type === "pre") {
+      updateField(field.id, { pre_purchase_messages: updated });
+    } else {
+      updateField(field.id, { post_purchase_messages: updated });
+    }
+  };
+
+  const removeMessage = (type: "pre" | "post", msgId: string) => {
+    const list = type === "pre" ? preMessages : postMessages;
+    const updated = list.filter((m) => m.id !== msgId);
+    if (type === "pre") {
+      updateField(field.id, { pre_purchase_messages: updated });
+    } else {
+      updateField(field.id, { post_purchase_messages: updated });
+    }
+  };
+
+  const renderMessages = (type: "pre" | "post", messages: AutoMessage[]) => (
+    <div className="space-y-2">
+      {messages.map((msg, idx) => (
+        <div key={msg.id} className="flex items-start gap-2">
+          <Textarea
+            value={msg.content}
+            onChange={(e) => updateMessage(type, msg.id, e.target.value)}
+            placeholder={`Mensagem ${idx + 1}...`}
+            className="bg-muted border-border min-h-[60px] resize-y text-sm flex-1"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 mt-1 text-muted-foreground hover:text-destructive"
+            onClick={() => removeMessage(type, msg.id)}
+          >
+            <TrashIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -315,7 +376,8 @@ const FieldMensagensTab = () => {
             Selecione as mensagens automáticas que serão enviadas antes da compra deste produto
           </p>
         </div>
-        <Button variant="outline" size="sm" className="text-xs">
+        {renderMessages("pre", preMessages)}
+        <Button variant="outline" size="sm" className="text-xs" onClick={() => addMessage("pre")}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           Adicionar Mensagens
         </Button>
@@ -329,7 +391,8 @@ const FieldMensagensTab = () => {
             Selecione as mensagens automáticas que serão enviadas depois da compra deste produto
           </p>
         </div>
-        <Button variant="outline" size="sm" className="text-xs">
+        {renderMessages("post", postMessages)}
+        <Button variant="outline" size="sm" className="text-xs" onClick={() => addMessage("post")}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           Adicionar Mensagens
         </Button>
