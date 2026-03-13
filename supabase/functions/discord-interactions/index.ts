@@ -593,7 +593,7 @@ serve(async (req) => {
         const { data: field } = await supabase.from("product_fields").select("*").eq("id", fieldId).single();
         if (!field) { await editFollowup(interaction, botToken, "❌ Variação não encontrada."); return ok(); }
 
-        await processPurchase(supabase, interaction, botToken, product, product.tenant_id, userId, username, field.price_cents, fieldId, field.name);
+        await processPurchase(supabase, interaction, botToken, product, product.tenant_id, userId, username, field.price_cents, interaction.guild_id, interaction.channel_id, fieldId, field.name);
         return ok();
       }
 
