@@ -94,6 +94,31 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10">
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir "{edited.name}"? Esta ação não pode ser desfeita. Todo o estoque e campos serão removidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(product.id)}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button variant="outline" size="sm" className="text-xs">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Sincronizar Mensagens
