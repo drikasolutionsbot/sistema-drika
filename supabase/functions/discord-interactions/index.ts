@@ -840,6 +840,130 @@ serve(async (req) => {
         return ok();
       }
 
+      // ─── CHECKOUT: GO TO PAYMENT (Pix) ────────────────────
+      if (customId.startsWith("checkout_pay:")) {
+        const orderId = customId.replace("checkout_pay:", "");
+        await respondDeferredUpdate(interaction, botToken);
+
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (order.status !== "pending_payment") {
+          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não está mais pendente.`);
+          return ok();
+        }
+
+        // Send loading message
+        const channelId = interaction.channel_id;
+        await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            embeds: [{ description: "⏳ | Gerando QR Code...\nQuase lá, só mais um instante!", color: 0x2B2D31 }],
+          }),
+        });
+
+        // Generate PIX
+        await generatePixInThread(supabase, botToken, order, channelId, userId);
+        return ok();
+      }
+
+      // ─── CHECKOUT: CANCEL ORDER ───────────────────────────
+      if (customId.startsWith("checkout_cancel:")) {
+        const orderId = customId.replace("checkout_cancel:", "");
+        await respondDeferredUpdate(interaction, botToken);
+
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+
+        if (order.status === "pending_payment") {
+          await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
+        }
+
+        // Send cancel message then archive thread
+        const channelId = interaction.channel_id;
+        await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            embeds: [{ title: "❌ Compra Cancelada", description: `Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`, color: 0xED4245 }],
+          }),
+        });
+
+        // Archive and lock thread after a short delay
+        setTimeout(async () => {
+          try {
+            await fetch(`${DISCORD_API}/channels/${channelId}`, {
+              method: "PATCH",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ archived: true, locked: true }),
+            });
+          } catch {}
+        }, 3000);
+
+        return ok();
+      }
+
+      // ─── CHECKOUT: USE COUPON (open modal) ────────────────
+      if (customId.startsWith("checkout_coupon:")) {
+        const orderId = customId.replace("checkout_coupon:", "");
+        // Show modal for coupon code
+        await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: 9, // MODAL
+            data: {
+              custom_id: `coupon_modal_${orderId}`,
+              title: "Usar Cupom",
+              components: [{
+                type: 1,
+                components: [{
+                  type: 4, // TEXT_INPUT
+                  custom_id: "coupon_code",
+                  label: "Código do Cupom",
+                  style: 1,
+                  placeholder: "Digite o código do cupom...",
+                  required: true,
+                  min_length: 1,
+                  max_length: 50,
+                }],
+              }],
+            },
+          }),
+        });
+        return ok();
+      }
+
+      // ─── CHECKOUT: EDIT QUANTITY (open modal) ─────────────
+      if (customId.startsWith("checkout_quantity:")) {
+        const orderId = customId.replace("checkout_quantity:", "");
+        await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: 9,
+            data: {
+              custom_id: `quantity_modal_${orderId}`,
+              title: "Editar Quantidade",
+              components: [{
+                type: 1,
+                components: [{
+                  type: 4,
+                  custom_id: "quantity_value",
+                  label: "Quantidade",
+                  style: 1,
+                  placeholder: "1",
+                  required: true,
+                  min_length: 1,
+                  max_length: 3,
+                  value: "1",
+                }],
+              }],
+            },
+          }),
+        });
+        return ok();
+
       // ─── TICKET OPEN (from ticket embed button) ───────────
       if (customId.startsWith("ticket_open_")) {
         // Parse: ticket_open_{tenantId}_{channelId}
