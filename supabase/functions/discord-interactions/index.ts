@@ -501,6 +501,8 @@ serve(async (req) => {
         }
 
         const tenantId = product.tenant_id;
+        const guildId = interaction.guild_id;
+        const channelId = interaction.channel_id;
 
         // Check if product has fields (variations) - if so, require selection
         const { data: fields } = await supabase
@@ -562,8 +564,8 @@ serve(async (req) => {
           return ok();
         }
 
-        // No variations - buy directly at product price
-        await processPurchase(supabase, interaction, botToken, product, tenantId, userId, username, product.price_cents);
+        // No variations - create checkout thread
+        await processPurchase(supabase, interaction, botToken, product, tenantId, userId, username, product.price_cents, guildId, channelId);
         return ok();
       }
 
