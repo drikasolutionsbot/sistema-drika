@@ -65,7 +65,6 @@ serve(async (req) => {
       isAutoDelivery = !!product?.auto_delivery;
 
       if (isAutoDelivery) {
-        // Get delivery_quantity from the field (if specified)
         let deliveryQty = 1;
 
         if (fieldId) {
@@ -75,12 +74,8 @@ serve(async (req) => {
             .eq("id", fieldId)
             .eq("tenant_id", tenant_id)
             .single();
-
-          if (fieldData) {
-            deliveryQty = fieldData.delivery_quantity || 1;
-          }
+          if (fieldData) deliveryQty = fieldData.delivery_quantity || 1;
         } else {
-          // No field selected, check first field for delivery_quantity
           const { data: fields } = await supabase
             .from("product_fields")
             .select("delivery_quantity")
@@ -88,13 +83,9 @@ serve(async (req) => {
             .eq("tenant_id", tenant_id)
             .order("sort_order", { ascending: true })
             .limit(1);
-
-          if (fields && fields.length > 0) {
-            deliveryQty = fields[0].delivery_quantity || 1;
-          }
+          if (fields && fields.length > 0) deliveryQty = fields[0].delivery_quantity || 1;
         }
 
-        // Pull stock from PRODUCT-level general stock
         const { data: items } = await supabase
           .from("product_stock_items")
           .select("*")
@@ -106,7 +97,6 @@ serve(async (req) => {
 
         if (items && items.length > 0) {
           stockItems = items;
-
           const ids = items.map((i: any) => i.id);
           await supabase
             .from("product_stock_items")
@@ -123,163 +113,221 @@ serve(async (req) => {
     // 4. Get store config
     const { data: storeConfig } = await supabase
       .from("store_configs")
-      .select("logs_channel_id, sales_channel_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_channel_id, customer_role_id, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url")
+      .select("logs_channel_id, sales_channel_id, customer_role_id, embed_color, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url")
       .eq("tenant_id", tenant_id)
       .single();
 
-    // 5. Create a private thread for the delivery
-    // Resolve parent text channel from ticket_channel_id config
-    let parentChannelId: string | null = null;
-    const configuredChannelId = storeConfig?.ticket_channel_id || null;
+    const embedColor = parseInt((storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
+    const purchaseEmbedColor = parseInt((storeConfig?.purchase_embed_color || "#57F287").replace("#", ""), 16);
 
-    if (configuredChannelId) {
-      try {
-        const chInfoRes = await fetch(`${DISCORD_API}/channels/${configuredChannelId}`, {
-          headers: { Authorization: `Bot ${botToken}` },
-        });
-        if (chInfoRes.ok) {
-          const chInfo = await chInfoRes.json();
-          if (chInfo.type === 4) {
-            // Category — find first text channel inside
-            const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-              headers: { Authorization: `Bot ${botToken}` },
-            });
-            if (guildChRes.ok) {
-              const allChannels = await guildChRes.json();
-              const textCh = allChannels.find((c: any) => c.parent_id === configuredChannelId && c.type === 0);
-              if (textCh) parentChannelId = textCh.id;
-            }
-          } else if (chInfo.type === 0 || chInfo.type === 5) {
-            parentChannelId = configuredChannelId;
-          }
-        }
-      } catch (e) {
-        console.error("Error resolving ticket channel:", e);
+    // ═══════════════════════════════════════════════════════════
+    // 5. SEND "Pedido aprovado" in the CHECKOUT THREAD
+    // ═══════════════════════════════════════════════════════════
+    const checkoutThreadId = order.checkout_thread_id;
+
+    if (checkoutThreadId) {
+      // Determine payment provider label
+      const providerLabel = order.payment_provider === "pushinpay" ? "PushinPay"
+        : order.payment_provider === "efi" ? "EFI Bank"
+        : order.payment_provider === "mercadopago" ? "Mercado Pago"
+        : order.payment_provider === "misticpay" ? "Mistic Pay"
+        : order.payment_provider === "static_pix" ? "PIX Manual"
+        : order.payment_provider || "PIX";
+
+      await fetch(`${DISCORD_API}/channels/${checkoutThreadId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "🟢 Pedido aprovado",
+            description: `Seu pagamento foi aprovado, e o processo de entrega já foi iniciado.`,
+            color: purchaseEmbedColor,
+            fields: [
+              { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+              { name: "**Gateway de Pagamento**", value: providerLabel, inline: true },
+              { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: true },
+            ],
+            footer: {
+              text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              icon_url: tenant?.logo_url || undefined,
+            },
+          }],
+        }),
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 6. DELIVER VIA DM
+    // ═══════════════════════════════════════════════════════════
+    let dmChannelId: string | null = null;
+
+    try {
+      const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient_id: order.discord_user_id }),
+      });
+      if (dmRes.ok) {
+        const dm = await dmRes.json();
+        dmChannelId = dm.id;
       }
+    } catch (e) {
+      console.error("Failed to open DM channel:", e);
     }
 
-    // Fallback: try to find any text channel if no config
-    if (!parentChannelId) {
-      try {
-        const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
-          headers: { Authorization: `Bot ${botToken}` },
+    if (dmChannelId) {
+      // 6a. Send "Pagamento confirmado" embed
+      const providerLabel = order.payment_provider === "pushinpay" ? "PushinPay"
+        : order.payment_provider === "efi" ? "EFI Bank"
+        : order.payment_provider === "mercadopago" ? "Mercado Pago"
+        : order.payment_provider === "misticpay" ? "Mistic Pay"
+        : order.payment_provider || "PIX";
+
+      await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "🟢 Pagamento confirmado",
+            description: `Seu pagamento de **${formatBRL(order.total_cents)}** foi confirmado.`,
+            color: purchaseEmbedColor,
+            fields: [
+              { name: "**Detalhes**", value: `1x ${order.product_name}`, inline: false },
+              { name: "**Gateway de Pagamento**", value: providerLabel, inline: true },
+              { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: true },
+            ],
+            footer: {
+              text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              icon_url: tenant?.logo_url || undefined,
+            },
+          }],
+        }),
+      });
+
+      // 6b. Send stock content + .txt file (auto-delivery)
+      if (isAutoDelivery && stockItems.length > 0) {
+        const stockContent = stockItems.map((item: any) => item.content).join("\n");
+
+        // Send stock content as plain text first
+        await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ content: stockContent }),
         });
-        if (guildChRes.ok) {
-          const allChannels = await guildChRes.json();
-          const generalCh = allChannels.find((c: any) => c.type === 0);
-          if (generalCh) parentChannelId = generalCh.id;
-        }
-      } catch (e) {
-        console.error("Error finding fallback channel:", e);
+
+        // Send .txt file attachment
+        const blob = new Blob([stockContent], { type: "text/plain" });
+        const formData = new FormData();
+        formData.append("files[0]", blob, `${order.id}.txt`);
+        formData.append("payload_json", JSON.stringify({
+          attachments: [{ id: 0, filename: `${order.id}.txt`, description: "Produto entregue" }],
+        }));
+
+        await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}` },
+          body: formData,
+        });
       }
+
+      // 6c. Send "Entrega Realizada" embed with action buttons
+      const deliveryEmbed: any = {
+        title: `Pedido #${order.id}`,
+        description: isAutoDelivery && stockItems.length > 0
+          ? "**Entrega Realizada**\nSeu produto foi anexado a essa mensagem"
+          : isAutoDelivery
+          ? "**Estoque Esgotado**\n⚠️ Não há estoque disponível. Nossa equipe entrará em contato."
+          : "**Entrega Manual**\nSua compra foi registrada! Aguarde a entrega pela equipe.",
+        color: embedColor,
+        fields: [
+          { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+        ],
+        footer: {
+          text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+          icon_url: tenant?.logo_url || undefined,
+        },
+      };
+
+      const dmButtons: any[] = [];
+
+      if (isAutoDelivery && stockItems.length > 0) {
+        dmButtons.push({
+          type: 1,
+          components: [
+            { type: 2, style: 3, label: "Copiar produto entregue", emoji: { name: "📋" }, custom_id: `copy_delivered:${order.id}` },
+          ],
+        });
+      }
+
+      dmButtons.push({
+        type: 1,
+        components: [
+          { type: 2, style: 5, label: "Comprar novamente", emoji: { name: "💲" }, url: `https://discord.com/channels/${guildId}` },
+        ],
+      });
+
+      await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [deliveryEmbed],
+          components: dmButtons,
+        }),
+      });
     }
 
-    if (!parentChannelId) throw new Error("No text channel available for creating delivery thread");
+    // ═══════════════════════════════════════════════════════════
+    // 7. UPDATE CHECKOUT THREAD: completion + rename + archive
+    // ═══════════════════════════════════════════════════════════
+    if (checkoutThreadId && isAutoDelivery && stockItems.length > 0) {
+      // Send completion message in checkout thread
+      const dmLink = dmChannelId
+        ? `https://discord.com/channels/@me/${dmChannelId}`
+        : `https://discord.com/channels/@me`;
 
-    // Create private thread
-    const deliveryLabel = isAutoDelivery ? "⚡" : "📦";
-    const threadName = `${deliveryLabel}┃pedido-${order.order_number}`;
+      await fetch(`${DISCORD_API}/channels/${checkoutThreadId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            description: `✅ **Entrega realizada!** Verifique seu privado, esse ticket será excluído **em 2 minutos**`,
+            color: 0x57F287,
+          }],
+          components: [{
+            type: 1,
+            components: [{
+              type: 2,
+              style: 5,
+              label: "Ir para o pedido entregue",
+              url: dmLink,
+            }],
+          }],
+        }),
+      });
 
-    const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
-      method: "POST",
-      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: threadName.substring(0, 100),
-        type: 12, // GUILD_PRIVATE_THREAD
-        auto_archive_duration: 10080,
-      }),
-    });
+      // Rename thread to ✅ prefix
+      try {
+        const newName = `✅ • ${order.discord_username || order.discord_user_id} • ${order.order_number}`;
+        await fetch(`${DISCORD_API}/channels/${checkoutThreadId}`, {
+          method: "PATCH",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newName.substring(0, 100) }),
+        });
+      } catch {}
 
-    if (!createThreadRes.ok) {
-      const errText = await createThreadRes.text();
-      console.error("Failed to create delivery thread:", errText);
-      throw new Error(`Failed to create delivery thread: ${createThreadRes.status}`);
-    }
-
-    const ticketThread = await createThreadRes.json();
-    console.log(`Delivery thread created: ${ticketThread.id}`);
-
-    // Add buyer to the thread
-    await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${order.discord_user_id}`, {
-      method: "PUT",
-      headers: { Authorization: `Bot ${botToken}` },
-    });
-
-    // 6. Create ticket record in database
-    await supabase.from("tickets").insert({
-      tenant_id,
-      discord_user_id: order.discord_user_id,
-      discord_username: order.discord_username || null,
-      discord_channel_id: ticketThread.id,
-      order_id: order.id,
-      product_name: order.product_name,
-      status: isAutoDelivery && stockItems.length > 0 ? "delivered" : "open",
-    });
-
-    // 7. Build delivery embed
-    const embedColor = parseInt((storeConfig?.purchase_embed_color || "#57F287").replace("#", ""), 16);
-
-    const deliveryTypeLabel = isAutoDelivery ? "⚡ Entrega Automática" : "📦 Entrega Manual";
-    const deliveryStatusText = isAutoDelivery
-      ? (stockItems.length > 0
-        ? "Seu produto foi entregue automaticamente! Confira o arquivo anexo abaixo."
-        : "⚠️ Estoque esgotado. Nossa equipe entrará em contato.")
-      : "Sua compra foi registrada! Aguarde a entrega pela nossa equipe.";
-
-    const embed: any = {
-      title: storeConfig?.purchase_embed_title || "Compra realizada! ✅",
-      description: deliveryStatusText,
-      color: embedColor,
-      timestamp: new Date().toISOString(),
-      footer: { text: storeConfig?.purchase_embed_footer || tenant?.name || "Loja" },
-      fields: [
-        { name: "📦 Produto", value: order.product_name, inline: true },
-        { name: "🔢 Pedido", value: `#${order.order_number}`, inline: true },
-        { name: "💰 Total", value: formatBRL(order.total_cents), inline: true },
-        { name: "🚚 Tipo de Entrega", value: deliveryTypeLabel, inline: true },
-      ],
-    };
-
-    if (storeConfig?.purchase_embed_thumbnail_url) {
-      embed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
-    } else if (tenant?.logo_url) {
-      embed.thumbnail = { url: tenant.logo_url };
-    }
-
-    if (storeConfig?.purchase_embed_image_url) {
-      embed.image = { url: storeConfig.purchase_embed_image_url };
-    }
-
-    // Mention the buyer
-    const mentionContent = `<@${order.discord_user_id}> Seu pedido foi processado! 🎉`;
-
-    // Send message (with file if auto-delivery with stock)
-    const formData = new FormData();
-    const payload: any = { content: mentionContent, embeds: [embed] };
-
-    if (isAutoDelivery && stockItems.length > 0) {
-      const stockContent = stockItems.map((item: any) => item.content).join("\n");
-      const blob = new Blob([stockContent], { type: "text/plain" });
-      formData.append("files[0]", blob, `pedido-${order.order_number}.txt`);
-      payload.attachments = [{ id: 0, filename: `pedido-${order.order_number}.txt`, description: "Seu produto" }];
-    }
-
-    formData.append("payload_json", JSON.stringify(payload));
-
-    const sendRes = await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bot ${botToken}` },
-      body: formData,
-    });
-
-    if (!sendRes.ok) {
-      const errText = await sendRes.text();
-      console.error("Failed to send delivery message:", errText);
-    }
-
-    // For manual delivery: send a staff notification message
-    if (!isAutoDelivery) {
-      await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
+      // Archive after 2 minutes
+      setTimeout(async () => {
+        try {
+          await fetch(`${DISCORD_API}/channels/${checkoutThreadId}`, {
+            method: "PATCH",
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ archived: true, locked: true }),
+          });
+        } catch {}
+      }, 120000);
+    } else if (checkoutThreadId && !isAutoDelivery) {
+      // Manual delivery: keep thread open with staff notification
+      await fetch(`${DISCORD_API}/channels/${checkoutThreadId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -292,40 +340,12 @@ serve(async (req) => {
               { name: "📦 Produto", value: order.product_name, inline: true },
             ],
           }],
-          components: [
-            {
-              type: 1,
-              components: [
-                {
-                  type: 2,
-                  style: 3, // Success (green)
-                  label: "Marcar como Entregue",
-                  custom_id: `mark_delivered_${order.id}`,
-                },
-                {
-                  type: 2,
-                  style: 4, // Danger (red)
-                  label: "Cancelar Pedido",
-                  custom_id: `cancel_manual_${order.id}`,
-                },
-              ],
-            },
-          ],
-        }),
-      });
-    }
-
-    // If auto-delivery was successful, archive thread after a delay
-    if (isAutoDelivery && stockItems.length > 0) {
-      // Send a completion message
-      await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          embeds: [{
-            title: "✅ Entrega Concluída",
-            description: "Seu produto foi entregue automaticamente! Se precisar de ajuda, entre em contato.",
-            color: 0x57F287,
+          components: [{
+            type: 1,
+            components: [
+              { type: 2, style: 3, label: "Marcar como Entregue", custom_id: `mark_delivered_${order.id}` },
+              { type: 2, style: 4, label: "Cancelar Pedido", custom_id: `cancel_manual_${order.id}` },
+            ],
           }],
         }),
       });
@@ -352,17 +372,13 @@ serve(async (req) => {
       }
     }
 
-    // 9. Auto-assign customer role if configured
+    // 9. Auto-assign customer role
     if (storeConfig?.customer_role_id) {
       try {
-        const roleRes = await fetch(
+        await fetch(
           `${DISCORD_API}/guilds/${guildId}/members/${order.discord_user_id}/roles/${storeConfig.customer_role_id}`,
-          {
-            method: "PUT",
-            headers: { Authorization: `Bot ${botToken}` },
-          }
+          { method: "PUT", headers: { Authorization: `Bot ${botToken}` } }
         );
-        console.log(`Auto-assign customer role ${storeConfig.customer_role_id}: ${roleRes.status}`);
       } catch (roleErr) {
         console.error("Failed to assign customer role:", roleErr);
       }
@@ -388,25 +404,21 @@ serve(async (req) => {
           fields: [
             { name: "**Detalhes**", value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
             { name: "**ID do Pedido**", value: order.id, inline: false },
-            { name: "**Tipo**", value: isAutoDelivery ? "⚡ Automática" : "📦 Manual", inline: true },
           ],
           footer: { text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` },
           timestamp: new Date().toISOString(),
         };
 
         if (order.payment_provider) {
-          deliveryLogEmbed.fields.push({
-            name: "**Forma de Pagamento**",
-            value: `💎 ${order.payment_provider === "pushinpay" ? "Pix - PushinPay" : order.payment_provider === "efi" ? "Pix - Efi Bank" : order.payment_provider === "mercadopago" ? "Pix - Mercado Pago" : order.payment_provider}`,
-            inline: false,
-          });
+          const pLabel = order.payment_provider === "pushinpay" ? "Pix - PushinPay"
+            : order.payment_provider === "efi" ? "Pix - Efi Bank"
+            : order.payment_provider === "mercadopago" ? "Pix - Mercado Pago"
+            : order.payment_provider;
+          deliveryLogEmbed.fields.push({ name: "**Forma de Pagamento**", value: `💎 ${pLabel}`, inline: false });
         }
 
-        if (tenant?.logo_url) {
-          deliveryLogEmbed.thumbnail = { url: tenant.logo_url };
-        }
+        if (tenant?.logo_url) deliveryLogEmbed.thumbnail = { url: tenant.logo_url };
 
-        // Send with stock file attached if auto-delivery
         if (isAutoDelivery && stockItems.length > 0) {
           const stockContent = stockItems.map((item: any) => item.content).join("\n");
           const blob = new Blob([stockContent], { type: "text/plain" });
@@ -416,7 +428,6 @@ serve(async (req) => {
             embeds: [deliveryLogEmbed],
             attachments: [{ id: 0, filename: `pedido-${order.order_number}.txt`, description: "Conteúdo entregue" }],
           }));
-
           await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${botToken}` },
@@ -465,36 +476,20 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
         };
 
-        if (storeConfig?.purchase_embed_thumbnail_url) {
-          salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
-        }
-        if (storeConfig?.purchase_embed_image_url) {
-          salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
-        }
-
-        const salesPayload: any = {
-          embeds: [salesEmbed],
-          components: [
-            {
-              type: 1,
-              components: [
-                {
-                  type: 2,
-                  style: 5, // Link
-                  label: "Comprar",
-                  url: `https://discord.com/channels/${guildId}`,
-                },
-              ],
-            },
-          ],
-        };
+        if (storeConfig?.purchase_embed_thumbnail_url) salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
+        if (storeConfig?.purchase_embed_image_url) salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
 
         await fetch(`${DISCORD_API}/channels/${storeConfig.sales_channel_id}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify(salesPayload),
+          body: JSON.stringify({
+            embeds: [salesEmbed],
+            components: [{
+              type: 1,
+              components: [{ type: 2, style: 5, label: "Comprar", url: `https://discord.com/channels/${guildId}` }],
+            }],
+          }),
         });
-        console.log("Sales announcement sent");
       } catch (salesErr) {
         console.error("Failed to send sales announcement:", salesErr);
       }
@@ -505,7 +500,7 @@ serve(async (req) => {
       order_id,
       delivery_type: isAutoDelivery ? "automatic" : "manual",
       items_delivered: stockItems.length,
-      ticket_thread_id: ticketThread.id,
+      dm_channel_id: dmChannelId,
     };
 
     console.log("deliver-order result:", JSON.stringify(result));
@@ -533,10 +528,7 @@ async function executeHook(hook: any, order: any, tenant: any, botToken: string)
       if (!guildId || !config.role_id) return;
       await fetch(
         `${DISCORD_API}/guilds/${guildId}/members/${order.discord_user_id}/roles/${config.role_id}`,
-        {
-          method: "PUT",
-          headers: { Authorization: `Bot ${botToken}` },
-        }
+        { method: "PUT", headers: { Authorization: `Bot ${botToken}` } }
       );
       console.log(`Hook: added role ${config.role_id} to ${order.discord_user_id}`);
       break;
@@ -546,10 +538,7 @@ async function executeHook(hook: any, order: any, tenant: any, botToken: string)
       if (!guildId || !config.role_id) return;
       await fetch(
         `${DISCORD_API}/guilds/${guildId}/members/${order.discord_user_id}/roles/${config.role_id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bot ${botToken}` },
-        }
+        { method: "DELETE", headers: { Authorization: `Bot ${botToken}` } }
       );
       console.log(`Hook: removed role ${config.role_id} from ${order.discord_user_id}`);
       break;
