@@ -346,6 +346,29 @@ const HookConfigForm = ({
   onConfigChange: (key: string, value: unknown) => void;
 }) => {
   const config = hook.config as Record<string, string>;
+  const { tenantId } = useTenant();
+  const { roles, loading: rolesLoading } = useDiscordRoles(
+    hook.hook_type === "add_role" || hook.hook_type === "remove_role"
+  );
+  const [channels, setChannels] = useState<Array<{ id: string; name: string }>>([]);
+  const [channelsLoading, setChannelsLoading] = useState(false);
+
+  useEffect(() => {
+    if (hook.hook_type !== "send_channel_message" || !tenantId) return;
+    setChannelsLoading(true);
+    supabase.functions
+      .invoke("discord-channels", { body: { tenant_id: tenantId } })
+      .then(({ data }) => {
+        if (Array.isArray(data?.channels)) {
+          setChannels(
+            data.channels
+              .filter((c: any) => c.type === 0)
+              .map((c: any) => ({ id: c.id, name: c.name }))
+          );
+        }
+      })
+      .finally(() => setChannelsLoading(false));
+  }, [hook.hook_type, tenantId]);
 
   switch (hook.hook_type) {
     case "add_role":
@@ -353,15 +376,41 @@ const HookConfigForm = ({
       return (
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">ID do Cargo (Discord Role ID)</Label>
-            <Input
-              value={config.role_id || ""}
-              onChange={(e) => onConfigChange("role_id", e.target.value)}
-              placeholder="Ex: 1234567890123456789"
-              className="mt-1.5 h-9 bg-muted/50 border-border text-sm"
-            />
+            <Label className="text-xs">Cargo do Discord</Label>
+            {rolesLoading ? (
+              <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando cargos...
+              </div>
+            ) : (
+              <Select
+                value={config.role_id || ""}
+                onValueChange={(val) => onConfigChange("role_id", val)}
+              >
+                <SelectTrigger className="mt-1.5 h-9 bg-muted/50 border-border text-sm">
+                  <SelectValue placeholder="Selecione um cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full shrink-0"
+                          style={{
+                            backgroundColor:
+                              typeof role.color === "string" && role.color !== "#000000"
+                                ? role.color
+                                : "#99AAB5",
+                          }}
+                        />
+                        {role.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <p className="text-[11px] text-muted-foreground mt-1">
-              Copie o ID do cargo no Discord (Configurações → Cargos → Botão direito → Copiar ID)
+              Selecione o cargo que será {hook.hook_type === "add_role" ? "adicionado ao" : "removido do"} comprador
             </p>
           </div>
         </div>
@@ -389,13 +438,31 @@ const HookConfigForm = ({
       return (
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">ID do Canal (Discord Channel ID)</Label>
-            <Input
-              value={config.channel_id || ""}
-              onChange={(e) => onConfigChange("channel_id", e.target.value)}
-              placeholder="Ex: 1234567890123456789"
-              className="mt-1.5 h-9 bg-muted/50 border-border text-sm"
-            />
+            <Label className="text-xs">Canal do Discord</Label>
+            {channelsLoading ? (
+              <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando canais...
+              </div>
+            ) : (
+              <Select
+                value={config.channel_id || ""}
+                onValueChange={(val) => onConfigChange("channel_id", val)}
+              >
+                <SelectTrigger className="mt-1.5 h-9 bg-muted/50 border-border text-sm">
+                  <SelectValue placeholder="Selecione um canal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {channels.map((ch) => (
+                    <SelectItem key={ch.id} value={ch.id}>
+                      <div className="flex items-center gap-1.5">
+                        <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                        {ch.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div>
             <Label className="text-xs">Mensagem</Label>
