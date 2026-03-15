@@ -341,6 +341,37 @@ const TicketEmbedConfig = () => {
                 Quando um ticket for fechado, o transcript será enviado neste canal
               </p>
             </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5" />
+                Cargo de Staff (Gerenciar Tickets)
+              </Label>
+              <Select
+                value={data.ticket_staff_role_id || "none"}
+                onValueChange={(val) => update("ticket_staff_role_id", val === "none" ? "" : val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cargo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum (somente Administradores)</SelectItem>
+                  {discordRoles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full inline-block"
+                          style={{ backgroundColor: typeof role.color === "string" ? role.color : `#${(role.color as number).toString(16).padStart(6, "0")}` }}
+                        />
+                        {role.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Somente membros com este cargo poderão fechar, arquivar e deletar tickets
+              </p>
+            </div>
             <DiscordButtonStylePicker
               value={data.ticket_embed_button_style}
               onChange={(style) => update("ticket_embed_button_style", style)}
