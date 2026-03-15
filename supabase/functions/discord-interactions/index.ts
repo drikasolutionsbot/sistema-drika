@@ -2208,8 +2208,26 @@ async function processPurchase(
     }),
   });
 
-  // Tell the user to go to the thread
-  await editFollowup(interaction, botToken, `🛒 Carrinho criado! Acesse <#${checkoutThread.id}> para finalizar sua compra.`);
+  // Tell the user to go to the thread with a link button
+  const guildIdForLink = interaction.guild_id;
+  const threadLink = `https://discord.com/channels/${guildIdForLink}/${checkoutThread.id}`;
+  await editFollowup(interaction, botToken, {
+    content: "✅ | Seu carrinho foi criado com êxito.",
+    embeds: [],
+    components: [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 5, // Link button
+            label: "Ir para o carrinho",
+            url: threadLink,
+          },
+        ],
+      },
+    ],
+  });
 }
 
 // ─── Discord response helpers ───────────────────────────────
