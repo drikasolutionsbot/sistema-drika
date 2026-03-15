@@ -150,6 +150,7 @@ const TicketEmbedConfig = () => {
         ticket_embed_button_style: (savedConfig?.ticket_embed_button_style as DiscordButtonStyle) || data.ticket_embed_button_style,
         ticket_channel_id: savedConfig?.ticket_channel_id || data.ticket_channel_id,
         ticket_logs_channel_id: savedConfig?.ticket_logs_channel_id || data.ticket_logs_channel_id,
+        ticket_staff_role_id: savedConfig?.ticket_staff_role_id || data.ticket_staff_role_id,
       });
       toast.success("Configuração do ticket salva!");
       return true;
