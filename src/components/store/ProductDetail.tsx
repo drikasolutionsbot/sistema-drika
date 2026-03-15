@@ -186,9 +186,10 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
           <Button
             size="sm"
             onClick={handleSave}
+            disabled={saving}
             className="bg-foreground text-background hover:bg-foreground/90"
           >
-            Salvar
+            {saving ? "Salvando..." : "Salvar"}
           </Button>
         </div>
       )}
