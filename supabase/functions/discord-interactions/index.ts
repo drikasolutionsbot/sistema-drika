@@ -331,12 +331,43 @@ serve(async (req) => {
 
         const { data: existingTickets } = await supabase
           .from("tickets")
-          .select("id")
+          .select("id, discord_channel_id")
           .eq("tenant_id", tenant.id)
           .eq("discord_user_id", userId)
           .in("status", ["open", "in_progress"]);
 
+        // Verify threads still exist in Discord; auto-close stale ones
+        let hasRealOpenTicket = false;
         if (existingTickets && existingTickets.length > 0) {
+          for (const t of existingTickets) {
+            if (!t.discord_channel_id) {
+              await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id);
+              continue;
+            }
+            try {
+              const chRes = await fetch(`${DISCORD_API}/channels/${t.discord_channel_id}`, {
+                headers: { Authorization: `Bot ${botToken}` },
+              });
+              if (!chRes.ok) {
+                // Thread no longer exists — auto-close
+                await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id);
+              } else {
+                const chData = await chRes.json();
+                // Check if thread is archived
+                if (chData.thread_metadata?.archived) {
+                  await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id);
+                } else {
+                  hasRealOpenTicket = true;
+                }
+              }
+            } catch {
+              // On error, assume stale
+              await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id);
+            }
+          }
+        }
+
+        if (hasRealOpenTicket) {
           await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto.");
           return ok();
         }
