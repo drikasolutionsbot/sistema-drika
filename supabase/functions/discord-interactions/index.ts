@@ -1661,9 +1661,12 @@ serve(async (req) => {
       }
 
       if (customId.startsWith("ticket_close_")) {
-        // Only staff with MANAGE_THREADS can close tickets
-        const memberPermsClose = BigInt(interaction.member?.permissions || "0");
-        if (!(memberPermsClose & BigInt(0x4000000000)) && !(memberPermsClose & BigInt(0x8))) {
+        const ticketIdClose = customId.replace("ticket_close_", "");
+        const { data: closeTicketPerm } = await supabase.from("tickets").select("tenant_id").eq("id", ticketIdClose).single();
+        const closeTenantId = closeTicketPerm?.tenant_id;
+        
+        const isStaffClose = closeTenantId ? await checkTicketStaffPermission(supabase, botToken, closeTenantId, interaction.guild_id, userId, interaction.member) : false;
+        if (!isStaffClose) {
           await respondImmediate(interaction, "❌ Você não tem permissão para arquivar tickets.");
           return ok();
         }
