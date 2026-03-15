@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  Loader2,
 } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
+import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 
 interface Hook {
   id: string;
