@@ -351,9 +351,8 @@ const TicketEmbedConfig = () => {
               {(() => {
                 const selectedIds = data.ticket_staff_role_id ? data.ticket_staff_role_id.split(",").filter(Boolean) : [];
                 const selectedCount = selectedIds.length;
-                const [staffOpen, setStaffOpen] = useState(false);
                 return (
-                  <Popover open={staffOpen} onOpenChange={setStaffOpen}>
+                  <Popover open={staffRoleOpen} onOpenChange={setStaffRoleOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-between font-normal">
                         <span className="truncate">
@@ -361,7 +360,7 @@ const TicketEmbedConfig = () => {
                             ? "Selecione os cargos..."
                             : `${selectedCount} cargo${selectedCount > 1 ? "s" : ""} selecionado${selectedCount > 1 ? "s" : ""}`}
                         </span>
-                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${staffOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${staffRoleOpen ? "rotate-180" : ""}`} />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
@@ -387,10 +386,7 @@ const TicketEmbedConfig = () => {
                                 }}
                                 className="rounded border-border"
                               />
-                              <span
-                                className="w-3 h-3 rounded-full shrink-0"
-                                style={{ backgroundColor: roleColor }}
-                              />
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: roleColor }} />
                               <span className="text-sm">{role.name}</span>
                             </label>
                           );
