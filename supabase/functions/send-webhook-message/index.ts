@@ -111,13 +111,6 @@ serve(async (req) => {
           emoji: { name: "🛒" },
           custom_id: `buy_product:${product_id}`,
         },
-        {
-          type: 2,
-          style: 2,
-          label: "Detalhes",
-          emoji: { name: "ℹ" },
-          custom_id: `view_details:${product_id}`,
-        },
       ];
 
       payload.components = [
