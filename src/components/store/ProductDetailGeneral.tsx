@@ -116,7 +116,8 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             />
           </div>
         </div>
-
+        </div>
+      </section>
       {/* Section: Tipo de Entrega */}
       <section className="space-y-3">
         <div>
