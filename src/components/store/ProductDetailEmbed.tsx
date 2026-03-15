@@ -3,12 +3,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ProductDiscordPreview } from "./ProductDiscordPreview";
+import { DiscordButtonStylePicker, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
+
+export type EmbedBgStyle = "default" | "clean" | "transparent";
 
 export interface EmbedConfig {
   title?: string;
   description?: string;
   footer?: string;
   color?: string;
+  bg_style?: EmbedBgStyle;
   price_label?: string;
   stock_label?: string;
   delivery_auto_text?: string;
@@ -26,6 +30,7 @@ const DEFAULT_EMBED: EmbedConfig = {
   description: "",
   footer: "",
   color: "",
+  bg_style: "default",
   price_label: "Valor à vista",
   stock_label: "Restam",
   delivery_auto_text: "⚡ Entrega Automática!",
@@ -51,7 +56,7 @@ interface Product {
   banner_url?: string | null;
   auto_delivery?: boolean;
   category_id?: string | null;
-  button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
+  button_style?: DiscordButtonStyle;
   embed_config?: EmbedConfig;
 }
 
@@ -59,6 +64,12 @@ interface ProductDetailEmbedProps {
   product: Product;
   onChange: (updates: Partial<Product>) => void;
 }
+
+const bgOptions: { value: EmbedBgStyle; label: string; desc: string; preview: string }[] = [
+  { value: "default", label: "Padrão", desc: "Fundo escuro do Discord", preview: "#2f3136" },
+  { value: "clean", label: "Clean", desc: "Transparente sutil", preview: "rgba(0,0,0,0.15)" },
+  { value: "transparent", label: "Invisível", desc: "Sem fundo visível", preview: "transparent" },
+];
 
 export const ProductDetailEmbed = ({ product, onChange }: ProductDetailEmbedProps) => {
   const config: EmbedConfig = { ...DEFAULT_EMBED, ...(product.embed_config || {}) };
@@ -71,6 +82,57 @@ export const ProductDetailEmbed = ({ product, onChange }: ProductDetailEmbedProp
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Form */}
       <div className="space-y-6">
+        {/* Estilo do Botão */}
+        <section>
+          <DiscordButtonStylePicker
+            value={product.button_style || "success"}
+            onChange={(style) => onChange({ button_style: style })}
+            label="Estilo do Botão de Compra"
+          />
+        </section>
+
+        {/* Fundo do Embed */}
+        <section className="space-y-3">
+          <h3 className="text-base font-bold text-foreground">Fundo do Embed</h3>
+          <p className="text-xs text-muted-foreground">Estilo do fundo da embed no Discord</p>
+          <div className="flex gap-2">
+            {bgOptions.map((opt) => {
+              const selected = (config.bg_style || "default") === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => update("bg_style", opt.value)}
+                  className={`flex flex-col items-center gap-2 rounded-xl border-2 px-5 py-3 transition-all ${
+                    selected
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  {/* Mini preview */}
+                  <div className="w-12 h-8 rounded border border-white/10 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[#313338]" />
+                    <div
+                      className="absolute inset-[2px] rounded-sm"
+                      style={{
+                        backgroundColor: opt.preview,
+                        borderLeft: `3px solid ${config.color || "#5865F2"}`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-semibold text-foreground">{opt.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{opt.desc}</p>
+                  </div>
+                  {selected && (
+                    <div className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         {/* Cor do Embed */}
         <section className="space-y-3">
           <h3 className="text-base font-bold text-foreground">Cor do Embed</h3>
