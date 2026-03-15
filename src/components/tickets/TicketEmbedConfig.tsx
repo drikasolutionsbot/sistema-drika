@@ -40,6 +40,7 @@ const defaults: TicketEmbedData = {
   ticket_embed_button_style: "glass",
   ticket_channel_id: "",
   ticket_logs_channel_id: "",
+  ticket_staff_role_id: "",
 };
 
 const TicketEmbedConfig = () => {
