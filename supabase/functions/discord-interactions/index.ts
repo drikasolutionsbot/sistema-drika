@@ -122,14 +122,18 @@ async function checkTicketStaffPermission(
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  const staffRoleId = config?.ticket_staff_role_id;
+  const staffRoleIdRaw = config?.ticket_staff_role_id;
   
   // If no staff role configured, only admins can manage
-  if (!staffRoleId) return false;
+  if (!staffRoleIdRaw) return false;
 
-  // Check if user has the staff role
+  // Support comma-separated role IDs
+  const staffRoleIds = staffRoleIdRaw.split(",").map((id: string) => id.trim()).filter(Boolean);
+  if (staffRoleIds.length === 0) return false;
+
+  // Check if user has any of the staff roles
   const memberRoles: string[] = member?.roles || [];
-  return memberRoles.includes(staffRoleId);
+  return staffRoleIds.some((roleId: string) => memberRoles.includes(roleId));
 }
 
 serve(async (req) => {

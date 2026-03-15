@@ -344,32 +344,42 @@ const TicketEmbedConfig = () => {
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5" />
-                Cargo de Staff (Gerenciar Tickets)
+                Cargos de Staff (Gerenciar Tickets)
               </Label>
-              <Select
-                value={data.ticket_staff_role_id || "none"}
-                onValueChange={(val) => update("ticket_staff_role_id", val === "none" ? "" : val)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cargo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum (somente Administradores)</SelectItem>
-                  {discordRoles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="w-3 h-3 rounded-full inline-block"
-                          style={{ backgroundColor: typeof role.color === "string" ? role.color : `#${(role.color as number).toString(16).padStart(6, "0")}` }}
-                        />
-                        {role.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2 rounded-lg border border-border p-3 max-h-48 overflow-y-auto">
+                {discordRoles.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhum cargo encontrado</p>
+                )}
+                {discordRoles.map((role) => {
+                  const selectedIds = data.ticket_staff_role_id ? data.ticket_staff_role_id.split(",").filter(Boolean) : [];
+                  const isSelected = selectedIds.includes(role.id);
+                  const roleColor = typeof role.color === "string" ? role.color : `#${(role.color as number).toString(16).padStart(6, "0")}`;
+                  return (
+                    <label
+                      key={role.id}
+                      className={`flex items-center gap-2.5 p-2 rounded-md cursor-pointer transition-colors ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          const ids = data.ticket_staff_role_id ? data.ticket_staff_role_id.split(",").filter(Boolean) : [];
+                          const newIds = isSelected ? ids.filter((id) => id !== role.id) : [...ids, role.id];
+                          update("ticket_staff_role_id", newIds.join(","));
+                        }}
+                        className="rounded border-border"
+                      />
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: roleColor }}
+                      />
+                      <span className="text-sm">{role.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Somente membros com este cargo poderão fechar, arquivar e deletar tickets
+                Membros com qualquer um desses cargos poderão fechar, arquivar e deletar tickets
               </p>
             </div>
             <DiscordButtonStylePicker
