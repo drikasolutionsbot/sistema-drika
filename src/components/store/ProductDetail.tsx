@@ -67,9 +67,15 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
     setDirty(true);
   };
 
-  const handleSave = () => {
-    onSave(edited);
-    setDirty(false);
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const ok = await onSave(edited);
+      if (ok) setDirty(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDiscard = () => {
