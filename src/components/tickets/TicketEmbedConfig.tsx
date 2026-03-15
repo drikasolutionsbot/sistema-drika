@@ -125,6 +125,7 @@ const TicketEmbedConfig = () => {
         ticket_embed_button_style: data.ticket_embed_button_style || "glass",
         ticket_channel_id: data.ticket_channel_id || null,
         ticket_logs_channel_id: data.ticket_logs_channel_id || null,
+        ticket_staff_role_id: data.ticket_staff_role_id || null,
       };
 
       const { data: savedConfig, error } = await supabase.functions.invoke("manage-store-config", {
