@@ -49,6 +49,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
   const { tenantId } = useTenant();
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [embedColor, setEmbedColor] = useState("#5865F2");
 
