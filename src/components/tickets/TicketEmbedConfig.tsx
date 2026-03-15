@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
+import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 
 interface TicketEmbedData {
   ticket_embed_title: string;
