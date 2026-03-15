@@ -1,6 +1,7 @@
 import { Eye } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
+import { type EmbedConfig, DEFAULT_EMBED } from "./ProductDetailEmbed";
 
 interface Product {
   id: string;
@@ -31,6 +32,7 @@ interface ProductDiscordPreviewProps {
   storeName?: string;
   fields?: PreviewField[];
   embedColor?: string;
+  embedConfig?: EmbedConfig;
 }
 
 const formatPrice = (cents: number) =>
@@ -42,13 +44,21 @@ const typeLabels: Record<string, string> = {
   hybrid: "Híbrido",
 };
 
-export const ProductDiscordPreview = ({ product, storeName, fields = [], embedColor }: ProductDiscordPreviewProps) => {
+export const ProductDiscordPreview = ({ product, storeName, fields = [], embedColor, embedConfig }: ProductDiscordPreviewProps) => {
   const { tenant } = useTenant();
   const botName = storeName || tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
-  const sideColor = embedColor || "#5865F2";
+  const cfg: EmbedConfig = { ...DEFAULT_EMBED, ...embedConfig };
+  const sideColor = embedColor || cfg.color || "#5865F2";
 
-  // Helper to render emoji - handles both unicode and discord custom format
+  const resolveTemplate = (tpl: string, fallback: string) => {
+    if (!tpl) return fallback;
+    return tpl.replace(/\{nome\}/g, product.name || "Produto sem nome");
+  };
+
+  const title = resolveTemplate(cfg.title || "", `${product.icon_url ? "" : "🛒 "}${product.name || "Produto sem nome"}`);
+  const description = cfg.description ? resolveTemplate(cfg.description, "") : product.description;
+
   const renderEmoji = (emoji: string | null) => {
     if (!emoji) return null;
     const match = emoji.match(/^<a?:(\w+):(\d+)>$/);
@@ -64,6 +74,7 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
     }
     return <span>{emoji}</span>;
   };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
@@ -71,7 +82,6 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
         Preview no Discord
       </div>
 
-      {/* Discord embed */}
       <div className="bg-[#313338] rounded-lg p-4 max-w-sm">
         {/* Bot header */}
         <div className="flex items-center gap-2 mb-2">
@@ -90,35 +100,38 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
         <div className="flex rounded" style={{ borderLeft: `4px solid ${sideColor}` }}>
           <div className="flex-1 p-3 space-y-2">
             {/* Title */}
-            <p className="text-white font-semibold text-sm">
-              {product.icon_url ? "" : "🛒 "}
-              {product.name || "Produto sem nome"}
-            </p>
+            <p className="text-white font-semibold text-sm">{title}</p>
 
             {/* Delivery badge */}
-            {product.auto_delivery ? (
-              <p className="text-[#57F287] text-xs font-semibold">⚡ Entrega Automática!</p>
-            ) : (
-              <p className="text-[#FEE75C] text-xs font-semibold">📦 Entrega Manual</p>
+            {cfg.show_delivery_badge !== false && (
+              product.auto_delivery ? (
+                <p className="text-[#57F287] text-xs font-semibold">{cfg.delivery_auto_text || "⚡ Entrega Automática!"}</p>
+              ) : (
+                <p className="text-[#FEE75C] text-xs font-semibold">{cfg.delivery_manual_text || "📦 Entrega Manual"}</p>
+              )
             )}
 
             {/* Description */}
-            {product.description && (
+            {description && (
               <p className="text-[#dcddde] text-xs whitespace-pre-wrap line-clamp-4">
-                {product.description}
+                {description}
               </p>
             )}
 
             {/* Fields */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
-              <div>
-                <p className="text-[#dcddde] text-[10px] font-semibold">**Valor à vista**</p>
-                <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
-              </div>
-              <div>
-                <p className="text-[#dcddde] text-[10px] font-semibold">Restam</p>
-                <p className="text-[#dcddde] text-xs">{product.stock ?? 0}</p>
-              </div>
+              {cfg.show_price !== false && (
+                <div>
+                  <p className="text-[#dcddde] text-[10px] font-semibold">**{cfg.price_label || "Valor à vista"}**</p>
+                  <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
+                </div>
+              )}
+              {cfg.show_stock_field !== false && (
+                <div>
+                  <p className="text-[#dcddde] text-[10px] font-semibold">{cfg.stock_label || "Restam"}</p>
+                  <p className="text-[#dcddde] text-xs">{product.stock ?? 0}</p>
+                </div>
+              )}
             </div>
 
             {/* Banner */}
@@ -131,11 +144,15 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             )}
 
             {/* Footer */}
-            <div className="flex items-center gap-1 mt-2 pt-1 border-t border-[#3f4147]">
-              <p className="text-[#72767d] text-[10px]">
-                {product.active ? "✅ Disponível" : "❌ Indisponível"} • Compre agora!
-              </p>
-            </div>
+            {cfg.show_footer !== false && (
+              <div className="flex items-center gap-1 mt-2 pt-1 border-t border-[#3f4147]">
+                <p className="text-[#72767d] text-[10px]">
+                  {product.active
+                    ? (cfg.footer_available_text || "✅ Disponível • Compre agora!")
+                    : (cfg.footer_unavailable_text || "❌ Indisponível")}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Thumbnail */}
@@ -182,18 +199,18 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             const isGlass = style === "glass";
             const isLink = style === "link";
             const styleConfig = getDiscordButtonStyles(style);
-            
+
             const buttonClasses = isGlass
               ? "bg-white/10 backdrop-blur-sm border border-white/20 text-white"
               : isLink
                 ? "bg-transparent text-[#00AFF4] underline"
                 : "";
-            
+
             const buttonStyle = !isGlass && !isLink ? {
               backgroundColor: styleConfig.bgColor,
               color: styleConfig.textColor,
             } : undefined;
-            
+
             return (
               <>
                 <button

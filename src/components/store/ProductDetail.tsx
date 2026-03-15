@@ -8,6 +8,7 @@ import { ProductDetailGeneral } from "./ProductDetailGeneral";
 import { ProductDetailFields } from "./ProductDetailFields";
 import { ProductDetailHooks } from "./ProductDetailHooks";
 import { ProductDetailStock } from "./ProductDetailStock";
+import { ProductDetailEmbed, type EmbedConfig } from "./ProductDetailEmbed";
 import { PostMessageModal } from "./PostMessageModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
