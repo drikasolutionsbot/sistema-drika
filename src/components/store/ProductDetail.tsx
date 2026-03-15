@@ -164,6 +164,10 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
               <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
             </TabsContent>
 
+            <TabsContent value="embed" className="mt-0">
+              <ProductDetailEmbed product={edited} onChange={handleChange} />
+            </TabsContent>
+
             <TabsContent value="campos" className="mt-0">
               <ProductDetailFields productId={product.id} />
             </TabsContent>
