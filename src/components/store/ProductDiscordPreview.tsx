@@ -1,4 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import { Eye } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 import { type EmbedConfig, DEFAULT_EMBED } from "./ProductDetailEmbed";
@@ -45,12 +47,28 @@ const typeLabels: Record<string, string> = {
 };
 
 export const ProductDiscordPreview = ({ product, storeName, fields = [], embedColor, embedConfig }: ProductDiscordPreviewProps) => {
-  const { tenant } = useTenant();
+  const { tenant, tenantId } = useTenant();
   const botName = storeName || tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
   const cfg: EmbedConfig = { ...DEFAULT_EMBED, ...embedConfig };
   const sideColor = embedColor || cfg.color || "#5865F2";
   const bgStyle = cfg.bg_style || "default";
+
+  const { data: realStockCount = product.stock ?? 0 } = useQuery({
+    queryKey: ["product-discord-preview-stock", tenantId, product.id],
+    enabled: Boolean(tenantId && product.id),
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("product_stock_items")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId!)
+        .eq("product_id", product.id)
+        .eq("delivered", false);
+
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const embedBgMap: Record<string, string> = {
     default: "#2f3136",
