@@ -240,11 +240,19 @@ const DashboardPage = () => {
   };
 
   const openServerModal = async () => {
+    if (!tenantId) {
+      toast.error("Tenant não encontrado.");
+      return;
+    }
+
+    const tokenSession = sessionStorage.getItem("token_session");
+    const tokenData = tokenSession ? JSON.parse(tokenSession) : null;
+
     setServerModalOpen(true);
     setLoadingGuilds(true);
     try {
       const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: { tenant_id: tenantId },
+        body: { tenant_id: tenantId, token: tokenData?.token || null },
       });
       if (error) throw error;
       setGuilds(Array.isArray(data) ? data : []);

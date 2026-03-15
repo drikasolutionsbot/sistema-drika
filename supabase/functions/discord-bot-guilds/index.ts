@@ -14,77 +14,141 @@ serve(async (req) => {
 
   try {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     if (!botToken) throw new Error("Bot token not configured");
 
-    // Parse tenant_id from request body (optional for backward compat)
-    let tenantId: string | null = null;
+    let tenantIdFromBody: string | null = null;
+    let accessToken: string | null = null;
+
     try {
       const body = await req.json();
-      tenantId = body?.tenant_id || null;
+      tenantIdFromBody = body?.tenant_id || null;
+      accessToken = body?.token || null;
     } catch {
-      // No body sent — backward compat
+      // body opcional
     }
 
-    // Fetch all guilds the bot is in
-    const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+    let resolvedTenantId: string | null = null;
+
+    // 1) Token de acesso (sessão por token) tem prioridade e resolve tenant no backend
+    if (accessToken) {
+      const { data: tokenRecord, error: tokenError } = await admin
+        .from("access_tokens")
+        .select("tenant_id, expires_at")
+        .eq("token", accessToken)
+        .eq("revoked", false)
+        .single();
+
+      if (tokenError || !tokenRecord) {
+        return new Response(JSON.stringify({ error: "Token inválido" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: "Token expirado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      resolvedTenantId = tokenRecord.tenant_id;
+    }
+
+    // 2) Usuário autenticado via Supabase Auth + tenant_id informado
+    if (!resolvedTenantId && tenantIdFromBody) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Não autorizado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const {
+        data: { user },
+        error: userError,
+      } = await userClient.auth.getUser();
+
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Não autorizado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: membership } = await admin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("tenant_id", tenantIdFromBody)
+        .limit(1)
+        .maybeSingle();
+
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Acesso negado para este tenant" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      resolvedTenantId = tenantIdFromBody;
+    }
+
+    // Busca guilds atuais do bot no Discord
+    const discordResponse = await fetch("https://discord.com/api/v10/users/@me/guilds", {
       headers: { Authorization: `Bot ${botToken}` },
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Discord API error [${res.status}]: ${text}`);
+    if (!discordResponse.ok) {
+      const text = await discordResponse.text();
+      throw new Error(`Discord API error [${discordResponse.status}]: ${text}`);
     }
 
-    const guilds = await res.json();
-
+    const guilds = await discordResponse.json();
     const mapped = guilds.map((g: any) => ({
       id: g.id,
       name: g.name,
-      icon: g.icon
-        ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`
-        : null,
+      icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
     }));
 
-    // If tenant_id provided, filter to only show:
-    // 1. The tenant's own guild
-    // 2. Guilds not claimed by ANY other tenant
-    if (tenantId) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-      // Get the current tenant's guild
-      const { data: currentTenant } = await supabase
+    // Dashboard/cliente: retorna SOMENTE o servidor atual do tenant
+    if (resolvedTenantId) {
+      const { data: tenant } = await admin
         .from("tenants")
         .select("discord_guild_id")
-        .eq("id", tenantId)
+        .eq("id", resolvedTenantId)
         .single();
 
-      const myGuildId = currentTenant?.discord_guild_id;
+      const currentGuildId = tenant?.discord_guild_id;
+      const onlyCurrentGuild = currentGuildId
+        ? mapped.filter((g: any) => g.id === currentGuildId)
+        : [];
 
-      // Get all guild IDs claimed by OTHER tenants
-      const { data: otherTenants } = await supabase
-        .from("tenants")
-        .select("discord_guild_id")
-        .neq("id", tenantId)
-        .not("discord_guild_id", "is", null);
-
-      const claimedGuildIds = new Set(
-        (otherTenants || []).map((t: any) => t.discord_guild_id).filter(Boolean)
-      );
-
-      // Filter: show only my guild + unclaimed guilds
-      const filtered = mapped.filter((g: any) =>
-        g.id === myGuildId || !claimedGuildIds.has(g.id)
-      );
-
-      return new Response(JSON.stringify(filtered), {
+      return new Response(JSON.stringify(onlyCurrentGuild), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // No tenant_id: return all (backward compat for onboarding)
-    return new Response(JSON.stringify(mapped), {
+    // Onboarding sem tenant: apenas servidores ainda não vinculados a ninguém
+    const { data: claimedRows } = await admin
+      .from("tenants")
+      .select("discord_guild_id")
+      .not("discord_guild_id", "is", null);
+
+    const claimedIds = new Set((claimedRows || []).map((row: any) => row.discord_guild_id).filter(Boolean));
+    const unclaimedGuilds = mapped.filter((g: any) => !claimedIds.has(g.id));
+
+    return new Response(JSON.stringify(unclaimedGuilds), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

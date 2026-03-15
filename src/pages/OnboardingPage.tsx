@@ -91,7 +91,9 @@ const OnboardingPage = () => {
   const fetchBotGuilds = async () => {
     setGuildsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds");
+      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: {},
+      });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const list = Array.isArray(data) ? data : [];
