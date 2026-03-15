@@ -39,6 +39,7 @@ interface PostMessageModalProps {
     icon_url?: string | null;
     banner_url?: string | null;
     auto_delivery?: boolean;
+    embed_config?: Record<string, any>;
   };
   embedColor?: string;
 }
