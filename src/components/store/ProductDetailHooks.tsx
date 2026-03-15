@@ -355,17 +355,31 @@ const HookConfigForm = ({
 
   useEffect(() => {
     if (hook.hook_type !== "send_channel_message" || !tenantId) return;
+
     setChannelsLoading(true);
     supabase.functions
       .invoke("discord-channels", { body: { tenant_id: tenantId } })
-      .then(({ data }) => {
-        if (Array.isArray(data?.channels)) {
-          setChannels(
-            data.channels
-              .filter((c: any) => c.type === 0)
-              .map((c: any) => ({ id: c.id, name: c.name }))
-          );
-        }
+      .then(({ data, error }) => {
+        if (error) throw error;
+
+        const parsedChannels = Array.isArray(data)
+          ? data.filter((c: any) => c?.type === 0)
+          : Array.isArray(data?.channels)
+            ? data.channels
+            : [];
+
+        const uniqueChannels = Array.from(
+          new Map(
+            parsedChannels
+              .filter((c: any) => c?.id && c?.name)
+              .map((c: any) => [c.id, { id: c.id, name: c.name }])
+          ).values()
+        );
+
+        setChannels(uniqueChannels);
+      })
+      .catch(() => {
+        setChannels([]);
       })
       .finally(() => setChannelsLoading(false));
   }, [hook.hook_type, tenantId]);
