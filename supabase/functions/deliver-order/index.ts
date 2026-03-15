@@ -592,3 +592,17 @@ async function executeHook(hook: any, order: any, tenant: any, botToken: string)
     }
   }
 }
+
+// Replace all supported placeholders in hook messages
+function replaceHookPlaceholders(message: string, order: any): string {
+  return message
+    .replace(/\{user\}/g, `<@${order.discord_user_id}>`)
+    .replace(/\{user_id\}/g, order.discord_user_id || "")
+    .replace(/\{username\}/g, order.discord_username || "")
+    .replace(/\{product\}/g, order.product_name || "")
+    .replace(/\{product_name\}/g, order.product_name || "")
+    .replace(/\{order\}/g, `#${order.order_number}`)
+    .replace(/\{order_id\}/g, order.id || "")
+    .replace(/\{order_number\}/g, String(order.order_number || ""))
+    .replace(/\{total\}/g, formatBRL(order.total_cents || 0));
+}
