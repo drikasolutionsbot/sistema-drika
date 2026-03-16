@@ -1421,13 +1421,13 @@ serve(async (req) => {
       // ─── TICKET DELETE (permanently delete channel) ────────
       if (customId.startsWith("ticket_delete_")) {
         const ticketIdDel = customId.replace("ticket_delete_", "");
+        console.log(`[TICKET_DELETE] ticketId=${ticketIdDel}`);
         const { data: delTicket } = await supabase.from("tickets").select("tenant_id").eq("id", ticketIdDel).single();
         const delTenantId = delTicket?.tenant_id;
         
         const isStaffDel = delTenantId ? await checkTicketStaffPermission(supabase, botToken, delTenantId, interaction.guild_id, userId, interaction.member) : false;
         if (!isStaffDel) {
-          await respondImmediate(interaction, "❌ Você não tem permissão para deletar tickets.");
-          return ok();
+          return respondImmediate(interaction, "❌ Você não tem permissão para deletar tickets.");
         }
 
         const ticketId = customId.replace("ticket_delete_", "");
