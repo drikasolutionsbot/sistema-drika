@@ -103,15 +103,25 @@ serve(async (req) => {
       };
       const discordBuyStyle = styleMap[product?.button_style || "success"] || 3;
 
-      const buyLabel = (product?.embed_config as any)?.buy_button_label || "Comprar";
-      const buttons: any[] = [
-        {
-          type: 2, // Button
-          style: discordBuyStyle,
-          label: buyLabel,
-          custom_id: `buy_product:${product_id}`,
-        },
-      ];
+      const rawBuyLabel = (product?.embed_config as any)?.buy_button_label || "Comprar";
+      const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(rawBuyLabel);
+
+      const buyButton: any = {
+        type: 2,
+        style: discordBuyStyle,
+        label: btnLabel || "Comprar",
+        custom_id: `buy_product:${product_id}`,
+      };
+
+      if (btnEmoji) {
+        if (isCustom && customId) {
+          buyButton.emoji = { id: customId, name: customName, animated: !!animated };
+        } else {
+          buyButton.emoji = { name: btnEmoji };
+        }
+      }
+
+      const buttons: any[] = [buyButton];
 
       payload.components = [
         {
