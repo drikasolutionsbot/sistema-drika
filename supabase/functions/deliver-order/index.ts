@@ -351,26 +351,7 @@ serve(async (req) => {
       });
     }
 
-    // 8. Execute product hooks
-    if (order.product_id) {
-      const { data: hooks } = await supabase
-        .from("product_hooks")
-        .select("*")
-        .eq("product_id", order.product_id)
-        .eq("tenant_id", tenant_id)
-        .eq("active", true)
-        .order("sort_order", { ascending: true });
-
-      if (hooks && hooks.length > 0) {
-        for (const hook of hooks) {
-          try {
-            await executeHook(hook, order, tenant, botToken);
-          } catch (hookErr) {
-            console.error(`Hook ${hook.hook_type} failed:`, hookErr);
-          }
-        }
-      }
-    }
+    // 8. (Hooks removed)
 
     // 9. Auto-assign customer role
     if (storeConfig?.customer_role_id) {
@@ -518,91 +499,3 @@ serve(async (req) => {
   }
 });
 
-// ─── Hook executor ─────────────────────────────────────────────────
-async function executeHook(hook: any, order: any, tenant: any, botToken: string) {
-  const config = hook.config || {};
-  const guildId = tenant?.discord_guild_id;
-
-  switch (hook.hook_type) {
-    case "add_role": {
-      if (!guildId || !config.role_id) return;
-      await fetch(
-        `${DISCORD_API}/guilds/${guildId}/members/${order.discord_user_id}/roles/${config.role_id}`,
-        { method: "PUT", headers: { Authorization: `Bot ${botToken}` } }
-      );
-      console.log(`Hook: added role ${config.role_id} to ${order.discord_user_id}`);
-      break;
-    }
-
-    case "remove_role": {
-      if (!guildId || !config.role_id) return;
-      await fetch(
-        `${DISCORD_API}/guilds/${guildId}/members/${order.discord_user_id}/roles/${config.role_id}`,
-        { method: "DELETE", headers: { Authorization: `Bot ${botToken}` } }
-      );
-      console.log(`Hook: removed role ${config.role_id} from ${order.discord_user_id}`);
-      break;
-    }
-
-    case "send_dm": {
-      if (!config.message) return;
-      const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient_id: order.discord_user_id }),
-      });
-      if (dmRes.ok) {
-        const dm = await dmRes.json();
-        const msg = replaceHookPlaceholders(config.message, order);
-        await fetch(`${DISCORD_API}/channels/${dm.id}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: msg }),
-        });
-      }
-      break;
-    }
-
-    case "send_channel_message": {
-      if (!config.channel_id || !config.message) return;
-      const msg = replaceHookPlaceholders(config.message, order);
-      await fetch(`${DISCORD_API}/channels/${config.channel_id}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ content: msg }),
-      });
-      break;
-    }
-
-    case "call_webhook": {
-      if (!config.url) return;
-      await fetch(config.url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id: order.id,
-          order_number: order.order_number,
-          product_name: order.product_name,
-          discord_user_id: order.discord_user_id,
-          discord_username: order.discord_username,
-          total_cents: order.total_cents,
-        }),
-      });
-      break;
-    }
-  }
-}
-
-// Replace all supported placeholders in hook messages
-function replaceHookPlaceholders(message: string, order: any): string {
-  return message
-    .replace(/\{user\}/g, `<@${order.discord_user_id}>`)
-    .replace(/\{user_id\}/g, order.discord_user_id || "")
-    .replace(/\{username\}/g, order.discord_username || "")
-    .replace(/\{product\}/g, order.product_name || "")
-    .replace(/\{product_name\}/g, order.product_name || "")
-    .replace(/\{order\}/g, `#${order.order_number}`)
-    .replace(/\{order_id\}/g, order.id || "")
-    .replace(/\{order_number\}/g, String(order.order_number || ""))
-    .replace(/\{total\}/g, formatBRL(order.total_cents || 0));
-}

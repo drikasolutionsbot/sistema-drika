@@ -6,7 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductDetailGeneral } from "./ProductDetailGeneral";
 import { ProductDetailFields } from "./ProductDetailFields";
-import { ProductDetailHooks } from "./ProductDetailHooks";
+
 import { ProductDetailStock } from "./ProductDetailStock";
 import { ProductDetailEmbed, type EmbedConfig } from "./ProductDetailEmbed";
 import { PostMessageModal } from "./PostMessageModal";
@@ -155,7 +155,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
               <TabsTrigger value="embed">Embed</TabsTrigger>
               <TabsTrigger value="campos">Campos</TabsTrigger>
               <TabsTrigger value="estoque">Estoque</TabsTrigger>
-              <TabsTrigger value="hooks">Hooks</TabsTrigger>
+              
             </TabsList>
           </div>
 
@@ -176,9 +176,6 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
               <ProductDetailStock productId={product.id} />
             </TabsContent>
 
-            <TabsContent value="hooks" className="mt-0">
-              <ProductDetailHooks productId={product.id} />
-            </TabsContent>
           </div>
         </Tabs>
       </div>
