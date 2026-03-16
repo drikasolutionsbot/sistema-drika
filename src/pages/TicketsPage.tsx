@@ -45,9 +45,22 @@ const TicketsPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const { data: tickets = [], isLoading, refetch } = useTenantQuery<TicketItem>("tickets", "tickets", {
-    orderBy: "created_at",
-    ascending: false,
+  const { data: tickets = [], isLoading, refetch } = useQuery<TicketItem[]>({
+    queryKey: ["tickets", tenantId],
+    enabled: Boolean(tenantId),
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase.functions.invoke("manage-tickets", {
+        body: {
+          action: "list",
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return (data?.tickets ?? []) as TicketItem[];
+    },
   });
 
   // Realtime subscription for tickets
