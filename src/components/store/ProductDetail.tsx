@@ -176,9 +176,6 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
               <ProductDetailStock productId={product.id} />
             </TabsContent>
 
-            <TabsContent value="hooks" className="mt-0">
-              <ProductDetailHooks productId={product.id} />
-            </TabsContent>
           </div>
         </Tabs>
       </div>
