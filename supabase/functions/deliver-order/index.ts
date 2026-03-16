@@ -351,26 +351,7 @@ serve(async (req) => {
       });
     }
 
-    // 8. Execute product hooks
-    if (order.product_id) {
-      const { data: hooks } = await supabase
-        .from("product_hooks")
-        .select("*")
-        .eq("product_id", order.product_id)
-        .eq("tenant_id", tenant_id)
-        .eq("active", true)
-        .order("sort_order", { ascending: true });
-
-      if (hooks && hooks.length > 0) {
-        for (const hook of hooks) {
-          try {
-            await executeHook(hook, order, tenant, botToken);
-          } catch (hookErr) {
-            console.error(`Hook ${hook.hook_type} failed:`, hookErr);
-          }
-        }
-      }
-    }
+    // 8. (Hooks removed)
 
     // 9. Auto-assign customer role
     if (storeConfig?.customer_role_id) {
