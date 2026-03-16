@@ -11,8 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { useTenantQuery } from "@/hooks/useSupabaseQuery";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -46,9 +45,22 @@ const TicketsPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const { data: tickets = [], isLoading, refetch } = useTenantQuery<TicketItem>("tickets", "tickets", {
-    orderBy: "created_at",
-    ascending: false,
+  const { data: tickets = [], isLoading, refetch } = useQuery<TicketItem[]>({
+    queryKey: ["tickets", tenantId],
+    enabled: Boolean(tenantId),
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data, error } = await supabase.functions.invoke("manage-tickets", {
+        body: {
+          action: "list",
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return (data?.tickets ?? []) as TicketItem[];
+    },
   });
 
   // Realtime subscription for tickets
@@ -100,22 +112,17 @@ const TicketsPage = () => {
   const handleStatusChange = async (ticketId: string, newStatus: string) => {
     setUpdatingStatus(true);
     try {
-      const updatePayload: any = { 
-        status: newStatus, 
-        updated_at: new Date().toISOString() 
-      };
-      
-      if (newStatus === "closed") {
-        updatePayload.closed_at = new Date().toISOString();
-        updatePayload.closed_by = "painel";
-      }
-
-      const { error } = await (supabase as any)
-        .from("tickets")
-        .update(updatePayload)
-        .eq("id", ticketId)
-        .eq("tenant_id", tenantId!);
+      const { data: updateRes, error } = await supabase.functions.invoke("manage-tickets", {
+        body: {
+          action: "update_status",
+          tenant_id: tenantId,
+          ticket_id: ticketId,
+          status: newStatus,
+          closed_by: "painel",
+        },
+      });
       if (error) throw error;
+      if (updateRes?.error) throw new Error(updateRes.error);
 
       // If closing, send log to Discord via edge function
       if (newStatus === "closed" && selectedTicket?.discord_channel_id) {
