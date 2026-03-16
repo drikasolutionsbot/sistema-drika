@@ -108,7 +108,6 @@ serve(async (req) => {
           type: 2, // Button
           style: discordBuyStyle,
           label: "Comprar",
-          emoji: { name: "🛒" },
           custom_id: `buy_product:${product_id}`,
         },
       ];
