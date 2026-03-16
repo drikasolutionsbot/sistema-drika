@@ -103,6 +103,22 @@ Deno.serve(async (req) => {
     let messageId: string;
     let edited = false;
 
+    // If channel changed, delete old message first
+    if (existingMessageId && existingChannelId && existingChannelId !== channel_id) {
+      try {
+        await fetch(
+          `https://discord.com/api/v10/channels/${existingChannelId}/messages/${existingMessageId}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${botToken}` },
+          }
+        );
+        console.log("Deleted old ticket embed from channel", existingChannelId);
+      } catch (err) {
+        console.log("Failed to delete old message, continuing:", err);
+      }
+    }
+
     // Try to EDIT existing message if same channel
     if (existingMessageId && existingChannelId === channel_id) {
       const editRes = await fetch(
@@ -122,7 +138,6 @@ Deno.serve(async (req) => {
         messageId = result.id;
         edited = true;
       } else {
-        // Edit failed (message deleted?), send new one
         console.log("Edit failed, sending new message. Status:", editRes.status);
       }
     }
@@ -151,10 +166,10 @@ Deno.serve(async (req) => {
       messageId = result.id;
     }
 
-    // Save the message_id for future edits
+    // Save the message_id AND channel_id for future edits
     await supabase
       .from("store_configs")
-      .update({ ticket_message_id: messageId! })
+      .update({ ticket_message_id: messageId!, ticket_channel_id: channel_id })
       .eq("tenant_id", tenant_id);
 
     return new Response(JSON.stringify({ success: true, message_id: messageId!, edited }), {
