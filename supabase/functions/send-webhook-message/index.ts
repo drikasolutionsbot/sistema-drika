@@ -103,11 +103,12 @@ serve(async (req) => {
       };
       const discordBuyStyle = styleMap[product?.button_style || "success"] || 3;
 
+      const buyLabel = (product?.embed_config as any)?.buy_button_label || "Comprar";
       const buttons: any[] = [
         {
           type: 2, // Button
           style: discordBuyStyle,
-          label: "Comprar",
+          label: buyLabel,
           custom_id: `buy_product:${product_id}`,
         },
       ];
