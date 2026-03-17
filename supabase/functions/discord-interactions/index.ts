@@ -1119,11 +1119,15 @@ serve(async (req) => {
 
         const { data: storeConfig } = await supabase
           .from("store_configs")
-          .select("ticket_channel_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
+          .select("ticket_channel_id, ticket_staff_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
           .eq("tenant_id", ticketTenantId)
           .single();
 
         const guildId = tenant.discord_guild_id;
+        const staffRoleIds = (storeConfig?.ticket_staff_role_id || "")
+          .split(",")
+          .map((roleId: string) => roleId.trim())
+          .filter(Boolean);
 
         // Check if user already has an open ticket — verify thread still exists
         const { data: existingTickets } = await supabase
@@ -1232,6 +1236,45 @@ serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}` },
         });
 
+        // Add staff members (from configured roles) to the private thread
+        if (staffRoleIds.length > 0) {
+          try {
+            const membersRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members?limit=1000`, {
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+
+            if (membersRes.ok) {
+              const members = await membersRes.json();
+              const staffMemberIds = Array.from(new Set(
+                (members || [])
+                  .filter((m: any) => !m?.user?.bot)
+                  .filter((m: any) => m?.user?.id && m.user.id !== userId)
+                  .filter((m: any) => Array.isArray(m.roles) && m.roles.some((roleId: string) => staffRoleIds.includes(roleId)))
+                  .map((m: any) => m.user.id)
+              ));
+
+              for (const staffUserId of staffMemberIds) {
+                const addRes = await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${staffUserId}`, {
+                  method: "PUT",
+                  headers: { Authorization: `Bot ${botToken}` },
+                });
+
+                if (!addRes.ok) {
+                  const addErrText = await addRes.text();
+                  console.warn(`[TICKET_OPEN] failed to add staff member ${staffUserId}: ${addRes.status} ${addErrText}`);
+                }
+              }
+
+              console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
+            } else {
+              const membersErr = await membersRes.text();
+              console.warn(`[TICKET_OPEN] failed to list guild members: ${membersRes.status} ${membersErr}`);
+            }
+          } catch (staffAddErr) {
+            console.error("[TICKET_OPEN] error while adding staff members:", staffAddErr);
+          }
+        }
+
         // Insert ticket in DB
         const { data: ticket, error: ticketErr } = await supabase
           .from("tickets")
@@ -1276,12 +1319,15 @@ serve(async (req) => {
         };
 
         const configuredPrimaryButtonStyle = actionButtonStyleMap[storeConfig?.ticket_embed_button_style || "glass"] || 2;
+        const staffMentions = staffRoleIds.map((rid: string) => `<@&${rid}>`).join(" ");
+        const welcomeContent = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
 
         const welcomeMsgRes = await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: `<@${userId}>`,
+            content: welcomeContent,
+            allowed_mentions: { users: [userId], roles: staffRoleIds },
             embeds: [welcomeEmbed],
             components: [
               {
