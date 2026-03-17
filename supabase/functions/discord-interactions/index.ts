@@ -428,7 +428,7 @@ serve(async (req) => {
           .single();
 
         if (ticket) {
-          const embedColor = parseInt((storeConfig?.ticket_embed_color || "#5865F2").replace("#", ""), 16);
+          const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
           await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
