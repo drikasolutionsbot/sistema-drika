@@ -122,6 +122,11 @@ export const PostMessageModal = ({
         },
       };
 
+      // Only set color if user has a custom color, otherwise Discord shows no border
+      if (!isDefaultColor) {
+        embed.color = parseInt(finalColor.replace("#", ""), 16);
+      }
+
       if (product.banner_url) {
         embed.image = { url: product.banner_url };
       }
