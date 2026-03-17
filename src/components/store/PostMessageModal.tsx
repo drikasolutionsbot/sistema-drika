@@ -113,7 +113,7 @@ export const PostMessageModal = ({
         fields: [
           {
             name: "**Valor à vista**",
-            value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`,
+            value: `\`R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}\``,
             inline: true,
           },
         ],
