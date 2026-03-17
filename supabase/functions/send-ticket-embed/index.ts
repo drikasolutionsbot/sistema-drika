@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
       .update({ ticket_message_id: messageId!, ticket_channel_id: channel_id })
       .eq("tenant_id", tenant_id);
 
-    return new Response(JSON.stringify({ success: true, message_id: messageId!, edited }), {
+    return new Response(JSON.stringify({ success: true, message_id: messageId! }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
