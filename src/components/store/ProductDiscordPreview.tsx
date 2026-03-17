@@ -249,7 +249,10 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
                   className={`text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default ${buttonClasses}`}
                   style={buttonStyle}
                 >
-                  {embedConfig?.buy_button_label || "🛒 Comprar"}
+                  {(() => {
+                    const label = embedConfig?.buy_button_label?.trim();
+                    return !label || label.toLowerCase() === "comprar" ? "🛒 Comprar" : label;
+                  })()}
                 </button>
               </>
             );
