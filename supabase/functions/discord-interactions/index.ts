@@ -272,7 +272,7 @@ serve(async (req) => {
             title: "🔨 Usuário Banido",
             description: `<@${targetUser}> foi banido por <@${userId}>.`,
             fields: [{ name: "Motivo", value: String(reason) }],
-            color: 0xED4245,
+            color: 0x2B2D31,
             timestamp: new Date().toISOString(),
           }],
         });
