@@ -308,7 +308,7 @@ serve(async (req) => {
             title: "👢 Usuário Expulso",
             description: `<@${targetUser}> foi expulso por <@${userId}>.`,
             fields: [{ name: "Motivo", value: String(reason) }],
-            color: 0xFEE75C,
+            color: 0x2B2D31,
             timestamp: new Date().toISOString(),
           }],
         });
