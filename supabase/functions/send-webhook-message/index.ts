@@ -95,7 +95,7 @@ serve(async (req) => {
         embeds[0].fields = embeds[0].fields || [];
         const stockField = {
           name: "Restam",
-          value: `${realStockCount ?? 0}`,
+          value: `\`${realStockCount ?? 0}\``,
           inline: true,
         };
 
