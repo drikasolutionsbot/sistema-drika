@@ -864,7 +864,7 @@ serve(async (req) => {
                 embeds: [{
                   title: "❌ Pedido Recusado",
                   description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado pelo administrador.`,
-                  color: 0xED4245,
+                  color: 0x2B2D31,
                   timestamp: new Date().toISOString(),
                 }],
               }),
