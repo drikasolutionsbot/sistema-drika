@@ -1771,30 +1771,47 @@ serve(async (req) => {
         }
 
         if (msgs.length === 0) {
-          // If channel is deleted, try to get from the original message attachment
-          // Fall back to a message saying transcript unavailable
-          await editFollowup(interaction, botToken, "📜 O transcript está anexado como arquivo na mensagem acima. Clique no arquivo `.html` para visualizar.");
+          // Check if transcript exists in storage
+          const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(`transcripts/${ticket.tenant_id}/${ticket.id}.html`);
+          if (urlData?.publicUrl) {
+            await editFollowup(interaction, botToken, `📜 Acesse o transcript: ${urlData.publicUrl}`);
+          } else {
+            await editFollowup(interaction, botToken, "📜 O transcript está anexado como arquivo na mensagem acima. Clique no arquivo `.html` para visualizar.");
+          }
           return ok();
         }
 
         const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
         const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, "Suporte · transcript");
 
-        // Send as ephemeral file via webhook followup
-        const formData = new FormData();
-        const blob = new Blob([htmlTranscript], { type: "text/html" });
-        formData.append("files[0]", blob, `transcript-${ticket.id.slice(0, 8)}.html`);
-        formData.append("payload_json", JSON.stringify({
-          content: "📜 Aqui está o transcript do ticket:",
-          flags: 64,
-        }));
+        // Upload to storage for easy access
+        let transcriptUrl: string | null = null;
+        try {
+          const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+          await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
+          const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
+          transcriptUrl = urlData?.publicUrl || null;
+        } catch {}
 
-        const url = `${DISCORD_API}/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
-        await fetch(url, {
-          method: "PATCH",
-          headers: { Authorization: `Bot ${botToken}` },
-          body: formData,
-        });
+        if (transcriptUrl) {
+          await editFollowup(interaction, botToken, `📜 Acesse o transcript: ${transcriptUrl}`);
+        } else {
+          // Fallback: send as ephemeral file
+          const formData = new FormData();
+          const blob = new Blob([htmlTranscript], { type: "text/html" });
+          formData.append("files[0]", blob, `transcript-${ticket.id.slice(0, 8)}.html`);
+          formData.append("payload_json", JSON.stringify({
+            content: "📜 Aqui está o transcript do ticket:",
+            flags: 64,
+          }));
+
+          const url = `${DISCORD_API}/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
+          await fetch(url, {
+            method: "PATCH",
+            headers: { Authorization: `Bot ${botToken}` },
+            body: formData,
+          });
+        }
 
         return ok();
       }
