@@ -291,7 +291,7 @@ serve(async (req) => {
         body: JSON.stringify({
           embeds: [{
             description: `✅ **Entrega realizada!** Verifique seu privado, esse ticket será excluído **em 2 minutos**`,
-            color: 0x57F287,
+            color: 0x2B2D31,
           }],
           components: [{
             type: 1,
