@@ -2630,12 +2630,49 @@ async function sendTicketLog(
 
     // Send embed + transcript as single message with button
     if (htmlTranscript) {
+      // Upload transcript to Supabase Storage for direct browser viewing
+      let transcriptUrl: string | null = null;
+      try {
+        const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+        const { error: uploadErr } = await supabase.storage
+          .from("tenant-assets")
+          .upload(fileName, htmlTranscript, {
+            contentType: "text/html",
+            upsert: true,
+          });
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
+          transcriptUrl = urlData?.publicUrl || null;
+        } else {
+          console.error("Transcript upload error:", uploadErr);
+        }
+      } catch (e) {
+        console.error("Transcript storage error:", e);
+      }
+
       const formData = new FormData();
       const blob = new Blob([htmlTranscript], { type: "text/html" });
       formData.append("files[0]", blob, `transcript-${ticket.discord_channel_id || ticket.id.slice(0, 8)}.html`);
-      formData.append("payload_json", JSON.stringify({
+
+      const msgPayload: any = {
         embeds: [logEmbed],
-        components: [{
+      };
+
+      if (transcriptUrl) {
+        // Use a Link button (style 5) that opens in the browser
+        msgPayload.components = [{
+          type: 1,
+          components: [{
+            type: 2,
+            style: 5,
+            label: "Ver transcript",
+            emoji: { name: "📜" },
+            url: transcriptUrl,
+          }],
+        }];
+      } else {
+        // Fallback to interactive button if upload failed
+        msgPayload.components = [{
           type: 1,
           components: [{
             type: 2,
@@ -2644,8 +2681,10 @@ async function sendTicketLog(
             emoji: { name: "📜" },
             custom_id: `transcript_view_${ticket.id}`,
           }],
-        }],
-      }));
+        }];
+      }
+
+      formData.append("payload_json", JSON.stringify(msgPayload));
 
       await fetch(`${DISCORD_API}/channels/${sc.ticket_logs_channel_id}/messages`, {
         method: "POST",
