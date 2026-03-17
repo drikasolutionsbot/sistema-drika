@@ -1564,7 +1564,7 @@ serve(async (req) => {
               embeds: [{
                 title: "✅ Entrega Confirmada",
                 description: `Pedido **#${order.order_number}** marcado como entregue por <@${userId}>.`,
-                color: 0x57F287,
+                color: 0x2B2D31,
               }],
             }),
           });
