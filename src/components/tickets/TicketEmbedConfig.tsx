@@ -587,6 +587,75 @@ const TicketEmbedConfig = () => {
           </div>
         </div>
       </div>
+      {/* Save Preset Dialog */}
+      <Dialog open={savePresetOpen} onOpenChange={setSavePresetOpen}>
+        <DialogContent className="sm:max-w-sm bg-sidebar border-border">
+          <DialogHeader>
+            <DialogTitle>Salvar Preset de Ticket</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label>Nome do Preset</Label>
+              <Input
+                value={presetName}
+                onChange={e => setPresetName(e.target.value)}
+                placeholder="Ex: Suporte Padrão, Ticket VIP..."
+                className="bg-background border-border"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Salva todas as configurações atuais (textos, cores, imagens, botão) para uso futuro.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setSavePresetOpen(false)}>
+                Cancelar
+              </Button>
+              <Button className="flex-1" onClick={handleSavePreset} disabled={savingPreset || !presetName.trim()}>
+                {savingPreset && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Preset Dialog */}
+      <Dialog open={loadPresetOpen} onOpenChange={setLoadPresetOpen}>
+        <DialogContent className="sm:max-w-md bg-sidebar border-border">
+          <DialogHeader>
+            <DialogTitle>Presets Salvos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-2 max-h-[400px] overflow-y-auto">
+            {presets.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhum preset salvo ainda. Salve a configuração atual para criar um.
+              </p>
+            ) : (
+              presets.map(preset => (
+                <div
+                  key={preset.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-accent/50 transition-colors"
+                >
+                  <button className="flex-1 text-left" onClick={() => loadPreset(preset)}>
+                    <p className="text-sm font-medium">{preset.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(preset.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => deletePreset(preset.id)}
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
