@@ -84,12 +84,23 @@ const TicketEmbedConfig = () => {
   // Fetch presets
   const fetchPresets = useCallback(async () => {
     if (!tenantId) return;
-    const { data: rows } = await (supabase as any)
-      .from("saved_ticket_presets")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
-    setPresets((rows as TicketPreset[]) || []);
+
+    try {
+      const { data: res, error } = await supabase.functions.invoke("manage-tickets", {
+        body: {
+          action: "list_presets",
+          tenant_id: tenantId,
+        },
+      });
+
+      if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+
+      setPresets((res?.presets as TicketPreset[]) || []);
+    } catch (err: any) {
+      toast.error("Erro ao carregar presets: " + err.message);
+      setPresets([]);
+    }
   }, [tenantId]);
 
   useEffect(() => { fetchPresets(); }, [fetchPresets]);
@@ -97,11 +108,20 @@ const TicketEmbedConfig = () => {
   const handleSavePreset = async () => {
     if (!tenantId || !presetName.trim()) return;
     setSavingPreset(true);
+
     try {
-      const { error } = await (supabase as any)
-        .from("saved_ticket_presets")
-        .insert([{ tenant_id: tenantId, name: presetName.trim(), preset_data: JSON.parse(JSON.stringify(data)) }]);
+      const { data: res, error } = await supabase.functions.invoke("manage-tickets", {
+        body: {
+          action: "save_preset",
+          tenant_id: tenantId,
+          preset_name: presetName.trim(),
+          preset_data: JSON.parse(JSON.stringify(data)),
+        },
+      });
+
       if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+
       toast.success(`Preset "${presetName}" salvo!`);
       setSavePresetOpen(false);
       setPresetName("");
@@ -131,10 +151,25 @@ const TicketEmbedConfig = () => {
   };
 
   const deletePreset = async (id: string) => {
-    const { error } = await (supabase as any).from("saved_ticket_presets").delete().eq("id", id);
-    if (error) { toast.error("Erro ao excluir"); return; }
-    toast.success("Preset excluído!");
-    fetchPresets();
+    if (!tenantId) return;
+
+    try {
+      const { data: res, error } = await supabase.functions.invoke("manage-tickets", {
+        body: {
+          action: "delete_preset",
+          tenant_id: tenantId,
+          preset_id: id,
+        },
+      });
+
+      if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+
+      toast.success("Preset excluído!");
+      fetchPresets();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + err.message);
+    }
   };
 
   const fetchChannels = useCallback(async () => {

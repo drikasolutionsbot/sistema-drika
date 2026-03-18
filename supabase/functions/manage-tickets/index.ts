@@ -19,7 +19,16 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { action, tenant_id, ticket_id, status, closed_by } = await req.json();
+    const {
+      action,
+      tenant_id,
+      ticket_id,
+      status,
+      closed_by,
+      preset_id,
+      preset_name,
+      preset_data,
+    } = await req.json();
 
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id obrigatório" }), {
@@ -82,6 +91,66 @@ Deno.serve(async (req) => {
       if (error) throw error;
 
       return new Response(JSON.stringify({ ticket: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "list_presets") {
+      const { data, error } = await supabase
+        .from("saved_ticket_presets")
+        .select("id, name, preset_data, created_at")
+        .eq("tenant_id", tenant_id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify({ presets: data ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "save_preset") {
+      if (!preset_name?.trim() || !preset_data) {
+        return new Response(JSON.stringify({ error: "preset_name e preset_data são obrigatórios" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("saved_ticket_presets")
+        .insert({
+          tenant_id,
+          name: preset_name.trim(),
+          preset_data,
+        })
+        .select("id, name, preset_data, created_at")
+        .single();
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify({ preset: data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "delete_preset") {
+      if (!preset_id) {
+        return new Response(JSON.stringify({ error: "preset_id é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error } = await supabase
+        .from("saved_ticket_presets")
+        .delete()
+        .eq("id", preset_id)
+        .eq("tenant_id", tenant_id);
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
