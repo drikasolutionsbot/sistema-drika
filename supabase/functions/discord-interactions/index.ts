@@ -1124,6 +1124,87 @@ serve(async (req) => {
           .single();
 
         const guildId = tenant.discord_guild_id;
+
+        // Check for existing open tickets
+        const { data: existingTickets } = await supabase
+          .from("tickets")
+          .select("id, discord_channel_id")
+          .eq("tenant_id", ticketTenantId)
+          .eq("discord_user_id", userId)
+          .in("status", ["open", "in_progress"]);
+
+        let hasRealOpenTicket = false;
+        if (existingTickets && existingTickets.length > 0) {
+          for (const t of existingTickets) {
+            if (!t.discord_channel_id) continue;
+            try {
+              const chRes = await fetch(`${DISCORD_API}/channels/${t.discord_channel_id}`, {
+                headers: { Authorization: `Bot ${botToken}` },
+              });
+              if (chRes.ok) {
+                hasRealOpenTicket = true;
+                break;
+              } else {
+                await supabase.from("tickets").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", t.id);
+              }
+            } catch { /* ignore */ }
+          }
+        }
+
+        if (hasRealOpenTicket) {
+          await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto.");
+          return ok();
+        }
+
+        // Determine parent channel for thread creation
+        let parentChannelId = targetChannelId || storeConfig?.ticket_channel_id || channelId;
+
+        // If it's a category, find first text channel
+        if (parentChannelId) {
+          try {
+            const chInfoRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}`, {
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+            if (chInfoRes.ok) {
+              const chInfo = await chInfoRes.json();
+              if (chInfo.type === 4) {
+                const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
+                  headers: { Authorization: `Bot ${botToken}` },
+                });
+                if (guildChRes.ok) {
+                  const allCh = await guildChRes.json();
+                  const textCh = allCh.find((c: any) => c.parent_id === parentChannelId && c.type === 0);
+                  if (textCh) parentChannelId = textCh.id;
+                }
+              }
+            }
+          } catch (e) { console.error("Channel check error:", e); }
+        }
+
+        // Create private thread
+        const ticketSuffix = Date.now().toString(36).slice(-4);
+        const threadName = `ticket-${username || userId}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+        const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: threadName, type: 12, auto_archive_duration: 10080 }),
+        });
+
+        if (!createThreadRes.ok) {
+          const errText = await createThreadRes.text();
+          console.error("[TICKET_OPEN_BTN] Failed to create thread:", errText);
+          await editFollowup(interaction, botToken, "❌ Não foi possível criar o ticket.");
+          return ok();
+        }
+
+        const ticketThread = await createThreadRes.json();
+
+        // Add the user to the thread
+        await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${userId}`, {
+          method: "PUT",
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+
         const configuredStaffRoleIds = (storeConfig?.ticket_staff_role_id || "")
           .split(",")
           .map((roleId: string) => roleId.trim())
