@@ -33,12 +33,67 @@ serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
     let resolvedTenantId: string | null = null;
+    let resolvedDiscordUserId: string | null = null;
+
+    const resolveDiscordUserIdFromAuthHeader = async (authHeader: string | null) => {
+      if (!authHeader) return null;
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const {
+        data: { user },
+        error: userError,
+      } = await userClient.auth.getUser();
+
+      if (userError || !user) {
+        return null;
+      }
+
+      const fromMetadata =
+        user.user_metadata?.provider_id ||
+        user.user_metadata?.sub ||
+        user.app_metadata?.provider_id ||
+        null;
+
+      if (fromMetadata) return String(fromMetadata);
+
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("discord_user_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      return profile?.discord_user_id || null;
+    };
+
+    const getOwnedGuilds = async (
+      candidates: Array<{ id: string; name: string; icon: string | null }>,
+      discordUserId: string
+    ) => {
+      const checks = await Promise.all(
+        candidates.map(async (guild) => {
+          try {
+            const guildRes = await fetch(`https://discord.com/api/v10/guilds/${guild.id}`, {
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+            if (!guildRes.ok) return null;
+            const guildData = await guildRes.json();
+            return guildData?.owner_id === discordUserId ? guild : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      return checks.filter(Boolean) as Array<{ id: string; name: string; icon: string | null }>;
+    };
 
     // 1) Token de acesso (sessão por token) tem prioridade e resolve tenant no backend
     if (accessToken) {
       const { data: tokenRecord, error: tokenError } = await admin
         .from("access_tokens")
-        .select("tenant_id, expires_at")
+        .select("tenant_id, expires_at, created_by")
         .eq("token", accessToken)
         .eq("revoked", false)
         .single();
@@ -65,6 +120,15 @@ serve(async (req) => {
       }
 
       resolvedTenantId = tokenRecord.tenant_id;
+
+      if (tokenRecord.created_by) {
+        const { data: profile } = await admin
+          .from("profiles")
+          .select("discord_user_id")
+          .eq("id", tokenRecord.created_by)
+          .maybeSingle();
+        resolvedDiscordUserId = profile?.discord_user_id || null;
+      }
     }
 
     // 2) Usuário autenticado via Supabase Auth + tenant_id informado
@@ -109,6 +173,13 @@ serve(async (req) => {
       }
 
       resolvedTenantId = tenantIdFromBody;
+      resolvedDiscordUserId = await resolveDiscordUserIdFromAuthHeader(authHeader);
+    }
+
+    // 3) Onboarding sem tenant informado: tenta usar usuário autenticado para identificar ownership
+    if (!resolvedTenantId && !resolvedDiscordUserId) {
+      const authHeader = req.headers.get("Authorization");
+      resolvedDiscordUserId = await resolveDiscordUserIdFromAuthHeader(authHeader);
     }
 
     // Busca guilds atuais do bot no Discord
@@ -137,7 +208,7 @@ serve(async (req) => {
     if (resolvedTenantId) {
       const { data: currentTenant, error: currentTenantError } = await admin
         .from("tenants")
-        .select("id, name, discord_guild_id, created_at")
+        .select("id, discord_guild_id, owner_discord_id")
         .eq("id", resolvedTenantId)
         .single();
 
@@ -149,14 +220,12 @@ serve(async (req) => {
       }
 
       if (currentTenant.discord_guild_id) {
-        // Tenant já tem servidor: mostra somente ele
         const result = mapped.filter((g: any) => g.id === currentTenant.discord_guild_id);
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Tenant sem servidor: nunca retorna lista completa para evitar vazamento
       const claimedByOthers = new Set(
         (claimedRows || [])
           .filter((r: any) => r.id !== resolvedTenantId)
@@ -165,67 +234,41 @@ serve(async (req) => {
       );
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
-      const normalize = (value: string | null | undefined) =>
-        (value || "")
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]/g, "");
-
-      const normalizedTenantName = normalize(currentTenant.name);
-      let autoMatch = available.find((g: any) => normalize(g.name) === normalizedTenantName) ?? null;
-
-      if (!autoMatch && available.length === 1) {
-        autoMatch = available[0];
-      }
-
-      const tenantCreatedAtMs = new Date(currentTenant.created_at).getTime();
-      const tenantIsRecent =
-        Number.isFinite(tenantCreatedAtMs) && Date.now() - tenantCreatedAtMs <= 12 * 60 * 60 * 1000;
-
-      if (!autoMatch && tenantIsRecent && available.length > 0) {
-        autoMatch = [...available].sort((a: any, b: any) => {
-          try {
-            const aId = BigInt(a.id);
-            const bId = BigInt(b.id);
-            if (aId === bId) return 0;
-            return aId > bId ? -1 : 1;
-          } catch {
-            return 0;
-          }
-        })[0];
-      }
-
-      if (autoMatch) {
-        const { error: updateError } = await admin
-          .from("tenants")
-          .update({
-            discord_guild_id: autoMatch.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", resolvedTenantId)
-          .is("discord_guild_id", null);
-
-        if (updateError) {
-          throw new Error("Falha ao vincular servidor automaticamente");
-        }
-
-        return new Response(JSON.stringify([autoMatch]), {
+      const ownerDiscordId = currentTenant.owner_discord_id || resolvedDiscordUserId;
+      if (!ownerDiscordId) {
+        return new Response(JSON.stringify([]), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Sem match seguro: não retorna servidores para evitar exposição de dados cross-tenant
+      const ownedGuilds = await getOwnedGuilds(available, ownerDiscordId);
+
+      if (ownedGuilds.length === 1) {
+        const guildToLink = ownedGuilds[0];
+        await admin
+          .from("tenants")
+          .update({ discord_guild_id: guildToLink.id, updated_at: new Date().toISOString() })
+          .eq("id", resolvedTenantId)
+          .is("discord_guild_id", null);
+      }
+
+      return new Response(JSON.stringify(ownedGuilds), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Onboarding: sem tenant, retorna somente servidores não reclamados cujo owner é o usuário
+    if (!resolvedDiscordUserId) {
       return new Response(JSON.stringify([]), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Onboarding (sem tenant): servidores não reclamados por ninguém
     const claimedIds = new Set((claimedRows || []).map((row: any) => row.discord_guild_id).filter(Boolean));
     const unclaimed = mapped.filter((g: any) => !claimedIds.has(g.id));
+    const ownedUnclaimed = await getOwnedGuilds(unclaimed, resolvedDiscordUserId);
 
-    return new Response(JSON.stringify(unclaimed), {
+    return new Response(JSON.stringify(ownedUnclaimed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
