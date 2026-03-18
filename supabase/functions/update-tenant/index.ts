@@ -64,6 +64,41 @@ serve(async (req) => {
       throw new Error("No valid fields to update");
     }
 
+    // Validate discord_guild_id when connecting a new server
+    if (safeUpdates.discord_guild_id && safeUpdates.discord_guild_id !== "null") {
+      const guildId = safeUpdates.discord_guild_id;
+
+      // Check format
+      if (!/^\d{17,20}$/.test(guildId)) {
+        throw new Error("ID do servidor inválido. Deve conter 17-20 dígitos.");
+      }
+
+      // Check if already claimed by another tenant
+      const { data: existingTenant } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("discord_guild_id", guildId)
+        .neq("id", tenant_id)
+        .maybeSingle();
+
+      if (existingTenant) {
+        throw new Error("Este servidor já está vinculado a outra loja.");
+      }
+
+      // Verify bot is in the server
+      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+      if (botToken) {
+        const guildRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (!guildRes.ok) {
+          if (guildRes.status === 404 || guildRes.status === 403) {
+            throw new Error("O bot não está neste servidor. Adicione o bot primeiro.");
+          }
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from("tenants")
       .update({ ...safeUpdates, updated_at: new Date().toISOString() })
