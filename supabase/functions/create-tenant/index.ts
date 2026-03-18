@@ -19,15 +19,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
 
-    // Verify user with anon key
     const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: userError } = await supabaseAnon.auth.getUser();
     if (userError || !user) throw new Error("Unauthorized");
 
-    // Use service role for privileged operations
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
@@ -38,6 +37,44 @@ serve(async (req) => {
     if (!name || !discord_guild_id) {
       throw new Error("name and discord_guild_id are required");
     }
+
+    // Validate guild ID format
+    if (!/^\d{17,20}$/.test(discord_guild_id)) {
+      throw new Error("ID do servidor inválido. Deve conter 17-20 dígitos.");
+    }
+
+    // Verify bot is present in the guild
+    if (botToken) {
+      try {
+        const guildRes = await fetch(`https://discord.com/api/v10/guilds/${discord_guild_id}`, {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+
+        if (!guildRes.ok) {
+          if (guildRes.status === 404 || guildRes.status === 403) {
+            throw new Error("O bot não está neste servidor. Adicione o bot primeiro e tente novamente.");
+          }
+          const errText = await guildRes.text();
+          console.error("Discord guild check failed:", guildRes.status, errText);
+          throw new Error("Não foi possível verificar o servidor. Tente novamente.");
+        }
+
+        // Use the actual guild name instead of the ID
+        const guildData = await guildRes.json();
+        if (guildData.name && name === discord_guild_id) {
+          // If name was sent as the guild ID, replace with actual guild name
+          body.resolved_name = guildData.name;
+        }
+      } catch (e) {
+        if (e instanceof Error && (e.message.includes("bot não está") || e.message.includes("Não foi possível"))) {
+          throw e;
+        }
+        console.error("Discord API check error:", e);
+        // If Discord API is down, allow creation anyway
+      }
+    }
+
+    const resolvedName = body.resolved_name || name;
 
     // Check if guild is already registered
     const { data: existing } = await supabaseAdmin
@@ -61,7 +98,7 @@ serve(async (req) => {
       throw new Error("Você já possui uma loja. Acesse o dashboard.");
     }
 
-    // Create tenant with 4-day free trial + auto referral code
+    // Create tenant with 4-day free trial
     const now = new Date();
     const trialEnd = new Date(now);
     trialEnd.setDate(trialEnd.getDate() + 4);
@@ -69,14 +106,13 @@ serve(async (req) => {
     const referralCode = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
     const verifySlug = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toLowerCase();
 
-    // Extract Discord info from the authenticated user
     const discordUsername = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.user_name || null;
     const discordId = user.user_metadata?.provider_id || null;
 
     const { data: tenant, error: tenantError } = await supabaseAdmin
       .from("tenants")
       .insert({
-        name,
+        name: resolvedName,
         discord_guild_id,
         primary_color: primary_color || "#FF69B4",
         secondary_color: secondary_color || "#FFD700",
@@ -94,7 +130,6 @@ serve(async (req) => {
 
     if (tenantError) throw tenantError;
 
-    // Assign owner role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
       .insert({

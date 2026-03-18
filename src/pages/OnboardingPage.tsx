@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import WifiLoader from "@/components/ui/wifi-loader";
 import {
@@ -12,30 +13,20 @@ import {
   Check,
   LayoutDashboard,
   Settings,
-  RefreshCw,
 } from "lucide-react";
 
 const DISCORD_CLIENT_ID = "1477916070508757092";
-const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
-
-interface DiscordGuild {
-  id: string;
-  name: string;
-  icon: string | null;
-}
+const BOT_PERMISSIONS = "536870920";
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [phase, setPhase] = useState<"loading" | "add" | "select" | "done">("loading");
-  const [guilds, setGuilds] = useState<DiscordGuild[]>([]);
-  const [guildsLoading, setGuildsLoading] = useState(false);
-  const [selectedGuild, setSelectedGuild] = useState<DiscordGuild | null>(null);
+  const [phase, setPhase] = useState<"loading" | "setup" | "done">("loading");
+  const [guildId, setGuildId] = useState("");
   const [creatingTenant, setCreatingTenant] = useState(false);
+  const [serverName, setServerName] = useState("");
 
-  // Check if user already has a tenant
   useEffect(() => {
-    // Token session users skip onboarding entirely
     const tokenSession = sessionStorage.getItem("token_session");
     if (tokenSession) {
       navigate("/dashboard", { replace: true });
@@ -62,69 +53,48 @@ const OnboardingPage = () => {
       } catch {
         await minDelay;
       }
-      setPhase("add");
+      setPhase("setup");
     };
     checkExistingTenant();
   }, [user, navigate]);
 
-  const getEdgeErrorMessage = async (error: any) => {
-    const fallback = error?.message || "Erro inesperado";
-    const response = error?.context;
-
-    if (!response || typeof response.json !== "function") {
-      return fallback;
-    }
-
-    try {
-      const payload = await response.json();
-      return payload?.error || fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
   const handleAddBot = () => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
+    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands&guild_id=${guildId}`;
     window.open(url, "_blank");
   };
 
-  const fetchBotGuilds = async () => {
-    setGuildsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: {},
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      const list = Array.isArray(data) ? data : [];
-      setGuilds(list);
-      if (list.length > 0) {
-        setPhase("select");
-      } else {
-        toast({ title: "Nenhum servidor encontrado", description: "Adicione o bot a um servidor primeiro.", variant: "destructive" });
-      }
-    } catch (err: any) {
-      toast({ title: "Erro ao buscar servidores", description: err.message, variant: "destructive" });
-    } finally {
-      setGuildsLoading(false);
+  const handleCreateTenant = async () => {
+    const trimmedId = guildId.trim();
+    if (!trimmedId) {
+      toast({ title: "Insira o ID do servidor", variant: "destructive" });
+      return;
     }
-  };
 
-  const handleSelectGuild = async (guild: DiscordGuild) => {
-    setSelectedGuild(guild);
+    if (!/^\d{17,20}$/.test(trimmedId)) {
+      toast({ title: "ID inválido", description: "O ID do servidor deve conter apenas números (17-20 dígitos).", variant: "destructive" });
+      return;
+    }
+
     setCreatingTenant(true);
 
     try {
       const { data, error } = await supabase.functions.invoke("create-tenant", {
         body: {
-          name: guild.name,
-          discord_guild_id: guild.id,
+          name: trimmedId,
+          discord_guild_id: trimmedId,
         },
       });
 
       if (error) {
-        const message = await getEdgeErrorMessage(error);
+        const fallback = error?.message || "Erro inesperado";
+        let message = fallback;
+        try {
+          const payload = await (error as any)?.context?.json?.();
+          message = payload?.error || fallback;
+        } catch {}
+
         if (message.includes("já está vinculado") || message.includes("já possui")) {
+          setServerName(trimmedId);
           setPhase("done");
           toast({ title: "Servidor já configurado! Prosseguindo..." });
           return;
@@ -134,6 +104,7 @@ const OnboardingPage = () => {
 
       if (data?.error) {
         if (data.error.includes("já está vinculado") || data.error.includes("já possui")) {
+          setServerName(trimmedId);
           setPhase("done");
           toast({ title: "Servidor já configurado! Prosseguindo..." });
           return;
@@ -141,12 +112,13 @@ const OnboardingPage = () => {
         throw new Error(data.error);
       }
 
+      const tenantName = data?.tenant?.name || trimmedId;
+      setServerName(tenantName);
       setPhase("done");
       toast({ title: "Loja criada com sucesso! 🎉" });
     } catch (err: any) {
       const message = err?.message || "Erro ao criar loja";
       toast({ title: "Erro ao criar loja", description: message, variant: "destructive" });
-      setSelectedGuild(null);
     } finally {
       setCreatingTenant(false);
     }
@@ -162,99 +134,71 @@ const OnboardingPage = () => {
       <div className="relative z-10 w-full max-w-lg">
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-lg animate-fade-in">
 
-          {/* Phase: Loading */}
           {phase === "loading" && (
             <div className="flex flex-col items-center gap-3 py-16">
               <WifiLoader />
             </div>
           )}
 
-          {/* Phase: Add bot */}
-          {phase === "add" && (
+          {phase === "setup" && (
             <div className="space-y-6">
               <div>
-                <h2 className="font-display text-2xl font-bold">Adicione o bot ao servidor</h2>
+                <h2 className="font-display text-2xl font-bold">Configure seu servidor</h2>
                 <p className="text-muted-foreground mt-1">
-                  Adicione o bot ao seu servidor e depois clique em "Já adicionei"
+                  Adicione o bot ao seu servidor e cole o ID abaixo
                 </p>
               </div>
 
-              <div className="flex flex-col items-center gap-4 py-6">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#5865F2]/10">
-                  <Server className="h-10 w-10 text-[#5865F2]" />
+              {/* Step 1: Add bot */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#5865F2]/10 text-xs font-bold text-[#5865F2]">1</span>
+                  Adicione o bot ao seu servidor
                 </div>
                 <Button
                   onClick={handleAddBot}
-                  className="gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-6"
+                  className="w-full gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white"
                   size="lg"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Adicionar ao Discord
+                  Adicionar Drika Bot ao Discord
                 </Button>
               </div>
 
+              {/* Step 2: Server ID */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+                  Cole o ID do servidor Discord
+                </div>
+                <Input
+                  placeholder="Ex: 123456789012345678"
+                  value={guildId}
+                  onChange={(e) => setGuildId(e.target.value)}
+                  className="font-mono"
+                  maxLength={20}
+                />
+                <p className="text-xs text-muted-foreground">
+                  No Discord: clique com botão direito no ícone do servidor → "Copiar ID do servidor"
+                  <br />
+                  (ative o Modo Desenvolvedor em Configurações → Avançado)
+                </p>
+              </div>
+
+              {/* Submit */}
               <Button
-                onClick={fetchBotGuilds}
-                disabled={guildsLoading}
+                onClick={handleCreateTenant}
+                disabled={creatingTenant || !guildId.trim()}
                 className="w-full gap-2 gradient-pink text-primary-foreground"
                 size="lg"
               >
-                {guildsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Já adicionei o bot
+                {creatingTenant ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {creatingTenant ? "Verificando e criando..." : "Criar minha loja"}
               </Button>
             </div>
           )}
 
-          {/* Phase: Select server */}
-          {phase === "select" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="font-display text-2xl font-bold">Selecione o servidor</h2>
-                <p className="text-muted-foreground mt-1">
-                  Escolha o servidor onde o bot foi adicionado
-                </p>
-              </div>
-
-              {creatingTenant ? (
-                <div className="flex flex-col items-center gap-3 py-8">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <p className="text-muted-foreground">Criando sua loja...</p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {guilds.map((guild) => (
-                    <button
-                      key={guild.id}
-                      onClick={() => handleSelectGuild(guild)}
-                      className="flex w-full items-center gap-3 rounded-xl border border-border p-3 hover:bg-muted transition-colors text-left"
-                    >
-                      {guild.icon ? (
-                        <img src={guild.icon} alt="" className="h-10 w-10 rounded-full" />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground font-bold">
-                          {guild.name[0]}
-                        </div>
-                      )}
-                      <span className="font-medium truncate">{guild.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setPhase("add")} className="flex-1">
-                  Voltar
-                </Button>
-                <Button variant="outline" onClick={fetchBotGuilds} disabled={guildsLoading} className="gap-2">
-                  <RefreshCw className={`h-4 w-4 ${guildsLoading ? "animate-spin" : ""}`} />
-                  Atualizar
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Phase: Done */}
-          {phase === "done" && selectedGuild && (
+          {phase === "done" && (
             <div className="space-y-6">
               <div className="flex flex-col items-center gap-4 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
@@ -263,12 +207,9 @@ const OnboardingPage = () => {
                 <div>
                   <h2 className="font-display text-2xl font-bold">Tudo pronto!</h2>
                   <p className="text-muted-foreground mt-1">
-                    Servidor <strong>{selectedGuild.name}</strong> conectado
+                    Servidor <strong>{serverName}</strong> conectado
                   </p>
                 </div>
-                {selectedGuild.icon && (
-                  <img src={selectedGuild.icon} alt="" className="h-16 w-16 rounded-full border-2 border-border" />
-                )}
               </div>
 
               <div className="space-y-3">
