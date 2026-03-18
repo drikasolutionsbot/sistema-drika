@@ -114,7 +114,18 @@ const TicketEmbedConfig = () => {
   };
 
   const loadPreset = (preset: TicketPreset) => {
-    setData(preset.preset_data);
+    // Preserve channel/role configs, only apply visual/text settings
+    setData(prev => ({
+      ...prev,
+      ticket_embed_title: preset.preset_data.ticket_embed_title,
+      ticket_embed_description: preset.preset_data.ticket_embed_description,
+      ticket_embed_color: preset.preset_data.ticket_embed_color,
+      ticket_embed_image_url: preset.preset_data.ticket_embed_image_url || "",
+      ticket_embed_thumbnail_url: preset.preset_data.ticket_embed_thumbnail_url || "",
+      ticket_embed_footer: preset.preset_data.ticket_embed_footer || "",
+      ticket_embed_button_label: preset.preset_data.ticket_embed_button_label,
+      ticket_embed_button_style: preset.preset_data.ticket_embed_button_style,
+    }));
     setLoadPresetOpen(false);
     toast.success(`Preset "${preset.name}" aplicado!`);
   };
