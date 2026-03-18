@@ -339,23 +339,40 @@ const DashboardPage = () => {
             <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3">Servidor Principal</h2>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={openServerModal}><Settings2 className="h-4 w-4" /></Button>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">{tenant.name[0]?.toUpperCase()}</div>
-            <div>
-              <p className="font-medium">{tenant.name}</p>
-              {tenant.discord_guild_id && <p className="text-xs font-mono text-muted-foreground">({tenant.discord_guild_id})</p>}
+          {tenant.discord_guild_id ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">{tenant.name[0]?.toUpperCase()}</div>
+                <div>
+                  <p className="font-medium">{tenant.name}</p>
+                  <p className="text-xs font-mono text-muted-foreground">({tenant.discord_guild_id})</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground border-l-2 border-primary pl-2 mb-2">Informações do Servidor</p>
+                <div className="flex gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><Users className="h-3 w-3" /> {guildInfo?.member_count ?? 0} membros</span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> {guildInfo?.presence_count ?? 0} online</span>
+                </div>
+              </div>
+              <Button variant="outline" className="gap-2 text-sm" onClick={handleAddBot}>
+                <ExternalLink className="h-3.5 w-3.5" /> Adicionar <strong>Drika Bot</strong> ao servidor
+              </Button>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+                <Shield className="h-6 w-6 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Nenhum servidor conectado</p>
+                <p className="text-xs text-muted-foreground mt-1">Conecte um servidor nas configurações</p>
+              </div>
+              <Button variant="outline" className="gap-2 text-sm" onClick={() => window.location.href = "/settings?tab=server"}>
+                <Settings2 className="h-3.5 w-3.5" /> Conectar servidor
+              </Button>
             </div>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground border-l-2 border-primary pl-2 mb-2">Informações do Servidor</p>
-            <div className="flex gap-2">
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><Users className="h-3 w-3" /> {guildInfo?.member_count ?? 0} membros</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> {guildInfo?.presence_count ?? 0} online</span>
-            </div>
-          </div>
-          <Button variant="outline" className="gap-2 text-sm" onClick={handleAddBot}>
-            <ExternalLink className="h-3.5 w-3.5" /> Adicionar <strong>Drika Bot</strong> ao servidor
-          </Button>
+          )}
         </div>
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3">Auditoria</h2>
