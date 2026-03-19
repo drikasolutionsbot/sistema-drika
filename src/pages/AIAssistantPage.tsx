@@ -179,7 +179,7 @@ export default function AIAssistantPage() {
   const [showContext, setShowContext] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"drika" | "groq">("drika");
+  const [provider, setProvider] = useState<"drika" | "groq" | "inference">("drika");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
