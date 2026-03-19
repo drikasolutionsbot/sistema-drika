@@ -402,58 +402,22 @@ export default function AIAssistantPage() {
             </p>
           </div>
 
-          {/* Engine Selector — Desktop */}
+          {/* Engine info — Desktop */}
           <div className="hidden lg:flex flex-col items-end gap-3">
             <div className="relative flex items-center gap-0 p-1.5 rounded-2xl bg-card/50 border border-border/20 backdrop-blur-xl shadow-lg">
-              {/* Drika */}
-              <button
-                onClick={() => setProvider("drika")}
-                className={cn(
-                  "relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
-                  provider === "drika"
-                    ? "bg-gradient-to-r from-primary/20 to-[#C44AFF]/20 text-primary border border-primary/30 shadow-[0_0_16px_hsl(330_100%_50%/0.12)]"
-                    : "text-muted-foreground/60 hover:text-foreground/80"
-                )}
-              >
-                <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-300",
-                  provider === "drika" ? "bg-primary/20" : "bg-muted/20"
-                )}>
-                  <Zap className={cn("h-3.5 w-3.5 transition-all", provider === "drika" ? "text-primary drop-shadow-[0_0_6px_rgba(255,105,180,0.6)]" : "text-muted-foreground/50")} />
+              <div className="relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-primary/20 to-[#C44AFF]/20 text-primary border border-primary/30 shadow-[0_0_16px_hsl(330_100%_50%/0.12)]">
+                <div className="h-6 w-6 rounded-lg flex items-center justify-center bg-primary/20">
+                  <Zap className="h-3.5 w-3.5 text-primary drop-shadow-[0_0_6px_rgba(255,105,180,0.6)]" />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="leading-none">Drika</span>
-                  <span className={cn("text-[8px] font-medium mt-0.5", provider === "drika" ? "text-primary/60" : "text-muted-foreground/30")}>Gemini • GPT</span>
+                  <span className="leading-none">Drika Engine</span>
+                  <span className="text-[8px] font-medium mt-0.5 text-primary/60">Gemini • GPT</span>
                 </div>
-              </button>
-              {/* Google AI */}
-              <button
-                onClick={() => setProvider("google")}
-                className={cn(
-                  "relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
-                  provider === "google"
-                    ? "bg-gradient-to-r from-[#4285F4]/20 to-[#34A853]/20 text-[#4285F4] border border-[#4285F4]/30 shadow-[0_0_16px_rgba(66,133,244,0.12)]"
-                    : "text-muted-foreground/60 hover:text-foreground/80"
-                )}
-              >
-                <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-300",
-                  provider === "google" ? "bg-[#4285F4]/20" : "bg-muted/20"
-                )}>
-                  <Gem className={cn("h-3.5 w-3.5 transition-all", provider === "google" ? "text-[#4285F4] drop-shadow-[0_0_6px_rgba(66,133,244,0.6)]" : "text-muted-foreground/50")} />
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="leading-none">Google AI</span>
-                  <span className={cn("text-[8px] font-medium mt-0.5", provider === "google" ? "text-[#4285F4]/60" : "text-muted-foreground/30")}>Gemini 2.5</span>
-                </div>
-              </button>
+              </div>
             </div>
-            {/* Active model info */}
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
-              <div className={cn("h-1.5 w-1.5 rounded-full", 
-                provider === "drika" ? "bg-primary/60" : "bg-[#4285F4]/60"
-              )} />
-              <span className="font-medium">
-                {provider === "drika" ? "Multi-model fallback • 8 modelos" : "Google AI Studio • Gemini"}
-              </span>
+              <div className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+              <span className="font-medium">Multi-model fallback • 8 modelos</span>
             </div>
           </div>
         </div>
