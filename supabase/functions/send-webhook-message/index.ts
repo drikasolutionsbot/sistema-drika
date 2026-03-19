@@ -35,8 +35,28 @@ function parseEmojiFromLabel(label: string) {
   return { emoji: null, cleanLabel: label, isCustom: false, animated: false, customName: undefined, customId: undefined };
 }
 
-// Get or create a webhook for a channel, owned by the bot application
-async function getOrCreateWebhook(channelId: string, botToken: string): Promise<{ id: string; token: string } | null> {
+// Get bot user id to ensure we only reuse webhooks owned by the same bot/application
+async function getBotUserId(botToken: string): Promise<string | null> {
+  try {
+    const meRes = await fetch(`${DISCORD_API}/users/@me`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+
+    if (!meRes.ok) {
+      console.error("Failed to fetch bot identity:", meRes.status, await meRes.text());
+      return null;
+    }
+
+    const me = await meRes.json();
+    return me?.id ?? null;
+  } catch (err) {
+    console.error("Bot identity error:", err);
+    return null;
+  }
+}
+
+// Get or create a webhook for a channel, owned by the current bot/application
+async function getOrCreateWebhook(channelId: string, botToken: string, botUserId: string | null): Promise<{ id: string; token: string } | null> {
   try {
     // List existing webhooks for the channel
     const listRes = await fetch(`${DISCORD_API}/channels/${channelId}/webhooks`, {
@@ -47,9 +67,15 @@ async function getOrCreateWebhook(channelId: string, botToken: string): Promise<
       return null;
     }
     const webhooks = await listRes.json();
-    
-    // Find an existing webhook created by our bot
-    const existing = webhooks.find((w: any) => w.type === 1 && w.name === "Drika Webhook");
+
+    // Reuse only webhook created by the same bot/app (prevents routing interactions to wrong app)
+    const existing = webhooks.find((w: any) =>
+      w.type === 1 &&
+      w.name === "Drika Webhook" &&
+      !!w.token &&
+      (!!botUserId ? w.user?.id === botUserId : true)
+    );
+
     if (existing) {
       return { id: existing.id, token: existing.token };
     }
@@ -105,6 +131,7 @@ serve(async (req) => {
 
     // Use tenant's custom bot token if available, otherwise global
     const botToken = tenant?.bot_token_encrypted || globalBotToken;
+    const botUserId = await getBotUserId(botToken);
 
     const customBotName = tenant?.bot_name || tenant?.name || undefined;
     const customAvatarUrl = tenant?.bot_avatar_url || undefined;
@@ -207,7 +234,7 @@ serve(async (req) => {
 
     // Try webhook first for custom branding (application-owned webhooks support interactive components)
     if (customBotName || customAvatarUrl) {
-      const webhook = await getOrCreateWebhook(channel_id, botToken);
+      const webhook = await getOrCreateWebhook(channel_id, botToken, botUserId);
       if (webhook) {
         const webhookPayload: Record<string, any> = { ...payload };
         if (customBotName) webhookPayload.username = customBotName;

@@ -18,7 +18,10 @@ async function sendWithIdentity(channel, tenant, options) {
     if (!webhook) {
       // Buscar webhooks existentes no canal
       const webhooks = await channel.fetchWebhooks().catch(() => null);
-      const existing = webhooks?.find((w) => w.name === "Drika Webhook" && w.token);
+      const botUserId = channel.client.user?.id;
+      const existing = webhooks?.find(
+        (w) => w.name === "Drika Webhook" && w.token && (!botUserId || w.owner?.id === botUserId)
+      );
 
       if (existing) {
         webhook = new WebhookClient({ id: existing.id, token: existing.token });
@@ -40,6 +43,7 @@ async function sendWithIdentity(channel, tenant, options) {
 
     return msg;
   } catch (err) {
+    webhookCache.delete(channel.id);
     console.error("Webhook send failed, falling back to channel.send:", err.message);
     // Fallback para envio direto
     return channel.send(options);
