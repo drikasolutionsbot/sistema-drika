@@ -93,8 +93,19 @@ serve(async (req) => {
     let authHeader: string;
     
     if (useGroq) {
-      apiKey = Deno.env.get("GROQ_API_KEY") || "";
-      if (!apiKey) throw new Error("GROQ_API_KEY não está configurada. Adicione nas configurações do Supabase.");
+      // Rotate between multiple Groq API keys for higher rate limits
+      const groqKeys = [
+        Deno.env.get("GROQ_API_KEY"),
+        Deno.env.get("GROQ_API_KEY_2"),
+        Deno.env.get("GROQ_API_KEY_3"),
+        Deno.env.get("GROQ_API_KEY_4"),
+      ].filter((k): k is string => !!k && k.length > 0);
+
+      if (groqKeys.length === 0) throw new Error("Nenhuma GROQ_API_KEY configurada. Adicione nas configurações do Supabase.");
+
+      // Simple round-robin based on current second
+      apiKey = groqKeys[Math.floor(Date.now() / 1000) % groqKeys.length];
+      console.log(`Using Groq key pool: ${groqKeys.length} keys available`);
       apiUrl = GROQ_API_URL;
       authHeader = "Bearer";
     } else {
