@@ -2383,7 +2383,7 @@ async function processPurchase(
       { name: "📦 Em estoque", value: stockCount, inline: true },
     ],
     footer: { 
-      text: `${storeName} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+      text: storeConfig?.purchase_embed_footer || `${storeName} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
       icon_url: storeLogo || undefined,
     },
   };
