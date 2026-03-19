@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const DISCORD_CLIENT_ID = "1477916070508757092";
+const GLOBAL_BOT_CLIENT_ID = "1477916070508757092";
 const BOT_PERMISSIONS = "536870920";
 
 interface Props {
@@ -114,8 +114,10 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     }
   };
 
+  const botClientId = tenant?.bot_client_id || GLOBAL_BOT_CLIENT_ID;
+
   const handleAddBot = () => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
+    const url = `https://discord.com/oauth2/authorize?client_id=${botClientId}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
     window.open(url, "_blank");
   };
 
