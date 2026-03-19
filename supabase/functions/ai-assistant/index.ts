@@ -95,6 +95,7 @@ async function tryModels(
 const LOVABLE_API_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const INFERENCE_API_URL = "https://api.inference.net/v1/chat/completions";
+const HF_API_URL = "https://router.huggingface.co/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
