@@ -147,7 +147,7 @@ Inclua estilo, cores, composição, iluminação e mood.`,
       { role: "user", content: prompt },
     ];
 
-    const textModels = selectedProvider === "google" ? GOOGLE_AI_TEXT_MODELS : TEXT_MODELS;
+    const textModels = TEXT_MODELS;
 
     const { response, model } = await tryModels(
       textModels,
