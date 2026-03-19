@@ -116,6 +116,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.on(Events.GuildMemberAdd, async (member) => {
   try {
     await memberJoinHandler(client, member);
+    // Handle verification-specific logic
+    const tenant = await resolveTenant(member.guild.id);
+    if (tenant) await verificationHandler.onMemberJoin(client, member, tenant);
   } catch (err) {
     console.error("Erro ao processar novo membro:", err);
   }
