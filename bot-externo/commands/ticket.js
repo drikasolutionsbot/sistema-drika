@@ -1,9 +1,36 @@
 const {
-  SlashCommandBuilder,
+  SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
 } = require("discord.js");
 const { getStoreConfig } = require("../supabase");
 const { sendWithIdentity } = require("../handlers/webhookSender");
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+
+// Parse emoji from button label (same logic as other commands)
+function parseEmojiFromLabel(label) {
+  const customMatch = label.match(/^<(a?):(\w+):(\d+)>\s*/);
+  if (customMatch) {
+    return {
+      emoji: { id: customMatch[3], name: customMatch[2], animated: customMatch[1] === "a" },
+      cleanLabel: label.slice(customMatch[0].length) || "Abrir Ticket",
+    };
+  }
+  const unicodeMatch = label.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
+  if (unicodeMatch) {
+    return {
+      emoji: { name: unicodeMatch[1] },
+      cleanLabel: label.slice(unicodeMatch[0].length) || "Abrir Ticket",
+    };
+  }
+  return { emoji: null, cleanLabel: label };
+}
+
+const styleMap = {
+  primary: ButtonStyle.Primary,
+  secondary: ButtonStyle.Secondary,
+  success: ButtonStyle.Success,
+  danger: ButtonStyle.Danger,
+  glass: ButtonStyle.Secondary,
+  link: ButtonStyle.Secondary,
+};
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,6 +38,8 @@ module.exports = {
     .setDescription("Enviar painel de tickets no canal atual"),
 
   async execute(interaction, tenant) {
+    await interaction.deferReply({ ephemeral: true });
+
     const storeConfig = await getStoreConfig(tenant.id);
     const embedColor = parseInt((storeConfig?.ticket_embed_color || "#5865F2").replace("#", ""), 16);
 
@@ -23,14 +52,23 @@ module.exports = {
     if (storeConfig?.ticket_embed_image_url) embed.setImage(storeConfig.ticket_embed_image_url);
     if (storeConfig?.ticket_embed_thumbnail_url) embed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
 
+    // Parse button label & emoji
+    const rawLabel = storeConfig?.ticket_embed_button_label || "📩 Abrir Ticket";
+    const { emoji, cleanLabel } = parseEmojiFromLabel(rawLabel);
+
+    // Use configured button style
+    const btnStyle = styleMap[storeConfig?.ticket_embed_button_style || "glass"] || ButtonStyle.Secondary;
+
     const button = new ButtonBuilder()
       .setCustomId(`ticket_open_${tenant.id}_${interaction.channel.id}`)
-      .setLabel(storeConfig?.ticket_embed_button_label || "📩 Abrir Ticket")
-      .setStyle(ButtonStyle.Primary);
+      .setLabel(cleanLabel)
+      .setStyle(btnStyle);
+
+    if (emoji) button.setEmoji(emoji);
 
     const row = new ActionRowBuilder().addComponents(button);
 
     await sendWithIdentity(interaction.channel, tenant, { embeds: [embed], components: [row] });
-    await interaction.reply({ content: "✅ Painel de tickets enviado!", ephemeral: true });
+    await interaction.editReply({ content: "✅ Painel de tickets enviado!" });
   },
 };

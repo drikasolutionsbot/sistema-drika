@@ -620,14 +620,22 @@ const TicketEmbedConfig = () => {
           <div className="mt-2 pt-2 border-t border-[#3f4147]">
             <p className="text-[10px] text-[#a3a6aa] mb-2">Botões dentro do ticket:</p>
             <div className="flex flex-wrap gap-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#5865F2] text-white">
-                🕐 Lembrar
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
+                🔔 Lembrar
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
                 ✏️ Renomear
               </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
+                📁 Arquivar
+              </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ed4245] text-white">
-                🔒 Fechar Ticket
+                🗑️ Deletar
+              </div>
+            </div>
+            <div className="mt-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#2b2d31] border border-[#3f4147] text-[#a3a6aa] w-full">
+                👤 Selecione algum membro para Ação
               </div>
             </div>
           </div>
