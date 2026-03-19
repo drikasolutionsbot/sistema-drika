@@ -63,7 +63,14 @@ serve(async (req) => {
       await supabase.from("orders").update({ status: "canceled" }).eq("id", order.id);
       expiredCount++;
 
-      // Notify buyer via DM
+      // Notify buyer via DM - resolve tenant bot token
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("bot_token_encrypted")
+        .eq("id", order.tenant_id)
+        .single();
+      const botToken = tenantData?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
+
       if (botToken) {
         try {
           const dmCh = await fetch(`${DISCORD_API}/users/@me/channels`, {

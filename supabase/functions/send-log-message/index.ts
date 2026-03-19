@@ -71,6 +71,14 @@ serve(async (req) => {
 
     const discordChannelId = config.discord_channel_id;
 
+    // Resolve bot token from tenant
+    const { data: tenantData } = await supabase
+      .from("tenants")
+      .select("bot_token_encrypted")
+      .eq("id", resolvedTenantId)
+      .single();
+    const botToken = tenantData?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN")!;
+
     // Build Discord message payload
     const messageBody: Record<string, any> = {};
 

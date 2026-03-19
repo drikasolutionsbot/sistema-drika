@@ -37,13 +37,12 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const botToken = Deno.env.get("DISCORD_BOT_TOKEN")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Resolve guild_id from tenant
+    // Resolve guild_id and bot token from tenant
     const { data: tenantData } = await supabase
       .from("tenants")
-      .select("discord_guild_id")
+      .select("discord_guild_id, bot_token_encrypted")
       .eq("id", tenant_id)
       .single();
 
@@ -54,6 +53,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    const botToken = tenantData.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN")!;
     const guildId = tenantData.discord_guild_id;
 
     // ACTION: get - Get current permission overwrites for a channel

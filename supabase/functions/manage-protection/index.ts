@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       const syncedAt = new Date().toISOString();
 
       // Send sync notification to Discord log channel if configured
-      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+      const botToken = tenantData?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
       const logChannelId = channelConfig?.discord_channel_id;
 
       if (botToken && logChannelId) {
