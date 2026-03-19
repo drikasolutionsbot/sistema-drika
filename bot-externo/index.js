@@ -99,6 +99,45 @@ client.on(Events.ClientReady, async () => {
   }
 });
 
+// ── Ao entrar em um novo servidor, registrar os comandos ──
+client.on(Events.GuildCreate, async (guild) => {
+  console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
+  const { SlashCommandBuilder } = require("discord.js");
+
+  const commands = [
+    pingCommand.data,
+    lojaCommand.data,
+    comprarHandler.data,
+    ticketCommand.data,
+    painelCommand.data,
+    estoqueCommand.data,
+    verificarCommand.data,
+    sorteioCommand.data,
+    new SlashCommandBuilder().setName("clear").setDescription("Limpa todas as mensagens do canal"),
+    new SlashCommandBuilder().setName("ban").setDescription("Bane um usuário do servidor")
+      .addUserOption(o => o.setName("usuario").setDescription("Usuário para banir").setRequired(true))
+      .addStringOption(o => o.setName("motivo").setDescription("Motivo do ban")),
+    new SlashCommandBuilder().setName("kick").setDescription("Expulsa um usuário do servidor")
+      .addUserOption(o => o.setName("usuario").setDescription("Usuário para expulsar").setRequired(true))
+      .addStringOption(o => o.setName("motivo").setDescription("Motivo da expulsão")),
+    new SlashCommandBuilder().setName("fechar").setDescription("Fecha o ticket atual"),
+  ];
+
+  try {
+    await rest.put(Routes.applicationGuildCommands(client.user.id, guild.id), {
+      body: commands,
+    });
+    console.log(`📝 Comandos registrados no novo servidor: ${guild.name}`);
+
+    const tenant = await resolveTenant(guild.id);
+    if (tenant?.bot_status) {
+      client.user.setActivity(tenant.bot_status, { type: ActivityType.Playing });
+    }
+  } catch (err) {
+    console.error(`Erro ao registrar comandos em ${guild.name}:`, err.message);
+  }
+});
+
 // ── Interactions (slash commands + buttons) ──
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
