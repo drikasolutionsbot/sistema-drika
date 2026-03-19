@@ -31,9 +31,12 @@ interface MarketplaceItem {
 
 const MarketplacePage = () => {
   const { tenantId, tenant } = useTenant();
+  const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
   const [detailItem, setDetailItem] = useState<MarketplaceItem | null>(null);
   const [pixOpen, setPixOpen] = useState(false);
+
+  const isPro = tenant?.plan === "pro" || tenant?.plan === "business";
 
   // Available items
   const { data: items = [], isLoading } = useQuery<MarketplaceItem[]>({
