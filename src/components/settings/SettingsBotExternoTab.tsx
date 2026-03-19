@@ -26,6 +26,7 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [disconnecting, setDisconnecting] = useState(false);
   const [botPrefix, setBotPrefix] = useState(tenant?.bot_prefix || "!");
   const [botStatus, setBotStatus] = useState(tenant?.bot_status || "online");
+  const [botClientId, setBotClientId] = useState(tenant?.bot_client_id || "");
 
   // Fetch available guilds from the bot
   const { data: guilds = [], isLoading: guildsLoading, refetch: refetchGuilds } = useQuery({
