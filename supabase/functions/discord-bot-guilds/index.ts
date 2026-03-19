@@ -51,15 +51,22 @@ serve(async (req) => {
       // body opcional
     }
 
-    // Resolve tenant bot token
-    let botToken: string | null = null;
+    // Resolve bot token: external bot (default) + tenant override (optional)
+    const externalBotToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
+    let botToken: string | null = externalBotToken;
+
     if (tenantIdFromBody) {
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: tenantData } = await adminClient.from("tenants").select("bot_token_encrypted").eq("id", tenantIdFromBody).single();
-      botToken = tenantData?.bot_token_encrypted || null;
+      const { data: tenantData } = await adminClient
+        .from("tenants")
+        .select("bot_token_encrypted")
+        .eq("id", tenantIdFromBody)
+        .single();
+
+      botToken = tenantData?.bot_token_encrypted || externalBotToken;
     }
 
-    if (!botToken) {
+    if (!botToken && action !== "invite_url") {
       return new Response(JSON.stringify({ guilds: [], auto_linked: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
