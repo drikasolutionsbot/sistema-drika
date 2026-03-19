@@ -200,40 +200,12 @@ serve(async (req) => {
       payload.components = components;
     }
 
-    // Determine if we have interactive components (buttons with custom_id)
-    const hasInteractiveComponents = payload.components?.some((row: any) =>
-      row.components?.some((c: any) => c.custom_id)
-    );
-
     let messageId: string;
 
-    if (hasInteractiveComponents) {
-      // Interactive components require Bot API - send via bot, but we can't change name/avatar
-      // So we use a two-step approach: send embed via webhook, then edit to add components via bot
-      // Actually, we must send via Bot API for interactive components
-      const sendRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!sendRes.ok) {
-        const errText = await sendRes.text();
-        console.error("Bot message failed:", sendRes.status, errText);
-        throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
-      }
-
-      const message = await sendRes.json();
-      messageId = message.id;
-    } else {
-      // No interactive components - use webhook for custom name/avatar
+    // Try webhook first for custom branding (application-owned webhooks support interactive components)
+    if (customBotName || customAvatarUrl) {
       const webhook = await getOrCreateWebhook(channel_id, botToken);
-      
-      if (webhook && (customBotName || customAvatarUrl)) {
-        // Send via webhook with custom identity
+      if (webhook) {
         const webhookPayload: Record<string, any> = { ...payload };
         if (customBotName) webhookPayload.username = customBotName;
         if (customAvatarUrl) webhookPayload.avatar_url = customAvatarUrl;
@@ -244,16 +216,30 @@ serve(async (req) => {
           body: JSON.stringify(webhookPayload),
         });
 
-        if (!sendRes.ok) {
+        if (sendRes.ok) {
+          const message = await sendRes.json();
+          messageId = message.id;
+        } else {
           const errText = await sendRes.text();
-          console.error("Webhook message failed:", sendRes.status, errText);
-          throw new Error(`Discord webhook error: ${sendRes.status} - ${errText}`);
+          console.error("Webhook send failed, falling back to Bot API:", sendRes.status, errText);
+          // Fallback to Bot API
+          const fallbackRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bot ${botToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+          if (!fallbackRes.ok) {
+            const fallbackErr = await fallbackRes.text();
+            throw new Error(`Discord API error: ${fallbackRes.status} - ${fallbackErr}`);
+          }
+          const message = await fallbackRes.json();
+          messageId = message.id;
         }
-
-        const message = await sendRes.json();
-        messageId = message.id;
       } else {
-        // Fallback to Bot API
+        // No webhook available, use Bot API
         const sendRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
           method: "POST",
           headers: {
@@ -262,16 +248,29 @@ serve(async (req) => {
           },
           body: JSON.stringify(payload),
         });
-
         if (!sendRes.ok) {
           const errText = await sendRes.text();
-          console.error("Bot message failed:", sendRes.status, errText);
           throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
         }
-
         const message = await sendRes.json();
         messageId = message.id;
       }
+    } else {
+      // No custom branding, use Bot API directly
+      const sendRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!sendRes.ok) {
+        const errText = await sendRes.text();
+        throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
+      }
+      const message = await sendRes.json();
+      messageId = message.id;
     }
 
     return new Response(JSON.stringify({ success: true, message_id: messageId }), {
