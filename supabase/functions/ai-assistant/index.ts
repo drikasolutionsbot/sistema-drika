@@ -23,20 +23,6 @@ const IMAGE_MODELS = [
   "google/gemini-3-pro-image-preview",
 ];
 
-
-// Google AI Studio models
-const GOOGLE_AI_TEXT_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash",
-  "gemini-1.5-pro",
-];
-
-const GOOGLE_AI_IMAGE_MODELS = [
-  "gemini-2.0-flash-preview-image-generation",
-  "gemini-2.0-flash",
-];
-
 async function tryModels(
   models: string[],
   buildBody: (model: string) => object,
