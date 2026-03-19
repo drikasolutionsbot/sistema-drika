@@ -507,7 +507,7 @@ export default function AIAssistantPage() {
               <span className={cn("text-xs font-bold tracking-wide", isActive ? "text-foreground" : "text-muted-foreground")}>
                 {tool.label}
               </span>
-              <span className="text-[10px] text-muted-foreground/50 leading-tight">{tool.description}</span>
+               <span className="text-[10px] text-muted-foreground/50 leading-tight">{tool.description}</span>
 
               {/* Active indicator bar */}
               {isActive && (
