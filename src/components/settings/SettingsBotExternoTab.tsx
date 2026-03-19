@@ -279,21 +279,15 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Client ID do Bot</Label>
-              <Input
-                value={botClientId}
-                onChange={(e) => setBotClientId(e.target.value)}
-                placeholder="Cole o Application ID do seu bot externo"
-                className="font-mono"
-                maxLength={20}
-              />
-              <p className="text-xs text-muted-foreground">
-                Encontre no <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Discord Developer Portal</a> → sua aplicação → General Information → Application ID. Usado para o botão "Conectar Bot ao Servidor".
-              </p>
-            </div>
-
-            <div className="space-y-2">
               <Label className="text-muted-foreground text-xs uppercase tracking-wider">Prefixo do Bot</Label>
+              <Input
+                value={botPrefix}
+                onChange={(e) => setBotPrefix(e.target.value)}
+                placeholder="!"
+                className="font-mono w-24"
+                maxLength={5}
+              />
+            </div>
               <Input
                 value={botPrefix}
                 onChange={(e) => setBotPrefix(e.target.value)}
