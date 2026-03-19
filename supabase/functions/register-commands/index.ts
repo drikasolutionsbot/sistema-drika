@@ -56,8 +56,7 @@ Deno.serve(async (req) => {
     }
 
     if (!BOT_TOKEN) {
-      return new Response(JSON.stringify({ error: "Bot token não configurado para este tenant" }), {
-        status: 400,
+      return new Response(JSON.stringify({ success: false, registered: 0, commands: [], message: "Bot token não configurado. Configure em Configurações → Bot Externo." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
