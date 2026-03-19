@@ -248,6 +248,17 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (product.auto_delivery) descLines.push("⚡ **Entrega Automática!**");
   if (product.description) descLines.push(product.description);
 
+  const { date: checkoutDate, time: checkoutTime } = formatDateTime();
+  const checkoutFooterText = resolveCheckoutFooter(storeConfig, product, stockCount, {
+    storeName,
+    productName: orderName,
+    orderNumber: order.order_number,
+    timeoutMin: storeConfig?.payment_timeout_minutes || 30,
+    date: checkoutDate,
+    time: checkoutTime,
+    username,
+  });
+
   const reviewEmbed = new EmbedBuilder()
     .setAuthor({ name: username, iconURL: interaction.user.displayAvatarURL() })
     .setTitle("Revisão do Pedido")
@@ -257,7 +268,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       { name: "Valor à vista", value: formatBRL(priceCents), inline: true },
       { name: "📦 Em estoque", value: stockCount, inline: true },
     )
-    .setFooter({ text: storeConfig?.purchase_embed_footer || `${storeName} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, iconURL: storeLogo || undefined })
+    .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
     .setTimestamp();
 
   if (descLines.length) reviewEmbed.setDescription(descLines.join("\n\n"));
