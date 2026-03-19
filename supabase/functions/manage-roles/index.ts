@@ -309,15 +309,15 @@ serve(async (req) => {
 
       // Delete directly by Discord role ID (used by RolesTab)
       case "delete_discord": {
+        const bot = requireBot();
         const { role_id } = params;
         if (!role_id) throw new Error("Missing role_id");
 
-        // Delete from Discord
         const discordRes = await fetch(
-          `https://discord.com/api/v10/guilds/${guildId}/roles/${role_id}`,
+          `https://discord.com/api/v10/guilds/${bot.guildId}/roles/${role_id}`,
           {
             method: "DELETE",
-            headers: { Authorization: `Bot ${botToken}` },
+            headers: { Authorization: `Bot ${bot.botToken}` },
           }
         );
 
