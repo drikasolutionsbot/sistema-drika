@@ -67,6 +67,7 @@ client.on(Events.ClientReady, async () => {
     ticketCommand.data,
     painelCommand.data,
     estoqueCommand.data,
+    verificarCommand.data,
     // Moderation commands
     new SlashCommandBuilder().setName("clear").setDescription("Limpa todas as mensagens do canal"),
     new SlashCommandBuilder().setName("ban").setDescription("Bane um usuário do servidor")
