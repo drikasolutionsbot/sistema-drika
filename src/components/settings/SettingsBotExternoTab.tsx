@@ -288,14 +288,6 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                 maxLength={5}
               />
             </div>
-              <Input
-                value={botPrefix}
-                onChange={(e) => setBotPrefix(e.target.value)}
-                placeholder="!"
-                className="font-mono w-24"
-                maxLength={5}
-              />
-            </div>
 
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs uppercase tracking-wider">Status do Bot</Label>
