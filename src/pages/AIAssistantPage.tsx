@@ -669,7 +669,7 @@ export default function AIAssistantPage() {
                        Escolha uma sugestão rápida ou escreva seu prompt para começar a gerar com a Drika IA
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground/25">
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground/45">
                     <Orbit className="h-3 w-3" />
                     <span>Powered by Drika Engine v3.0</span>
                   </div>
