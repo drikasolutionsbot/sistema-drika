@@ -128,7 +128,8 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   };
 
   const isConnected = !!tenant?.discord_guild_id;
-  const connectedGuild = guilds.find((g) => g.id === tenant?.discord_guild_id);
+  const safeGuilds = Array.isArray(guilds) ? guilds : [];
+  const connectedGuild = safeGuilds.find((g) => g.id === tenant?.discord_guild_id);
   const activeProducts = products.filter((p: any) => p.active);
   const totalStock = products.reduce((sum: number, p: any) => sum + (p.stock || 0), 0);
 
