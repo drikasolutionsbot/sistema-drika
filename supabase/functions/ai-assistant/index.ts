@@ -91,7 +91,7 @@ serve(async (req) => {
   try {
     const { type, prompt, context, provider } = await req.json();
     
-    // Determine provider: "groq", "inference" or "drika" (default)
+    // Determine provider: "google" or "drika" (default)
     const selectedProvider = provider || "drika";
     
     let apiKey: string;
