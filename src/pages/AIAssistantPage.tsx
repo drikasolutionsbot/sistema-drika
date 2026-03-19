@@ -241,8 +241,10 @@ export default function AIAssistantPage() {
 
     try {
       if (selectedTool.id === "image") {
+        // Auto-switch to drika if current provider doesn't support images
+        const imageProvider = (provider === "drika" || provider === "google") ? provider : "drika";
         const { data, error } = await supabase.functions.invoke("ai-assistant", {
-          body: { type: "image", prompt: currentPrompt, context, provider },
+          body: { type: "image", prompt: currentPrompt, context, provider: imageProvider },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
