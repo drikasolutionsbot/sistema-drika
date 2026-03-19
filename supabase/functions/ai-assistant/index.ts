@@ -39,6 +39,14 @@ const INFERENCE_TEXT_MODELS = [
   "InferenceNet/Schematron-3B",
 ];
 
+// Hugging Face models
+const HF_TEXT_MODELS = [
+  "Qwen/Qwen2.5-72B-Instruct",
+  "meta-llama/Llama-3.3-70B-Instruct",
+  "mistralai/Mixtral-8x7B-Instruct-v0.1",
+  "microsoft/Phi-3-mini-4k-instruct",
+];
+
 async function tryModels(
   models: string[],
   buildBody: (model: string) => object,
@@ -87,6 +95,7 @@ async function tryModels(
 const LOVABLE_API_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const INFERENCE_API_URL = "https://api.inference.net/v1/chat/completions";
+const HF_API_URL = "https://router.huggingface.co/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -118,8 +127,13 @@ serve(async (req) => {
       authHeader = "Bearer";
     } else if (selectedProvider === "inference") {
       apiKey = Deno.env.get("INFERENCE_NET_API_KEY") || "";
-      if (!apiKey) throw new Error("INFERENCE_NET_API_KEY não está configurada. Adicione nas configurações do Supabase.");
+      if (!apiKey) throw new Error("INFERENCE_NET_API_KEY não está configurada.");
       apiUrl = INFERENCE_API_URL;
+      authHeader = "Bearer";
+    } else if (selectedProvider === "huggingface") {
+      apiKey = Deno.env.get("HUGGINGFACE_API_KEY") || "";
+      if (!apiKey) throw new Error("HUGGINGFACE_API_KEY não está configurada.");
+      apiUrl = HF_API_URL;
       authHeader = "Bearer";
     } else {
       apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
@@ -201,7 +215,7 @@ Inclua estilo, cores, composição, iluminação e mood.`,
       { role: "user", content: prompt },
     ];
 
-    const textModels = selectedProvider === "groq" ? GROQ_TEXT_MODELS : selectedProvider === "inference" ? INFERENCE_TEXT_MODELS : TEXT_MODELS;
+    const textModels = selectedProvider === "groq" ? GROQ_TEXT_MODELS : selectedProvider === "inference" ? INFERENCE_TEXT_MODELS : selectedProvider === "huggingface" ? HF_TEXT_MODELS : TEXT_MODELS;
 
     const { response, model } = await tryModels(
       textModels,
