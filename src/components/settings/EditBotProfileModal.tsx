@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Loader2, Bot, Image, Upload } from "lucide-react";
+import { Loader2, Bot, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,34 +24,26 @@ interface Props {
 const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTenant }: Props) => {
   const [botName, setBotName] = useState(tenant?.bot_name || "");
   const [botAvatarUrl, setBotAvatarUrl] = useState(tenant?.bot_avatar_url || "");
-  const [botBannerUrl, setBotBannerUrl] = useState(tenant?.banner_url || "");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
-  const bannerRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (
-    file: File,
-    folder: string,
-    setUrl: (url: string) => void,
-    setLoading: (v: boolean) => void
-  ) => {
+  const handleUpload = async (file: File) => {
     if (!tenantId) return;
-    setLoading(true);
+    setUploadingAvatar(true);
     try {
       const ext = file.name.split(".").pop();
-      const path = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
+      const path = `${tenantId}/bot-avatar/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage
         .from("tenant-assets")
         .upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      setUrl(data.publicUrl);
+      setBotAvatarUrl(data.publicUrl);
     } catch (err: any) {
       toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setUploadingAvatar(false);
     }
   };
 
@@ -65,7 +57,6 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
           updates: {
             bot_name: botName.trim() || null,
             bot_avatar_url: botAvatarUrl.trim() || null,
-            banner_url: botBannerUrl.trim() || null,
           },
         },
       });
@@ -115,32 +106,6 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
             <p className="text-[11px] text-muted-foreground">PNG, JPG até 10MB</p>
           </div>
 
-          {/* Banner */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Banner do Bot</Label>
-            <div className="flex items-center gap-4">
-              <div className="shrink-0">
-                {botBannerUrl ? (
-                  <img src={botBannerUrl} alt="Banner" className="h-16 w-28 rounded-lg object-cover border-2 border-border" />
-                ) : (
-                  <div className="h-16 w-28 rounded-lg bg-muted flex items-center justify-center border-2 border-border">
-                    <Image className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => bannerRef.current?.click()}
-                disabled={uploadingBanner}
-              >
-                {uploadingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Escolher Imagem
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">PNG, JPG até 10MB</p>
-          </div>
-
           {/* Name */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold">Nome do Bot</Label>
@@ -165,13 +130,8 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
 
         <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) handleUpload(file, "bot-avatar", setBotAvatarUrl, setUploadingAvatar);
+          if (file) handleUpload(file);
           if (avatarRef.current) avatarRef.current.value = "";
-        }} />
-        <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleUpload(file, "bot-banner", setBotBannerUrl, setUploadingBanner);
-          if (bannerRef.current) bannerRef.current.value = "";
         }} />
       </DialogContent>
     </Dialog>
