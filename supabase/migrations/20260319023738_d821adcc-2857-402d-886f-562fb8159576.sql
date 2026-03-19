@@ -1,0 +1,1 @@
+UPDATE tenants SET discord_guild_id = NULL, updated_at = now() WHERE id = '1975aff0-478f-4180-906a-c15e967c53d7';
