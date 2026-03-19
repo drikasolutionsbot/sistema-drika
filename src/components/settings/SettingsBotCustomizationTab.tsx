@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Palette, Loader2, Check, Upload, X, Bot, Key, Eye, EyeOff, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Palette, Loader2, Check, Upload, X, Bot, Key, Eye, EyeOff, AlertTriangle, CheckCircle2, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
