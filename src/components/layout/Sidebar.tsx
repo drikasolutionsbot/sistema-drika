@@ -51,7 +51,6 @@ const navGroups = [
       { label: "Boas-vindas", icon: HandMetal, path: "/welcome" },
       { label: "Tickets", icon: Ticket, path: "/tickets" },
       { label: "Sorteios", icon: Gift, path: "/giveaways" },
-      
       { label: "eCloud", icon: Cloud, path: "/ecloud" },
     ],
   },
@@ -79,29 +78,58 @@ const NavItem = ({ item, isActive, collapsed }: NavItemProps) => {
     <Link
       to={item.path}
       className={cn(
-      "relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-200 group",
+        "relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-300 group overflow-hidden",
         collapsed ? "justify-center w-11 h-11 mx-auto" : "px-3 py-2.5",
         isActive
-          ? "bg-primary/15 text-primary shadow-[0_0_16px_hsl(330_100%_71%/0.12)] border border-primary/20"
-          : "text-white/50 hover:bg-white/10 hover:text-white/90 border border-transparent"
+          ? "bg-primary/12 text-primary border border-primary/20"
+          : "text-white/45 hover:bg-white/[0.06] hover:text-white/80 border border-transparent"
       )}
     >
+      {/* Active bg glow */}
+      {isActive && (
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pointer-events-none" />
+      )}
+
+      {/* Left indicator */}
       {isActive && (
         <div className={cn(
-          "absolute top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_8px_hsl(330_100%_71%/0.6)]",
+          "absolute top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_10px_hsl(330_100%_71%/0.7)]",
           collapsed ? "left-0 -translate-x-2" : "-left-0.5"
         )} />
       )}
-      <item.icon
-        className={cn(
-          "shrink-0 transition-all duration-200",
-          collapsed ? "h-[18px] w-[18px]" : "h-4 w-4",
-          isActive
-            ? "text-primary drop-shadow-[0_0_4px_hsl(330_100%_71%/0.4)]"
-            : "group-hover:text-white/90"
+
+      {/* Icon container */}
+      <div className={cn(
+        "relative shrink-0 flex items-center justify-center rounded-lg transition-all duration-300",
+        collapsed ? "h-7 w-7" : "h-6 w-6",
+        isActive
+          ? "bg-primary/15"
+          : "group-hover:bg-white/[0.06]"
+      )}>
+        <item.icon
+          className={cn(
+            "shrink-0 transition-all duration-300",
+            collapsed ? "h-[16px] w-[16px]" : "h-[15px] w-[15px]",
+            isActive
+              ? "text-primary drop-shadow-[0_0_6px_hsl(330_100%_71%/0.5)]"
+              : "text-white/40 group-hover:text-white/70"
+          )}
+          strokeWidth={isActive ? 2.2 : 1.8}
+        />
+        {/* Icon glow dot */}
+        {isActive && (
+          <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(330_100%_71%/0.8)]" />
         )}
-      />
-      {!collapsed && <span className="truncate text-white/80">{item.label}</span>}
+      </div>
+
+      {!collapsed && (
+        <span className={cn(
+          "truncate transition-colors duration-300 relative z-10",
+          isActive ? "text-primary font-semibold" : "text-white/55 group-hover:text-white/80"
+        )}>
+          {item.label}
+        </span>
+      )}
     </Link>
   );
 
@@ -112,7 +140,7 @@ const NavItem = ({ item, isActive, collapsed }: NavItemProps) => {
         <TooltipContent
           side="right"
           sideOffset={14}
-          className="px-3.5 py-2 text-[12px] font-semibold tracking-wide rounded-2xl bg-foreground text-background shadow-[0_8px_30px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl border-0 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2 duration-200"
+          className="px-3.5 py-2 text-[12px] font-semibold tracking-wide rounded-xl bg-card text-foreground shadow-[0_8px_30px_rgba(0,0,0,0.35),0_0_0_1px_hsl(330_100%_50%/0.1)] backdrop-blur-xl border border-border/50 animate-in fade-in-0 zoom-in-95 slide-in-from-left-2 duration-200"
         >
           {item.label}
         </TooltipContent>
@@ -135,26 +163,29 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           collapsed ? "w-[68px] items-center" : "w-60"
         )}
       >
-        {/* Dark gradient background with pink vertical bars effect */}
+        {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#1a0a12] via-[#2d0a1e] to-[#1a0a12]" />
-        <div className="absolute inset-0 opacity-30" style={{
-          backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 12px, hsl(330 80% 45% / 0.25) 12px, hsl(330 80% 45% / 0.12) 14px, transparent 14px, transparent 28px)`,
-        }} />
         <div className="absolute inset-0 opacity-20" style={{
-          backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 35px, hsl(330 90% 55% / 0.3) 35px, hsl(330 90% 55% / 0.08) 38px, transparent 38px, transparent 60px)`,
+          backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 12px, hsl(330 80% 45% / 0.2) 12px, hsl(330 80% 45% / 0.08) 14px, transparent 14px, transparent 28px)`,
         }} />
-        <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-primary/10 to-transparent" />
+        <div className="absolute inset-0 opacity-15" style={{
+          backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 35px, hsl(330 90% 55% / 0.25) 35px, hsl(330 90% 55% / 0.06) 38px, transparent 38px, transparent 60px)`,
+        }} />
+        <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-primary/8 to-transparent" />
+
         {/* Logo */}
         <div className={cn(
-          "relative z-10 flex items-center border-b border-white/10 transition-all duration-300",
+          "relative z-10 flex items-center border-b border-white/[0.06] transition-all duration-300",
           collapsed ? "justify-center py-4 px-2" : "gap-3 px-4 py-4"
         )}>
           <Link to="/dashboard" className="group shrink-0">
             <div className={cn(
-              "flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(330_100%_71%/0.15)] group-hover:border-primary/20",
+              "relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/15 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_hsl(330_100%_71%/0.2)] group-hover:border-primary/25 overflow-hidden",
               collapsed ? "h-11 w-11" : "h-9 w-9"
             )}>
-              <img src={logo} alt="Drika" className={cn("object-contain", collapsed ? "h-6 w-6" : "h-5 w-5")} />
+              <img src={logo} alt="Drika" className={cn("object-contain relative z-10", collapsed ? "h-6 w-6" : "h-5 w-5")} />
+              {/* Subtle shimmer on hover */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </div>
           </Link>
           {!collapsed && (
@@ -164,7 +195,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 <span className="text-white/90">HUB</span>
               </span>
               {tenant?.discord_guild_id && (
-                <span className="text-[10px] font-mono text-white/30 truncate mt-0.5">
+                <span className="text-[10px] font-mono text-white/25 truncate mt-0.5">
                   {tenant.discord_guild_id}
                 </span>
               )}
@@ -191,7 +222,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           ) : (
             navGroups.map((group) => (
               <div key={group.label}>
-                <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-white/30">
+                <p className="px-3 mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary/40">
                   {group.label}
                 </p>
                 <div className="space-y-0.5">
@@ -211,7 +242,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
         {/* Divider */}
         <div className={cn("relative z-10 mx-auto", collapsed ? "w-6" : "w-[calc(100%-24px)]")}>
-          <div className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+          <div className="h-px bg-gradient-to-r from-transparent via-primary/15 to-transparent" />
         </div>
 
         {/* Bottom section */}
@@ -230,13 +261,13 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         <button
           onClick={onToggle}
           className={cn(
-            "relative z-10 flex items-center justify-center h-10 border-t border-white/10 text-white/30 hover:text-primary hover:bg-primary/10 transition-all duration-200"
+            "relative z-10 flex items-center justify-center h-10 border-t border-white/[0.06] text-white/25 hover:text-primary hover:bg-primary/8 transition-all duration-300 group"
           )}
         >
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform duration-300" />
           ) : (
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeft className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform duration-300" />
           )}
         </button>
       </aside>
