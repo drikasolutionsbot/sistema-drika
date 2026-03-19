@@ -402,49 +402,61 @@ export default function AIAssistantPage() {
             </p>
           </div>
 
-          {/* Engine info + Provider Selector */}
-          <div className="hidden lg:flex flex-col items-end gap-2">
-            {/* Provider toggle */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-card/30 border border-border/10 backdrop-blur-md">
+          {/* Engine Selector — Desktop */}
+          <div className="hidden lg:flex flex-col items-end gap-3">
+            <div className="relative flex items-center gap-0 p-1.5 rounded-2xl bg-card/50 border border-border/20 backdrop-blur-xl shadow-lg">
+              {/* Sliding indicator */}
+              <div
+                className={cn(
+                  "absolute top-1.5 h-[calc(100%-12px)] w-[calc(50%-6px)] rounded-xl transition-all duration-500 ease-out",
+                  provider === "drika"
+                    ? "left-1.5 bg-gradient-to-r from-primary/20 to-[#C44AFF]/20 border border-primary/30 shadow-[0_0_20px_hsl(330_100%_50%/0.15)]"
+                    : "left-[calc(50%+3px)] bg-gradient-to-r from-[#F55036]/20 to-[#FF8A65]/20 border border-[#F55036]/30 shadow-[0_0_20px_rgba(245,80,54,0.15)]"
+                )}
+              />
               <button
                 onClick={() => setProvider("drika")}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300",
+                  "relative z-10 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
                   provider === "drika"
-                    ? "bg-primary/15 text-primary shadow-[0_0_12px_hsl(330_100%_50%/0.15)] border border-primary/20"
-                    : "text-muted-foreground/50 hover:text-muted-foreground/80"
+                    ? "text-primary"
+                    : "text-muted-foreground/60 hover:text-foreground/80"
                 )}
               >
-                <Zap className="h-3.5 w-3.5" />
-                Drika Engine
+                <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-300",
+                  provider === "drika" ? "bg-primary/20" : "bg-muted/20"
+                )}>
+                  <Zap className={cn("h-4 w-4 transition-all", provider === "drika" ? "text-primary drop-shadow-[0_0_6px_rgba(255,105,180,0.6)]" : "text-muted-foreground/50")} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-none">Drika Engine</span>
+                  <span className={cn("text-[9px] font-medium mt-0.5", provider === "drika" ? "text-primary/60" : "text-muted-foreground/30")}>Gemini • GPT</span>
+                </div>
               </button>
               <button
                 onClick={() => setProvider("groq")}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300",
+                  "relative z-10 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
                   provider === "groq"
-                    ? "bg-[#F55036]/15 text-[#F55036] shadow-[0_0_12px_rgba(245,80,54,0.15)] border border-[#F55036]/20"
-                    : "text-muted-foreground/50 hover:text-muted-foreground/80"
+                    ? "text-[#F55036]"
+                    : "text-muted-foreground/60 hover:text-foreground/80"
                 )}
               >
-                <Cpu className="h-3.5 w-3.5" />
-                Groq Cloud
+                <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-300",
+                  provider === "groq" ? "bg-[#F55036]/20" : "bg-muted/20"
+                )}>
+                  <Cpu className={cn("h-4 w-4 transition-all", provider === "groq" ? "text-[#F55036] drop-shadow-[0_0_6px_rgba(245,80,54,0.6)]" : "text-muted-foreground/50")} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-none">Groq Cloud</span>
+                  <span className={cn("text-[9px] font-medium mt-0.5", provider === "groq" ? "text-[#F55036]/60" : "text-muted-foreground/30")}>Llama • Mixtral</span>
+                </div>
               </button>
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground/30">
-              {provider === "drika" ? (
-                <>
-                  <span className="flex items-center gap-1"><Globe className="h-3 w-3" /> Google Gemini</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1"><Stars className="h-3 w-3" /> OpenAI GPT</span>
-                </>
-              ) : (
-                <>
-                  <span className="flex items-center gap-1"><Cpu className="h-3 w-3" /> Llama 3.3 70B</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> Mixtral 8x7B</span>
-                </>
-              )}
+            {/* Active model info */}
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
+              <div className={cn("h-1.5 w-1.5 rounded-full", provider === "drika" ? "bg-primary/60" : "bg-[#F55036]/60")} />
+              <span className="font-medium">{provider === "drika" ? "Multi-model fallback • 8 modelos" : "Ultra-rápido • 4 keys ativas"}</span>
             </div>
           </div>
         </div>
