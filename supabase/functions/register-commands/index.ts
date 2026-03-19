@@ -6,7 +6,17 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-let DISCORD_APP_ID = Deno.env.get("DISCORD_APP_ID") || "1477916070508757092";
+// Extract application ID from bot token (first segment is base64-encoded bot user/app ID)
+function getAppIdFromToken(token: string): string {
+  try {
+    const firstSegment = token.split(".")[0];
+    // Add padding if needed
+    const padded = firstSegment + "=".repeat((4 - firstSegment.length % 4) % 4);
+    return atob(padded);
+  } catch {
+    return "";
+  }
+}
 
 interface CommandChoice {
   name: string;
