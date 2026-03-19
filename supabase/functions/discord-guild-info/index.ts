@@ -40,7 +40,20 @@ serve(async (req) => {
     if (!guild_id) throw new Error("Missing guild_id");
 
     const botToken = tenantBotToken;
-    if (!botToken) throw new Error("Bot token not configured");
+    if (!botToken) {
+      // Return empty defaults when bot token is not configured
+      return new Response(
+        JSON.stringify({
+          id: guild_id,
+          name: null,
+          icon: null,
+          member_count: 0,
+          presence_count: 0,
+          roles: [],
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Fetch guild info
     const res = await fetch(`https://discord.com/api/v10/guilds/${guild_id}?with_counts=true`, {
