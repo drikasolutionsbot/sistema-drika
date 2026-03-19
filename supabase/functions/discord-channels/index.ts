@@ -40,6 +40,10 @@ Deno.serve(async (req) => {
     }
 
     if (!botToken) {
+      botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
+    }
+
+    if (!botToken) {
       return new Response(JSON.stringify({ channels: [], categories: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
