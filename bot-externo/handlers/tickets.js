@@ -182,41 +182,91 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
 // ── Close Ticket ──
 async function handleCloseTicket(interaction, tenant, ticketId) {
-  const isStaff = await checkStaffPermission(tenant, interaction);
-  if (!isStaff) return interaction.reply({ content: "❌ Você não tem permissão para fechar tickets.", ephemeral: true });
-
-  await interaction.deferUpdate();
-
-  const ticket = await getTicketById(ticketId);
-  if (!ticket) return interaction.followUp({ content: "❌ Ticket não encontrado.", ephemeral: true });
-
-  await closeTicket(ticketId, interaction.user.username);
-  await sendTicketLog(interaction.client, ticket, interaction.user.id, interaction.user.username, "closed", tenant);
-
-  await sendWithIdentity(interaction.channel, tenant, { embeds: [new EmbedBuilder().setTitle("📁 Ticket Arquivado").setDescription(`Ticket arquivado por <@${interaction.user.id}>.`).setColor(0x2B2D31)] });
-
   try {
-    await interaction.channel.setArchived(true);
-    await interaction.channel.setLocked(true);
-  } catch {}
+    const isStaff = await checkStaffPermission(tenant, interaction);
+    if (!isStaff) {
+      if (interaction.deferred || interaction.replied) {
+        return interaction.followUp({ content: "❌ Você não tem permissão para fechar tickets.", ephemeral: true });
+      }
+      return interaction.reply({ content: "❌ Você não tem permissão para fechar tickets.", ephemeral: true });
+    }
+
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+
+    const ticket = await getTicketById(ticketId);
+    if (!ticket) return interaction.followUp({ content: "❌ Ticket não encontrado.", ephemeral: true });
+
+    await closeTicket(ticketId, interaction.user.username);
+
+    try {
+      await sendTicketLog(interaction.client, ticket, interaction.user.id, interaction.user.username, "closed", tenant);
+    } catch (logErr) {
+      console.error("[handleCloseTicket] Log error:", logErr.message);
+    }
+
+    await sendWithIdentity(interaction.channel, tenant, {
+      embeds: [new EmbedBuilder().setTitle("📁 Ticket Arquivado").setDescription(`Ticket arquivado por <@${interaction.user.id}>.`).setColor(0x2B2D31)],
+    });
+
+    try {
+      await interaction.channel.setArchived(true);
+      await interaction.channel.setLocked(true);
+    } catch {}
+  } catch (err) {
+    console.error("[handleCloseTicket] Error:", err);
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: "❌ Erro ao arquivar o ticket.", ephemeral: true });
+      } else {
+        await interaction.reply({ content: "❌ Erro ao arquivar o ticket.", ephemeral: true });
+      }
+    } catch {}
+  }
 }
 
 // ── Delete Ticket ──
 async function handleDeleteTicket(interaction, tenant, ticketId) {
-  const isStaff = await checkStaffPermission(tenant, interaction);
-  if (!isStaff) return interaction.reply({ content: "❌ Você não tem permissão para deletar tickets.", ephemeral: true });
+  try {
+    const isStaff = await checkStaffPermission(tenant, interaction);
+    if (!isStaff) {
+      if (interaction.deferred || interaction.replied) {
+        return interaction.followUp({ content: "❌ Você não tem permissão para deletar tickets.", ephemeral: true });
+      }
+      return interaction.reply({ content: "❌ Você não tem permissão para deletar tickets.", ephemeral: true });
+    }
 
-  await interaction.deferUpdate();
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
 
-  const ticket = await getTicketById(ticketId);
-  if (!ticket) return interaction.followUp({ content: "❌ Ticket não encontrado.", ephemeral: true });
+    const ticket = await getTicketById(ticketId);
+    if (!ticket) return interaction.followUp({ content: "❌ Ticket não encontrado.", ephemeral: true });
 
-  await closeTicket(ticketId, interaction.user.username);
-  await sendTicketLog(interaction.client, ticket, interaction.user.id, interaction.user.username, "deleted", tenant);
+    await closeTicket(ticketId, interaction.user.username);
 
-  await sendWithIdentity(interaction.channel, tenant, { embeds: [new EmbedBuilder().setTitle("🗑️ Ticket Deletado").setDescription(`Ticket deletado por <@${interaction.user.id}>.\nO tópico será excluído em 5 segundos.`).setColor(0x2B2D31)] });
+    try {
+      await sendTicketLog(interaction.client, ticket, interaction.user.id, interaction.user.username, "deleted", tenant);
+    } catch (logErr) {
+      console.error("[handleDeleteTicket] Log error:", logErr.message);
+    }
 
-  setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 5000);
+    await sendWithIdentity(interaction.channel, tenant, {
+      embeds: [new EmbedBuilder().setTitle("🗑️ Ticket Deletado").setDescription(`Ticket deletado por <@${interaction.user.id}>.\nO tópico será excluído em 5 segundos.`).setColor(0x2B2D31)],
+    });
+
+    setTimeout(() => { interaction.channel.delete().catch(() => {}); }, 5000);
+  } catch (err) {
+    console.error("[handleDeleteTicket] Error:", err);
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: "❌ Erro ao deletar o ticket.", ephemeral: true });
+      } else {
+        await interaction.reply({ content: "❌ Erro ao deletar o ticket.", ephemeral: true });
+      }
+    } catch {}
+  }
 }
 
 // ── Remind Ticket ──
