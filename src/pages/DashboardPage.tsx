@@ -26,7 +26,217 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
-...
+
+const DashboardPage = () => {
+  const { tenant, tenantId, loading: tenantLoading, refetch } = useTenant();
+  const [activeTab, setActiveTab] = useState<"membros" | "cargos">("membros");
+  const [memberSearchOpen, setMemberSearchOpen] = useState(false);
+
+  // Server switch modal
+  const [serverModalOpen, setServerModalOpen] = useState(false);
+  const [guilds, setGuilds] = useState<{ id: string; name: string; icon: string | null }[]>([]);
+  const [loadingGuilds, setLoadingGuilds] = useState(false);
+  const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
+  const [manualGuildId, setManualGuildId] = useState("");
+
+  // Members state
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [memberDraft, setMemberDraft] = useState<Partial<Record<PermissionKey, boolean>>>({});
+  const [savingMember, setSavingMember] = useState(false);
+
+  // Roles state
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [roleDraft, setRoleDraft] = useState<Partial<Record<PermissionKey, boolean>>>({});
+  const [savingRole, setSavingRole] = useState(false);
+  const [createRoleOpen, setCreateRoleOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleColor, setNewRoleColor] = useState("#99AAB5");
+  const [creatingRole, setCreatingRole] = useState(false);
+
+  const { permissions, loading: permLoading, addMember, savePermissions, removeMember } = usePermissions(tenant?.id ?? null);
+  const { roles, loading: rolesLoading, createRole, updateRole, deleteRole } = useRoles(tenant?.id ?? null);
+
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // Guild info state
+  const [guildInfo, setGuildInfo] = useState<{ member_count: number; presence_count: number; icon: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!tenant?.discord_guild_id) {
+      setGuildInfo(null);
+      return;
+    }
+    supabase.functions.invoke("discord-guild-info", {
+      body: { guild_id: tenant.discord_guild_id },
+    }).then(({ data, error }) => {
+      if (data && !data.error && !error) {
+        setGuildInfo({ member_count: data.member_count, presence_count: data.presence_count, icon: data.icon });
+      } else {
+        setGuildInfo(null);
+      }
+    }).catch(() => setGuildInfo(null));
+  }, [tenant?.discord_guild_id]);
+
+  // Fetch audit logs
+  const loadAuditLogs = async () => {
+    if (!tenant?.id) return;
+    setAuditLoading(true);
+    const logs = await fetchTenantAuditLogs(tenant.id, 10);
+    setAuditLogs(logs);
+    setAuditLoading(false);
+  };
+
+  useEffect(() => {
+    loadAuditLogs();
+  }, [tenant?.id]);
+
+  const selectedMember = permissions.find(p => p.id === selectedMemberId) ?? null;
+  const selectedRole = roles.find(r => r.id === selectedRoleId) ?? null;
+
+  // --- Member permission helpers ---
+  const memberHasChanges = Object.keys(memberDraft).length > 0;
+
+  const getMemberValue = (key: PermissionKey): boolean => {
+    if (key in memberDraft) return memberDraft[key]!;
+    return selectedMember ? selectedMember[key] : false;
+  };
+
+  const toggleMemberPerm = (key: PermissionKey) => {
+    if (!selectedMember) return;
+    const current = selectedMember[key];
+    const effective = memberDraft[key] !== undefined ? memberDraft[key]! : current;
+    const newVal = !effective;
+    if (newVal === current) {
+      const next = { ...memberDraft };
+      delete next[key];
+      setMemberDraft(next);
+    } else {
+      setMemberDraft({ ...memberDraft, [key]: newVal });
+    }
+  };
+
+  const saveMemberPerms = async () => {
+    if (!selectedMember || !memberHasChanges) return;
+    setSavingMember(true);
+    const result = await savePermissions(selectedMember.id, memberDraft);
+    setSavingMember(false);
+    if (result) {
+      setMemberDraft({});
+      toast.success("Permissões salvas!");
+      if (tenantId) {
+        await logTenantAudit(tenantId, "save_permissions", "membro", selectedMember.discord_display_name || selectedMember.discord_username, selectedMember.id, memberDraft);
+        loadAuditLogs();
+      }
+    }
+    else toast.error("Erro ao salvar.");
+  };
+
+  // --- Role permission helpers ---
+  const roleHasChanges = Object.keys(roleDraft).length > 0;
+
+  const getRoleValue = (key: PermissionKey): boolean => {
+    if (key in roleDraft) return roleDraft[key]!;
+    return selectedRole ? selectedRole[key] : false;
+  };
+
+  const toggleRolePerm = (key: PermissionKey) => {
+    if (!selectedRole) return;
+    const current = selectedRole[key];
+    const effective = roleDraft[key] !== undefined ? roleDraft[key]! : current;
+    const newVal = !effective;
+    if (newVal === current) {
+      const next = { ...roleDraft };
+      delete next[key];
+      setRoleDraft(next);
+    } else {
+      setRoleDraft({ ...roleDraft, [key]: newVal });
+    }
+  };
+
+  const saveRolePerms = async () => {
+    if (!selectedRole || !roleHasChanges) return;
+    setSavingRole(true);
+    const result = await updateRole(selectedRole.id, roleDraft);
+    setSavingRole(false);
+    if (result) { setRoleDraft({}); toast.success("Permissões do cargo salvas!"); }
+    else toast.error("Erro ao salvar.");
+  };
+
+  const handleCreateRole = async () => {
+    if (!newRoleName.trim()) return;
+    setCreatingRole(true);
+    try {
+      const result = await createRole(newRoleName.trim(), newRoleColor);
+      if (result) {
+        setSelectedRoleId(result.id);
+        setRoleDraft({});
+        toast.success(`Cargo "${result.name}" criado no Discord!`);
+        if (tenantId) {
+          await logTenantAudit(tenantId, "create_role", "cargo", result.name, result.id);
+          loadAuditLogs();
+        }
+      }
+    } catch {
+      toast.error("Erro ao criar cargo no Discord.");
+    }
+    setCreatingRole(false);
+    setCreateRoleOpen(false);
+    setNewRoleName("");
+    setNewRoleColor("#99AAB5");
+  };
+
+  const handleDeleteRole = async (role: TenantRole) => {
+    await deleteRole(role.id);
+    if (selectedRoleId === role.id) { setSelectedRoleId(null); setRoleDraft({}); }
+    toast.success(`Cargo "${role.name}" removido do Discord.`);
+    if (tenantId) {
+      await logTenantAudit(tenantId, "delete_role", "cargo", role.name, role.id);
+      loadAuditLogs();
+    }
+  };
+
+  // --- Common handlers ---
+  const handleSelectMember = async (member: DiscordMember) => {
+    const result = await addMember({
+      discord_user_id: member.id,
+      discord_username: member.username,
+      discord_display_name: member.displayName,
+      discord_avatar_url: member.avatar ?? null,
+    });
+    if (result) {
+      setSelectedMemberId(result.id);
+      setMemberDraft({});
+      if (tenantId) {
+        await logTenantAudit(tenantId, "add_member", "membro", member.displayName || member.username, member.id);
+        loadAuditLogs();
+      }
+    }
+  };
+
+  const getAuditActionLabel = (action: string) => {
+    const map: Record<string, string> = {
+      create: "criou", update: "atualizou", delete: "removeu",
+      activate: "ativou", deactivate: "desativou",
+      switch_server: "trocou o servidor para", save_permissions: "editou permissões de",
+      add_member: "adicionou", remove_member: "removeu",
+      create_role: "criou o cargo", delete_role: "removeu o cargo",
+      add_stock: "adicionou estoque em", deliver_order: "entregou pedido de",
+    };
+    return map[action] || action;
+  };
+
+  if (tenantLoading || !tenant) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-48" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
+
   const appendGuildToInvite = (inviteUrl: string) => {
     if (!tenant?.discord_guild_id) return inviteUrl;
     try {
