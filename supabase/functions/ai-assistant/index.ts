@@ -145,8 +145,15 @@ serve(async (req) => {
       apiUrl = HF_API_URL;
       authHeader = "Bearer";
     } else if (selectedProvider === "google") {
-      apiKey = Deno.env.get("GOOGLE_AI_API_KEY") || "";
-      if (!apiKey) throw new Error("GOOGLE_AI_API_KEY não está configurada.");
+      const googleKeys = [
+        Deno.env.get("GOOGLE_AI_API_KEY"),
+        Deno.env.get("GOOGLE_AI_API_KEY_2"),
+      ].filter((k): k is string => !!k && k.length > 0);
+
+      if (googleKeys.length === 0) throw new Error("Nenhuma GOOGLE_AI_API_KEY configurada.");
+
+      apiKey = googleKeys[Math.floor(Date.now() / 1000) % googleKeys.length];
+      console.log(`Using Google AI key pool: ${googleKeys.length} keys available`);
       apiUrl = GOOGLE_AI_URL;
       authHeader = "Bearer";
     } else {
