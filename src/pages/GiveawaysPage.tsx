@@ -23,7 +23,7 @@ export default function GiveawaysPage() {
         body: { action: "list", tenant_id: tenantId },
       });
       if (error) throw error;
-      return data?.giveaways || [];
+      return Array.isArray(data) ? data : (data?.giveaways || []);
     },
     enabled: !!tenantId,
   });
