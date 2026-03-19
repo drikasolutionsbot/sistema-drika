@@ -85,13 +85,13 @@ module.exports = async function handleInteraction(client, interaction) {
     // Transcript view button
     if (customId.startsWith("transcript_view_")) return ticketsHandler.handleTranscriptView(interaction, tenant, customId.replace("transcript_view_", ""));
 
-    // Legacy buy button
+    // Legacy compatibility (mensagens antigas)
     if (customId.startsWith("buy_")) return checkoutHandler.startCheckout(interaction, tenant, customId.replace("buy_", ""));
     if (customId.startsWith("field_")) {
       const parts = customId.split("_");
       return checkoutHandler.selectVariation(interaction, tenant, parts[2], parts[1]);
     }
-    if (customId.startsWith("confirm_")) return checkoutHandler.approveOrder(interaction, tenant, customId.replace("confirm_", ""));
+    if (customId.startsWith("confirm_")) return checkoutHandler.goToPayment(interaction, tenant, customId.replace("confirm_", ""));
     if (customId.startsWith("cancel_")) return checkoutHandler.cancelOrder(interaction, tenant, customId.replace("cancel_", ""));
     if (customId === "open_ticket") return ticketsHandler.openTicket(interaction, tenant);
     if (customId === "close_ticket") {
