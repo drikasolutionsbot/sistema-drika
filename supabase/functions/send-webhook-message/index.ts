@@ -142,10 +142,6 @@ serve(async (req) => {
           delete embed.color;
         }
       }
-      // Apply tenant banner to the first embed if it has no image
-      if (tenant?.banner_url && embeds.length > 0 && !embeds[0].image) {
-        embeds[0].image = { url: tenant.banner_url };
-      }
       payload.embeds = embeds;
     }
 
