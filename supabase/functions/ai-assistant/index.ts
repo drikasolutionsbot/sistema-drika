@@ -127,8 +127,13 @@ serve(async (req) => {
       authHeader = "Bearer";
     } else if (selectedProvider === "inference") {
       apiKey = Deno.env.get("INFERENCE_NET_API_KEY") || "";
-      if (!apiKey) throw new Error("INFERENCE_NET_API_KEY não está configurada. Adicione nas configurações do Supabase.");
+      if (!apiKey) throw new Error("INFERENCE_NET_API_KEY não está configurada.");
       apiUrl = INFERENCE_API_URL;
+      authHeader = "Bearer";
+    } else if (selectedProvider === "huggingface") {
+      apiKey = Deno.env.get("HUGGINGFACE_API_KEY") || "";
+      if (!apiKey) throw new Error("HUGGINGFACE_API_KEY não está configurada.");
+      apiUrl = HF_API_URL;
       authHeader = "Bearer";
     } else {
       apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
