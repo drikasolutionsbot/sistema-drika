@@ -15,8 +15,18 @@ import {
   Settings,
 } from "lucide-react";
 
-const DISCORD_CLIENT_ID = "1477916070508757092";
 const BOT_PERMISSIONS = "536870920";
+
+const appendGuildToInvite = (inviteUrl: string, targetGuildId: string) => {
+  if (!targetGuildId.trim()) return inviteUrl;
+  try {
+    const url = new URL(inviteUrl);
+    url.searchParams.set("guild_id", targetGuildId.trim());
+    return url.toString();
+  } catch {
+    return inviteUrl;
+  }
+};
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
@@ -58,9 +68,25 @@ const OnboardingPage = () => {
     checkExistingTenant();
   }, [user, navigate]);
 
-  const handleAddBot = () => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands&guild_id=${guildId}`;
-    window.open(url, "_blank");
+  const handleAddBot = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: { action: "invite_url", permissions: BOT_PERMISSIONS },
+      });
+
+      if (error || !data?.invite_url) {
+        throw new Error(data?.error || error?.message || "Não foi possível gerar o link de convite.");
+      }
+
+      const inviteUrl = appendGuildToInvite(data.invite_url, guildId);
+      window.open(inviteUrl, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({
+        title: "Erro ao abrir convite",
+        description: err?.message || "Não foi possível gerar o convite do bot externo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCreateTenant = async () => {

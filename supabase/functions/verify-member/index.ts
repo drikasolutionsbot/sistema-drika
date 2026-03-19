@@ -2,6 +2,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+function getClientIdFromBotToken(botToken: string | null): string | null {
+  if (!botToken) return null;
+  try {
+    const firstSegment = botToken.split(".")[0]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const padded = firstSegment + "=".repeat((4 - (firstSegment.length % 4 || 4)) % 4);
+    const decoded = atob(padded);
+    return /^\d{17,20}$/.test(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -37,9 +51,14 @@ Deno.serve(async (req) => {
     }
   }
 
-  const clientId = "1477916070508757092";
+  const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
+  const clientId = Deno.env.get("DISCORD_CLIENT_ID") || getClientIdFromBotToken(botToken);
   const clientSecret = Deno.env.get("DISCORD_CLIENT_SECRET")!;
   const redirectUri = `${supabaseUrl}/functions/v1/verify-member`;
+
+  if (!clientId) {
+    return htmlResponse("❌ Erro", "Client ID do bot externo não configurado.", "#ED4245");
+  }
 
   console.log("verify-member init", { tenantId, hasCode: Boolean(code), clientId, redirectUri });
 
@@ -80,52 +99,9 @@ Deno.serve(async (req) => {
         redirect_uri: redirectUri,
       }),
     });
-
-    if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      console.error("Token exchange error:", errText);
-      return htmlResponse("❌ Erro na Verificação", "Não foi possível autenticar com o Discord. Tente novamente.", "#ED4245");
-    }
-
-    const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
-    const refreshToken = tokenData.refresh_token;
-    const expiresIn = tokenData.expires_in;
-
-    // Get user info
-    const userRes = await fetch(`${DISCORD_API}/users/@me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    if (!userRes.ok) {
-      return htmlResponse("❌ Erro", "Não foi possível obter suas informações do Discord.", "#ED4245");
-    }
-
-    const user = await userRes.json();
-    const discordUserId = user.id;
-    const discordUsername = user.username;
-    const discordAvatar = user.avatar
-      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
-      : null;
-
-    // Get tenant config + use external bot token
-    const { data: tenantData, error: tenantErr } = await supabase
-      .from("tenants")
-      .select("verify_enabled, verify_role_id, discord_guild_id, name, logo_url, verify_logs_channel_id")
-      .eq("id", effectiveTenantId)
-      .single();
-
-    if (tenantErr || !tenantData) {
-      return htmlResponse("❌ Erro", "Servidor não encontrado.", "#ED4245");
-    }
-
-    if (!tenantData.verify_enabled) {
-      return htmlResponse("⚠️ Verificação Desativada", "A verificação está desativada neste servidor.", "#FEE75C");
-    }
-
+...
     const guildId = tenantData.discord_guild_id;
     const roleId = tenantData.verify_role_id;
-    const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
     if (!botToken) {
       return htmlResponse("❌ Erro", "Bot externo não configurado (DISCORD_BOT_TOKEN).", "#ED4245");
     }
