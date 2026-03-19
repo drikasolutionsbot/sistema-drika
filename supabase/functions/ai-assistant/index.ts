@@ -214,7 +214,6 @@ Inclua estilo, cores, composição, iluminação e mood.`,
             model: m,
             messages: [{ role: "user", content: prompt }],
             modalities: ["text", "image"],
-            generation_config: { response_modalities: ["TEXT", "IMAGE"] },
           })
         : (m: string) => ({
             model: m,
