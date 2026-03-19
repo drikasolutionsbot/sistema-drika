@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check, Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Stars, Orbit, Flame, Crown, Globe, Cpu } from "lucide-react";
+import { Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check, Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Stars, Orbit, Flame, Crown, Globe, Cpu, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -179,7 +179,7 @@ export default function AIAssistantPage() {
   const [showContext, setShowContext] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"drika" | "groq">("drika");
+  const [provider, setProvider] = useState<"drika" | "groq" | "inference">("drika");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -405,58 +405,75 @@ export default function AIAssistantPage() {
           {/* Engine Selector — Desktop */}
           <div className="hidden lg:flex flex-col items-end gap-3">
             <div className="relative flex items-center gap-0 p-1.5 rounded-2xl bg-card/50 border border-border/20 backdrop-blur-xl shadow-lg">
-              {/* Sliding indicator */}
-              <div
-                className={cn(
-                  "absolute top-1.5 h-[calc(100%-12px)] w-[calc(50%-6px)] rounded-xl transition-all duration-500 ease-out",
-                  provider === "drika"
-                    ? "left-1.5 bg-gradient-to-r from-primary/20 to-[#C44AFF]/20 border border-primary/30 shadow-[0_0_20px_hsl(330_100%_50%/0.15)]"
-                    : "left-[calc(50%+3px)] bg-gradient-to-r from-[#F55036]/20 to-[#FF8A65]/20 border border-[#F55036]/30 shadow-[0_0_20px_rgba(245,80,54,0.15)]"
-                )}
-              />
+              {/* Drika */}
               <button
                 onClick={() => setProvider("drika")}
                 className={cn(
-                  "relative z-10 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
+                  "relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
                   provider === "drika"
-                    ? "text-primary"
+                    ? "bg-gradient-to-r from-primary/20 to-[#C44AFF]/20 text-primary border border-primary/30 shadow-[0_0_16px_hsl(330_100%_50%/0.12)]"
                     : "text-muted-foreground/60 hover:text-foreground/80"
                 )}
               >
-                <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-300",
+                <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-300",
                   provider === "drika" ? "bg-primary/20" : "bg-muted/20"
                 )}>
-                  <Zap className={cn("h-4 w-4 transition-all", provider === "drika" ? "text-primary drop-shadow-[0_0_6px_rgba(255,105,180,0.6)]" : "text-muted-foreground/50")} />
+                  <Zap className={cn("h-3.5 w-3.5 transition-all", provider === "drika" ? "text-primary drop-shadow-[0_0_6px_rgba(255,105,180,0.6)]" : "text-muted-foreground/50")} />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="leading-none">Drika Engine</span>
-                  <span className={cn("text-[9px] font-medium mt-0.5", provider === "drika" ? "text-primary/60" : "text-muted-foreground/30")}>Gemini • GPT</span>
+                  <span className="leading-none">Drika</span>
+                  <span className={cn("text-[8px] font-medium mt-0.5", provider === "drika" ? "text-primary/60" : "text-muted-foreground/30")}>Gemini • GPT</span>
                 </div>
               </button>
+              {/* Groq */}
               <button
                 onClick={() => setProvider("groq")}
                 className={cn(
-                  "relative z-10 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
+                  "relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
                   provider === "groq"
-                    ? "text-[#F55036]"
+                    ? "bg-gradient-to-r from-[#F55036]/20 to-[#FF8A65]/20 text-[#F55036] border border-[#F55036]/30 shadow-[0_0_16px_rgba(245,80,54,0.12)]"
                     : "text-muted-foreground/60 hover:text-foreground/80"
                 )}
               >
-                <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-300",
+                <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-300",
                   provider === "groq" ? "bg-[#F55036]/20" : "bg-muted/20"
                 )}>
-                  <Cpu className={cn("h-4 w-4 transition-all", provider === "groq" ? "text-[#F55036] drop-shadow-[0_0_6px_rgba(245,80,54,0.6)]" : "text-muted-foreground/50")} />
+                  <Cpu className={cn("h-3.5 w-3.5 transition-all", provider === "groq" ? "text-[#F55036] drop-shadow-[0_0_6px_rgba(245,80,54,0.6)]" : "text-muted-foreground/50")} />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="leading-none">Groq Cloud</span>
-                  <span className={cn("text-[9px] font-medium mt-0.5", provider === "groq" ? "text-[#F55036]/60" : "text-muted-foreground/30")}>Llama • Mixtral</span>
+                  <span className="leading-none">Groq</span>
+                  <span className={cn("text-[8px] font-medium mt-0.5", provider === "groq" ? "text-[#F55036]/60" : "text-muted-foreground/30")}>Llama • Mixtral</span>
+                </div>
+              </button>
+              {/* Inference */}
+              <button
+                onClick={() => setProvider("inference")}
+                className={cn(
+                  "relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
+                  provider === "inference"
+                    ? "bg-gradient-to-r from-[#00D4AA]/20 to-[#00B894]/20 text-[#00D4AA] border border-[#00D4AA]/30 shadow-[0_0_16px_rgba(0,212,170,0.12)]"
+                    : "text-muted-foreground/60 hover:text-foreground/80"
+                )}
+              >
+                <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-300",
+                  provider === "inference" ? "bg-[#00D4AA]/20" : "bg-muted/20"
+                )}>
+                  <Network className={cn("h-3.5 w-3.5 transition-all", provider === "inference" ? "text-[#00D4AA] drop-shadow-[0_0_6px_rgba(0,212,170,0.6)]" : "text-muted-foreground/50")} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-none">Inference</span>
+                  <span className={cn("text-[8px] font-medium mt-0.5", provider === "inference" ? "text-[#00D4AA]/60" : "text-muted-foreground/30")}>Nemotron • Gemma</span>
                 </div>
               </button>
             </div>
             {/* Active model info */}
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
-              <div className={cn("h-1.5 w-1.5 rounded-full", provider === "drika" ? "bg-primary/60" : "bg-[#F55036]/60")} />
-              <span className="font-medium">{provider === "drika" ? "Multi-model fallback • 8 modelos" : "Ultra-rápido • 4 keys ativas"}</span>
+              <div className={cn("h-1.5 w-1.5 rounded-full", 
+                provider === "drika" ? "bg-primary/60" : provider === "groq" ? "bg-[#F55036]/60" : "bg-[#00D4AA]/60"
+              )} />
+              <span className="font-medium">
+                {provider === "drika" ? "Multi-model fallback • 8 modelos" : provider === "groq" ? "Ultra-rápido • 4 keys ativas" : "Inference.net • Nemotron 3"}
+              </span>
             </div>
           </div>
         </div>
@@ -795,7 +812,7 @@ export default function AIAssistantPage() {
                 <button
                   onClick={() => setProvider("drika")}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
                     provider === "drika"
                       ? "bg-primary/15 text-primary border border-primary/25 shadow-sm"
                       : "text-muted-foreground/60 hover:text-foreground/80"
@@ -807,7 +824,7 @@ export default function AIAssistantPage() {
                 <button
                   onClick={() => setProvider("groq")}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
                     provider === "groq"
                       ? "bg-[#F55036]/15 text-[#F55036] border border-[#F55036]/25 shadow-sm"
                       : "text-muted-foreground/60 hover:text-foreground/80"
@@ -816,11 +833,23 @@ export default function AIAssistantPage() {
                   <Cpu className="h-3 w-3" />
                   Groq
                 </button>
+                <button
+                  onClick={() => setProvider("inference")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
+                    provider === "inference"
+                      ? "bg-[#00D4AA]/15 text-[#00D4AA] border border-[#00D4AA]/25 shadow-sm"
+                      : "text-muted-foreground/60 hover:text-foreground/80"
+                  )}
+                >
+                  <Network className="h-3 w-3" />
+                  Inference
+                </button>
               </div>
 
-              {/* Image warning for groq */}
-              {provider === "groq" && selectedTool.id === "image" && (
-                <span className="text-[10px] text-destructive/70 font-medium">⚠️ Imagens não suportadas no Groq</span>
+              {/* Image warning for non-drika providers */}
+              {provider !== "drika" && selectedTool.id === "image" && (
+                <span className="text-[10px] text-destructive/70 font-medium">⚠️ Imagens só no Drika Engine</span>
               )}
 
               <button
@@ -869,7 +898,7 @@ export default function AIAssistantPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground/40 mt-2 text-center tracking-wide">
-              Enter para enviar • Shift+Enter para nova linha • {provider === "groq" ? "Powered by Groq Cloud ⚡" : "Powered by Drika Engine"}
+              Enter para enviar • Shift+Enter para nova linha • {provider === "groq" ? "Powered by Groq Cloud ⚡" : provider === "inference" ? "Powered by Inference.net 🌐" : "Powered by Drika Engine"}
             </p>
           </div>
         </div>

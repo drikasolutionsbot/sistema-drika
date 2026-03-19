@@ -31,6 +31,14 @@ const GROQ_TEXT_MODELS = [
   "gemma2-9b-it",
 ];
 
+// Inference.net models
+const INFERENCE_TEXT_MODELS = [
+  "nvidia/Nemotron-3-Super",
+  "google/Gemma-3",
+  "InferenceNet/Schematron-8B",
+  "InferenceNet/Schematron-3B",
+];
+
 async function tryModels(
   models: string[],
   buildBody: (model: string) => object,
@@ -78,6 +86,7 @@ async function tryModels(
 
 const LOVABLE_API_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const INFERENCE_API_URL = "https://api.inference.net/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -85,14 +94,14 @@ serve(async (req) => {
   try {
     const { type, prompt, context, provider } = await req.json();
     
-    // Determine provider: "groq" or "drika" (default)
-    const useGroq = provider === "groq";
+    // Determine provider: "groq", "inference" or "drika" (default)
+    const selectedProvider = provider || "drika";
     
     let apiKey: string;
     let apiUrl: string;
     let authHeader: string;
     
-    if (useGroq) {
+    if (selectedProvider === "groq") {
       // Rotate between multiple Groq API keys for higher rate limits
       const groqKeys = [
         Deno.env.get("GROQ_API_KEY"),
@@ -103,10 +112,14 @@ serve(async (req) => {
 
       if (groqKeys.length === 0) throw new Error("Nenhuma GROQ_API_KEY configurada. Adicione nas configurações do Supabase.");
 
-      // Simple round-robin based on current second
       apiKey = groqKeys[Math.floor(Date.now() / 1000) % groqKeys.length];
       console.log(`Using Groq key pool: ${groqKeys.length} keys available`);
       apiUrl = GROQ_API_URL;
+      authHeader = "Bearer";
+    } else if (selectedProvider === "inference") {
+      apiKey = Deno.env.get("INFERENCE_NET_API_KEY") || "";
+      if (!apiKey) throw new Error("INFERENCE_NET_API_KEY não está configurada. Adicione nas configurações do Supabase.");
+      apiUrl = INFERENCE_API_URL;
       authHeader = "Bearer";
     } else {
       apiKey = Deno.env.get("LOVABLE_API_KEY") || "";
@@ -145,9 +158,9 @@ Inclua estilo, cores, composição, iluminação e mood.`,
 
     // Image generation — only supported on Drika engine (Lovable AI)
     if (type === "image") {
-      if (useGroq) {
+      if (selectedProvider !== "drika") {
         return new Response(
-          JSON.stringify({ error: "Geração de imagens não é suportada pelo Groq. Use o Drika Engine." }),
+          JSON.stringify({ error: "Geração de imagens só é suportada pelo Drika Engine." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
@@ -188,7 +201,7 @@ Inclua estilo, cores, composição, iluminação e mood.`,
       { role: "user", content: prompt },
     ];
 
-    const textModels = useGroq ? GROQ_TEXT_MODELS : TEXT_MODELS;
+    const textModels = selectedProvider === "groq" ? GROQ_TEXT_MODELS : selectedProvider === "inference" ? INFERENCE_TEXT_MODELS : TEXT_MODELS;
 
     const { response, model } = await tryModels(
       textModels,
@@ -206,13 +219,13 @@ Inclua estilo, cores, composição, iluminação e mood.`,
       });
     }
 
-    console.log(`Streaming response from model: ${model} (provider: ${useGroq ? "groq" : "drika"})`);
+    console.log(`Streaming response from model: ${model} (provider: ${selectedProvider})`);
     return new Response(response.body, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
         "X-Model-Used": model,
-        "X-Provider": useGroq ? "groq" : "drika",
+        "X-Provider": selectedProvider,
       },
     });
   } catch (e) {
