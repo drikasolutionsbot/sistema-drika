@@ -377,7 +377,7 @@ const DashboardPage = () => {
                 <p className="text-sm font-medium text-foreground">Nenhum servidor conectado</p>
                 <p className="text-xs text-muted-foreground mt-1">Conecte um servidor nas configurações</p>
               </div>
-              <Button variant="outline" className="gap-2 text-sm" onClick={() => window.location.href = "/settings?tab=server"}>
+              <Button variant="outline" className="gap-2 text-sm" onClick={() => window.location.href = "/settings?tab=bot"}>
                 <Settings2 className="h-3.5 w-3.5" /> Conectar servidor
               </Button>
             </div>
