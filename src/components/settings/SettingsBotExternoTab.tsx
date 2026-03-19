@@ -221,7 +221,7 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Servidores disponíveis onde o bot está presente ({guilds.length}):
+                  Servidores disponíveis onde o bot está presente ({safeGuilds.length}):
                 </p>
                 <div className="space-y-2 max-h-[280px] overflow-y-auto">
                   {guilds.map((guild) => (
