@@ -962,7 +962,7 @@ export default function AIAssistantPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground/40 mt-2 text-center tracking-wide">
-              Enter para enviar • Shift+Enter para nova linha • {provider === "groq" ? "Powered by Groq Cloud ⚡" : provider === "inference" ? "Powered by Inference.net 🌐" : provider === "huggingface" ? "Powered by Hugging Face 🤗" : "Powered by Drika Engine"}
+              Enter para enviar • Shift+Enter para nova linha • {provider === "groq" ? "Powered by Groq Cloud ⚡" : provider === "inference" ? "Powered by Inference.net 🌐" : provider === "huggingface" ? "Powered by Hugging Face 🤗" : provider === "google" ? "Powered by Google AI Studio 💎" : "Powered by Drika Engine"}
             </p>
           </div>
         </div>
