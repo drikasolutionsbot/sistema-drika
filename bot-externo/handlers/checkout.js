@@ -282,7 +282,7 @@ async function goToPayment(interaction, tenant, orderId) {
   } else {
     // Static PIX
     if (!tenant.pix_key) {
-      return channel.send({ embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
+      return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
     }
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
