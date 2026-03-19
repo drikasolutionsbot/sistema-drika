@@ -469,7 +469,7 @@ export default function AIAssistantPage() {
           return (
             <button
               key={tool.id}
-              onClick={() => { setSelectedTool(tool); setActiveSessionId(null); if (tool.id === "image" && provider !== "drika" && provider !== "google") setProvider("drika"); }}
+              onClick={() => { setSelectedTool(tool); setActiveSessionId(null); }}
               className={cn(
                 "relative group flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all duration-500 text-center overflow-hidden",
                 isActive
