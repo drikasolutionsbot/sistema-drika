@@ -852,7 +852,7 @@ export default function AIAssistantPage() {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
-                  className="min-h-[44px] max-h-[120px] bg-transparent border-0 text-sm resize-none focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 placeholder:text-muted-foreground/30"
+                  className="min-h-[44px] max-h-[120px] bg-transparent border-0 text-sm resize-none focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 placeholder:text-muted-foreground/40"
                 />
                 <Button
                   size="icon"
