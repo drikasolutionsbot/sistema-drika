@@ -11,15 +11,41 @@ const { sendWithIdentity } = require("./webhookSender");
 
 // ── Check staff permission ──
 async function checkStaffPermission(tenant, interaction) {
-  const memberPerms = interaction.member?.permissions;
-  if (memberPerms?.has("Administrator")) return true;
+  try {
+    // In threads, member data may be partial - fetch full member if needed
+    let member = interaction.member;
+    if (!member?.permissions && interaction.guild) {
+      try {
+        member = await interaction.guild.members.fetch(interaction.user.id);
+      } catch {}
+    }
 
-  const storeConfig = await getStoreConfig(tenant.id);
-  const staffRoleIdRaw = storeConfig?.ticket_staff_role_id;
-  if (!staffRoleIdRaw) return false;
+    if (member?.permissions?.has?.("Administrator")) return true;
 
-  const staffRoleIds = staffRoleIdRaw.split(",").map((s) => s.trim()).filter(Boolean);
-  return staffRoleIds.some((rid) => interaction.member?.roles?.cache?.has(rid));
+    const storeConfig = await getStoreConfig(tenant.id);
+    const staffRoleIdRaw = storeConfig?.ticket_staff_role_id;
+    if (!staffRoleIdRaw) {
+      // No staff roles configured - allow admins or ticket owner
+      return member?.permissions?.has?.("ManageMessages") || false;
+    }
+
+    const staffRoleIds = staffRoleIdRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (staffRoleIds.length === 0) return false;
+
+    const memberRoles = member?.roles?.cache || member?._roles;
+    if (memberRoles?.has) {
+      return staffRoleIds.some((rid) => memberRoles.has(rid));
+    }
+    // Fallback: _roles is an array of IDs
+    if (Array.isArray(memberRoles)) {
+      return staffRoleIds.some((rid) => memberRoles.includes(rid));
+    }
+
+    return false;
+  } catch (e) {
+    console.error("[checkStaffPermission] Error:", e.message);
+    return false;
+  }
 }
 
 // ── Open Ticket (from button or command) ──
