@@ -11,6 +11,8 @@ require("dotenv").config();
 
 const { getTenantByGuild } = require("./supabase");
 
+const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
+
 // Cache de tenants por guild_id (TTL: 60s)
 const tenantCache = new Map();
 const CACHE_TTL = 60_000;

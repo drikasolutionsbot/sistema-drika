@@ -553,10 +553,66 @@ async function copyDelivered(interaction, tenant, orderId) {
   return interaction.reply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\``, ephemeral: true });
 }
 
+// ── View Variations ──
+async function viewVariations(interaction, tenant, productId) {
+  const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
+  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+
+  const fields = await getProductFields(productId, product.tenant_id);
+  if (!fields.length) return interaction.reply({ content: "Este produto não tem variações.", ephemeral: true });
+
+  const storeConfig = await getStoreConfig(product.tenant_id);
+  const embedColor = parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+
+  const fieldLines = fields.map((f) => {
+    const emoji = f.emoji || "•";
+    const desc = f.description ? ` - ${f.description}` : "";
+    return `${emoji} **${f.name}** — ${formatBRL(f.price_cents)}${desc}`;
+  });
+
+  return interaction.reply({
+    embeds: [new EmbedBuilder().setTitle(`📋 Variações de ${product.name}`).setDescription(fieldLines.join("\n")).setColor(embedColor)],
+    ephemeral: true,
+  });
+}
+
+// ── View Details ──
+async function viewDetails(interaction, tenant, productId) {
+  const products = await getProducts(tenant.id, false);
+  const product = products.find((p) => p.id === productId);
+  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+
+  const fields = await getProductFields(productId, tenant.id);
+  const storeConfig = await getStoreConfig(tenant.id);
+  const embedColor = parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+
+  const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+  const embed = new EmbedBuilder()
+    .setTitle(`ℹ️ ${product.name}`)
+    .setDescription(`${autoDeliveryText}${product.description || "Sem descrição."}`)
+    .setColor(embedColor)
+    .addFields(
+      { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
+      { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
+    );
+
+  if (product.show_stock && product.stock !== null) {
+    embed.addFields({ name: "📊 Estoque", value: `${product.stock} disponíveis`, inline: true });
+  }
+  if (fields.length > 0) {
+    embed.addFields({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
+  }
+  if (product.banner_url) embed.setImage(product.banner_url);
+  if (product.icon_url) embed.setThumbnail(product.icon_url);
+
+  return interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
 module.exports = {
   startCheckout, selectVariation, processPurchase,
   goToPayment, approveOrder, rejectOrder, cancelOrder,
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
   markDelivered, cancelManual, copyDelivered,
+  viewVariations, viewDetails,
 };

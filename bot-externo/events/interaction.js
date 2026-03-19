@@ -78,6 +78,13 @@ module.exports = async function handleInteraction(client, interaction) {
     if (customId.startsWith("ticket_remind_")) return ticketsHandler.handleRemindTicket(interaction, tenant, customId.replace("ticket_remind_", ""));
     if (customId.startsWith("ticket_rename_")) return ticketsHandler.showRenameModal(interaction, customId.replace("ticket_rename_", ""));
 
+    // View variations / details buttons
+    if (customId.startsWith("view_variations:")) return checkoutHandler.viewVariations(interaction, tenant, customId.replace("view_variations:", ""));
+    if (customId.startsWith("view_details:")) return checkoutHandler.viewDetails(interaction, tenant, customId.replace("view_details:", ""));
+
+    // Transcript view button
+    if (customId.startsWith("transcript_view_")) return ticketsHandler.handleTranscriptView(interaction, tenant, customId.replace("transcript_view_", ""));
+
     // Legacy buy button
     if (customId.startsWith("buy_")) return checkoutHandler.startCheckout(interaction, tenant, customId.replace("buy_", ""));
     if (customId.startsWith("field_")) {

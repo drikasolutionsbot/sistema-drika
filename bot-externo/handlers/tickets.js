@@ -75,7 +75,26 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   });
 
   const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
-  const staffRoleIds = (storeConfig?.ticket_staff_role_id || "").split(",").map((s) => s.trim()).filter(Boolean);
+  let staffRoleIds = (storeConfig?.ticket_staff_role_id || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  // Fallback: if no explicit staff roles, use tenant_roles with management permissions
+  if (staffRoleIds.length === 0) {
+    const { data: fallbackRoles } = await supabase
+      .from("tenant_roles")
+      .select("discord_role_id")
+      .eq("tenant_id", tenant.id)
+      .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
+    staffRoleIds = [...new Set((fallbackRoles || []).map((r) => r.discord_role_id).filter(Boolean))];
+  }
+
+  // Also get panel users with management permissions
+  const { data: panelStaffRows } = await supabase
+    .from("tenant_permissions")
+    .select("discord_user_id")
+    .eq("tenant_id", tenant.id)
+    .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
+  const panelStaffUserIds = [...new Set((panelStaffRows || []).map((r) => r.discord_user_id).filter((id) => id && id !== userId))];
+
   const staffMentions = staffRoleIds.map((rid) => `<@&${rid}>`).join(" ");
   const contentMention = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
 
@@ -108,6 +127,28 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   });
 
   try { await welcomeMsg.pin(); } catch {}
+
+  // Auto-add staff members to private thread
+  try {
+    const guild = interaction.guild;
+    const members = await guild.members.fetch({ limit: 1000 });
+    const guildRoles = await guild.roles.fetch();
+
+    // Find roles with ADMINISTRATOR permission
+    const adminRoleIds = new Set([...guildRoles.filter((r) => r.permissions.has("Administrator")).keys()]);
+    const effectiveStaffRoleIds = new Set([...staffRoleIds, ...adminRoleIds]);
+
+    const roleBasedStaffIds = members
+      .filter((m) => !m.user.bot && m.user.id !== userId)
+      .filter((m) => m.roles.cache.some((r) => effectiveStaffRoleIds.has(r.id)))
+      .map((m) => m.user.id);
+
+    const allStaffIds = [...new Set([...roleBasedStaffIds, ...panelStaffUserIds])];
+
+    for (const staffId of allStaffIds) {
+      try { await ticketThread.members.add(staffId); } catch {}
+    }
+  } catch (e) { console.error("[TICKET_OPEN] staff auto-add error:", e.message); }
 
   await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketThread.id}>` });
 }
@@ -312,9 +353,59 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
   }
 }
 
+// ── Transcript View Button ──
+async function handleTranscriptView(interaction, tenant, ticketId) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const ticket = await getTicketById(ticketId);
+  if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });
+
+  // Try to fetch messages from the ticket channel
+  let msgs = [];
+  if (ticket.discord_channel_id) {
+    try {
+      const ch = await interaction.client.channels.fetch(ticket.discord_channel_id);
+      const fetched = await ch.messages.fetch({ limit: 100 });
+      msgs = [...fetched.values()].reverse();
+    } catch {}
+  }
+
+  if (msgs.length === 0) {
+    // Check if transcript exists in storage
+    const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(`transcripts/${ticket.tenant_id}/${ticket.id}.html`);
+    if (urlData?.publicUrl) {
+      return interaction.editReply({ content: `📜 Acesse o transcript: ${urlData.publicUrl}` });
+    }
+    return interaction.editReply({ content: "📜 O transcript está anexado como arquivo na mensagem acima." });
+  }
+
+  const serverName = interaction.guild?.name || "Servidor";
+  const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
+  const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, "Suporte · transcript");
+
+  // Upload to storage
+  let transcriptUrl = null;
+  try {
+    const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+    await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
+    const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
+    transcriptUrl = urlData?.publicUrl || null;
+  } catch {}
+
+  if (transcriptUrl) {
+    return interaction.editReply({ content: `📜 Acesse o transcript: ${transcriptUrl}` });
+  }
+
+  // Fallback: send as file
+  const { AttachmentBuilder } = require("discord.js");
+  const attachment = new AttachmentBuilder(Buffer.from(htmlTranscript), { name: `transcript-${ticket.id.slice(0, 8)}.html` });
+  return interaction.editReply({ content: "📜 Aqui está o transcript:", files: [attachment] });
+}
+
 module.exports = {
   openTicket, handleCloseTicket, handleDeleteTicket,
   handleRemindTicket, handleAssignTicket,
   showRenameModal, handleRenameModal,
   checkStaffPermission, sendTicketLog,
+  handleTranscriptView,
 };
