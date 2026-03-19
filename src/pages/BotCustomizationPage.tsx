@@ -13,7 +13,7 @@ const BotCustomizationPage = () => {
 
   const botName = tenant.bot_name || "Drika Bot";
   const botAvatar = tenant.bot_avatar_url;
-  const botBanner = tenant.banner_url;
+  
   const botId = (tenant as any).discord_bot_id || tenant.id;
 
   return (
