@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const DISCORD_CLIENT_ID = "1477916070508757092";
+const GLOBAL_BOT_CLIENT_ID = "1477916070508757092";
 const BOT_PERMISSIONS = "536870920";
 
 interface Props {
