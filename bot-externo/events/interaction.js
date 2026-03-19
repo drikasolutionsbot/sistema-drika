@@ -1,3 +1,4 @@
+const pingCommand = require("../commands/ping");
 const lojaCommand = require("../commands/loja");
 const comprarHandler = require("../commands/comprar");
 const ticketCommand = require("../commands/ticket");
@@ -23,6 +24,8 @@ module.exports = async function handleInteraction(client, interaction) {
   // ── Slash Commands ──
   if (interaction.isChatInputCommand()) {
     switch (interaction.commandName) {
+      case "ping":
+        return pingCommand.execute(interaction, tenant);
       case "loja":
         return lojaCommand.execute(interaction, tenant);
       case "comprar":
