@@ -25,7 +25,7 @@ import { logTenantAudit, fetchTenantAuditLogs, type AuditLogEntry } from "@/lib/
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const DISCORD_CLIENT_ID = "1477916070508757092";
+const DISCORD_CLIENT_ID_FALLBACK = "1477916070508757092";
 const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
 
 const DashboardPage = () => {
@@ -238,11 +238,20 @@ const DashboardPage = () => {
     );
   }
 
-  const handleAddBot = () => {
-    window.open(
-      `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`,
-      "_blank"
-    );
+  const handleAddBot = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: { tenant_id: tenantId, action: "invite_url", permissions: BOT_PERMISSIONS },
+      });
+      const inviteUrl = data?.invite_url || 
+        `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID_FALLBACK}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
+      window.open(inviteUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      window.open(
+        `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID_FALLBACK}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`,
+        "_blank"
+      );
+    }
   };
 
   const openServerModal = async () => {
