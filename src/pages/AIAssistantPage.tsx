@@ -776,8 +776,35 @@ export default function AIAssistantPage() {
 
           {/* ── Input Area ── */}
           <div className="relative border-t border-border/10 p-4 bg-card/40 backdrop-blur-md z-10">
-            {/* Context Toggle */}
-            <div className="mb-2">
+            {/* Provider + Context controls */}
+            <div className="mb-2 flex items-center gap-3 flex-wrap">
+              {/* Mobile provider toggle */}
+              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-muted/20 border border-border/10 lg:hidden">
+                <button
+                  onClick={() => setProvider("drika")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
+                    provider === "drika" ? "bg-primary/15 text-primary" : "text-muted-foreground/50"
+                  )}
+                >
+                  Drika
+                </button>
+                <button
+                  onClick={() => setProvider("groq")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-[10px] font-bold transition-all",
+                    provider === "groq" ? "bg-[#F55036]/15 text-[#F55036]" : "text-muted-foreground/50"
+                  )}
+                >
+                  Groq
+                </button>
+              </div>
+
+              {/* Image warning for groq */}
+              {provider === "groq" && selectedTool.id === "image" && (
+                <span className="text-[10px] text-destructive/70 font-medium">⚠️ Imagens não suportadas no Groq</span>
+              )}
+
               <button
                 onClick={() => setShowContext(!showContext)}
                 className="flex items-center gap-1.5 text-[10px] text-muted-foreground/40 hover:text-primary/70 transition-colors font-medium"
@@ -785,15 +812,15 @@ export default function AIAssistantPage() {
                 <ChevronDown className={cn("h-3 w-3 transition-transform duration-300", showContext && "rotate-180")} />
                 Contexto (opcional)
               </button>
-              {showContext && (
-                <Textarea
-                  placeholder="Ex: Minha loja vende contas de jogos..."
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                  className="mt-2 min-h-[50px] bg-muted/10 border-border/15 text-xs resize-none"
-                />
-              )}
             </div>
+            {showContext && (
+              <Textarea
+                placeholder="Ex: Minha loja vende contas de jogos..."
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                className="mb-2 min-h-[50px] bg-muted/10 border-border/15 text-xs resize-none"
+              />
+            )}
 
             <div className="relative group/input">
               {/* Glow border on focus */}
