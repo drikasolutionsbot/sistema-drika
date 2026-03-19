@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   try {
     const BOT_TOKEN = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
-    const { commands, guild_id, tenant_id } = await req.json();
+    const { commands, guild_id } = await req.json();
 
     if (!BOT_TOKEN) {
       return new Response(JSON.stringify({ success: false, registered: 0, commands: [], message: "Bot externo não configurado (DISCORD_BOT_TOKEN)." }), {
