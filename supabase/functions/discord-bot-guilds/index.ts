@@ -290,15 +290,16 @@ serve(async (req) => {
           .filter(Boolean)
       );
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
+      console.log("[DEBUG] claimedByOthers:", [...claimedByOthers], "available:", available.length, "mapped:", mapped.length);
 
       // For token-based sessions (bot externo), skip ownership check
-      // The client owns the bot, so adding it to a server is proof of access
       const ownerDiscordId = currentTenant.owner_discord_id || resolvedDiscordUserId;
+      console.log("[DEBUG] ownerDiscordId:", ownerDiscordId, "resolvedDiscordUserId:", resolvedDiscordUserId);
       let finalGuilds = available;
 
       if (ownerDiscordId) {
-        // If we know the owner, filter by ownership for extra security
         finalGuilds = await getOwnedGuilds(available, ownerDiscordId);
+        console.log("[DEBUG] After ownership filter:", finalGuilds.length);
       }
       // If no ownerDiscordId (token session without discord link), show all available guilds
 
