@@ -569,7 +569,7 @@ export default function AIAssistantPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-foreground/80 truncate">{session.title}</p>
-                        <p className="text-[10px] text-muted-foreground/35">
+                        <p className="text-[10px] text-muted-foreground/55">
                           {session.messages.length} msg • {session.createdAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                         </p>
                       </div>
