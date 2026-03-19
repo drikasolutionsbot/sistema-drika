@@ -4,6 +4,7 @@ const comprarHandler = require("../commands/comprar");
 const ticketCommand = require("../commands/ticket");
 const painelCommand = require("../commands/painel");
 const estoqueCommand = require("../commands/estoque");
+const verificarCommand = require("../commands/verificar");
 const checkoutHandler = require("../handlers/checkout");
 const ticketsHandler = require("../handlers/tickets");
 const moderationHandler = require("../handlers/moderation");
