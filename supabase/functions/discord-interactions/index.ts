@@ -102,6 +102,69 @@ async function generatePushinPayPix(apiKey: string, amountCents: number, webhook
 // ─── Format price ───────────────────────────────────────────
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+function extractProductIdCandidates(rawProductId: string): string[] {
+  if (!rawProductId) return [];
+
+  const raw = String(rawProductId).trim();
+  const candidates = new Set<string>();
+  if (raw) candidates.add(raw);
+
+  raw
+    .split(/[:|,;\/\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => candidates.add(part));
+
+  const uuidMatches = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi) || [];
+  uuidMatches.forEach((id) => candidates.add(id));
+
+  return [...candidates];
+}
+
+async function resolveProductFromCustomId(supabase: any, rawProductId: string, guildId: string) {
+  const candidates = extractProductIdCandidates(rawProductId);
+  if (!candidates.length) return null;
+
+  let tenantId: string | null = null;
+  if (guildId) {
+    const { data: tenantByGuild } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("discord_guild_id", guildId)
+      .maybeSingle();
+    tenantId = tenantByGuild?.id || null;
+  }
+
+  for (const candidateId of candidates) {
+    let q = supabase.from("products").select("*").eq("id", candidateId);
+    if (tenantId) q = q.eq("tenant_id", tenantId);
+
+    const { data, error } = await q.maybeSingle();
+    if (error) {
+      console.error("[discord-interactions] Product candidate lookup failed:", candidateId, error.message);
+      continue;
+    }
+    if (data) return data;
+  }
+
+  if (tenantId) {
+    const { data: tenantProducts, error: tenantProductsError } = await supabase
+      .from("products")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+
+    if (!tenantProductsError && (tenantProducts?.length || 0) === 1) {
+      console.warn("[discord-interactions] Using single active-product fallback for tenant", tenantId);
+      return tenantProducts![0];
+    }
+  }
+
+  return null;
+}
+
 // ─── Check ticket staff permission ──────────────────────────
 async function checkTicketStaffPermission(
   supabase: any,
