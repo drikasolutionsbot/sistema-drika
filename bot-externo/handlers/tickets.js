@@ -167,7 +167,7 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
   await closeTicket(ticketId, interaction.user.username);
   await sendTicketLog(interaction.client, ticket, interaction.user.id, interaction.user.username, "closed", tenant);
 
-  await interaction.channel.send({ embeds: [new EmbedBuilder().setTitle("📁 Ticket Arquivado").setDescription(`Ticket arquivado por <@${interaction.user.id}>.`).setColor(0x2B2D31)] });
+  await sendWithIdentity(interaction.channel, tenant, { embeds: [new EmbedBuilder().setTitle("📁 Ticket Arquivado").setDescription(`Ticket arquivado por <@${interaction.user.id}>.`).setColor(0x2B2D31)] });
 
   try {
     await interaction.channel.setArchived(true);
