@@ -26,7 +26,6 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [disconnecting, setDisconnecting] = useState(false);
   const [botPrefix, setBotPrefix] = useState(tenant?.bot_prefix || "!");
   const [botStatus, setBotStatus] = useState(tenant?.bot_status || "online");
-  const [botClientId, setBotClientId] = useState(tenant?.bot_client_id || "");
 
   // Fetch available guilds from the bot
   const { data: guilds = [], isLoading: guildsLoading, refetch: refetchGuilds } = useQuery({
@@ -113,7 +112,6 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           updates: {
             bot_prefix: botPrefix.trim() || "!",
             bot_status: botStatus,
-            bot_client_id: botClientId.trim() || null,
           },
         },
       });
@@ -280,20 +278,6 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           </div>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Client ID do Bot</Label>
-              <Input
-                value={botClientId}
-                onChange={(e) => setBotClientId(e.target.value)}
-                placeholder="Cole o Application ID do seu bot externo"
-                className="font-mono"
-                maxLength={20}
-              />
-              <p className="text-xs text-muted-foreground">
-                Encontre no <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Discord Developer Portal</a> → sua aplicação → General Information → Application ID. Usado para o botão "Conectar Bot ao Servidor".
-              </p>
-            </div>
-
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs uppercase tracking-wider">Prefixo do Bot</Label>
               <Input

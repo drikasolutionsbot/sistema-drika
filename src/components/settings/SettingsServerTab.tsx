@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Server, Unplug, Loader2, Check, ExternalLink, AlertTriangle, RefreshCw, Bot } from "lucide-react";
+import { Server, Unplug, Loader2, Check, AlertTriangle, RefreshCw, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +16,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const GLOBAL_BOT_CLIENT_ID = "1477916070508757092";
 const BOT_PERMISSIONS = "536870920";
 
 interface Props {
@@ -31,45 +30,86 @@ interface Guild {
   icon: string | null;
 }
 
+interface BotInviteData {
+  invite_url: string;
+  client_id: string;
+}
+
 const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [disconnecting, setDisconnecting] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
 
   const isConnected = !!tenant?.discord_guild_id;
 
-  // Fetch available guilds where bot is present (only when not connected)
+  const getRequestBody = () => {
+    const body: any = { tenant_id: tenantId };
+    const tokenSession = sessionStorage.getItem("token_session");
+    if (tokenSession) {
+      try {
+        body.token = JSON.parse(tokenSession).token;
+      } catch {
+        // ignore malformed session
+      }
+    }
+    return body;
+  };
+
+  const {
+    data: botInviteData,
+    isLoading: inviteLoading,
+    refetch: refetchInvite,
+  } = useQuery({
+    queryKey: ["discord-bot-invite", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return null;
+      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: {
+          ...getRequestBody(),
+          action: "invite_url",
+          permissions: BOT_PERMISSIONS,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return (data ?? null) as BotInviteData | null;
+    },
+    enabled: !!tenantId && !isConnected,
+    staleTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
   const { data: guilds = [], isLoading: guildsLoading, refetch: refetchGuilds } = useQuery({
     queryKey: ["server-guilds", tenantId],
     queryFn: async () => {
-      const tokenSession = sessionStorage.getItem("token_session");
-      const body: any = { tenant_id: tenantId };
-      if (tokenSession) {
-        try { body.token = JSON.parse(tokenSession).token; } catch {}
-      }
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", { body });
+      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: getRequestBody(),
+      });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return (data ?? []) as Guild[];
     },
     enabled: !!tenantId && !isConnected,
+    staleTime: 1000 * 60,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
-  // Find connected guild info
   const { data: connectedGuildInfo } = useQuery({
     queryKey: ["connected-guild-info", tenantId, tenant?.discord_guild_id],
     queryFn: async () => {
-      const tokenSession = sessionStorage.getItem("token_session");
-      const body: any = { tenant_id: tenantId };
-      if (tokenSession) {
-        try { body.token = JSON.parse(tokenSession).token; } catch {}
-      }
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", { body });
+      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: getRequestBody(),
+      });
       if (error) return null;
       if (data?.error) return null;
       const list = (data ?? []) as Guild[];
       return list.find((g) => g.id === tenant?.discord_guild_id) || null;
     },
     enabled: !!tenantId && isConnected,
+    staleTime: 1000 * 60,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   const handleDisconnect = async () => {
@@ -114,11 +154,24 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     }
   };
 
-  const botClientId = tenant?.bot_client_id || GLOBAL_BOT_CLIENT_ID;
+  const handleAddBot = async () => {
+    let inviteUrl = botInviteData?.invite_url;
 
-  const handleAddBot = () => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${botClientId}&permissions=${BOT_PERMISSIONS}&scope=bot%20applications.commands`;
-    window.open(url, "_blank");
+    if (!inviteUrl) {
+      const refreshed = await refetchInvite();
+      inviteUrl = refreshed.data?.invite_url;
+    }
+
+    if (!inviteUrl) {
+      toast({
+        title: "Não foi possível gerar o link do bot",
+        description: "Tente novamente em alguns segundos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    window.open(inviteUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -136,7 +189,6 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
         {isConnected ? (
           <div className="space-y-4">
-            {/* Connected status with server info */}
             <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
               <Check className="h-5 w-5 text-emerald-400 shrink-0" />
               <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -158,7 +210,6 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
               </div>
             </div>
 
-            {/* Disconnect */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
@@ -195,18 +246,18 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Step 1: Add bot */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <span className="h-6 w-6 rounded-full bg-[#5865F2]/20 text-[#5865F2] flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                <span className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">1</span>
                 <p className="text-sm font-medium text-foreground">Adicione o bot ao seu servidor</p>
               </div>
               <Button
                 onClick={handleAddBot}
-                className="w-full gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                disabled={inviteLoading}
+                className="w-full gap-2 gradient-pink text-primary-foreground"
                 size="lg"
               >
-                <Bot className="h-4 w-4" />
+                {inviteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
                 Conectar Bot ao Servidor
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -214,7 +265,6 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
               </p>
             </div>
 
-            {/* Step 2: Select server */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">2</span>
@@ -232,7 +282,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
               {guildsLoading ? (
                 <div className="space-y-2">
-                  {[1, 2, 3].map(i => (
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
                   ))}
                 </div>
@@ -241,7 +291,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   <AlertTriangle className="h-7 w-7 text-amber-400/60 mx-auto mb-2" />
                   <p className="text-sm font-medium text-amber-400">Nenhum servidor encontrado</p>
                   <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto">
-                    Adicione o bot ao seu servidor no passo 1 e depois clique em atualizar.
+                    Clique no botão acima para adicionar o bot no Discord e depois atualize a lista.
                   </p>
                   <Button
                     variant="outline"
@@ -280,10 +330,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                         {connecting === guild.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <>
-                            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                            Vincular
-                          </>
+                          "Vincular"
                         )}
                       </Button>
                     </div>

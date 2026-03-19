@@ -22,13 +22,42 @@ serve(async (req) => {
 
     let tenantIdFromBody: string | null = null;
     let accessToken: string | null = null;
+    let action: string | null = null;
+    let invitePermissions = "536870920";
 
     try {
       const body = await req.json();
       tenantIdFromBody = body?.tenant_id || null;
       accessToken = body?.token || null;
+      action = body?.action || null;
+      if (typeof body?.permissions === "string" && /^\d+$/.test(body.permissions)) {
+        invitePermissions = body.permissions;
+      }
     } catch {
       // body opcional
+    }
+
+    if (action === "invite_url") {
+      const botUserRes = await fetch("https://discord.com/api/v10/users/@me", {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+
+      if (!botUserRes.ok) {
+        const text = await botUserRes.text();
+        throw new Error(`Discord API error [${botUserRes.status}]: ${text}`);
+      }
+
+      const botUser = await botUserRes.json();
+      const clientId = botUser?.id;
+      if (!clientId) {
+        throw new Error("Não foi possível identificar o bot configurado");
+      }
+
+      const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
+
+      return new Response(JSON.stringify({ invite_url: inviteUrl, client_id: clientId }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
