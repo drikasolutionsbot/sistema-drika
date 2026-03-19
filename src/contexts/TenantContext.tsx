@@ -80,6 +80,8 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               bot_prefix: null,
               bot_status: null,
               bot_status_interval: null,
+              bot_name: null,
+              bot_avatar_url: null,
               banner_url: null,
               ecloud_custom_url: null,
               verify_enabled: null,
