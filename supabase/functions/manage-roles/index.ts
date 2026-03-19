@@ -60,10 +60,11 @@ serve(async (req) => {
       }
 
       case "list_discord": {
+        const bot = requireBot();
         const discordRes = await fetch(
-          `https://discord.com/api/v10/guilds/${guildId}/roles`,
+          `https://discord.com/api/v10/guilds/${bot.guildId}/roles`,
           {
-            headers: { Authorization: `Bot ${botToken}` },
+            headers: { Authorization: `Bot ${bot.botToken}` },
           }
         );
 
