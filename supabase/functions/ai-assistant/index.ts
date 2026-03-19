@@ -56,7 +56,7 @@ const GOOGLE_AI_TEXT_MODELS = [
 ];
 
 const GOOGLE_AI_IMAGE_MODELS = [
-  "gemini-2.0-flash-exp-image-generation",
+  "gemini-2.0-flash-preview-image-generation",
   "gemini-2.0-flash",
 ];
 
