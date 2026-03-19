@@ -251,6 +251,31 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
               </AlertDialogContent>
             </AlertDialog>
           </div>
+        ) : !tenant?.bot_token_encrypted ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-400">Token do bot não configurado</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Configure o token do seu bot na aba "Bot Externo" para poder conectar ao servidor.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                params.set("tab", "bot");
+                window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+                window.location.reload();
+              }}
+              className="w-full gap-2 gradient-pink text-primary-foreground"
+              size="lg"
+            >
+              <Bot className="h-4 w-4" />
+              Configurar Token do Bot
+            </Button>
+          </div>
         ) : (
           <div className="space-y-5">
             <div className="space-y-3">
