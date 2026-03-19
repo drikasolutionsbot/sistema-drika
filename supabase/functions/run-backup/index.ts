@@ -209,13 +209,13 @@ Deno.serve(async (req) => {
     if (action === "export" && tenant_id) {
       const { data: tenant } = await supabase
         .from("tenants")
-        .select("discord_guild_id, bot_token_encrypted")
+        .select("discord_guild_id")
         .eq("id", tenant_id)
         .single();
 
       const exportData: any = {};
 
-      const botToken = tenant?.bot_token_encrypted;
+      const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
       // Members from Discord
       if (tenant?.discord_guild_id && botToken) {
         let after = "0";
