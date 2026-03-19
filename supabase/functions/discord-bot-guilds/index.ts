@@ -238,7 +238,7 @@ serve(async (req) => {
     }
 
     // Busca guilds atuais do bot no Discord
-    const discordResponse = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+    const discordResponse = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds", {
       headers: { Authorization: `Bot ${botToken}` },
     });
 
