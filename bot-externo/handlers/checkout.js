@@ -218,7 +218,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       { name: "Valor à vista", value: formatBRL(priceCents), inline: true },
       { name: "📦 Em estoque", value: stockCount, inline: true },
     )
-    .setFooter({ text: `${storeName} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, iconURL: storeLogo || undefined })
+    .setFooter({ text: storeConfig?.purchase_embed_footer || `${storeName} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, iconURL: storeLogo || undefined })
     .setTimestamp();
 
   if (descLines.length) reviewEmbed.setDescription(descLines.join("\n\n"));
@@ -357,7 +357,7 @@ async function goToPayment(interaction, tenant, orderId) {
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
-    .setFooter({ text: `${storeName} – Pagamento expira em ${timeoutMin} minutos.`, iconURL: storeLogo || undefined });
+    .setFooter({ text: storeConfig?.purchase_embed_footer || `${storeName} – Pagamento expira em ${timeoutMin} minutos.`, iconURL: storeLogo || undefined });
 
   if (storeLogo) pixEmbed.setThumbnail(storeLogo);
 
