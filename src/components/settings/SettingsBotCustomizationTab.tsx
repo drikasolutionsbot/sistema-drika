@@ -15,12 +15,9 @@ interface Props {
 const SettingsBotCustomizationTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [botName, setBotName] = useState(tenant?.bot_name || "");
   const [botAvatarUrl, setBotAvatarUrl] = useState(tenant?.bot_avatar_url || "");
-  const [botBannerUrl, setBotBannerUrl] = useState(tenant?.banner_url || "");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const bannerFileRef = useRef<HTMLInputElement>(null);
 
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
