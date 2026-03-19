@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check, Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Stars, Orbit, Flame, Crown, Globe, Cpu, Network, Boxes } from "lucide-react";
+import { Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check, Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Stars, Orbit, Flame, Crown, Globe, Cpu, Network, Boxes, Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -179,7 +179,7 @@ export default function AIAssistantPage() {
   const [showContext, setShowContext] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"drika" | "groq" | "inference" | "huggingface">("drika");
+  const [provider, setProvider] = useState<"drika" | "groq" | "inference" | "huggingface" | "google">("drika");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -485,14 +485,34 @@ export default function AIAssistantPage() {
                   <span className={cn("text-[8px] font-medium mt-0.5", provider === "huggingface" ? "text-[#FFD21E]/60" : "text-muted-foreground/30")}>Qwen • Llama</span>
                 </div>
               </button>
+              {/* Google AI */}
+              <button
+                onClick={() => setProvider("google")}
+                className={cn(
+                  "relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300",
+                  provider === "google"
+                    ? "bg-gradient-to-r from-[#4285F4]/20 to-[#34A853]/20 text-[#4285F4] border border-[#4285F4]/30 shadow-[0_0_16px_rgba(66,133,244,0.12)]"
+                    : "text-muted-foreground/60 hover:text-foreground/80"
+                )}
+              >
+                <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center transition-all duration-300",
+                  provider === "google" ? "bg-[#4285F4]/20" : "bg-muted/20"
+                )}>
+                  <Gem className={cn("h-3.5 w-3.5 transition-all", provider === "google" ? "text-[#4285F4] drop-shadow-[0_0_6px_rgba(66,133,244,0.6)]" : "text-muted-foreground/50")} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-none">Google AI</span>
+                  <span className={cn("text-[8px] font-medium mt-0.5", provider === "google" ? "text-[#4285F4]/60" : "text-muted-foreground/30")}>Gemini 2.5</span>
+                </div>
+              </button>
             </div>
             {/* Active model info */}
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
               <div className={cn("h-1.5 w-1.5 rounded-full", 
-                provider === "drika" ? "bg-primary/60" : provider === "groq" ? "bg-[#F55036]/60" : provider === "inference" ? "bg-[#00D4AA]/60" : "bg-[#FFD21E]/60"
+                provider === "drika" ? "bg-primary/60" : provider === "groq" ? "bg-[#F55036]/60" : provider === "inference" ? "bg-[#00D4AA]/60" : provider === "huggingface" ? "bg-[#FFD21E]/60" : "bg-[#4285F4]/60"
               )} />
               <span className="font-medium">
-                {provider === "drika" ? "Multi-model fallback • 8 modelos" : provider === "groq" ? "Ultra-rápido • 4 keys ativas" : provider === "inference" ? "Inference.net • Nemotron 3" : "Hugging Face • Qwen 72B"}
+                {provider === "drika" ? "Multi-model fallback • 8 modelos" : provider === "groq" ? "Ultra-rápido • 4 keys" : provider === "inference" ? "Inference.net • Nemotron" : provider === "huggingface" ? "Hugging Face • Qwen 72B" : "Google AI Studio • Gemini"}
               </span>
             </div>
           </div>
@@ -877,6 +897,18 @@ export default function AIAssistantPage() {
                   <Boxes className="h-3 w-3" />
                   HF
                 </button>
+                <button
+                  onClick={() => setProvider("google")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300",
+                    provider === "google"
+                      ? "bg-[#4285F4]/15 text-[#4285F4] border border-[#4285F4]/25 shadow-sm"
+                      : "text-muted-foreground/60 hover:text-foreground/80"
+                  )}
+                >
+                  <Gem className="h-3 w-3" />
+                  Google
+                </button>
               </div>
 
               {/* Image warning for non-drika providers */}
@@ -930,7 +962,7 @@ export default function AIAssistantPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground/40 mt-2 text-center tracking-wide">
-              Enter para enviar • Shift+Enter para nova linha • {provider === "groq" ? "Powered by Groq Cloud ⚡" : provider === "inference" ? "Powered by Inference.net 🌐" : provider === "huggingface" ? "Powered by Hugging Face 🤗" : "Powered by Drika Engine"}
+              Enter para enviar • Shift+Enter para nova linha • {provider === "groq" ? "Powered by Groq Cloud ⚡" : provider === "inference" ? "Powered by Inference.net 🌐" : provider === "huggingface" ? "Powered by Hugging Face 🤗" : provider === "google" ? "Powered by Google AI Studio 💎" : "Powered by Drika Engine"}
             </p>
           </div>
         </div>
