@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
 
       const exportData: any = {};
 
-      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+      const botToken = tenant?.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
       // Members from Discord
       if (tenant?.discord_guild_id && botToken) {
         let after = "0";
