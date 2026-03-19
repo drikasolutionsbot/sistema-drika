@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
         let ordersCount = 0;
         let productsCount = 0;
 
-        const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+        const botToken = tenant.bot_token_encrypted || Deno.env.get("DISCORD_BOT_TOKEN");
         // 1. Fetch Discord members
         if (tenant.discord_guild_id && botToken) {
           let after = "0";
