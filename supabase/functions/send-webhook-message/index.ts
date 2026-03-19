@@ -141,10 +141,10 @@ serve(async (req) => {
         if (embed.color === 0x2B2D31 || embed.color === 2829105) {
           delete embed.color;
         }
-        // Apply tenant banner as embed image if not already set
-        if (tenant?.banner_url && !embed.image) {
-          embed.image = { url: tenant.banner_url };
-        }
+      }
+      // Apply tenant banner to the first embed if it has no image
+      if (tenant?.banner_url && embeds.length > 0 && !embeds[0].image) {
+        embeds[0].image = { url: tenant.banner_url };
       }
       payload.embeds = embeds;
     }
