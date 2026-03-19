@@ -47,6 +47,14 @@ const HF_TEXT_MODELS = [
   "microsoft/Phi-3-mini-4k-instruct",
 ];
 
+// Google AI Studio models
+const GOOGLE_AI_TEXT_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-1.5-pro",
+];
+
 async function tryModels(
   models: string[],
   buildBody: (model: string) => object,
