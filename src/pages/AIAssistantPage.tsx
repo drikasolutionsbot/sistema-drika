@@ -815,10 +815,6 @@ export default function AIAssistantPage() {
                 </button>
               </div>
 
-              {/* Image warning for non-supported providers */}
-              {provider !== "drika" && provider !== "google" && selectedTool.id === "image" && (
-                <span className="text-[10px] text-destructive/70 font-medium">⚠️ Imagens só no Drika Engine e Google AI</span>
-              )}
 
               <button
                 onClick={() => setShowContext(!showContext)}
