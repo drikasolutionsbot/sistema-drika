@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ECloudCharts } from "@/components/ecloud/ECloudCharts";
 import { ECloudDataTab } from "@/components/ecloud/ECloudDataTab";
+import { ECloudHealthTab } from "@/components/ecloud/ECloudHealthTab";
 import { Loader2 } from "lucide-react";
 
 const VerificationPage = lazy(() => import("@/pages/VerificationPage"));
