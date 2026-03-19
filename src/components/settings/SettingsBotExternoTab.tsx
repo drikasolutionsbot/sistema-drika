@@ -39,7 +39,8 @@ const SettingsBotExternoTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       const { data, error } = await supabase.functions.invoke("discord-bot-guilds", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return (data ?? []) as Guild[];
+      const guildList = Array.isArray(data) ? data : (data?.guilds ?? []);
+      return guildList as Guild[];
     },
     enabled: !!tenantId,
   });
