@@ -110,8 +110,8 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       });
       if (error) return null;
       if (data?.error) return null;
-      const list = (data ?? []) as Guild[];
-      return list.find((g) => g.id === tenant?.discord_guild_id) || null;
+      const list = Array.isArray(data) ? data : (data?.guilds ?? []);
+      return list.find((g: Guild) => g.id === tenant?.discord_guild_id) || null;
     },
     enabled: !!tenantId && isConnected,
     staleTime: 1000 * 60,
