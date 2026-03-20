@@ -722,7 +722,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
           const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
           if (urlData?.publicUrl) {
             components = [new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel("Ver Transcript").setEmoji("📜").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
+              new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
             )];
           }
         } else {
