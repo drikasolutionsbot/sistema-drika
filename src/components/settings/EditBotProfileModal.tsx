@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Loader2, Bot, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -25,7 +25,7 @@ interface Props {
 const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTenant }: Props) => {
   const [botName, setBotName] = useState(tenant?.bot_name || "");
   const [botAvatarUrl, setBotAvatarUrl] = useState(tenant?.bot_avatar_url || "");
-  const [botStatus, setBotStatus] = useState(tenant?.bot_status || "/panel");
+  
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
@@ -59,7 +59,6 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
           updates: {
             bot_name: botName.trim() || null,
             bot_avatar_url: botAvatarUrl.trim() || null,
-            bot_status: botStatus.trim() || "/panel",
           },
         },
       });
@@ -120,20 +119,6 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
             />
           </div>
 
-          {/* Status */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Status do Bot</Label>
-            <Textarea
-              value={botStatus}
-              onChange={(e) => setBotStatus(e.target.value)}
-              rows={2}
-              className="resize-none font-mono text-sm"
-              placeholder={"/panel\nDrika Solutions"}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Texto exibido como "Jogando" no Discord. Um status por linha (alterna automaticamente).
-            </p>
-          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
