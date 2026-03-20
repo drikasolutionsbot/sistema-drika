@@ -401,56 +401,6 @@ const CustomizationPage = () => {
             </CardContent>
           </Card>
 
-          {/* Bot Status */}
-          <Card className="border-border/50 bg-sidebar">
-            <CardContent className="pt-6 space-y-4">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Status do Bot</Label>
-              <div className="space-y-2">
-                <Label className="text-sm">Status (um por linha)</Label>
-                <Textarea
-                  value={config.bot_status}
-                  onChange={(e) => update("bot_status", e.target.value)}
-                  rows={3}
-                  className="bg-background border-border resize-none font-mono text-sm"
-                  placeholder={"/panel\nDrika Solutions"}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Alterna a cada <strong>{config.bot_status_interval}s</strong>.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm">Intervalo (seg)</Label>
-                  <Input
-                    type="number"
-                    value={config.bot_status_interval}
-                    onChange={(e) => update("bot_status_interval", e.target.value)}
-                    className="bg-background border-border font-mono"
-                    min={10}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm">Prefixo</Label>
-                  <Input
-                    value={config.bot_prefix}
-                    onChange={(e) => update("bot_prefix", e.target.value)}
-                    className="bg-background border-border font-mono"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Ex: <code className="px-1 py-0.5 rounded bg-muted font-mono">{config.bot_prefix}help</code>
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full gap-2 mt-2"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Salvar Status
-              </Button>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
