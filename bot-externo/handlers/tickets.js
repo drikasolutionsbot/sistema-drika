@@ -546,12 +546,10 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     return;
   }
 
-  // Fetch logs channel first to fail fast
   let logsCh;
   try {
     logsCh = await client.channels.fetch(logsChannelId);
     if (!logsCh) throw new Error("Channel returned null");
-    console.log(`[sendTicketLog] Found logs channel: ${logsCh.name || logsCh.id}`);
   } catch (e) {
     console.error(`[sendTicketLog] Cannot fetch logs channel ${logsChannelId}: ${e.message}`);
     return;
@@ -565,7 +563,6 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
       if (ch) {
         const fetched = await ch.messages.fetch({ limit: 100 });
         msgs = [...fetched.values()].reverse();
-        console.log(`[sendTicketLog] Fetched ${msgs.length} messages from thread`);
       }
     } catch (fetchErr) {
       console.error(`[sendTicketLog] Failed to fetch messages: ${fetchErr.message}`);
@@ -573,25 +570,51 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
   }
 
   const statusLabel = action === "deleted" ? "Deletado" : "Fechado";
+  const statusEmoji = action === "deleted" ? "🗑️" : "🔒";
+  const embedColor = action === "deleted" ? 0xED4245 : 0x2B2D31;
+
+  // Calculate duration
+  const createdAt = new Date(ticket.created_at);
+  const closedAt = new Date();
+  const durationMs = closedAt - createdAt;
+  const durationMin = Math.floor(durationMs / 60000);
+  let durationStr;
+  if (durationMin < 60) {
+    durationStr = `${durationMin}m`;
+  } else if (durationMin < 1440) {
+    const h = Math.floor(durationMin / 60);
+    const m = durationMin % 60;
+    durationStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
+  } else {
+    const d = Math.floor(durationMin / 1440);
+    const h = Math.floor((durationMin % 1440) / 60);
+    durationStr = h > 0 ? `${d}d ${h}h` : `${d}d`;
+  }
+
+  // Count unique participants
+  const participants = new Set(msgs.map((m) => m.author?.id).filter(Boolean));
 
   const logEmbed = new EmbedBuilder()
-    .setTitle(`Ticket - ${statusLabel}`)
-    .setColor(action === "deleted" ? 0xED4245 : 0x2B2D31)
+    .setTitle(`${statusEmoji} Ticket ${statusLabel}`)
+    .setColor(embedColor)
     .addFields(
-      { name: "👤 Moderador", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: true },
-      { name: "🎫 Ticket", value: `${ticket.discord_username || "N/A"}\n\`${ticket.id.slice(0, 8)}\``, inline: true },
+      { name: "👤 Moderador", value: `<@${closedByUserId}>`, inline: true },
+      { name: "🎫 Usuário", value: `<@${ticket.discord_user_id}>`, inline: true },
+      { name: "📦 Produto", value: ticket.product_name ? `\`${ticket.product_name}\`` : "Suporte Geral", inline: true },
+      { name: "⏱️ Duração", value: `\`${durationStr}\``, inline: true },
+      { name: "💬 Mensagens", value: `\`${msgs.length}\``, inline: true },
+      { name: "👥 Participantes", value: `\`${participants.size}\``, inline: true },
     )
     .setTimestamp()
-    .setFooter({ text: "Drika Hub • Ticket Log" });
+    .setFooter({ text: `${tenant.name || "Drika Hub"} • Ticket Log • ID: ${ticket.id.slice(0, 8)}` });
 
-  // Build transcript and upload to storage
+  // Build transcript and upload
   let components = [];
   
   if (msgs.length > 0) {
     try {
       const htmlTranscript = generateHtmlTranscript(msgs, tenant.name || "Servidor", `ticket-${ticket.discord_username}`, statusLabel);
 
-      // Upload to storage for persistent link
       try {
         const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
         const { error: uploadErr } = await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
@@ -599,7 +622,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
           const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
           if (urlData?.publicUrl) {
             components = [new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel("Ver transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
+              new ButtonBuilder().setLabel("Ver Transcript").setEmoji("📜").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
             )];
           }
         } else {
@@ -613,15 +636,13 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     }
   }
 
-  // Send the log - embed + button only (no file attachment to avoid Discord preview)
   try {
     await logsCh.send({ embeds: [logEmbed], components });
-    console.log(`[sendTicketLog] ✅ Log sent successfully to ${logsChannelId}`);
+    console.log(`[sendTicketLog] Log sent successfully to ${logsChannelId}`);
   } catch (sendErr) {
     console.error(`[sendTicketLog] Failed to send log: ${sendErr.message}`);
     try {
       await logsCh.send({ embeds: [logEmbed] });
-      console.log(`[sendTicketLog] ✅ Log sent without button`);
     } catch (e2) {
       console.error(`[sendTicketLog] Fallback also failed: ${e2.message}`);
     }
@@ -632,7 +653,22 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     try {
       const user = await client.users.fetch(ticket.discord_user_id);
       const transcriptUrl = components[0].components[0].data.url;
-      await user.send({ content: `📜 Transcript do seu ticket encerrado:\n${transcriptUrl}` });
+      const dmEmbed = new EmbedBuilder()
+        .setTitle("📜 Transcript do Ticket")
+        .setDescription(`Seu ticket foi **${statusLabel.toLowerCase()}** por **@${closedByUsername}**.\nClique no botão abaixo para visualizar o histórico completo.`)
+        .setColor(0x2B2D31)
+        .addFields(
+          { name: "Produto", value: ticket.product_name || "Suporte Geral", inline: true },
+          { name: "Duração", value: durationStr, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: tenant.name || "Drika Hub" });
+      await user.send({
+        embeds: [dmEmbed],
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("📜").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )],
+      });
     } catch {}
   }
 }
