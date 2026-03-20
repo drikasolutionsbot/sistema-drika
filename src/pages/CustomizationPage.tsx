@@ -22,8 +22,6 @@ import { DiscordButtonStylePicker, type DiscordButtonStyle, getDiscordButtonStyl
 
 interface ServerConfig {
   server_name: string;
-  bot_status: string;
-  bot_status_interval: string;
   bot_prefix: string;
   // Verification
   verify_enabled: boolean;
