@@ -84,13 +84,9 @@ serve(async (req) => {
     }
 
     if (action === "verify_guild") {
-      const body = { tenant_id: tenantIdFromBody, token: accessToken, guild_id: "" };
-      try {
-        const rawBody = await req.clone().json();
-        body.guild_id = rawBody?.guild_id || "";
-      } catch {}
+      const verifyGuildId = guildIdFromBody || "";
 
-      if (!body.guild_id || !/^\d{17,20}$/.test(body.guild_id)) {
+      if (!verifyGuildId || !/^\d{17,20}$/.test(verifyGuildId)) {
         return new Response(JSON.stringify({ error: "guild_id inválido" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
