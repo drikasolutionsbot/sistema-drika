@@ -152,8 +152,14 @@ serve(async (req) => {
           try {
             const imgRes = await fetch(safeUpdates.bot_avatar_url);
             if (imgRes.ok) {
-              const imgBuffer = await imgRes.arrayBuffer();
-              const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+              const imgBuffer = new Uint8Array(await imgRes.arrayBuffer());
+              // Chunked conversion to avoid stack overflow
+              let binary = "";
+              const chunkSize = 8192;
+              for (let i = 0; i < imgBuffer.length; i += chunkSize) {
+                binary += String.fromCharCode(...imgBuffer.subarray(i, i + chunkSize));
+              }
+              const base64 = btoa(binary);
               const contentType = imgRes.headers.get("content-type") || "image/png";
               memberPatch.avatar = `data:${contentType};base64,${base64}`;
             } else {
