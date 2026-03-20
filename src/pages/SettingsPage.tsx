@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Server, Bot, Palette } from "lucide-react";
+import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Server, Bot, Palette, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ import "@/components/wallet/wallet-card.css";
 import SettingsPlanTab from "@/components/settings/SettingsPlanTab";
 import SettingsProfileTab from "@/components/settings/SettingsProfileTab";
 import SettingsServerTab from "@/components/settings/SettingsServerTab";
+import EmbedBuilder from "@/components/customization/EmbedBuilder";
 
 import SettingsBotCustomizationTab from "@/components/settings/SettingsBotCustomizationTab";
 
@@ -187,6 +188,9 @@ const SettingsPage = () => {
               </TabsTrigger>
               <TabsTrigger value="server" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Server className="h-4 w-4" /> Servidor
+              </TabsTrigger>
+              <TabsTrigger value="embeds" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <LayoutTemplate className="h-4 w-4" /> Embeds
               </TabsTrigger>
             </TabsList>
           </div>
@@ -434,7 +438,12 @@ const SettingsPage = () => {
           <SettingsServerTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
         </TabsContent>
 
-
+        {/* Embeds Tab */}
+        <TabsContent value="embeds">
+          <div className="mt-6">
+            <EmbedBuilder />
+          </div>
+        </TabsContent>
 
       </Tabs>
       </div>
