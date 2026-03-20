@@ -5,6 +5,15 @@ export interface EmbedField {
   inline: boolean;
 }
 
+export interface EmbedButton {
+  id: string;
+  label: string;
+  emoji: string;
+  style: "primary" | "secondary" | "success" | "danger" | "link";
+  url: string;
+  enabled: boolean;
+}
+
 export interface EmbedData {
   color: string;
   author_name: string;
@@ -19,6 +28,7 @@ export interface EmbedData {
   footer_icon_url: string;
   timestamp: boolean;
   fields: EmbedField[];
+  buttons: EmbedButton[];
 }
 
 export const defaultEmbed: EmbedData = {
@@ -35,6 +45,7 @@ export const defaultEmbed: EmbedData = {
   footer_icon_url: "",
   timestamp: false,
   fields: [],
+  buttons: [],
 };
 
 export interface EmbedTemplate {
