@@ -75,7 +75,7 @@ export const embedTemplates: EmbedTemplate[] = [
       timestamp: true,
       fields: [],
       buttons: [],
-  },
+    },
   {
     id: "purchase",
     name: "Compra",
