@@ -34,12 +34,15 @@ const EmbedBuilder = () => {
   const fetchSavedEmbeds = async () => {
     if (!tenantId) return;
     setLoadingEmbeds(true);
-    const { data } = await supabase
-      .from("saved_embeds")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
-    setSavedEmbeds((data as unknown as SavedEmbed[]) || []);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-saved-embeds", {
+        body: { action: "list", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      setSavedEmbeds((data?.embeds as SavedEmbed[]) || []);
+    } catch {
+      setSavedEmbeds([]);
+    }
     setLoadingEmbeds(false);
   };
 
