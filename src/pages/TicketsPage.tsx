@@ -226,14 +226,14 @@ const TicketsPage = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className={`${sc.badgeCls} text-xs`}>
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <Badge variant="outline" className={`${sc.badgeCls} text-[10px] sm:text-xs`}>
                   {sc.label}
                 </Badge>
                 <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
                   {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true, locale: ptBR })}
                 </span>
-                <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
               </div>
             </div>
           );
