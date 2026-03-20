@@ -94,7 +94,7 @@ serve(async (req) => {
       }
 
       // Check if the bot is in this guild
-      const guildRes = await fetchWithRetry(`https://discord.com/api/v10/guilds/${body.guild_id}`, {
+      const guildRes = await fetchWithRetry(`https://discord.com/api/v10/guilds/${verifyGuildId}`, {
         headers: { Authorization: `Bot ${botToken}` },
       });
 
