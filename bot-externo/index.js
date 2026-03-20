@@ -56,25 +56,52 @@ const verificationHandler = require("./handlers/verification");
 // ── Status polling ──
 let lastAppliedStatus = null;
 
+function normalizeStatus(rawStatus) {
+  const fallback = "/panel";
+  if (!rawStatus || typeof rawStatus !== "string") return fallback;
+
+  const firstLine = rawStatus
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  return (firstLine || fallback).slice(0, 128);
+}
+
 async function syncBotStatus() {
+  const statusCandidates = [];
+
   for (const guild of client.guilds.cache.values()) {
     try {
       const tenant = await getTenantByGuild(guild.id);
       if (tenant) {
         tenantCache.set(guild.id, { data: tenant, ts: Date.now() });
       }
-      const newStatus = tenant?.bot_status || "/panel";
-      if (newStatus !== lastAppliedStatus) {
-        client.user.setPresence({
-          activities: [{ name: newStatus, type: ActivityType.Playing }],
-          status: "online",
-        });
-        lastAppliedStatus = newStatus;
-        console.log(`🔄 Status atualizado: "${newStatus}"`);
-      }
+
+      statusCandidates.push({
+        guildId: guild.id,
+        status: normalizeStatus(tenant?.bot_status),
+        updatedAt: tenant?.updated_at ? new Date(tenant.updated_at).getTime() : 0,
+      });
     } catch (err) {
       console.error(`Erro ao sincronizar status para guild ${guild.id}:`, err.message);
     }
+  }
+
+  if (!statusCandidates.length) return;
+
+  const selected = statusCandidates.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  if (!selected?.status || selected.status === lastAppliedStatus) return;
+
+  try {
+    client.user.setPresence({
+      activities: [{ name: selected.status, type: ActivityType.Playing }],
+      status: "online",
+    });
+    lastAppliedStatus = selected.status;
+    console.log(`🔄 Status atualizado (guild ${selected.guildId}): "${selected.status}"`);
+  } catch (err) {
+    console.error("Erro ao aplicar presença do bot:", err.message);
   }
 }
 
@@ -151,10 +178,7 @@ client.on(Events.GuildCreate, async (guild) => {
     });
     console.log(`📝 Comandos registrados no novo servidor: ${guild.name}`);
 
-    const tenant = await resolveTenant(guild.id);
-    if (tenant?.bot_status) {
-      client.user.setActivity(tenant.bot_status, { type: ActivityType.Playing });
-    }
+    await syncBotStatus();
   } catch (err) {
     console.error(`Erro ao registrar comandos em ${guild.name}:`, err.message);
   }
