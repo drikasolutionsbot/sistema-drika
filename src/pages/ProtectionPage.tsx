@@ -456,11 +456,13 @@ const ProtectionPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="modules">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="modules">Módulos ({MODULES.length})</TabsTrigger>
-          <TabsTrigger value="whitelist">Whitelist ({whitelist.length})</TabsTrigger>
-          <TabsTrigger value="logs">Logs ({logs.length})</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+            <TabsTrigger value="modules" className="text-xs sm:text-sm">Módulos ({MODULES.length})</TabsTrigger>
+            <TabsTrigger value="whitelist" className="text-xs sm:text-sm">Whitelist ({whitelist.length})</TabsTrigger>
+            <TabsTrigger value="logs" className="text-xs sm:text-sm">Logs ({logs.length})</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ═══ MODULES TAB ═══ */}
         <TabsContent value="modules" className="space-y-6 mt-4">

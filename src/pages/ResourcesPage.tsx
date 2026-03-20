@@ -12,11 +12,13 @@ const ResourcesPage = () => (
     </div>
 
     <Tabs defaultValue="comandos" className="space-y-4">
-      <TabsList className="bg-muted">
-        <TabsTrigger value="cargos">Cargos</TabsTrigger>
-        <TabsTrigger value="comandos">Comandos</TabsTrigger>
-        <TabsTrigger value="modulos">Módulos</TabsTrigger>
-      </TabsList>
+      <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+        <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+          <TabsTrigger value="cargos">Cargos</TabsTrigger>
+          <TabsTrigger value="comandos">Comandos</TabsTrigger>
+          <TabsTrigger value="modulos">Módulos</TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="cargos" className="mt-0">
         <RolesTab />

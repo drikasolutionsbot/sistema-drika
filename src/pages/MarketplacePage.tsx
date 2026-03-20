@@ -116,16 +116,18 @@ const MarketplacePage = () => {
       </div>
 
       <Tabs defaultValue="catalog">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="catalog">
-            <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-            Catálogo
-          </TabsTrigger>
-          <TabsTrigger value="purchases">
-            <History className="h-3.5 w-3.5 mr-1.5" />
-            Minhas Compras ({purchases.length})
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+            <TabsTrigger value="catalog" className="text-xs sm:text-sm">
+              <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+              Catálogo
+            </TabsTrigger>
+            <TabsTrigger value="purchases" className="text-xs sm:text-sm">
+              <History className="h-3.5 w-3.5 mr-1.5" />
+              Compras ({purchases.length})
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="catalog" className="mt-4">
           {isLoading ? (

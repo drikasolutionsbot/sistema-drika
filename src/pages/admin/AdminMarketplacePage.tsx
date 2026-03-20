@@ -228,11 +228,13 @@ const AdminMarketplacePage = () => {
       </div>
 
       <Tabs defaultValue="available">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="available">Disponíveis ({available.length})</TabsTrigger>
-          <TabsTrigger value="sold">Vendidos ({sold.length})</TabsTrigger>
-          <TabsTrigger value="hidden">Ocultos ({hidden.length})</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+            <TabsTrigger value="available" className="text-xs sm:text-sm">Disponíveis ({available.length})</TabsTrigger>
+            <TabsTrigger value="sold" className="text-xs sm:text-sm">Vendidos ({sold.length})</TabsTrigger>
+            <TabsTrigger value="hidden" className="text-xs sm:text-sm">Ocultos ({hidden.length})</TabsTrigger>
+          </TabsList>
+        </div>
 
         {["available", "sold", "hidden"].map((tab) => {
           const tabItems = tab === "available" ? available : tab === "sold" ? sold : hidden;

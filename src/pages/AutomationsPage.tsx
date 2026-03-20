@@ -467,10 +467,12 @@ const AutomationsPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="automations">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="automations">Automações ({automations.length})</TabsTrigger>
-          <TabsTrigger value="logs">Logs Recentes ({logs.length})</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+            <TabsTrigger value="automations" className="text-xs sm:text-sm">Automações ({automations.length})</TabsTrigger>
+            <TabsTrigger value="logs" className="text-xs sm:text-sm">Logs Recentes ({logs.length})</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* AUTOMATIONS TAB */}
         <TabsContent value="automations" className="mt-4">

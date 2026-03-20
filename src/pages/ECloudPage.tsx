@@ -311,23 +311,25 @@ const ECloudPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="monitor">
-        <TabsList className="bg-muted/50 border border-border rounded-xl p-1">
-          <TabsTrigger value="monitor" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
-            Monitor
-          </TabsTrigger>
-          <TabsTrigger value="saude" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
-            Saúde
-          </TabsTrigger>
-          <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
-            Dados & Backups
-          </TabsTrigger>
-          <TabsTrigger value="verificacao" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
-            Verificação
-          </TabsTrigger>
-          <TabsTrigger value="verificados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-5">
-            Verificados
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted/50 border border-border rounded-xl p-1 w-max min-w-full sm:w-auto">
+            <TabsTrigger value="monitor" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Monitor
+            </TabsTrigger>
+            <TabsTrigger value="saude" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Saúde
+            </TabsTrigger>
+            <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Dados
+            </TabsTrigger>
+            <TabsTrigger value="verificacao" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Verificação
+            </TabsTrigger>
+            <TabsTrigger value="verificados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Verificados
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="monitor" className="mt-6 space-y-6">
           {/* Stats Grid */}
