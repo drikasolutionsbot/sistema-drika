@@ -121,7 +121,7 @@ export const embedTemplates: EmbedTemplate[] = [
         { id: "f1", name: "👤 Aberto por", value: "{user}", inline: true },
         { id: "f2", name: "📋 Categoria", value: "Geral", inline: true },
       ],
-    },
+      buttons: [],
   },
   {
     id: "announcement",
