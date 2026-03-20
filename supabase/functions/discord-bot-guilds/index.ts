@@ -369,10 +369,17 @@ serve(async (req) => {
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
       // Privacy: servers already claimed by other tenants are excluded above.
-      // Show all unclaimed servers where the bot is present for the tenant to pick.
+      // Prefer servers owned by the authenticated Discord user when available.
       let finalGuilds = available;
 
-      // Auto-link if only one guild available
+      if (resolvedDiscordUserId) {
+        const ownedAvailable = await getOwnedGuilds(available, resolvedDiscordUserId);
+        if (ownedAvailable.length > 0) {
+          finalGuilds = ownedAvailable;
+        }
+      }
+
+      // Auto-link if only one candidate guild remains
       let autoLinked = false;
       if (finalGuilds.length === 1) {
         const guildToLink = finalGuilds[0];
