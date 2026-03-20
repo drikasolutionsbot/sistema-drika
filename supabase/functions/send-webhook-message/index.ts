@@ -223,6 +223,35 @@ serve(async (req) => {
       }
 
       payload.components = [{ type: 1, components: [buyButton] }];
+    } else if (buttons && Array.isArray(buttons) && buttons.length > 0) {
+      // Custom buttons from embed builder
+      const styleMap: Record<string, number> = {
+        primary: 1, secondary: 2, success: 3, danger: 4, link: 5,
+      };
+      const btnComponents = buttons.map((btn: any, idx: number) => {
+        const comp: any = {
+          type: 2,
+          style: styleMap[btn.style] || 1,
+          label: btn.label || "Botão",
+        };
+        if (btn.style === "link" && btn.url) {
+          comp.url = btn.url;
+        } else {
+          comp.custom_id = `embed_btn_${idx}_${Date.now()}`;
+        }
+        if (btn.emoji) {
+          const parsed = parseEmojiFromLabel(btn.emoji + " ");
+          if (parsed.emoji) {
+            if (parsed.isCustom && parsed.customId) {
+              comp.emoji = { id: parsed.customId, name: parsed.customName, animated: parsed.animated };
+            } else {
+              comp.emoji = { name: parsed.emoji };
+            }
+          }
+        }
+        return comp;
+      });
+      payload.components = [{ type: 1, components: btnComponents }];
     } else if (components) {
       payload.components = components;
     }
