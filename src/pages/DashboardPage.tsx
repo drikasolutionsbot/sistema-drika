@@ -360,8 +360,8 @@ const DashboardPage = () => {
           </div>
           {tenant.discord_guild_id ? (
             <>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">{tenant.name[0]?.toUpperCase()}</div>
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm shrink-0">{tenant.name[0]?.toUpperCase()}</div>
                 <div>
                   <p className="font-medium">{tenant.name}</p>
                   <p className="text-xs font-mono text-muted-foreground">({tenant.discord_guild_id})</p>
