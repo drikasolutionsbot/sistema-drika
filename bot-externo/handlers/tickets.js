@@ -709,27 +709,40 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
 
   // Build transcript and upload
   let components = [];
-  
+
   if (msgs.length > 0) {
     try {
       const htmlTranscript = generateHtmlTranscript(msgs, tenant.name || "Servidor", `ticket-${ticket.discord_username}`, statusLabel);
+      const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+      const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
 
-      try {
-        const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
-        const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
-        const { error: uploadErr } = await supabase.storage.from("tenant-assets").upload(fileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
-        if (!uploadErr) {
-          const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
-          if (urlData?.publicUrl) {
-            components = [new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
-            )];
-          }
-        } else {
-          console.error(`[sendTicketLog] Storage upload error: ${uploadErr.message}`);
+      const { error: uploadErr } = await supabase.storage
+        .from("tenant-assets")
+        .upload(fileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
+
+      if (uploadErr) {
+        console.error(`[sendTicketLog] Storage upload error: ${uploadErr.message}`);
+      }
+
+      let transcriptUrl = null;
+      const { data: signedData, error: signedErr } = await supabase.storage
+        .from("tenant-assets")
+        .createSignedUrl(fileName, 60 * 60 * 24 * 7);
+
+      if (!signedErr && signedData?.signedUrl) {
+        transcriptUrl = signedData.signedUrl;
+      } else {
+        if (signedErr) {
+          console.error(`[sendTicketLog] Signed URL error: ${signedErr.message}`);
         }
-      } catch (storageErr) {
-        console.error(`[sendTicketLog] Storage error: ${storageErr.message}`);
+        const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
+        transcriptUrl = urlData?.publicUrl || null;
+      }
+
+      if (transcriptUrl) {
+        components = [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )];
       }
     } catch (transcriptErr) {
       console.error(`[sendTicketLog] Transcript generation error: ${transcriptErr.message}`);
@@ -766,7 +779,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
       await user.send({
         embeds: [dmEmbed],
         components: [new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("📜").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
         )],
       });
     } catch {}
@@ -790,37 +803,77 @@ async function handleTranscriptView(interaction, tenant, ticketId) {
     } catch {}
   }
 
+  const transcriptFileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+
   if (msgs.length === 0) {
-    // Check if transcript exists in storage
-    const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(`transcripts/${ticket.tenant_id}/${ticket.id}.html`);
-    if (urlData?.publicUrl) {
-      return interaction.editReply({ content: `📜 Acesse o transcript: ${urlData.publicUrl}` });
+    let transcriptUrl = null;
+    try {
+      const { data: signedData, error: signedErr } = await supabase.storage
+        .from("tenant-assets")
+        .createSignedUrl(transcriptFileName, 60 * 60 * 24 * 7);
+
+      if (!signedErr && signedData?.signedUrl) {
+        transcriptUrl = signedData.signedUrl;
+      } else {
+        const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(transcriptFileName);
+        transcriptUrl = urlData?.publicUrl || null;
+      }
+    } catch {}
+
+    if (transcriptUrl) {
+      return interaction.editReply({
+        content: "📜 Clique no botão para abrir o transcript no navegador:",
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Abrir Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )],
+      });
     }
-    return interaction.editReply({ content: "📜 O transcript está anexado como arquivo na mensagem acima." });
+
+    return interaction.editReply({ content: "❌ Transcript ainda não encontrado para este ticket." });
   }
 
   const serverName = interaction.guild?.name || "Servidor";
   const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
   const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, "Suporte · transcript");
 
-  // Upload to storage
   let transcriptUrl = null;
   try {
-    const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
     const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
-    await supabase.storage.from("tenant-assets").upload(fileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
-    const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
-    transcriptUrl = urlData?.publicUrl || null;
-  } catch {}
+    const { error: uploadErr } = await supabase.storage
+      .from("tenant-assets")
+      .upload(transcriptFileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
 
-  if (transcriptUrl) {
-    return interaction.editReply({ content: `📜 Acesse o transcript: ${transcriptUrl}` });
+    if (uploadErr) {
+      console.error(`[handleTranscriptView] Storage upload error: ${uploadErr.message}`);
+    }
+
+    const { data: signedData, error: signedErr } = await supabase.storage
+      .from("tenant-assets")
+      .createSignedUrl(transcriptFileName, 60 * 60 * 24 * 7);
+
+    if (!signedErr && signedData?.signedUrl) {
+      transcriptUrl = signedData.signedUrl;
+    } else {
+      if (signedErr) {
+        console.error(`[handleTranscriptView] Signed URL error: ${signedErr.message}`);
+      }
+      const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(transcriptFileName);
+      transcriptUrl = urlData?.publicUrl || null;
+    }
+  } catch (err) {
+    console.error(`[handleTranscriptView] Transcript upload error: ${err.message}`);
   }
 
-  // Fallback: send as file
-  const { AttachmentBuilder } = require("discord.js");
-  const attachment = new AttachmentBuilder(Buffer.from(htmlTranscript), { name: `transcript-${ticket.id.slice(0, 8)}.html` });
-  return interaction.editReply({ content: "📜 Aqui está o transcript:", files: [attachment] });
+  if (transcriptUrl) {
+    return interaction.editReply({
+      content: "📜 Clique no botão para abrir o transcript no navegador:",
+      components: [new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel("Abrir Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+      )],
+    });
+  }
+
+  return interaction.editReply({ content: "❌ Não consegui gerar o link do transcript agora. Tente novamente em instantes." });
 }
 
 module.exports = {
