@@ -206,7 +206,7 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
       console.error("[handleCloseTicket] Log error:", logErr.message);
     }
 
-    await sendWithIdentity(interaction.channel, tenant, {
+    await interaction.channel.send({
       embeds: [new EmbedBuilder().setTitle("📁 Ticket Arquivado").setDescription(`Ticket arquivado por <@${interaction.user.id}>.`).setColor(0x2B2D31)],
     });
 
@@ -252,7 +252,7 @@ async function handleDeleteTicket(interaction, tenant, ticketId) {
       console.error("[handleDeleteTicket] Log error:", logErr.message);
     }
 
-    await sendWithIdentity(interaction.channel, tenant, {
+    await interaction.channel.send({
       embeds: [new EmbedBuilder().setTitle("🗑️ Ticket Deletado").setDescription(`Ticket deletado por <@${interaction.user.id}>.\nO tópico será excluído em 5 segundos.`).setColor(0x2B2D31)],
     });
 
@@ -693,19 +693,16 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
   // Count unique participants
   const participants = new Set(msgs.map((m) => m.author?.id).filter(Boolean));
 
+  const closedAtStr = closedAt.toLocaleDateString("pt-BR") + " " + closedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
   const logEmbed = new EmbedBuilder()
-    .setTitle(`${statusEmoji} Ticket ${statusLabel}`)
+    .setTitle(`Ticket - ${statusLabel}`)
     .setColor(embedColor)
     .addFields(
-      { name: "👤 Moderador", value: `<@${closedByUserId}>`, inline: true },
-      { name: "🎫 Usuário", value: `<@${ticket.discord_user_id}>`, inline: true },
-      { name: "📦 Produto", value: ticket.product_name ? `\`${ticket.product_name}\`` : "Suporte Geral", inline: true },
-      { name: "⏱️ Duração", value: `\`${durationStr}\``, inline: true },
-      { name: "💬 Mensagens", value: `\`${msgs.length}\``, inline: true },
-      { name: "👥 Participantes", value: `\`${participants.size}\``, inline: true },
+      { name: "👤 Moderador", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: false },
     )
     .setTimestamp()
-    .setFooter({ text: `${tenant.name || "Drika Hub"} • Ticket Log • ID: ${ticket.id.slice(0, 8)}` });
+    .setFooter({ text: `${closedAtStr}` });
 
   // Build transcript and upload
   let components = [];
