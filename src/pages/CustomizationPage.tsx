@@ -112,8 +112,6 @@ const CustomizationPage = () => {
       if (t) {
         const loaded: ServerConfig = {
           server_name: t.name || "",
-          bot_status: t.bot_status || "/panel",
-          bot_status_interval: String(t.bot_status_interval || 30),
           bot_prefix: t.bot_prefix || "d!",
           verify_enabled: t.verify_enabled ?? false,
           verify_role_id: t.verify_role_id ?? "",
