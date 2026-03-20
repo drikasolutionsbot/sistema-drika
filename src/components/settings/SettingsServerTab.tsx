@@ -221,7 +221,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     // Save current guilds before opening invite
     try {
       const currentGuilds = await fetchAllBotGuilds();
-      guildsBeforeInviteRef.current = new Set(currentGuilds.map((g) => g.id));
+      guildsBeforeInviteRef.current = new Set((currentGuilds || []).map((g) => g.id));
     } catch {
       guildsBeforeInviteRef.current = new Set();
     }
