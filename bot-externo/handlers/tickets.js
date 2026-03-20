@@ -345,47 +345,101 @@ function generateHtmlTranscript(msgs, serverName, ticketName, status) {
 
   const parseMarkdown = (text) => {
     return text
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>")
       .replace(/__(.+?)__/g, "<u>$1</u>")
       .replace(/~~(.+?)~~/g, "<s>$1</s>")
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\n/g, "<br>");
   };
 
+  // Gather participant stats
+  const participantMap = {};
+  for (const m of msgs) {
+    const id = m.author?.id || "unknown";
+    if (!participantMap[id]) {
+      participantMap[id] = {
+        username: m.author?.username || "Desconhecido",
+        avatar: m.author?.displayAvatarURL?.({ size: 64, extension: "png" }) || "",
+        isBot: m.author?.bot || false,
+        count: 0,
+      };
+    }
+    participantMap[id].count++;
+  }
+  const participantsList = Object.values(participantMap).sort((a, b) => b.count - a.count);
+
+  // Calculate duration
+  const firstMsg = msgs[0];
+  const lastMsg = msgs[msgs.length - 1];
+  let durationStr = "—";
+  if (firstMsg && lastMsg) {
+    const diffMs = lastMsg.createdTimestamp - firstMsg.createdTimestamp;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 60) durationStr = `${mins} minutos`;
+    else if (mins < 1440) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      durationStr = m > 0 ? `${h}h ${m}m` : `${h} horas`;
+    } else {
+      const d = Math.floor(mins / 1440);
+      durationStr = `${d} dia${d > 1 ? "s" : ""}`;
+    }
+  }
+
+  // Build participant badges HTML
+  let participantsHtml = participantsList.map((p) => {
+    const avatarFallback = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect fill=%22%235865F2%22 width=%2232%22 height=%2232%22 rx=%2216%22/><text x=%2250%25%22 y=%2258%25%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2214%22>${esc(p.username[0] || "?")}</text></svg>`;
+    return `<div class="participant">
+      <img src="${p.avatar || avatarFallback}" class="participant-avatar" onerror="this.src='${avatarFallback}'" />
+      <div class="participant-info">
+        <span class="participant-name">${esc(p.username)}${p.isBot ? ' <span class="bot-tag">BOT</span>' : ''}</span>
+        <span class="participant-msgs">${p.count} msg${p.count > 1 ? "s" : ""}</span>
+      </div>
+    </div>`;
+  }).join("");
+
   let rows = "";
   let lastDate = "";
+  let lastAuthor = "";
 
   for (const m of msgs) {
     const date = new Date(m.createdTimestamp);
     const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-    // Date divider
     if (dateStr !== lastDate) {
       rows += `<div class="date-divider"><span>${esc(dateStr)}</span></div>`;
       lastDate = dateStr;
+      lastAuthor = "";
     }
 
     const author = m.author?.username || "Desconhecido";
+    const authorId = m.author?.id || "";
     const avatar = m.author?.displayAvatarURL?.({ size: 64, extension: "png" }) || "";
     const isBot = m.author?.bot;
+    const isGrouped = authorId === lastAuthor;
+    lastAuthor = authorId;
+
     let content = parseMarkdown(esc(m.content || ""));
-
-    // Mentions
     content = content.replace(/&lt;@!?(\d+)&gt;/g, '<span class="mention">@user</span>');
-    content = content.replace(/&lt;@&amp;(\d+)&gt;/g, '<span class="mention">@role</span>');
-    content = content.replace(/&lt;#(\d+)&gt;/g, '<span class="mention">#channel</span>');
+    content = content.replace(/&lt;@&amp;(\d+)&gt;/g, '<span class="mention role">@role</span>');
+    content = content.replace(/&lt;#(\d+)&gt;/g, '<span class="mention channel">#channel</span>');
 
-    // Embeds
     let embedHtml = "";
     if (m.embeds?.length) {
       for (const emb of m.embeds) {
         const borderColor = emb.color ? `#${emb.color.toString(16).padStart(6, "0")}` : "#5865F2";
         embedHtml += `<div class="embed" style="border-left-color:${borderColor}">`;
-        if (emb.author?.name) embedHtml += `<div class="embed-author">${esc(emb.author.name)}</div>`;
+        if (emb.author?.name) {
+          embedHtml += `<div class="embed-author">`;
+          if (emb.author.iconURL) embedHtml += `<img src="${esc(emb.author.iconURL)}" class="embed-author-icon" />`;
+          embedHtml += `${esc(emb.author.name)}</div>`;
+        }
         if (emb.title) embedHtml += `<div class="embed-title">${esc(emb.title)}</div>`;
         if (emb.description) embedHtml += `<div class="embed-desc">${parseMarkdown(esc(emb.description))}</div>`;
+        if (emb.thumbnail?.url) embedHtml += `<img src="${esc(emb.thumbnail.url)}" class="embed-thumb" />`;
         if (emb.fields?.length) {
           embedHtml += `<div class="embed-fields">`;
           for (const f of emb.fields) {
@@ -394,39 +448,47 @@ function generateHtmlTranscript(msgs, serverName, ticketName, status) {
           embedHtml += `</div>`;
         }
         if (emb.image?.url) embedHtml += `<img src="${esc(emb.image.url)}" class="embed-img" />`;
-        if (emb.thumbnail?.url) embedHtml += `<img src="${esc(emb.thumbnail.url)}" class="embed-thumb" />`;
         if (emb.footer?.text) embedHtml += `<div class="embed-footer">${esc(emb.footer.text)}</div>`;
         embedHtml += `</div>`;
       }
     }
 
-    // Attachments
     let attachHtml = "";
     if (m.attachments?.size) {
       for (const a of m.attachments.values()) {
         if (a.contentType?.startsWith("image/")) {
-          attachHtml += `<a href="${esc(a.url)}" target="_blank"><img src="${esc(a.url)}" class="attach-img" /></a>`;
+          attachHtml += `<a href="${esc(a.url)}" target="_blank" class="attach-link"><img src="${esc(a.url)}" class="attach-img" /></a>`;
         } else {
           const sizeKb = (a.size / 1024).toFixed(1);
-          attachHtml += `<div class="attach-file"><a href="${esc(a.url)}" target="_blank">📎 ${esc(a.name || "arquivo")}</a><span class="file-size">${sizeKb} KB</span></div>`;
+          attachHtml += `<div class="attach-file"><span class="attach-icon">📎</span><a href="${esc(a.url)}" target="_blank">${esc(a.name || "arquivo")}</a><span class="file-size">${sizeKb} KB</span></div>`;
         }
       }
     }
 
     if (!content && !embedHtml && !attachHtml) content = '<span class="empty">[sem conteúdo]</span>';
 
-    rows += `<div class="msg">
-      <img src="${avatar}" class="avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%235865F2%22 width=%2240%22 height=%2240%22 rx=%2220%22/><text x=%2250%25%22 y=%2255%25%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22>${esc(author[0] || "?")}</text></svg>'" />
-      <div class="msg-body">
-        <div class="msg-header">
-          <span class="author">${esc(author)}</span>${isBot ? '<span class="bot-tag">BOT</span>' : ''}
-          <span class="time">${timeStr}</span>
+    if (isGrouped) {
+      rows += `<div class="msg grouped">
+        <span class="grouped-time">${timeStr}</span>
+        <div class="msg-body">
+          ${content ? `<div class="msg-content">${content}</div>` : ""}
+          ${embedHtml}${attachHtml}
         </div>
-        ${content ? `<div class="msg-content">${content}</div>` : ""}
-        ${embedHtml}
-        ${attachHtml}
-      </div>
-    </div>`;
+      </div>`;
+    } else {
+      const avatarFallback = `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%235865F2%22 width=%2240%22 height=%2240%22 rx=%2220%22/><text x=%2250%25%22 y=%2255%25%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22>${esc(author[0] || "?")}</text></svg>`;
+      rows += `<div class="msg">
+        <img src="${avatar}" class="avatar" onerror="this.src='${avatarFallback}'" />
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="author">${esc(author)}</span>${isBot ? '<span class="bot-tag">BOT</span>' : ''}
+            <span class="time">${timeStr}</span>
+          </div>
+          ${content ? `<div class="msg-content">${content}</div>` : ""}
+          ${embedHtml}${attachHtml}
+        </div>
+      </div>`;
+    }
   }
 
   return `<!DOCTYPE html>
@@ -435,47 +497,71 @@ function generateHtmlTranscript(msgs, serverName, ticketName, status) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(ticketName)} — Transcript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#313338;--bg-secondary:#2b2d31;--bg-tertiary:#1e1f22;--text:#dbdee1;--text-muted:#949ba4;--text-link:#00a8fc;--white:#f2f3f5;--brand:#5865f2;--green:#57f287;--red:#ed4245}
+:root{--bg:#313338;--bg-secondary:#2b2d31;--bg-tertiary:#1e1f22;--bg-hover:rgba(0,0,0,0.08);--text:#dbdee1;--text-muted:#949ba4;--text-link:#00a8fc;--white:#f2f3f5;--brand:#5865f2;--green:#57f287;--red:#ed4245;--yellow:#fee75c}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.375}
+body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.375}
 a{color:var(--text-link);text-decoration:none}
 a:hover{text-decoration:underline}
-code{background:var(--bg-tertiary);padding:2px 6px;border-radius:4px;font-size:0.875em;font-family:'Consolas','Monaco',monospace}
+
+/* Code */
+.inline-code{background:var(--bg-tertiary);padding:2px 6px;border-radius:4px;font-size:0.85em;font-family:'Consolas','Monaco',monospace}
+.code-block{background:var(--bg-tertiary);padding:12px;border-radius:6px;margin:6px 0;overflow-x:auto;font-size:0.85em;font-family:'Consolas','Monaco',monospace;line-height:1.6;border:1px solid rgba(255,255,255,0.04)}
+.code-block code{background:none;padding:0;border-radius:0;font-size:1em}
 
 /* Header */
-.header{background:var(--bg-secondary);padding:20px 24px;border-bottom:1px solid var(--bg-tertiary);position:sticky;top:0;z-index:10}
-.header-top{display:flex;align-items:center;gap:12px}
-.header-icon{width:44px;height:44px;background:var(--brand);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.header h1{color:var(--white);font-size:1.25rem;font-weight:700;line-height:1.2}
+.header{background:var(--bg-secondary);padding:24px;border-bottom:2px solid var(--bg-tertiary);position:sticky;top:0;z-index:10;backdrop-filter:blur(10px)}
+.header-top{display:flex;align-items:center;gap:16px}
+.header-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--brand),#7289da);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(88,101,242,0.3)}
+.header h1{color:var(--white);font-size:1.3rem;font-weight:700;line-height:1.2}
 .header-sub{color:var(--text-muted);font-size:0.8125rem;margin-top:2px}
-.header-stats{display:flex;gap:20px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)}
-.stat{color:var(--text-muted);font-size:0.75rem}
-.stat strong{color:var(--white)}
+.header-stats{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+.stat-card{background:var(--bg-tertiary);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,0.04)}
+.stat-card .stat-icon{font-size:1.1rem}
+.stat-card .stat-value{color:var(--white);font-weight:700;font-size:0.95rem}
+.stat-card .stat-label{color:var(--text-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em}
+
+/* Summary panel */
+.summary{background:var(--bg-secondary);margin:16px 24px;border-radius:12px;padding:20px;border:1px solid rgba(255,255,255,0.04)}
+.summary-title{color:var(--white);font-weight:700;font-size:0.9rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.participants-grid{display:flex;flex-wrap:wrap;gap:8px}
+.participant{display:flex;align-items:center;gap:8px;background:var(--bg-tertiary);border-radius:8px;padding:6px 12px 6px 6px;border:1px solid rgba(255,255,255,0.04)}
+.participant-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.participant-info{display:flex;flex-direction:column;gap:0}
+.participant-name{color:var(--white);font-size:0.8rem;font-weight:600}
+.participant-msgs{color:var(--text-muted);font-size:0.65rem}
 
 /* Messages */
 .messages{padding:8px 0}
-.msg{display:flex;gap:16px;padding:4px 24px;position:relative}
-.msg:hover{background:rgba(0,0,0,0.08)}
-.avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:4px;object-fit:cover;background:var(--brand)}
+.msg{display:flex;gap:16px;padding:4px 24px;margin-top:16px;position:relative}
+.msg:hover{background:var(--bg-hover)}
+.msg.grouped{margin-top:0;padding-left:80px}
+.grouped-time{position:absolute;left:24px;top:6px;width:40px;text-align:center;font-size:0.65rem;color:transparent}
+.msg.grouped:hover .grouped-time{color:var(--text-muted)}
+.avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:2px;object-fit:cover;background:var(--brand)}
 .msg-body{flex:1;min-width:0}
 .msg-header{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .author{color:var(--white);font-weight:600;font-size:1rem}
-.bot-tag{background:var(--brand);color:#fff;font-size:0.625rem;font-weight:600;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.02em;position:relative;top:-1px}
+.bot-tag{background:var(--brand);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.02em;position:relative;top:-1px}
 .time{color:var(--text-muted);font-size:0.75rem}
 .msg-content{color:var(--text);margin-top:2px;word-wrap:break-word;overflow-wrap:break-word;line-height:1.5}
 
 /* Mentions */
-.mention{background:rgba(88,101,242,0.3);color:#c9cdfb;padding:0 3px;border-radius:3px;font-weight:500}
+.mention{background:rgba(88,101,242,0.3);color:#c9cdfb;padding:0 3px;border-radius:3px;font-weight:500;cursor:default}
+.mention.role{background:rgba(88,101,242,0.2)}
+.mention.channel{background:rgba(88,101,242,0.2)}
 
 /* Date divider */
-.date-divider{display:flex;align-items:center;margin:16px 24px 8px;gap:8px}
+.date-divider{display:flex;align-items:center;margin:24px 24px 8px;gap:8px}
 .date-divider::before,.date-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.06)}
 .date-divider span{color:var(--text-muted);font-size:0.75rem;font-weight:600;white-space:nowrap}
 
 /* Embeds */
-.embed{border-left:4px solid var(--brand);background:var(--bg-secondary);border-radius:4px;padding:12px 16px;margin-top:6px;max-width:516px;display:grid;gap:4px}
-.embed-author{font-size:0.75rem;color:var(--white);font-weight:600}
+.embed{border-left:4px solid var(--brand);background:var(--bg-secondary);border-radius:4px;padding:12px 16px;margin-top:6px;max-width:520px;display:grid;gap:4px;position:relative}
+.embed-author{font-size:0.75rem;color:var(--white);font-weight:600;display:flex;align-items:center;gap:6px}
+.embed-author-icon{width:20px;height:20px;border-radius:50%}
 .embed-title{color:var(--text-link);font-weight:700;font-size:1rem}
 .embed-desc{color:var(--text);font-size:0.875rem;line-height:1.5}
 .embed-fields{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
@@ -485,24 +571,31 @@ code{background:var(--bg-tertiary);padding:2px 6px;border-radius:4px;font-size:0
 .field-value{color:var(--text);font-size:0.875rem}
 .embed-img{max-width:100%;border-radius:4px;margin-top:8px}
 .embed-thumb{width:80px;height:80px;border-radius:4px;object-fit:cover;float:right;margin-left:16px}
-.embed-footer{color:var(--text-muted);font-size:0.75rem;margin-top:6px}
+.embed-footer{color:var(--text-muted);font-size:0.75rem;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.04)}
 
 /* Attachments */
-.attach-img{max-width:400px;max-height:300px;border-radius:8px;margin-top:6px;display:block}
-.attach-file{margin-top:6px;padding:10px 12px;background:var(--bg-secondary);border:1px solid rgba(255,255,255,0.08);border-radius:8px;display:inline-flex;align-items:center;gap:8px}
+.attach-link{display:inline-block;margin-top:6px}
+.attach-img{max-width:400px;max-height:300px;border-radius:8px;display:block;transition:opacity .2s}
+.attach-img:hover{opacity:0.85}
+.attach-file{margin-top:6px;padding:10px 14px;background:var(--bg-secondary);border:1px solid rgba(255,255,255,0.08);border-radius:8px;display:inline-flex;align-items:center;gap:8px}
+.attach-icon{font-size:1.1rem}
 .file-size{color:var(--text-muted);font-size:0.75rem}
 .empty{color:var(--text-muted);font-style:italic}
 
 /* Footer */
-.footer{background:var(--bg-secondary);padding:16px 24px;text-align:center;color:var(--text-muted);font-size:0.75rem;border-top:1px solid var(--bg-tertiary);margin-top:16px}
+.footer{background:var(--bg-secondary);padding:20px 24px;text-align:center;color:var(--text-muted);font-size:0.75rem;border-top:2px solid var(--bg-tertiary);margin-top:24px}
 
 @media(max-width:600px){
   .msg{padding:4px 12px;gap:10px}
+  .msg.grouped{padding-left:54px}
+  .grouped-time{left:12px}
   .avatar{width:32px;height:32px}
   .header{padding:16px 12px}
-  .date-divider{margin:12px 12px 6px}
+  .summary{margin:12px}
+  .date-divider{margin:16px 12px 6px}
   .embed-field.inline{flex:0 0 calc(50% - 8px)}
   .attach-img{max-width:100%}
+  .stat-card{padding:8px 12px}
 }
 </style>
 </head>
@@ -516,12 +609,18 @@ code{background:var(--bg-tertiary);padding:2px 6px;border-radius:4px;font-size:0
     </div>
   </div>
   <div class="header-stats">
-    <div class="stat"><strong>${msgs.length}</strong> mensagens</div>
-    <div class="stat">Gerado em <strong>${now}</strong></div>
+    <div class="stat-card"><span class="stat-icon">💬</span><div><div class="stat-value">${msgs.length}</div><div class="stat-label">Mensagens</div></div></div>
+    <div class="stat-card"><span class="stat-icon">👥</span><div><div class="stat-value">${participantsList.length}</div><div class="stat-label">Participantes</div></div></div>
+    <div class="stat-card"><span class="stat-icon">⏱️</span><div><div class="stat-value">${durationStr}</div><div class="stat-label">Duração</div></div></div>
+    <div class="stat-card"><span class="stat-icon">📅</span><div><div class="stat-value">${now}</div><div class="stat-label">Gerado em</div></div></div>
   </div>
 </div>
+<div class="summary">
+  <div class="summary-title">👥 Participantes</div>
+  <div class="participants-grid">${participantsHtml}</div>
+</div>
 <div class="messages">${rows}</div>
-<div class="footer">Transcript gerado automaticamente por Drika Hub · ${esc(serverName)}</div>
+<div class="footer">Transcript gerado automaticamente · ${esc(serverName)} · Powered by Drika Hub</div>
 </body>
 </html>`;
 }
@@ -546,12 +645,10 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     return;
   }
 
-  // Fetch logs channel first to fail fast
   let logsCh;
   try {
     logsCh = await client.channels.fetch(logsChannelId);
     if (!logsCh) throw new Error("Channel returned null");
-    console.log(`[sendTicketLog] Found logs channel: ${logsCh.name || logsCh.id}`);
   } catch (e) {
     console.error(`[sendTicketLog] Cannot fetch logs channel ${logsChannelId}: ${e.message}`);
     return;
@@ -565,7 +662,6 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
       if (ch) {
         const fetched = await ch.messages.fetch({ limit: 100 });
         msgs = [...fetched.values()].reverse();
-        console.log(`[sendTicketLog] Fetched ${msgs.length} messages from thread`);
       }
     } catch (fetchErr) {
       console.error(`[sendTicketLog] Failed to fetch messages: ${fetchErr.message}`);
@@ -573,25 +669,51 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
   }
 
   const statusLabel = action === "deleted" ? "Deletado" : "Fechado";
+  const statusEmoji = action === "deleted" ? "🗑️" : "🔒";
+  const embedColor = action === "deleted" ? 0xED4245 : 0x2B2D31;
+
+  // Calculate duration
+  const createdAt = new Date(ticket.created_at);
+  const closedAt = new Date();
+  const durationMs = closedAt - createdAt;
+  const durationMin = Math.floor(durationMs / 60000);
+  let durationStr;
+  if (durationMin < 60) {
+    durationStr = `${durationMin}m`;
+  } else if (durationMin < 1440) {
+    const h = Math.floor(durationMin / 60);
+    const m = durationMin % 60;
+    durationStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
+  } else {
+    const d = Math.floor(durationMin / 1440);
+    const h = Math.floor((durationMin % 1440) / 60);
+    durationStr = h > 0 ? `${d}d ${h}h` : `${d}d`;
+  }
+
+  // Count unique participants
+  const participants = new Set(msgs.map((m) => m.author?.id).filter(Boolean));
 
   const logEmbed = new EmbedBuilder()
-    .setTitle(`Ticket - ${statusLabel}`)
-    .setColor(action === "deleted" ? 0xED4245 : 0x2B2D31)
+    .setTitle(`${statusEmoji} Ticket ${statusLabel}`)
+    .setColor(embedColor)
     .addFields(
-      { name: "👤 Moderador", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: true },
-      { name: "🎫 Ticket", value: `${ticket.discord_username || "N/A"}\n\`${ticket.id.slice(0, 8)}\``, inline: true },
+      { name: "👤 Moderador", value: `<@${closedByUserId}>`, inline: true },
+      { name: "🎫 Usuário", value: `<@${ticket.discord_user_id}>`, inline: true },
+      { name: "📦 Produto", value: ticket.product_name ? `\`${ticket.product_name}\`` : "Suporte Geral", inline: true },
+      { name: "⏱️ Duração", value: `\`${durationStr}\``, inline: true },
+      { name: "💬 Mensagens", value: `\`${msgs.length}\``, inline: true },
+      { name: "👥 Participantes", value: `\`${participants.size}\``, inline: true },
     )
     .setTimestamp()
-    .setFooter({ text: "Drika Hub • Ticket Log" });
+    .setFooter({ text: `${tenant.name || "Drika Hub"} • Ticket Log • ID: ${ticket.id.slice(0, 8)}` });
 
-  // Build transcript and upload to storage
+  // Build transcript and upload
   let components = [];
   
   if (msgs.length > 0) {
     try {
       const htmlTranscript = generateHtmlTranscript(msgs, tenant.name || "Servidor", `ticket-${ticket.discord_username}`, statusLabel);
 
-      // Upload to storage for persistent link
       try {
         const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
         const { error: uploadErr } = await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
@@ -599,7 +721,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
           const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
           if (urlData?.publicUrl) {
             components = [new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel("Ver transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
+              new ButtonBuilder().setLabel("Ver Transcript").setEmoji("📜").setStyle(ButtonStyle.Link).setURL(urlData.publicUrl)
             )];
           }
         } else {
@@ -613,15 +735,13 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     }
   }
 
-  // Send the log - embed + button only (no file attachment to avoid Discord preview)
   try {
     await logsCh.send({ embeds: [logEmbed], components });
-    console.log(`[sendTicketLog] ✅ Log sent successfully to ${logsChannelId}`);
+    console.log(`[sendTicketLog] Log sent successfully to ${logsChannelId}`);
   } catch (sendErr) {
     console.error(`[sendTicketLog] Failed to send log: ${sendErr.message}`);
     try {
       await logsCh.send({ embeds: [logEmbed] });
-      console.log(`[sendTicketLog] ✅ Log sent without button`);
     } catch (e2) {
       console.error(`[sendTicketLog] Fallback also failed: ${e2.message}`);
     }
@@ -632,7 +752,22 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     try {
       const user = await client.users.fetch(ticket.discord_user_id);
       const transcriptUrl = components[0].components[0].data.url;
-      await user.send({ content: `📜 Transcript do seu ticket encerrado:\n${transcriptUrl}` });
+      const dmEmbed = new EmbedBuilder()
+        .setTitle("📜 Transcript do Ticket")
+        .setDescription(`Seu ticket foi **${statusLabel.toLowerCase()}** por **@${closedByUsername}**.\nClique no botão abaixo para visualizar o histórico completo.`)
+        .setColor(0x2B2D31)
+        .addFields(
+          { name: "Produto", value: ticket.product_name || "Suporte Geral", inline: true },
+          { name: "Duração", value: durationStr, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: tenant.name || "Drika Hub" });
+      await user.send({
+        embeds: [dmEmbed],
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("📜").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )],
+      });
     } catch {}
   }
 }
