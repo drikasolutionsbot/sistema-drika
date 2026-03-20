@@ -53,6 +53,29 @@ const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
 const verificationHandler = require("./handlers/verification");
 
+// ── Status polling ──
+let lastAppliedStatus = null;
+
+async function syncBotStatus() {
+  for (const guild of client.guilds.cache.values()) {
+    try {
+      // Bypass cache to get fresh data
+      const tenant = await getTenantByGuild(guild.id);
+      if (tenant) {
+        tenantCache.set(guild.id, { data: tenant, ts: Date.now() });
+      }
+      const newStatus = tenant?.bot_status || "/panel";
+      if (newStatus !== lastAppliedStatus) {
+        client.user.setActivity(newStatus, { type: ActivityType.Playing });
+        lastAppliedStatus = newStatus;
+        console.log(`🔄 Status atualizado: ${newStatus}`);
+      }
+    } catch (err) {
+      console.error(`Erro ao sincronizar status:`, err.message);
+    }
+  }
+}
+
 // ── Ready ──
 client.on(Events.ClientReady, async () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
@@ -87,18 +110,15 @@ client.on(Events.ClientReady, async () => {
         body: commands,
       });
       console.log(`📝 Comandos registrados em: ${guild.name}`);
-
-      // Setar status do bot baseado no tenant
-      const tenant = await resolveTenant(guild.id);
-      if (tenant?.bot_status) {
-        client.user.setActivity(tenant.bot_status, { type: ActivityType.Playing });
-      }
     } catch (err) {
       console.error(`Erro ao registrar comandos em ${guild.name}:`, err.message);
     }
   }
-});
 
+  // Sync status immediately and then every 15 seconds
+  await syncBotStatus();
+  setInterval(syncBotStatus, 15_000);
+});
 // ── Ao entrar em um novo servidor, registrar os comandos ──
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
