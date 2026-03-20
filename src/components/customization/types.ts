@@ -9,7 +9,7 @@ export interface EmbedButton {
   id: string;
   label: string;
   emoji: string;
-  style: "primary" | "secondary" | "success" | "danger" | "link";
+  style: "primary" | "secondary" | "success" | "danger" | "link" | "glass";
   url: string;
   enabled: boolean;
 }

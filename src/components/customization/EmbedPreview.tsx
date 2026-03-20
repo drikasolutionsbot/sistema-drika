@@ -142,7 +142,7 @@ const EmbedPreview = ({ embed }: { embed: EmbedData }) => {
               {buttons.map(btn => (
                 <button
                   key={btn.id}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded text-sm font-medium text-white transition-opacity hover:opacity-90 ${btn.style === "glass" ? "border border-white/20 backdrop-blur-sm" : ""}`}
                   style={{ backgroundColor: BUTTON_COLORS[btn.style] || BUTTON_COLORS.primary }}
                 >
                   {btn.emoji && <span>{btn.emoji}</span>}

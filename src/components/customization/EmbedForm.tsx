@@ -212,7 +212,7 @@ const EmbedForm = ({ embed, onChange }: EmbedFormProps) => {
                 )}
               </div>
             ))}
-            {buttons.length < 5 && (
+            {buttons.length < 6 && (
               <Button variant="outline" size="sm" className="w-full" onClick={addButton}>
                 <Plus className="h-3.5 w-3.5 mr-1.5" /> Adicionar Botão
               </Button>
