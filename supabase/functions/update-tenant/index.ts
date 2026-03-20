@@ -115,7 +115,6 @@ serve(async (req) => {
 
     // If name was updated, also rename the Discord guild
     if (safeUpdates.name && data.discord_guild_id) {
-      // Usa sempre o token do bot externo
       const effectiveBotToken = tenantBotToken;
       console.log("Attempting Discord guild rename to:", safeUpdates.name, "for guild:", data.discord_guild_id);
       try {
@@ -136,6 +135,29 @@ serve(async (req) => {
         }
       } catch (discordErr) {
         console.error("Discord guild rename error:", discordErr);
+      }
+    }
+
+    // If bot_name was updated, sync nickname in Discord server
+    if (safeUpdates.bot_name && data.discord_guild_id && tenantBotToken) {
+      const nickname = safeUpdates.bot_name || null;
+      console.log("Syncing bot nickname to:", nickname, "for guild:", data.discord_guild_id);
+      try {
+        const nickRes = await fetch(
+          `https://discord.com/api/v10/guilds/${data.discord_guild_id}/members/@me`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bot ${tenantBotToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ nick: nickname }),
+          }
+        );
+        const nickBody = await nickRes.text();
+        console.log("Discord bot nickname response:", nickRes.status, nickBody);
+      } catch (nickErr) {
+        console.error("Discord bot nickname error:", nickErr);
       }
     }
 
