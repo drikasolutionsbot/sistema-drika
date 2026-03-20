@@ -1,9 +1,11 @@
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Server, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck, Sparkles, BookOpen,
   ShoppingBag, Gift, Users, HandMetal, LayoutTemplate,
+  ChevronUp, ChevronDown, GripVertical, Check,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -15,9 +17,23 @@ import {
 } from "@/components/ui/tooltip";
 import { useTenant } from "@/contexts/TenantContext";
 
-const navGroups = [
+interface NavItemDef {
+  label: string;
+  icon: React.ElementType;
+  path: string;
+}
+
+interface NavGroup {
+  label: string;
+  key: string;
+  items: NavItemDef[];
+  reorderable?: boolean;
+}
+
+const defaultNavGroups: NavGroup[] = [
   {
     label: "PRINCIPAL",
+    key: "principal",
     items: [
       { label: "Visão Geral", icon: LayoutDashboard, path: "/dashboard" },
       { label: "Gerador IA", icon: Sparkles, path: "/ai-assistant" },
@@ -25,22 +41,27 @@ const navGroups = [
   },
   {
     label: "GERENCIAMENTO",
+    key: "gerenciamento",
     items: [
       { label: "Finanças", icon: DollarSign, path: "/finance" },
       { label: "Aprovações", icon: ClipboardCheck, path: "/approvals" },
       { label: "Afiliados", icon: Users, path: "/affiliates" },
     ],
+    reorderable: true,
   },
   {
     label: "BOT",
+    key: "bot",
     items: [
       { label: "Servidor", icon: Server, path: "/customization" },
       { label: "Recursos", icon: Box, path: "/resources" },
       { label: "Personalização", icon: Sparkles, path: "/bot-customization" },
     ],
+    reorderable: true,
   },
   {
     label: "CONFIGURAÇÕES",
+    key: "configuracoes",
     items: [
       { label: "Canais", icon: Hash, path: "/channels" },
       { label: "Cargos", icon: ShieldCheck, path: "/roles" },
@@ -54,14 +75,51 @@ const navGroups = [
       { label: "eCloud", icon: Cloud, path: "/ecloud" },
       { label: "Embeds", icon: LayoutTemplate, path: "/embeds" },
     ],
+    reorderable: true,
   },
 ];
 
-const bottomItems = [
+const bottomItems: NavItemDef[] = [
   { label: "Tutoriais", icon: BookOpen, path: "/tutorials" },
   { label: "Suporte", icon: Headset, path: "/support" },
   { label: "Configurações", icon: Settings, path: "/settings" },
 ];
+
+// Icon map for restoring from localStorage (icons can't be serialized)
+const iconMap: Record<string, React.ElementType> = {
+  "/dashboard": LayoutDashboard,
+  "/ai-assistant": Sparkles,
+  "/finance": DollarSign,
+  "/approvals": ClipboardCheck,
+  "/affiliates": Users,
+  "/customization": Server,
+  "/resources": Box,
+  "/bot-customization": Sparkles,
+  "/channels": Hash,
+  "/roles": ShieldCheck,
+  "/verification": Shield,
+  "/store": Store,
+  "/marketplace": ShoppingBag,
+  "/protection": Shield,
+  "/welcome": HandMetal,
+  "/tickets": Ticket,
+  "/giveaways": Gift,
+  "/ecloud": Cloud,
+  "/embeds": LayoutTemplate,
+};
+
+function getSavedOrder(tenantId: string): Record<string, string[]> | null {
+  try {
+    const raw = localStorage.getItem(`sidebar-order-${tenantId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveOrder(tenantId: string, order: Record<string, string[]>) {
+  localStorage.setItem(`sidebar-order-${tenantId}`, JSON.stringify(order));
+}
 
 interface SidebarProps {
   collapsed: boolean;
@@ -69,69 +127,93 @@ interface SidebarProps {
 }
 
 interface NavItemProps {
-  item: { label: string; icon: React.ElementType; path: string };
+  item: NavItemDef;
   isActive: boolean;
   collapsed: boolean;
+  reordering?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
-const NavItem = ({ item, isActive, collapsed }: NavItemProps) => {
+const NavItem = ({ item, isActive, collapsed, reordering, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: NavItemProps) => {
   const content = (
-    <Link
-      to={item.path}
-      className={cn(
-        "relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-300 group overflow-hidden",
-        collapsed ? "justify-center w-11 h-11 mx-auto" : "px-3 py-2.5",
-        isActive
-          ? "bg-primary/12 text-primary border border-primary/20"
-          : "text-white/45 hover:bg-white/[0.06] hover:text-white/80 border border-transparent"
+    <div className={cn("relative flex items-center", reordering && !collapsed && "group/reorder")}>
+      {reordering && !collapsed && (
+        <div className="flex flex-col mr-0.5 shrink-0">
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMoveUp?.(); }}
+            disabled={!canMoveUp}
+            className={cn(
+              "p-0.5 rounded transition-colors",
+              canMoveUp ? "text-white/40 hover:text-primary hover:bg-primary/10" : "text-white/10 cursor-not-allowed"
+            )}
+          >
+            <ChevronUp className="h-3 w-3" />
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMoveDown?.(); }}
+            disabled={!canMoveDown}
+            className={cn(
+              "p-0.5 rounded transition-colors",
+              canMoveDown ? "text-white/40 hover:text-primary hover:bg-primary/10" : "text-white/10 cursor-not-allowed"
+            )}
+          >
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </div>
       )}
-    >
-      {/* Active bg glow */}
-      {isActive && (
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pointer-events-none" />
-      )}
-
-      {/* Left indicator */}
-      {isActive && (
-        <div className={cn(
-          "absolute top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_10px_hsl(330_100%_71%/0.7)]",
-          collapsed ? "left-0 -translate-x-2" : "-left-0.5"
-        )} />
-      )}
-
-      {/* Icon container */}
-      <div className={cn(
-        "relative shrink-0 flex items-center justify-center rounded-lg transition-all duration-300",
-        collapsed ? "h-7 w-7" : "h-6 w-6",
-        isActive
-          ? "bg-primary/15"
-          : "group-hover:bg-white/[0.06]"
-      )}>
-        <item.icon
-          className={cn(
-            "shrink-0 transition-all duration-300",
-            collapsed ? "h-[16px] w-[16px]" : "h-[15px] w-[15px]",
-            isActive
-              ? "text-primary drop-shadow-[0_0_6px_hsl(330_100%_71%/0.5)]"
-              : "text-white/40 group-hover:text-white/70"
-          )}
-          strokeWidth={isActive ? 2.2 : 1.8}
-        />
-        {/* Icon glow dot */}
-        {isActive && (
-          <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(330_100%_71%/0.8)]" />
+      <Link
+        to={reordering ? "#" : item.path}
+        onClick={reordering ? (e) => e.preventDefault() : undefined}
+        className={cn(
+          "relative flex items-center gap-3 rounded-xl text-[13px] font-medium transition-all duration-300 group overflow-hidden flex-1",
+          collapsed ? "justify-center w-11 h-11 mx-auto" : "px-3 py-2.5",
+          isActive
+            ? "bg-primary/12 text-primary border border-primary/20"
+            : "text-white/45 hover:bg-white/[0.06] hover:text-white/80 border border-transparent",
+          reordering && "cursor-grab"
         )}
-      </div>
-
-      {!collapsed && (
-        <span className={cn(
-          "truncate transition-colors duration-300 relative z-10",
-          isActive ? "text-primary font-semibold" : "text-white/55 group-hover:text-white/80"
+      >
+        {isActive && (
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pointer-events-none" />
+        )}
+        {isActive && (
+          <div className={cn(
+            "absolute top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_10px_hsl(330_100%_71%/0.7)]",
+            collapsed ? "left-0 -translate-x-2" : "-left-0.5"
+          )} />
+        )}
+        <div className={cn(
+          "relative shrink-0 flex items-center justify-center rounded-lg transition-all duration-300",
+          collapsed ? "h-7 w-7" : "h-6 w-6",
+          isActive ? "bg-primary/15" : "group-hover:bg-white/[0.06]"
         )}>
-          {item.label}
-        </span>
-      )}
-    </Link>
+          <item.icon
+            className={cn(
+              "shrink-0 transition-all duration-300",
+              collapsed ? "h-[16px] w-[16px]" : "h-[15px] w-[15px]",
+              isActive
+                ? "text-primary drop-shadow-[0_0_6px_hsl(330_100%_71%/0.5)]"
+                : "text-white/40 group-hover:text-white/70"
+            )}
+            strokeWidth={isActive ? 2.2 : 1.8}
+          />
+          {isActive && (
+            <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(330_100%_71%/0.8)]" />
+          )}
+        </div>
+        {!collapsed && (
+          <span className={cn(
+            "truncate transition-colors duration-300 relative z-10",
+            isActive ? "text-primary font-semibold" : "text-white/55 group-hover:text-white/80"
+          )}>
+            {item.label}
+          </span>
+        )}
+      </Link>
+    </div>
   );
 
   if (collapsed) {
@@ -154,7 +236,69 @@ const NavItem = ({ item, isActive, collapsed }: NavItemProps) => {
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
-  const { tenant } = useTenant();
+  const { tenant, tenantId } = useTenant();
+  const [reorderingGroup, setReorderingGroup] = useState<string | null>(null);
+  const [navGroups, setNavGroups] = useState<NavGroup[]>(defaultNavGroups);
+
+  // Load saved order on mount / tenantId change
+  useEffect(() => {
+    if (!tenantId) return;
+    const saved = getSavedOrder(tenantId);
+    if (!saved) return;
+
+    setNavGroups((prev) =>
+      prev.map((group) => {
+        const savedPaths = saved[group.key];
+        if (!savedPaths) return group;
+
+        // Reorder items based on saved paths, keeping any new items at the end
+        const reordered: NavItemDef[] = [];
+        const defaultItems = defaultNavGroups.find((g) => g.key === group.key)?.items || group.items;
+
+        for (const path of savedPaths) {
+          const item = defaultItems.find((i) => i.path === path);
+          if (item) reordered.push({ ...item, icon: iconMap[item.path] || item.icon });
+        }
+        // Add any items not in saved order (new items)
+        for (const item of defaultItems) {
+          if (!reordered.find((r) => r.path === item.path)) {
+            reordered.push(item);
+          }
+        }
+        return { ...group, items: reordered };
+      })
+    );
+  }, [tenantId]);
+
+  const moveItem = useCallback((groupKey: string, index: number, direction: -1 | 1) => {
+    setNavGroups((prev) => {
+      const updated = prev.map((group) => {
+        if (group.key !== groupKey) return group;
+        const items = [...group.items];
+        const target = index + direction;
+        if (target < 0 || target >= items.length) return group;
+        [items[index], items[target]] = [items[target], items[index]];
+        return { ...group, items };
+      });
+
+      // Auto-save
+      if (tenantId) {
+        const order: Record<string, string[]> = {};
+        for (const g of updated) {
+          if (g.reorderable) {
+            order[g.key] = g.items.map((i) => i.path);
+          }
+        }
+        saveOrder(tenantId, order);
+      }
+
+      return updated;
+    });
+  }, [tenantId]);
+
+  const toggleReorder = (groupKey: string) => {
+    setReorderingGroup((prev) => (prev === groupKey ? null : groupKey));
+  };
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -185,7 +329,6 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               collapsed ? "h-11 w-11" : "h-9 w-9"
             )}>
               <img src={logo} alt="Drika" className={cn("object-contain relative z-10", collapsed ? "h-6 w-6" : "h-5 w-5")} />
-              {/* Subtle shimmer on hover */}
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </div>
           </Link>
@@ -222,17 +365,42 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             </>
           ) : (
             navGroups.map((group) => (
-              <div key={group.label}>
-                <p className="px-3 mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary/40">
-                  {group.label}
-                </p>
+              <div key={group.key}>
+                <div className="flex items-center justify-between px-3 mb-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/40">
+                    {group.label}
+                  </p>
+                  {group.reorderable && (
+                    <button
+                      onClick={() => toggleReorder(group.key)}
+                      className={cn(
+                        "p-1 rounded-md transition-all duration-200",
+                        reorderingGroup === group.key
+                          ? "text-primary bg-primary/15"
+                          : "text-white/20 hover:text-white/50 hover:bg-white/5"
+                      )}
+                      title={reorderingGroup === group.key ? "Salvar ordem" : "Reordenar"}
+                    >
+                      {reorderingGroup === group.key ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <GripVertical className="h-3 w-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-0.5">
-                  {group.items.map((item) => (
+                  {group.items.map((item, idx) => (
                     <NavItem
                       key={item.path}
                       item={item}
                       isActive={location.pathname.startsWith(item.path)}
                       collapsed={false}
+                      reordering={reorderingGroup === group.key}
+                      onMoveUp={() => moveItem(group.key, idx, -1)}
+                      onMoveDown={() => moveItem(group.key, idx, 1)}
+                      canMoveUp={idx > 0}
+                      canMoveDown={idx < group.items.length - 1}
                     />
                   ))}
                 </div>
