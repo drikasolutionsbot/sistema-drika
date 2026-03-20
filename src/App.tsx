@@ -52,6 +52,7 @@ import VerifyResultPage from "./pages/VerifyResultPage";
 import VerifyRedirectPage from "./pages/VerifyRedirectPage";
 import GiveawaysPage from "./pages/GiveawaysPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
+import AdminBotConfigPage from "./pages/admin/AdminBotConfigPage";
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
 
 const queryClient = new QueryClient();
@@ -102,6 +103,7 @@ const AppRoutes = () => (
       <Route path="/admin/tutoriais" element={<AdminTutorialsPage />} />
       <Route path="/admin/marketplace" element={<AdminMarketplacePage />} />
       <Route path="/admin/afiliados" element={<AdminAffiliatesPage />} />
+      <Route path="/admin/bot-config" element={<AdminBotConfigPage />} />
     </Route>
 
     {/* Dashboard routes */}

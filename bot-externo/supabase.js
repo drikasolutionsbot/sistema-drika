@@ -254,6 +254,12 @@ async function deliverOrder(orderId, tenantId) {
   } catch (e) { console.error("Deliver order error:", e.message); }
 }
 
+// ── Global Bot Config ──
+async function getGlobalBotConfig() {
+  const { data } = await supabase.from("landing_config").select("global_bot_status, global_bot_banner_url").limit(1).single();
+  return data;
+}
+
 module.exports = {
   supabase,
   getTenantByGuild,
@@ -281,4 +287,5 @@ module.exports = {
   getActivePaymentProvider,
   triggerAutomation,
   deliverOrder,
+  getGlobalBotConfig,
 };

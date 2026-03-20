@@ -9,7 +9,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-const { getTenantByGuild } = require("./supabase");
+const { getTenantByGuild, getGlobalBotConfig } = require("./supabase");
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 
@@ -69,39 +69,20 @@ function normalizeStatus(rawStatus) {
 }
 
 async function syncBotStatus() {
-  const statusCandidates = [];
-
-  for (const guild of client.guilds.cache.values()) {
-    try {
-      const tenant = await getTenantByGuild(guild.id);
-      if (tenant) {
-        tenantCache.set(guild.id, { data: tenant, ts: Date.now() });
-      }
-
-      statusCandidates.push({
-        guildId: guild.id,
-        status: normalizeStatus(tenant?.bot_status),
-        updatedAt: tenant?.updated_at ? new Date(tenant.updated_at).getTime() : 0,
-      });
-    } catch (err) {
-      console.error(`Erro ao sincronizar status para guild ${guild.id}:`, err.message);
-    }
-  }
-
-  if (!statusCandidates.length) return;
-
-  const selected = statusCandidates.sort((a, b) => b.updatedAt - a.updatedAt)[0];
-  if (!selected?.status || selected.status === lastAppliedStatus) return;
-
   try {
+    const config = await getGlobalBotConfig();
+    const status = normalizeStatus(config?.global_bot_status);
+
+    if (status === lastAppliedStatus) return;
+
     client.user.setPresence({
-      activities: [{ name: selected.status, type: ActivityType.Playing }],
+      activities: [{ name: status, type: ActivityType.Playing }],
       status: "online",
     });
-    lastAppliedStatus = selected.status;
-    console.log(`🔄 Status atualizado (guild ${selected.guildId}): "${selected.status}"`);
+    lastAppliedStatus = status;
+    console.log(`🔄 Status atualizado: "${status}"`);
   } catch (err) {
-    console.error("Erro ao aplicar presença do bot:", err.message);
+    console.error("Erro ao sincronizar status do bot:", err.message);
   }
 }
 

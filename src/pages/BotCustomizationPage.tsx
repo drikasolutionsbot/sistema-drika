@@ -13,7 +13,7 @@ const BotCustomizationPage = () => {
 
   const botName = tenant.bot_name || "Drika Bot";
   const botAvatar = tenant.bot_avatar_url;
-  const botStatus = tenant.bot_status || "/panel";
+  
   const botId = (tenant as any).discord_bot_id || tenant.id;
 
   return (
@@ -79,10 +79,6 @@ const BotCustomizationPage = () => {
           <div className="flex items-center justify-between py-3">
             <span className="text-sm text-muted-foreground">Status</span>
             <span className="text-sm font-semibold text-emerald-400">Online</span>
-          </div>
-          <div className="flex items-center justify-between py-3">
-            <span className="text-sm text-muted-foreground">Jogando</span>
-            <span className="text-sm font-mono text-foreground">{botStatus.split("\n")[0]}</span>
           </div>
         </div>
       </div>

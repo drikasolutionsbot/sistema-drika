@@ -22,8 +22,6 @@ import { DiscordButtonStylePicker, type DiscordButtonStyle, getDiscordButtonStyl
 
 interface ServerConfig {
   server_name: string;
-  bot_status: string;
-  bot_status_interval: string;
   bot_prefix: string;
   // Verification
   verify_enabled: boolean;
@@ -40,8 +38,6 @@ interface ServerConfig {
 
 const defaultConfig: ServerConfig = {
   server_name: "",
-  bot_status: "/panel",
-  bot_status_interval: "30",
   bot_prefix: "d!",
   verify_enabled: false,
   verify_role_id: "",
@@ -116,8 +112,6 @@ const CustomizationPage = () => {
       if (t) {
         const loaded: ServerConfig = {
           server_name: t.name || "",
-          bot_status: t.bot_status || "/panel",
-          bot_status_interval: String(t.bot_status_interval || 30),
           bot_prefix: t.bot_prefix || "d!",
           verify_enabled: t.verify_enabled ?? false,
           verify_role_id: t.verify_role_id ?? "",
@@ -219,8 +213,6 @@ const CustomizationPage = () => {
           tenant_id: tenantId,
           updates: {
             name: config.server_name,
-            bot_status: config.bot_status,
-            bot_status_interval: parseInt(config.bot_status_interval) || 30,
             bot_prefix: config.bot_prefix,
             verify_enabled: config.verify_enabled,
             verify_role_id: config.verify_role_id || null,

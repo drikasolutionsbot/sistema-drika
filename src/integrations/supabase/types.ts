@@ -699,6 +699,8 @@ export type Database = {
           efi_client_secret: string | null
           efi_key_pem: string | null
           efi_pix_key: string | null
+          global_bot_banner_url: string | null
+          global_bot_status: string
           id: string
           pro_price_cents: number
           pushinpay_active: boolean
@@ -725,6 +727,8 @@ export type Database = {
           efi_client_secret?: string | null
           efi_key_pem?: string | null
           efi_pix_key?: string | null
+          global_bot_banner_url?: string | null
+          global_bot_status?: string
           id?: string
           pro_price_cents?: number
           pushinpay_active?: boolean
@@ -751,6 +755,8 @@ export type Database = {
           efi_client_secret?: string | null
           efi_key_pem?: string | null
           efi_pix_key?: string | null
+          global_bot_banner_url?: string | null
+          global_bot_status?: string
           id?: string
           pro_price_cents?: number
           pushinpay_active?: boolean
