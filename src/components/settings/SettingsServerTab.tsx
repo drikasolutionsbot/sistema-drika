@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Server, Unplug, Loader2, Check, AlertTriangle, RefreshCw, Bot } from "lucide-react";
+import { Server, Unplug, Loader2, Check, AlertTriangle, Bot, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -24,12 +25,6 @@ interface Props {
   refetchTenant: () => void;
 }
 
-interface Guild {
-  id: string;
-  name: string;
-  icon: string | null;
-}
-
 interface BotInviteData {
   invite_url: string;
   client_id: string;
@@ -37,7 +32,8 @@ interface BotInviteData {
 
 const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [disconnecting, setDisconnecting] = useState(false);
-  const [connecting, setConnecting] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [guildIdInput, setGuildIdInput] = useState("");
 
   const isConnected = !!tenant?.discord_guild_id;
 
@@ -79,39 +75,19 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     retry: 1,
   });
 
-  const { data: guilds = [], isLoading: guildsLoading, refetch: refetchGuilds } = useQuery({
-    queryKey: ["server-guilds", tenantId],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: getRequestBody(),
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      // Handle both old format (array) and new format ({ guilds, auto_linked })
-      const guildList = Array.isArray(data) ? data : (data?.guilds ?? []);
-      const autoLinked = !Array.isArray(data) && data?.auto_linked === true;
-      if (autoLinked) {
-        // Server was auto-linked, refresh tenant data
-        setTimeout(() => refetchTenant(), 500);
-      }
-      return guildList as Guild[];
-    },
-    enabled: !!tenantId && !isConnected,
-    staleTime: 1000 * 30, // Refresh more often
-    refetchOnWindowFocus: true,
-    retry: 1,
-  });
-
   const { data: connectedGuildInfo } = useQuery({
     queryKey: ["connected-guild-info", tenantId, tenant?.discord_guild_id],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: getRequestBody(),
+        body: {
+          ...getRequestBody(),
+          action: "verify_guild",
+          guild_id: tenant?.discord_guild_id,
+        },
       });
       if (error) return null;
       if (data?.error) return null;
-      const list = Array.isArray(data) ? data : (data?.guilds ?? []);
-      return list.find((g: Guild) => g.id === tenant?.discord_guild_id) || null;
+      return data?.guild || null;
     },
     enabled: !!tenantId && isConnected,
     staleTime: 1000 * 60,
@@ -140,24 +116,56 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     }
   };
 
-  const handleConnectGuild = async (guild: Guild) => {
-    if (!tenantId) return;
-    setConnecting(guild.id);
+  const handleConnectGuild = async () => {
+    if (!tenantId || !guildIdInput.trim()) return;
+    const guildId = guildIdInput.trim();
+
+    if (!/^\d{17,20}$/.test(guildId)) {
+      toast({ title: "ID inválido", description: "O ID do servidor deve conter apenas números (17-20 dígitos).", variant: "destructive" });
+      return;
+    }
+
+    setConnecting(true);
     try {
+      // Verify the bot is in this guild
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: {
+          ...getRequestBody(),
+          action: "verify_guild",
+          guild_id: guildId,
+        },
+      });
+
+      if (verifyError || verifyData?.error) {
+        throw new Error(verifyData?.error || "Erro ao verificar servidor");
+      }
+
+      if (!verifyData?.guild) {
+        toast({
+          title: "Bot não encontrado neste servidor",
+          description: "Certifique-se de que você adicionou o bot ao servidor antes de vincular.",
+          variant: "destructive",
+        });
+        setConnecting(false);
+        return;
+      }
+
+      // Link the guild
       const { data, error } = await supabase.functions.invoke("update-tenant", {
         body: {
           tenant_id: tenantId,
-          updates: { discord_guild_id: guild.id },
+          updates: { discord_guild_id: guildId },
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await refetchTenant();
-      toast({ title: `Conectado ao servidor ${guild.name}! 🎉` });
+      toast({ title: `Conectado ao servidor ${verifyData.guild.name}! 🎉` });
+      setGuildIdInput("");
     } catch (err: any) {
       toast({ title: "Erro ao conectar", description: err.message, variant: "destructive" });
     } finally {
-      setConnecting(null);
+      setConnecting(false);
     }
   };
 
@@ -275,75 +283,42 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                <p className="text-sm font-medium text-foreground">Selecione o servidor para vincular</p>
+                <p className="text-sm font-medium text-foreground">Cole o ID do seu servidor</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: 1234567890123456789"
+                  value={guildIdInput}
+                  onChange={(e) => setGuildIdInput(e.target.value)}
+                  className="font-mono text-sm"
+                  maxLength={20}
+                />
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => refetchGuilds()}
-                  className="ml-auto h-7 w-7"
-                  title="Atualizar lista"
+                  onClick={handleConnectGuild}
+                  disabled={connecting || !guildIdInput.trim()}
+                  className="gradient-pink text-primary-foreground border-none hover:opacity-90 shrink-0 gap-1.5"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  {connecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                  Vincular
                 </Button>
               </div>
 
-              {guildsLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-14 rounded-xl bg-muted/50 animate-pulse" />
-                  ))}
-                </div>
-              ) : guilds.length === 0 ? (
-                <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-5 text-center">
-                  <AlertTriangle className="h-7 w-7 text-amber-400/60 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-amber-400">Nenhum servidor encontrado</p>
-                  <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto">
-                    Clique no botão acima para adicionar o bot no Discord e depois atualize a lista.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => refetchGuilds()}
-                    className="mt-3"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                    Atualizar lista
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {guilds.map((guild) => (
-                    <div
-                      key={guild.id}
-                      className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors px-4 py-3"
-                    >
-                      {guild.icon ? (
-                        <img src={guild.icon} alt="" className="h-10 w-10 rounded-full shrink-0" />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground shrink-0">
-                          {guild.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{guild.name}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono">{guild.id}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleConnectGuild(guild)}
-                        disabled={connecting === guild.id}
-                        className="gradient-pink text-primary-foreground border-none hover:opacity-90 shrink-0"
-                      >
-                        {connecting === guild.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          "Vincular"
-                        )}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="rounded-xl bg-muted/30 border border-border p-4 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Como encontrar o ID do servidor?</p>
+                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Abra o Discord e vá até seu servidor</li>
+                  <li>Clique com o botão direito no nome do servidor</li>
+                  <li>Clique em <span className="font-medium text-foreground">"Copiar ID do servidor"</span></li>
+                </ol>
+                <p className="text-[11px] text-muted-foreground/70 mt-1">
+                  💡 Se não aparecer, ative o Modo Desenvolvedor em Configurações → Avançado
+                </p>
+              </div>
             </div>
           </div>
         )}

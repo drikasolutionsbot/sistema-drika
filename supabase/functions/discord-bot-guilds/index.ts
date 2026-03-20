@@ -60,6 +60,59 @@ serve(async (req) => {
       });
     }
 
+    if (action === "verify_guild") {
+      const body = { tenant_id: tenantIdFromBody, token: accessToken, guild_id: "" };
+      try {
+        const rawBody = await req.clone().json();
+        body.guild_id = rawBody?.guild_id || "";
+      } catch {}
+
+      if (!body.guild_id || !/^\d{17,20}$/.test(body.guild_id)) {
+        return new Response(JSON.stringify({ error: "guild_id inválido" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if the bot is in this guild
+      const guildRes = await fetchWithRetry(`https://discord.com/api/v10/guilds/${body.guild_id}`, {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+
+      if (!guildRes.ok) {
+        return new Response(JSON.stringify({ guild: null }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const guildData = await guildRes.json();
+
+      // Check if already claimed by another tenant
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: claimedTenant } = await adminClient
+        .from("tenants")
+        .select("id")
+        .eq("discord_guild_id", body.guild_id)
+        .maybeSingle();
+
+      if (claimedTenant && claimedTenant.id !== tenantIdFromBody) {
+        return new Response(JSON.stringify({ error: "Este servidor já está vinculado a outro painel" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        guild: {
+          id: guildData.id,
+          name: guildData.name,
+          icon: guildData.icon ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.png` : null,
+        },
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "invite_url") {
       const botUserRes = await fetchWithRetry("https://discord.com/api/v10/users/@me", {
         headers: { Authorization: `Bot ${botToken}` },
