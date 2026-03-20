@@ -60,6 +60,27 @@ serve(async (req) => {
       });
     }
 
+    if (action === "list_all") {
+      // Returns ALL guilds the bot is in (just IDs) for diff comparison
+      const discordRes = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds", {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (!discordRes.ok) {
+        return new Response(JSON.stringify({ guilds: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const allGuilds = await discordRes.json();
+      const guildList = allGuilds.map((g: any) => ({
+        id: g.id,
+        name: g.name,
+        icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
+      }));
+      return new Response(JSON.stringify({ guilds: guildList }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "verify_guild") {
       const body = { tenant_id: tenantIdFromBody, token: accessToken, guild_id: "" };
       try {
