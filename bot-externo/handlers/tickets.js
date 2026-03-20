@@ -716,7 +716,8 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
 
       try {
         const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
-        const { error: uploadErr } = await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
+        const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
+        const { error: uploadErr } = await supabase.storage.from("tenant-assets").upload(fileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
         if (!uploadErr) {
           const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
           if (urlData?.publicUrl) {
@@ -806,7 +807,8 @@ async function handleTranscriptView(interaction, tenant, ticketId) {
   let transcriptUrl = null;
   try {
     const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
-    await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
+    const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
+    await supabase.storage.from("tenant-assets").upload(fileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
     const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
     transcriptUrl = urlData?.publicUrl || null;
   } catch {}
