@@ -25,7 +25,7 @@ interface Props {
 const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTenant }: Props) => {
   const [botName, setBotName] = useState(tenant?.bot_name || "");
   const [botAvatarUrl, setBotAvatarUrl] = useState(tenant?.bot_avatar_url || "");
-  const [botStatus, setBotStatus] = useState(tenant?.bot_status || "/panel");
+  
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
