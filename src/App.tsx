@@ -51,6 +51,7 @@ import MarketplacePage from "./pages/MarketplacePage";
 import VerifyResultPage from "./pages/VerifyResultPage";
 import VerifyRedirectPage from "./pages/VerifyRedirectPage";
 import GiveawaysPage from "./pages/GiveawaysPage";
+import EmbedsPage from "./pages/EmbedsPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminBotConfigPage from "./pages/admin/AdminBotConfigPage";
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
@@ -133,6 +134,7 @@ const AppRoutes = () => (
       <Route path="/support" element={<SupportPage />} />
       <Route path="/tutorials" element={<TutorialsPage />} />
       <Route path="/giveaways" element={<GiveawaysPage />} />
+      <Route path="/embeds" element={<EmbedsPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

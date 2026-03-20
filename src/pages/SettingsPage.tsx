@@ -189,9 +189,6 @@ const SettingsPage = () => {
               <TabsTrigger value="server" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Server className="h-4 w-4" /> Servidor
               </TabsTrigger>
-              <TabsTrigger value="embeds" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <LayoutTemplate className="h-4 w-4" /> Embeds
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -438,12 +435,8 @@ const SettingsPage = () => {
           <SettingsServerTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
         </TabsContent>
 
-        {/* Embeds Tab */}
-        <TabsContent value="embeds">
-          <div className="mt-6">
-            <EmbedBuilder />
-          </div>
-        </TabsContent>
+
+
 
       </Tabs>
       </div>
