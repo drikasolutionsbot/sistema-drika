@@ -296,9 +296,9 @@ serve(async (req) => {
       );
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
-      // For token-based sessions (bot externo), skip ownership check
+      // Only show guilds owned by the current user — never expose other clients' servers
       const ownerDiscordId = currentTenant.owner_discord_id || resolvedDiscordUserId;
-      let finalGuilds = available;
+      let finalGuilds: Array<{ id: string; name: string; icon: string | null }> = [];
 
       if (ownerDiscordId) {
         finalGuilds = await getOwnedGuilds(available, ownerDiscordId);
