@@ -216,12 +216,22 @@ const EmbedBuilder = () => {
     setSending(true);
     try {
       const discordEmbed = buildDiscordEmbed();
+      const enabledButtons = (embed.buttons || []).filter(b => b.enabled && b.label);
+      const body: Record<string, any> = {
+        tenant_id: tenantId,
+        channel_id: selectedChannel,
+        embeds: [discordEmbed],
+      };
+      if (enabledButtons.length > 0) {
+        body.buttons = enabledButtons.map(b => ({
+          label: b.label,
+          emoji: b.emoji || undefined,
+          style: b.style,
+          url: b.style === "link" ? b.url : undefined,
+        }));
+      }
       const { data, error } = await supabase.functions.invoke("send-webhook-message", {
-        body: {
-          tenant_id: tenantId,
-          channel_id: selectedChannel,
-          embeds: [discordEmbed],
-        },
+        body,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
