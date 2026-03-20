@@ -427,15 +427,14 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     .setTimestamp()
     .setFooter({ text: "Drika Hub • Ticket Log" });
 
-  // Build transcript file if messages exist
-  let files = [];
+  // Build transcript and upload to storage
   let components = [];
   
   if (msgs.length > 0) {
     try {
       const htmlTranscript = generateHtmlTranscript(msgs, tenant.name || "Servidor", `ticket-${ticket.discord_username}`, statusLabel);
 
-      // Try upload to storage for persistent link
+      // Upload to storage for persistent link
       try {
         const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
         const { error: uploadErr } = await supabase.storage.from("tenant-assets").upload(fileName, htmlTranscript, { contentType: "text/html", upsert: true });
@@ -452,41 +451,31 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
       } catch (storageErr) {
         console.error(`[sendTicketLog] Storage error: ${storageErr.message}`);
       }
-
-      // Always attach file as backup
-      const { AttachmentBuilder } = require("discord.js");
-      files = [new AttachmentBuilder(Buffer.from(htmlTranscript), { name: `transcript-${ticket.id.slice(0, 8)}.html` })];
     } catch (transcriptErr) {
       console.error(`[sendTicketLog] Transcript generation error: ${transcriptErr.message}`);
     }
   }
 
-  // Send the log - embed always, file/components only if available
+  // Send the log - embed + button only (no file attachment to avoid Discord preview)
   try {
-    await logsCh.send({ embeds: [logEmbed], components, files });
+    await logsCh.send({ embeds: [logEmbed], components });
     console.log(`[sendTicketLog] ✅ Log sent successfully to ${logsChannelId}`);
   } catch (sendErr) {
     console.error(`[sendTicketLog] Failed to send log: ${sendErr.message}`);
-    // Fallback: try without file
-    if (files.length > 0) {
-      try {
-        await logsCh.send({ embeds: [logEmbed], components });
-        console.log(`[sendTicketLog] ✅ Log sent without file attachment`);
-      } catch (e2) {
-        console.error(`[sendTicketLog] Fallback also failed: ${e2.message}`);
-      }
+    try {
+      await logsCh.send({ embeds: [logEmbed] });
+      console.log(`[sendTicketLog] ✅ Log sent without button`);
+    } catch (e2) {
+      console.error(`[sendTicketLog] Fallback also failed: ${e2.message}`);
     }
   }
 
   // DM transcript to user
-  if (files.length > 0) {
+  if (components.length > 0) {
     try {
       const user = await client.users.fetch(ticket.discord_user_id);
-      const { AttachmentBuilder } = require("discord.js");
-      const attachment = new AttachmentBuilder(Buffer.from(
-        generateHtmlTranscript(msgs, tenant.name || "Servidor", `ticket-${ticket.discord_username}`, statusLabel)
-      ), { name: `transcript-${ticket.id.slice(0, 8)}.html` });
-      await user.send({ content: "📜 Aqui está o transcript do seu ticket encerrado.", files: [attachment] });
+      const transcriptUrl = components[0].components[0].data.url;
+      await user.send({ content: `📜 Transcript do seu ticket encerrado:\n${transcriptUrl}` });
     } catch {}
   }
 }
