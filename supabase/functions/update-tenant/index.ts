@@ -138,26 +138,50 @@ serve(async (req) => {
       }
     }
 
-    // If bot_name was updated, sync nickname in Discord server
-    if (safeUpdates.bot_name && data.discord_guild_id && tenantBotToken) {
-      const nickname = safeUpdates.bot_name || null;
-      console.log("Syncing bot nickname to:", nickname, "for guild:", data.discord_guild_id);
+    // If bot_name or bot_avatar_url was updated, sync in Discord server
+    if ((safeUpdates.bot_name || safeUpdates.bot_avatar_url) && data.discord_guild_id && tenantBotToken) {
       try {
-        const nickRes = await fetch(
-          `https://discord.com/api/v10/guilds/${data.discord_guild_id}/members/@me`,
-          {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bot ${tenantBotToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ nick: nickname }),
+        const memberPatch: Record<string, any> = {};
+
+        if (safeUpdates.bot_name) {
+          memberPatch.nick = safeUpdates.bot_name;
+        }
+
+        if (safeUpdates.bot_avatar_url) {
+          // Download avatar and convert to base64 data URI
+          try {
+            const imgRes = await fetch(safeUpdates.bot_avatar_url);
+            if (imgRes.ok) {
+              const imgBuffer = await imgRes.arrayBuffer();
+              const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+              const contentType = imgRes.headers.get("content-type") || "image/png";
+              memberPatch.avatar = `data:${contentType};base64,${base64}`;
+            } else {
+              console.error("Failed to download bot avatar:", imgRes.status);
+            }
+          } catch (imgErr) {
+            console.error("Error downloading bot avatar:", imgErr);
           }
-        );
-        const nickBody = await nickRes.text();
-        console.log("Discord bot nickname response:", nickRes.status, nickBody);
-      } catch (nickErr) {
-        console.error("Discord bot nickname error:", nickErr);
+        }
+
+        if (Object.keys(memberPatch).length > 0) {
+          console.log("Syncing bot member profile for guild:", data.discord_guild_id, "fields:", Object.keys(memberPatch));
+          const patchRes = await fetch(
+            `https://discord.com/api/v10/guilds/${data.discord_guild_id}/members/@me`,
+            {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bot ${tenantBotToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(memberPatch),
+            }
+          );
+          const patchBody = await patchRes.text();
+          console.log("Discord bot member patch response:", patchRes.status, patchBody);
+        }
+      } catch (err) {
+        console.error("Discord bot member sync error:", err);
       }
     }
 
