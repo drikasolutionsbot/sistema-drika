@@ -9,7 +9,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-const { getTenantByGuild } = require("./supabase");
+const { getTenantByGuild, getGlobalBotConfig } = require("./supabase");
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 
