@@ -304,6 +304,32 @@ const DashboardPage = () => {
     }
   }, [tenantId, refetch, stopPolling]);
 
+  const tryBackendAutoLink = useCallback(async () => {
+    const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
+      body: {
+        ...getDiscordRequestBody(),
+        baseline_guild_ids: Array.from(guildsBeforeInviteRef.current),
+      },
+    });
+
+    if (autoError || !autoData || Array.isArray(autoData)) return false;
+
+    if (autoData.auto_linked) {
+      stopPolling();
+      setWaitingForBot(false);
+      await refetch();
+      toast.success("Servidor conectado automaticamente! 🎉");
+      return true;
+    }
+
+    const autoGuilds = Array.isArray(autoData.guilds) ? autoData.guilds : [];
+    if (autoGuilds.length === 1) {
+      return await autoLinkGuild(autoGuilds[0]);
+    }
+
+    return false;
+  }, [getDiscordRequestBody, autoLinkGuild, stopPolling, refetch]);
+
   const startPollingForGuildConnection = useCallback(() => {
     if (!tenantId) return;
 
@@ -346,22 +372,31 @@ const DashboardPage = () => {
         }
 
         if (pollCountRef.current % 2 === 0) {
-          const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
-            body: { ...getDiscordRequestBody() },
-          });
-
-          if (!autoError && autoData && !Array.isArray(autoData) && autoData.auto_linked) {
-            stopPolling();
-            setWaitingForBot(false);
-            await refetch();
-            toast.success("Servidor conectado automaticamente! 🎉");
-          }
+          const linked = await tryBackendAutoLink();
+          if (linked) return;
         }
       } catch {
         // keep polling
       }
     }, 5000);
-  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, refetch]);
+  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink]);
+
+  useEffect(() => {
+    if (!waitingForBot) return;
+
+    const triggerBackgroundCheck = () => {
+      if (document.visibilityState === "hidden") return;
+      void tryBackendAutoLink();
+    };
+
+    window.addEventListener("focus", triggerBackgroundCheck);
+    document.addEventListener("visibilitychange", triggerBackgroundCheck);
+
+    return () => {
+      window.removeEventListener("focus", triggerBackgroundCheck);
+      document.removeEventListener("visibilitychange", triggerBackgroundCheck);
+    };
+  }, [waitingForBot, tryBackendAutoLink]);
 
   useEffect(() => {
     if (!waitingForBot || !tenant?.discord_guild_id) return;
