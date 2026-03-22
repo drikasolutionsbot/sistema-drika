@@ -39,6 +39,7 @@ serve(async (req) => {
     let action: string | null = null;
     let invitePermissions = "536870920";
     let guildIdFromBody: string | null = null;
+    let baselineGuildIds: string[] = [];
 
     try {
       const body = await req.json();
@@ -46,6 +47,9 @@ serve(async (req) => {
       accessToken = body?.token || null;
       action = body?.action || null;
       guildIdFromBody = body?.guild_id || null;
+      baselineGuildIds = Array.isArray(body?.baseline_guild_ids)
+        ? body.baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
+        : [];
       if (typeof body?.permissions === "string" && /^\d+$/.test(body.permissions)) {
         invitePermissions = body.permissions;
       }
@@ -193,8 +197,11 @@ serve(async (req) => {
 
     const getOwnedGuilds = async (
       candidates: Array<{ id: string; name: string; icon: string | null }>,
-      discordUserId: string
+      discordUserIds: string[]
     ) => {
+      const ownerIds = new Set(discordUserIds.filter(Boolean));
+      if (ownerIds.size === 0) return [];
+
       const checks = await Promise.all(
         candidates.map(async (guild) => {
           try {
@@ -203,7 +210,7 @@ serve(async (req) => {
             });
             if (!guildRes.ok) return null;
             const guildData = await guildRes.json();
-            return guildData?.owner_id === discordUserId ? guild : null;
+            return ownerIds.has(guildData?.owner_id) ? guild : null;
           } catch {
             return null;
           }
@@ -369,11 +376,47 @@ serve(async (req) => {
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
       // Privacy: servers already claimed by other tenants are excluded above.
-      // Prefer servers owned by the authenticated Discord user when available.
+      // Prefer newly detected guilds (diff do snapshot do front) when available.
+      const baselineSet = new Set(baselineGuildIds);
       let finalGuilds = available;
 
+      if (baselineSet.size > 0) {
+        const newGuilds = available.filter((g: any) => !baselineSet.has(g.id));
+        if (newGuilds.length > 0) {
+          finalGuilds = newGuilds;
+        }
+      }
+
+      // Prefer servers owned by linked Discord users (auth atual + membros do tenant).
+      const discordOwnerCandidates = new Set<string>();
+
       if (resolvedDiscordUserId) {
-        const ownedAvailable = await getOwnedGuilds(available, resolvedDiscordUserId);
+        discordOwnerCandidates.add(resolvedDiscordUserId);
+      }
+
+      const { data: memberRows } = await admin
+        .from("user_roles")
+        .select("user_id")
+        .eq("tenant_id", resolvedTenantId);
+
+      const memberUserIds = Array.from(new Set((memberRows || []).map((row: any) => row.user_id).filter(Boolean)));
+
+      if (memberUserIds.length > 0) {
+        const { data: profileRows } = await admin
+          .from("profiles")
+          .select("discord_user_id")
+          .in("id", memberUserIds)
+          .not("discord_user_id", "is", null);
+
+        (profileRows || []).forEach((profile: any) => {
+          if (profile?.discord_user_id) {
+            discordOwnerCandidates.add(profile.discord_user_id);
+          }
+        });
+      }
+
+      if (discordOwnerCandidates.size > 0) {
+        const ownedAvailable = await getOwnedGuilds(finalGuilds, Array.from(discordOwnerCandidates));
         if (ownedAvailable.length > 0) {
           finalGuilds = ownedAvailable;
         }
