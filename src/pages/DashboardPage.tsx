@@ -66,7 +66,7 @@ const DashboardPage = () => {
   const [auditLoading, setAuditLoading] = useState(false);
 
   // Guild info state
-  const [guildInfo, setGuildInfo] = useState<{ member_count: number; presence_count: number; icon: string | null } | null>(null);
+  const [guildInfo, setGuildInfo] = useState<{ name: string; member_count: number; presence_count: number; icon: string | null } | null>(null);
   const [waitingForBot, setWaitingForBot] = useState(false);
   const guildsBeforeInviteRef = useRef<Set<string>>(new Set());
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -81,7 +81,7 @@ const DashboardPage = () => {
       body: { guild_id: tenant.discord_guild_id },
     }).then(({ data, error }) => {
       if (data && !data.error && !error) {
-        setGuildInfo({ member_count: data.member_count, presence_count: data.presence_count, icon: data.icon });
+        setGuildInfo({ name: data.name || tenant.name, member_count: data.member_count, presence_count: data.presence_count, icon: data.icon });
       } else {
         setGuildInfo(null);
       }
@@ -541,9 +541,19 @@ const DashboardPage = () => {
           {tenant.discord_guild_id ? (
             <>
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm shrink-0">{tenant.name[0]?.toUpperCase()}</div>
+                {guildInfo?.icon ? (
+                  <img
+                    src={guildInfo.icon}
+                    alt="Server icon"
+                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-full shrink-0"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm shrink-0">
+                    {(guildInfo?.name || tenant.name)[0]?.toUpperCase()}
+                  </div>
+                )}
                 <div>
-                  <p className="font-medium">{tenant.name}</p>
+                  <p className="font-medium">{guildInfo?.name || tenant.name}</p>
                   <p className="text-xs font-mono text-muted-foreground">({tenant.discord_guild_id})</p>
                 </div>
               </div>
