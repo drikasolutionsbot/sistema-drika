@@ -349,7 +349,7 @@ serve(async (req) => {
     if (resolvedTenantId) {
       const { data: currentTenant, error: currentTenantError } = await admin
         .from("tenants")
-        .select("id, discord_guild_id, owner_discord_id")
+        .select("id, name, discord_guild_id, owner_discord_id")
         .eq("id", resolvedTenantId)
         .single();
 
@@ -419,6 +419,15 @@ serve(async (req) => {
         const ownedAvailable = await getOwnedGuilds(finalGuilds, Array.from(discordOwnerCandidates));
         if (ownedAvailable.length > 0) {
           finalGuilds = ownedAvailable;
+        }
+      }
+
+      // Fallback: when owner mapping isn't available, try exact tenant-name match.
+      if (finalGuilds.length > 1 && currentTenant?.name) {
+        const normalizedTenantName = String(currentTenant.name).trim().toLowerCase();
+        const nameMatched = finalGuilds.filter((guild: any) => guild.name?.trim().toLowerCase() === normalizedTenantName);
+        if (nameMatched.length === 1) {
+          finalGuilds = nameMatched;
         }
       }
 
