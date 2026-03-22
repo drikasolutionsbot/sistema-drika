@@ -81,7 +81,7 @@ const DashboardPage = () => {
       body: { guild_id: tenant.discord_guild_id },
     }).then(({ data, error }) => {
       if (data && !data.error && !error) {
-        setGuildInfo({ member_count: data.member_count, presence_count: data.presence_count, icon: data.icon });
+        setGuildInfo({ name: data.name || tenant.name, member_count: data.member_count, presence_count: data.presence_count, icon: data.icon });
       } else {
         setGuildInfo(null);
       }
