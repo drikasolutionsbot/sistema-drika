@@ -66,7 +66,7 @@ const DashboardPage = () => {
   const [auditLoading, setAuditLoading] = useState(false);
 
   // Guild info state
-  const [guildInfo, setGuildInfo] = useState<{ member_count: number; presence_count: number; icon: string | null } | null>(null);
+  const [guildInfo, setGuildInfo] = useState<{ name: string; member_count: number; presence_count: number; icon: string | null } | null>(null);
   const [waitingForBot, setWaitingForBot] = useState(false);
   const guildsBeforeInviteRef = useRef<Set<string>>(new Set());
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
