@@ -93,22 +93,25 @@ async function runSyncCycle(supabase: any, tenantFilter?: string) {
 
       for (const member of candidates) {
         try {
-          const runRes = await fetch(
-            `${Deno.env.get("SUPABASE_URL")}/functions/v1/handle-member-join`,
+          const userId = member?.user?.id;
+          if (!userId) {
+            (tenantResult.errors as string[]).push("member sem user.id");
+            continue;
+          }
+
+          const roleRes = await fetch(
+            `${DISCORD_API}/guilds/${guildId}/members/${userId}/roles/${autoRoleId}`,
             {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                tenant_id: tenantId,
-                event: "GUILD_MEMBER_ADD",
-                member,
-              }),
+              method: "PUT",
+              headers: { Authorization: `Bot ${botToken}` },
             }
           );
 
-          const runJson = await runRes.json().catch(() => ({}));
-          if (!runRes.ok) {
-            (tenantResult.errors as string[]).push(`handle-member-join failed (${runRes.status}): ${JSON.stringify(runJson)}`);
+          if (!roleRes.ok && roleRes.status !== 204) {
+            const err = await roleRes.text();
+            (tenantResult.errors as string[]).push(
+              `auto_role assign failed for ${userId} (${roleRes.status}): ${err}`
+            );
             continue;
           }
 
