@@ -32,6 +32,11 @@ const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState<"membros" | "cargos">("membros");
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
 
+  // Always refetch tenant on mount to ensure fresh data after navigating back
+  useEffect(() => {
+    refetch();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Server switch modal
   const [serverModalOpen, setServerModalOpen] = useState(false);
   const [guilds, setGuilds] = useState<{ id: string; name: string; icon: string | null }[]>([]);
