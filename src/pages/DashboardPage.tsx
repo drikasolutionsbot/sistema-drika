@@ -543,7 +543,7 @@ const DashboardPage = () => {
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {guildInfo?.icon ? (
                   <img
-                    src={`https://cdn.discordapp.com/icons/${tenant.discord_guild_id}/${guildInfo.icon}.png?size=64`}
+                    src={guildInfo.icon}
                     alt="Server icon"
                     className="h-9 w-9 sm:h-10 sm:w-10 rounded-full shrink-0"
                   />
