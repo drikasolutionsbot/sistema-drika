@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check, Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Stars, Orbit, Flame, Crown, Globe, Cpu, Network, Boxes, Gem } from "lucide-react";
+import { Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check, Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Stars, Orbit, Flame, Crown, Globe, Cpu, Network, Boxes, Gem, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -95,11 +95,20 @@ const AI_TOOLS = [
   },
 ];
 
+interface Attachment {
+  id: string;
+  type: "image";
+  data: string; // base64 data URL
+  name: string;
+  preview: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   imageUrl?: string;
+  attachments?: Attachment[];
   toolId: string;
   timestamp: Date;
 }
@@ -170,6 +179,8 @@ const NeuralLines = () => (
   </svg>
 );
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export default function AIAssistantPage() {
   const [selectedTool, setSelectedTool] = useState(AI_TOOLS[0]);
   const [prompt, setPrompt] = useState("");
@@ -180,7 +191,9 @@ export default function AIAssistantPage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [provider] = useState<"drika">("drika");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
@@ -208,39 +221,79 @@ export default function AIAssistantPage() {
   const handleNewChat = () => {
     setActiveSessionId(null);
     setPrompt("");
+    setAttachments([]);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({ title: "Arquivo muito grande", description: `${file.name} excede 10MB.`, variant: "destructive" });
+        continue;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        toast({ title: "Formato não suportado", description: "Envie apenas imagens (PNG, JPG, GIF, WebP).", variant: "destructive" });
+        continue;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        setAttachments(prev => [...prev, {
+          id: crypto.randomUUID(),
+          type: "image",
+          data: base64,
+          name: file.name,
+          preview: base64,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      toast({ title: "Digite algo", description: "Escreva o que deseja gerar.", variant: "destructive" });
+    if (!prompt.trim() && attachments.length === 0) {
+      toast({ title: "Digite algo", description: "Escreva o que deseja gerar ou envie uma imagem.", variant: "destructive" });
       return;
     }
 
     let sessionId = activeSessionId;
     if (!sessionId) {
-      sessionId = createNewSession(selectedTool.id, prompt);
+      sessionId = createNewSession(selectedTool.id, prompt || "Análise de imagem");
     }
 
+    const currentAttachments = [...attachments];
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: prompt,
+      content: prompt || (currentAttachments.length > 0 ? "Analise esta imagem" : ""),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       toolId: selectedTool.id,
       timestamp: new Date(),
     };
 
     setSessions(prev => prev.map(s =>
-      s.id === sessionId ? { ...s, messages: [...s.messages, userMsg], title: s.messages.length === 0 ? prompt.slice(0, 50) : s.title } : s
+      s.id === sessionId ? { ...s, messages: [...s.messages, userMsg], title: s.messages.length === 0 ? (prompt || "Análise de imagem").slice(0, 50) : s.title } : s
     ));
 
-    const currentPrompt = prompt;
+    const currentPrompt = prompt || (currentAttachments.length > 0 ? "Analise detalhadamente esta imagem. Descreva tudo que você vê." : "");
     setPrompt("");
+    setAttachments([]);
     setLoading(true);
 
     const assistantMsgId = crypto.randomUUID();
 
     try {
-      if (selectedTool.id === "image") {
+      if (selectedTool.id === "image" && currentAttachments.length === 0) {
         const { data, error } = await supabase.functions.invoke("ai-assistant", {
           body: { type: "image", prompt: currentPrompt, context, provider },
         });
@@ -270,13 +323,25 @@ export default function AIAssistantPage() {
           s.id === sessionId ? { ...s, messages: [...s.messages, emptyAssistant] } : s
         ));
 
+        // Build attachments payload for API
+        const apiAttachments = currentAttachments.map(a => ({
+          type: a.type,
+          data: a.data,
+        }));
+
         const resp = await fetch(CHAT_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ type: selectedTool.id, prompt: currentPrompt, context, provider }),
+          body: JSON.stringify({
+            type: selectedTool.id,
+            prompt: currentPrompt,
+            context,
+            provider,
+            attachments: apiAttachments.length > 0 ? apiAttachments : undefined,
+          }),
         });
         if (!resp.ok) {
           const errData = await resp.json().catch(() => ({}));
@@ -398,7 +463,7 @@ export default function AIAssistantPage() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
-              Motor de inteligência artificial da Drika — gere textos, imagens, descrições e estratégias com precisão sobrenatural.
+              Motor de inteligência artificial da Drika — gere textos, imagens, descrições e estratégias com precisão sobrenatural. Agora com análise de imagens!
             </p>
           </div>
 
@@ -417,7 +482,7 @@ export default function AIAssistantPage() {
             </div>
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
               <div className="h-1.5 w-1.5 rounded-full bg-primary/60" />
-              <span className="font-medium">Multi-model fallback • 8 modelos</span>
+              <span className="font-medium">Multi-model fallback • Visão + Texto</span>
             </div>
           </div>
         </div>
@@ -627,7 +692,7 @@ export default function AIAssistantPage() {
                   <div>
                      <p className="text-base font-bold text-foreground/80 mb-1">Inicie uma conversa</p>
                     <p className="text-xs text-muted-foreground/60 max-w-[280px] leading-relaxed">
-                       Escolha uma sugestão rápida ou escreva seu prompt para começar a gerar com a Drika IA
+                       Escolha uma sugestão rápida, escreva seu prompt ou envie uma imagem para a Drika IA analisar
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground/45">
@@ -652,6 +717,16 @@ export default function AIAssistantPage() {
                         ? "bg-primary/12 border border-primary/15 text-foreground"
                         : "bg-muted/20 border border-border/15 text-foreground/90 backdrop-blur-sm"
                     )}>
+                      {/* User attachments preview */}
+                      {msg.role === "user" && msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {msg.attachments.map(att => (
+                            <div key={att.id} className="relative rounded-xl overflow-hidden border border-border/20 shadow-md">
+                              <img src={att.preview} alt={att.name} className="max-w-[200px] max-h-[150px] object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {msg.imageUrl && (
                         <div className="mb-3 relative rounded-xl overflow-hidden border border-border/20 shadow-xl">
                           <img src={msg.imageUrl} alt="IA" className="w-full" />
@@ -759,7 +834,6 @@ export default function AIAssistantPage() {
                 </div>
               </div>
 
-
               <button
                 onClick={() => setShowContext(!showContext)}
                 className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-primary/80 transition-colors font-medium"
@@ -777,6 +851,26 @@ export default function AIAssistantPage() {
               />
             )}
 
+            {/* Attachment previews */}
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {attachments.map(att => (
+                  <div key={att.id} className="relative group/att rounded-xl overflow-hidden border border-primary/20 shadow-md">
+                    <img src={att.preview} alt={att.name} className="h-16 w-16 object-cover" />
+                    <button
+                      onClick={() => removeAttachment(att.id)}
+                      className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover/att:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3 text-white" />
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[8px] text-white text-center py-0.5 truncate px-1">
+                      {att.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="relative group/input">
               {/* Glow border on focus */}
               <div className={cn(
@@ -784,8 +878,34 @@ export default function AIAssistantPage() {
                 `bg-gradient-to-r ${selectedTool.gradient} blur-sm`
               )} />
               <div className="relative flex items-end gap-2 rounded-xl border border-primary/10 bg-card/80 p-2 backdrop-blur-sm">
+                {/* File upload button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                  className="h-10 w-10 shrink-0 rounded-xl text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-all"
+                  title="Enviar imagem"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
                 <Textarea
-                  placeholder={selectedTool.id === "image" ? "Descreva a imagem que deseja gerar..." : "Escreva seu prompt para a Drika IA..."}
+                  placeholder={
+                    attachments.length > 0
+                      ? "Descreva o que deseja saber sobre a imagem..."
+                      : selectedTool.id === "image"
+                      ? "Descreva a imagem que deseja gerar..."
+                      : "Escreva seu prompt para a Drika IA..."
+                  }
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
@@ -794,7 +914,7 @@ export default function AIAssistantPage() {
                 <Button
                   size="icon"
                   onClick={handleGenerate}
-                  disabled={loading || !prompt.trim()}
+                  disabled={loading || (!prompt.trim() && attachments.length === 0)}
                   className={cn(
                     "h-10 w-10 rounded-xl shrink-0 shadow-lg transition-all duration-300",
                     "bg-gradient-to-r", selectedTool.gradient,
@@ -806,7 +926,7 @@ export default function AIAssistantPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground/40 mt-2 text-center tracking-wide">
-              Enter para enviar • Shift+Enter para nova linha • Powered by Drika Engine
+              📎 Envie imagens para análise • Enter para enviar • Shift+Enter para nova linha
             </p>
           </div>
         </div>
