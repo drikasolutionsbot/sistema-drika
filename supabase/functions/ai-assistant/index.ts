@@ -108,6 +108,7 @@ Inclua estilo, cores, composição, iluminação e mood.`,
 Para imagens: descreva o que vê, identifique elementos, cores, textos, logos, pessoas, objetos.
 Para documentos/textos: resuma, extraia informações-chave, organize os dados.
 Sempre responda em português brasileiro de forma clara e estruturada com markdown.
+Se o usuário fornecer contexto adicional sobre seu negócio/produto, use-o para personalizar e enriquecer sua análise.
 Se o usuário fizer uma pergunta sobre o conteúdo, responda de forma precisa e completa.`,
     };
 
