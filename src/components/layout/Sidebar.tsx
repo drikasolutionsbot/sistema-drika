@@ -395,6 +395,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                 <NavItem
                   key={item.path}
                   item={item}
+                  resolvedLabel={t.nav[navLabelKeys[item.path] || item.label as keyof typeof t.nav] || item.label}
                   isActive={location.pathname.startsWith(item.path)}
                   collapsed
                 />
