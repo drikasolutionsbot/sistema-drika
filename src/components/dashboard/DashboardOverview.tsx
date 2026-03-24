@@ -439,13 +439,13 @@ export const DashboardOverview = () => {
         <Card className="border-border bg-card">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold">Vendas Recentes</CardTitle>
+              <CardTitle className="text-base font-semibold">{t.dashboardOverview.recentSales}</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {recentSales.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma venda neste período</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t.dashboardOverview.noSalesPeriod}</p>
             ) : (
               recentSales.map(sale => (
                 <div key={sale.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60">
