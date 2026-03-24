@@ -31,22 +31,56 @@ interface NavGroup {
   reorderable?: boolean;
 }
 
+// Translation key mapping for nav items by path
+const navLabelKeys: Record<string, keyof typeof import("@/i18n/translations/pt-BR").ptBR.nav> = {
+  "/dashboard": "overview",
+  "/ai-assistant": "aiGenerator",
+  "/finance": "finance",
+  "/approvals": "approvals",
+  "/affiliates": "affiliates",
+  "/customization": "server",
+  "/resources": "resources",
+  "/bot-customization": "customization",
+  "/channels": "channels",
+  "/roles": "roles",
+  "/verification": "verification",
+  "/store": "store",
+  "/marketplace": "marketplace",
+  "/protection": "protection",
+  "/welcome": "welcome",
+  "/tickets": "tickets",
+  "/giveaways": "giveaways",
+  "/ecloud": "ecloud",
+  "/embeds": "embeds",
+  "/tutorials": "tutorials",
+  "/support": "support",
+  "/settings": "settings",
+};
+
+// Group key -> translation key mapping
+const groupLabelKeys: Record<string, keyof typeof import("@/i18n/translations/pt-BR").ptBR.nav> = {
+  principal: "principal",
+  gerenciamento: "management",
+  bot: "bot",
+  configuracoes: "settings_group",
+};
+
 const defaultNavGroups: NavGroup[] = [
   {
     label: "PRINCIPAL",
     key: "principal",
     items: [
-      { label: "Visão Geral", icon: LayoutDashboard, path: "/dashboard" },
-      { label: "Gerador IA", icon: Sparkles, path: "/ai-assistant" },
+      { label: "overview", icon: LayoutDashboard, path: "/dashboard" },
+      { label: "aiGenerator", icon: Sparkles, path: "/ai-assistant" },
     ],
   },
   {
     label: "GERENCIAMENTO",
     key: "gerenciamento",
     items: [
-      { label: "Finanças", icon: DollarSign, path: "/finance" },
-      { label: "Aprovações", icon: ClipboardCheck, path: "/approvals" },
-      { label: "Afiliados", icon: Users, path: "/affiliates" },
+      { label: "finance", icon: DollarSign, path: "/finance" },
+      { label: "approvals", icon: ClipboardCheck, path: "/approvals" },
+      { label: "affiliates", icon: Users, path: "/affiliates" },
     ],
     reorderable: true,
   },
@@ -54,9 +88,9 @@ const defaultNavGroups: NavGroup[] = [
     label: "BOT",
     key: "bot",
     items: [
-      { label: "Servidor", icon: Server, path: "/customization" },
-      { label: "Recursos", icon: Box, path: "/resources" },
-      { label: "Personalização", icon: Sparkles, path: "/bot-customization" },
+      { label: "server", icon: Server, path: "/customization" },
+      { label: "resources", icon: Box, path: "/resources" },
+      { label: "customization", icon: Sparkles, path: "/bot-customization" },
     ],
     reorderable: true,
   },
@@ -64,26 +98,26 @@ const defaultNavGroups: NavGroup[] = [
     label: "CONFIGURAÇÕES",
     key: "configuracoes",
     items: [
-      { label: "Canais", icon: Hash, path: "/channels" },
-      { label: "Cargos", icon: ShieldCheck, path: "/roles" },
-      { label: "Verificação", icon: Shield, path: "/verification" },
-      { label: "Loja", icon: Store, path: "/store" },
-      { label: "Marketplace", icon: ShoppingBag, path: "/marketplace" },
-      { label: "Proteção", icon: Shield, path: "/protection" },
-      { label: "Boas-vindas", icon: HandMetal, path: "/welcome" },
-      { label: "Tickets", icon: Ticket, path: "/tickets" },
-      { label: "Sorteios", icon: Gift, path: "/giveaways" },
-      { label: "eCloud", icon: Cloud, path: "/ecloud" },
-      { label: "Embeds", icon: LayoutTemplate, path: "/embeds" },
+      { label: "channels", icon: Hash, path: "/channels" },
+      { label: "roles", icon: ShieldCheck, path: "/roles" },
+      { label: "verification", icon: Shield, path: "/verification" },
+      { label: "store", icon: Store, path: "/store" },
+      { label: "marketplace", icon: ShoppingBag, path: "/marketplace" },
+      { label: "protection", icon: Shield, path: "/protection" },
+      { label: "welcome", icon: HandMetal, path: "/welcome" },
+      { label: "tickets", icon: Ticket, path: "/tickets" },
+      { label: "giveaways", icon: Gift, path: "/giveaways" },
+      { label: "ecloud", icon: Cloud, path: "/ecloud" },
+      { label: "embeds", icon: LayoutTemplate, path: "/embeds" },
     ],
     reorderable: true,
   },
 ];
 
 const bottomItems: NavItemDef[] = [
-  { label: "Tutoriais", icon: BookOpen, path: "/tutorials" },
-  { label: "Suporte", icon: Headset, path: "/support" },
-  { label: "Configurações", icon: Settings, path: "/settings" },
+  { label: "tutorials", icon: BookOpen, path: "/tutorials" },
+  { label: "support", icon: Headset, path: "/support" },
+  { label: "settings", icon: Settings, path: "/settings" },
 ];
 
 // Icon map for restoring from localStorage (icons can't be serialized)
