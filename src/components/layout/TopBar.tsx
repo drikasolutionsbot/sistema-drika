@@ -216,12 +216,12 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
       const notifs: Notification[] = data.map((log: any) => ({
         id: log.id,
         title: log.status === "processed"
-          ? "Pagamento confirmado"
+          ? t.topbar.paymentConfirmed
           : log.status === "ignored"
-            ? "Webhook ignorado"
-            : "Webhook recebido",
+            ? t.topbar.webhookIgnored
+            : t.topbar.webhookReceived,
         desc: `${providerLabels[log.provider_key] || log.provider_key} — ${log.event_type || "evento"}`,
-        time: timeAgo(log.created_at),
+        time: timeAgo(log.created_at, t),
         read: readIds.has(log.id),
         type: log.status === "processed" ? "payment" : "info",
       }));
