@@ -1144,8 +1144,12 @@ export default function AIAssistantPage() {
                             {session.messages.length} msg • {new Date(session.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                           </p>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-destructive/10">
-                          <Trash2 className="h-3 w-3 text-destructive/50" />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
+                          className="shrink-0 p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-destructive/15 transition-all"
+                          title="Excluir chat"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive/70" />
                         </button>
                       </div>
                     ))}
