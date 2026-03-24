@@ -294,6 +294,7 @@ export default function AIAssistantPage() {
   const [dbHistory, setDbHistory] = useState<DbGeneration[]>([]);
   const [dbHistoryLoading, setDbHistoryLoading] = useState(false);
   const [showDbHistory, setShowDbHistory] = useState(false);
+  const [showDeleteControls, setShowDeleteControls] = useState(false);
   const [dbFilterCategory, setDbFilterCategory] = useState<string>("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -987,7 +988,7 @@ export default function AIAssistantPage() {
               <History className="h-3 w-3" /> Chats
             </button>
             <button
-              onClick={() => { setShowSaved(true); setShowDbHistory(false); }}
+              onClick={() => { setShowSaved(true); setShowDbHistory(false); setShowDeleteControls(false); }}
               className={cn("flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all",
                 showSaved ? "bg-amber-400/15 text-amber-400 border border-amber-400/20" : "text-muted-foreground/60 hover:text-muted-foreground"
               )}
@@ -998,7 +999,7 @@ export default function AIAssistantPage() {
               )}
             </button>
             <button
-              onClick={() => { setShowDbHistory(true); setShowSaved(false); }}
+              onClick={() => { setShowDbHistory(true); setShowSaved(false); setShowDeleteControls(false); }}
               className={cn("flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all",
                 showDbHistory ? "bg-emerald-400/15 text-emerald-400 border border-emerald-400/20" : "text-muted-foreground/60 hover:text-muted-foreground"
               )}
@@ -1009,6 +1010,21 @@ export default function AIAssistantPage() {
               )}
             </button>
           </div>
+
+          {!showSaved && !showDbHistory && filteredSessions.length > 0 && (
+            <button
+              onClick={() => setShowDeleteControls(prev => !prev)}
+              className={cn(
+                "w-full h-9 rounded-xl border text-[11px] font-bold transition-all inline-flex items-center justify-center gap-1.5",
+                showDeleteControls
+                  ? "border-destructive/35 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                  : "border-border/30 bg-card/20 text-muted-foreground hover:text-foreground hover:border-border/50"
+              )}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {showDeleteControls ? "Ocultar excluir" : "Mostrar excluir"}
+            </button>
+          )}
 
           <div className="rounded-2xl border border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
             <ScrollArea className="h-[180px]">
@@ -1144,14 +1160,16 @@ export default function AIAssistantPage() {
                             {session.messages.length} msg • {new Date(session.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                           </p>
                         </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
-                          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive hover:bg-destructive/20 transition-all"
-                          title="Excluir chat"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Excluir</span>
-                        </button>
+                        {showDeleteControls && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
+                            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive hover:bg-destructive/20 transition-all"
+                            title="Excluir chat"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Excluir</span>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
