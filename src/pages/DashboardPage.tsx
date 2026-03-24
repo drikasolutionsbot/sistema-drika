@@ -143,7 +143,7 @@ const DashboardPage = () => {
     setSavingMember(false);
     if (result) {
       setMemberDraft({});
-      toast.success("Permissões salvas!");
+      toast.success(t.dashboard.permissionsSaved);
       if (tenantId) {
         await logTenantAudit(tenantId, "save_permissions", "membro", selectedMember.discord_display_name || selectedMember.discord_username, selectedMember.id, memberDraft);
         loadAuditLogs();
