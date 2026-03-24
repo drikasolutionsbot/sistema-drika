@@ -309,7 +309,32 @@ export default function AIAssistantPage() {
 
   // ═══ PERSIST ═══
   useEffect(() => { saveSessions(sessions); }, [sessions]);
-  useEffect(() => { saveCredits(credits); }, [credits]);
+  useEffect(() => { saveSavedMessages(savedMessages); }, [savedMessages]);
+
+  // ═══ LOAD CREDITS FROM DB ═══
+  const loadCreditsFromDb = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const { data, error } = await supabase
+        .from("tenant_credits")
+        .select("credits_remaining, daily_limit")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) {
+        setCredits({ remaining: (data as any).credits_remaining, daily: (data as any).daily_limit, loaded: true });
+      } else {
+        // Create initial credits row
+        await supabase.from("tenant_credits").insert({ tenant_id: tenantId, credits_remaining: 100, daily_limit: 100 } as any);
+        setCredits({ remaining: 100, daily: 100, loaded: true });
+      }
+    } catch (e) {
+      console.error("Error loading credits:", e);
+      setCredits({ remaining: 100, daily: 100, loaded: true });
+    }
+  }, [tenantId]);
+
+  useEffect(() => { loadCreditsFromDb(); }, [loadCreditsFromDb]);
   useEffect(() => { saveSavedMessages(savedMessages); }, [savedMessages]);
 
   // ═══ LOAD DB HISTORY ═══
