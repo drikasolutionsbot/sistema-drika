@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Globe } from "lucide-react";
 import { useTheme } from "next-themes";
 import { differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import { WalletBadge } from "@/components/wallet/WalletBadge";
@@ -13,6 +13,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage, languageLabels, languageFlags, type Language } from "@/i18n/LanguageContext";
 
 interface TopBarProps {
   onToggleSidebar: () => void;
