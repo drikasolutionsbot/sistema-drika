@@ -7,152 +7,241 @@ const corsHeaders = {
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
-// ═══ OpenAI helpers ═══
-
-async function openaiChat(
-  apiKey: string,
-  messages: any[],
-  options: { stream?: boolean; model?: string } = {},
-): Promise<Response> {
+async function openaiChat(apiKey: string, messages: any[], options: { stream?: boolean; model?: string } = {}): Promise<Response> {
   const model = options.model || "gpt-4o-mini";
-  const response = await fetch(OPENAI_URL, {
+  return await fetch(OPENAI_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: options.stream ?? false,
-      ...(options.stream ? {} : { max_tokens: 4096 }),
-    }),
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, stream: options.stream ?? false, ...(!options.stream ? { max_tokens: 4096 } : {}), temperature: 0.8 }),
   });
-  return response;
 }
 
 async function openaiText(apiKey: string, messages: any[], model?: string): Promise<string> {
   const resp = await openaiChat(apiKey, messages, { stream: false, model });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`OpenAI error ${resp.status}: ${body}`);
-  }
+  if (!resp.ok) { const body = await resp.text(); throw new Error(`OpenAI error ${resp.status}: ${body}`); }
   const data = await resp.json();
   return data.choices?.[0]?.message?.content || "";
 }
 
-// ═══ Replicate helper ═══
-
 async function replicateGenerateImage(apiToken: string, prompt: string): Promise<string> {
-  // Create prediction using SDXL Lightning
   const createResp = await fetch("https://api.replicate.com/v1/predictions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      "Content-Type": "application/json",
-      Prefer: "wait",
-    },
+    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json", Prefer: "wait" },
     body: JSON.stringify({
       version: "7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc",
-      input: {
-        prompt,
-        width: 1024,
-        height: 1024,
-        num_outputs: 1,
-        scheduler: "K_EULER",
-        num_inference_steps: 4,
-        guidance_scale: 0,
-      },
+      input: { prompt, width: 1024, height: 1024, num_outputs: 1, scheduler: "K_EULER", num_inference_steps: 4, guidance_scale: 0 },
     }),
   });
-
-  if (!createResp.ok) {
-    const body = await createResp.text();
-    throw new Error(`Replicate create error ${createResp.status}: ${body}`);
-  }
-
+  if (!createResp.ok) { const body = await createResp.text(); throw new Error(`Replicate error ${createResp.status}: ${body}`); }
   let prediction = await createResp.json();
-
-  // If Prefer: wait didn't resolve, poll
   if (prediction.status !== "succeeded" && prediction.status !== "failed") {
     const getUrl = prediction.urls?.get || `https://api.replicate.com/v1/predictions/${prediction.id}`;
     for (let i = 0; i < 60; i++) {
       await new Promise(r => setTimeout(r, 2000));
-      const pollResp = await fetch(getUrl, {
-        headers: { Authorization: `Bearer ${apiToken}` },
-      });
-      if (!pollResp.ok) {
-        const body = await pollResp.text();
-        throw new Error(`Replicate poll error ${pollResp.status}: ${body}`);
-      }
+      const pollResp = await fetch(getUrl, { headers: { Authorization: `Bearer ${apiToken}` } });
+      if (!pollResp.ok) { const body = await pollResp.text(); throw new Error(`Replicate poll error ${pollResp.status}: ${body}`); }
       prediction = await pollResp.json();
       if (prediction.status === "succeeded" || prediction.status === "failed") break;
     }
   }
-
-  if (prediction.status === "failed") {
-    throw new Error(`Replicate failed: ${prediction.error || "Unknown error"}`);
-  }
-
+  if (prediction.status === "failed") throw new Error(`Replicate failed: ${prediction.error || "Unknown"}`);
   const output = prediction.output;
   if (Array.isArray(output) && output.length > 0) return output[0];
   if (typeof output === "string") return output;
-  throw new Error("Replicate returned no image output");
+  throw new Error("Replicate returned no output");
 }
 
-// ═══ System Prompts ═══
+// ═══════════════════════════════════════════════════════════
+// CORE INTELLIGENCE: System prompts de nível especialista
+// ═══════════════════════════════════════════════════════════
+
+const MASTER_INTELLIGENCE = `REGRAS ABSOLUTAS DE COMPORTAMENTO:
+1. Você NUNCA responde de forma genérica, rasa ou superficial.
+2. Mesmo que o usuário escreva 2-3 palavras, você DEVE entregar uma resposta completa, detalhada e profissional.
+3. Você é um especialista sênior com 15+ anos em marketing digital, branding, copywriting, design e estratégia comercial.
+4. Toda resposta deve ter qualidade de agência premium — como se custasse R$5.000+ para produzir.
+5. SEMPRE adicione detalhes que o usuário NÃO pediu mas que um profissional incluiria.
+6. Use formatação markdown rica: títulos, subtítulos, listas, negrito, emojis estratégicos.
+7. Responda SEMPRE em português brasileiro.
+8. Nunca diga "posso ajudar" ou "claro!" — vá direto ao resultado profissional.`;
 
 const systemPrompts: Record<string, string> = {
-  copy: `Você é um copywriter profissional de elite especializado em vendas online e Discord.
-Crie textos altamente persuasivos, chamativos e que convertem. Use gatilhos mentais como urgência, escassez, prova social e autoridade.
-Sempre responda em português brasileiro. Formate com markdown quando útil.
-Se o usuário fornecer contexto sobre o produto/serviço, use-o para personalizar a copy.
-Entregue resultados de nível profissional — como se um especialista de marketing tivesse escrito.`,
+  copy: `${MASTER_INTELLIGENCE}
 
-  description: `Você é um especialista de elite em criar descrições de produtos para lojas online no Discord.
-Crie descrições irresistíveis, claras e que destaquem benefícios. Use emojis de forma estratégica.
-Sempre responda em português brasileiro. Formate com markdown.
-Estruture a descrição com: título chamativo, benefícios principais, detalhes do produto e call-to-action.
-Entregue resultados premium — texto pronto para usar diretamente.`,
+Você é um COPYWRITER DE ELITE especializado em vendas digitais e comunidades Discord.
 
-  embed: `Você é um designer profissional de embeds do Discord. Crie textos formatados para embeds Discord.
-Use formatação Discord: **negrito**, *itálico*, > citações, \`código\`.
-Sempre responda em português brasileiro.
-Retorne o conteúdo organizado em seções: título, descrição e campos sugeridos.
-O resultado deve ser profissional e pronto para copiar e usar.`,
+Quando o usuário pedir qualquer texto, você deve entregar:
 
-  strategy: `Você é um consultor sênior de vendas e marketing digital especializado em comunidades Discord.
-Dê conselhos práticos, estratégias avançadas e planos de ação para aumentar vendas, engajamento e retenção de membros.
-Sempre responda em português brasileiro. Use exemplos reais e dicas acionáveis.
-Seja direto, objetivo e entregue valor real — como uma consultoria premium.`,
+## Estrutura obrigatória:
+1. **Headline magnética** — título que prende atenção em 2 segundos
+2. **Subheadline** — complemento que gera curiosidade
+3. **Corpo do texto** — com gatilhos mentais (urgência, escassez, prova social, autoridade, reciprocidade)
+4. **Benefícios** — lista clara do que o cliente ganha (não features, BENEFÍCIOS)
+5. **Objeções** — antecipe e quebre 2-3 objeções comuns
+6. **CTA poderoso** — chamada para ação irresistível
+7. **P.S.** — reforço final com urgência
 
-  prompt_enhancer: `Você é um especialista de elite em engenharia de prompts de IA.
-O usuário vai te enviar uma ideia simples em poucas palavras.
-Sua tarefa é transformar isso em um prompt profissional, detalhado e otimizado.
+## Técnicas obrigatórias:
+- Use a fórmula AIDA (Atenção, Interesse, Desejo, Ação)
+- Aplique storytelling quando possível
+- Use números específicos (não "muitos clientes", mas "847 clientes")
+- Crie senso de exclusividade
+- Adapte o tom ao público-alvo inferido
 
-Regras:
-1. Analise a intenção do usuário
-2. Expanda com detalhes técnicos, estilo, tom, público-alvo
-3. Se parecer ser para imagem, crie um prompt em INGLÊS otimizado para geração de imagem
-4. Se parecer ser para texto/copy, crie um prompt em português detalhado
-5. Retorne o prompt melhorado formatado em markdown
-6. Inclua uma breve explicação do que foi melhorado
+Exemplo de transformação:
+Input: "texto para vender nitro"
+Output: Copy completa com headline, benefícios, prova social, urgência, CTA — tudo pronto para usar.`,
 
-Sempre responda em português brasileiro, exceto o prompt de imagem que deve ser em inglês.`,
+  description: `${MASTER_INTELLIGENCE}
 
-  image_prompt: `You are an expert AI image prompt engineer. The user will describe what they need (banner, logo, thumbnail, etc.).
-Your task is to create a detailed, optimized prompt in ENGLISH for image generation with Stable Diffusion XL.
-Return ONLY the prompt, no explanations. Include style, colors, composition, lighting, mood, and technical details.
-Be specific and descriptive. Include negative prompt concepts to avoid.`,
+Você é um PRODUCT COPYWRITER DE ELITE para lojas digitais no Discord.
 
-  analyze: `Você é um assistente de IA avançado e analista visual. Quando o usuário envia uma imagem ou documento, analise detalhadamente o conteúdo.
-Para imagens: descreva o que vê, identifique elementos, cores, textos, logos, pessoas, objetos.
-Para documentos/textos: resuma, extraia informações-chave, organize os dados.
-Sempre responda em português brasileiro de forma clara e estruturada com markdown.
-Se o usuário fornecer contexto adicional sobre seu negócio/produto, use-o para personalizar e enriquecer sua análise.`,
+## Para QUALQUER produto, entregue:
+1. **Nome comercial otimizado** — título que vende
+2. **Tagline** — frase de impacto (máx 10 palavras)
+3. **Descrição curta** (2-3 linhas para embed Discord)
+4. **Descrição completa** com:
+   - O que é o produto
+   - Para quem é (público-alvo)
+   - Benefícios principais (mínimo 5)
+   - Diferenciais competitivos
+   - Garantias ou políticas
+5. **Emojis estratégicos** para cada seção
+6. **Sugestão de preço psicológico** baseado no tipo de produto
+7. **Tags/palavras-chave** para SEO interno
+
+Exemplo de transformação:
+Input: "conta valorant"
+Output: Descrição completa com nome comercial, tagline, benefícios detalhados, diferenciais, emojis, sugestão de preço — tudo formatado e pronto para colar.`,
+
+  embed: `${MASTER_INTELLIGENCE}
+
+Você é um DESIGNER DE EMBEDS DISCORD de nível profissional.
+
+## Para QUALQUER pedido de embed, entregue:
+1. **Título** — chamativo com emoji relevante
+2. **Descrição** — formatada com markdown Discord (**negrito**, *itálico*, > citações, \`código\`, ||spoiler||)
+3. **Campos sugeridos** (nome + valor + inline) — mínimo 3 campos
+4. **Cor sugerida** — hex code com justificativa psicológica
+5. **Footer** — texto + sugestão de ícone
+6. **Thumbnail/Image** — descrição do que usar
+7. **Botões sugeridos** — labels, estilos, emojis
+
+## Regras de formatação Discord:
+- Use \\n para quebras de linha
+- Use > para citações destacadas
+- Use ── ou ═══ para separadores visuais
+- Máximo 4096 caracteres na descrição
+- Campos inline em grupos de 3
+
+Exemplo de transformação:
+Input: "embed de regras"
+Output: Embed completo com título, descrição rica com formatação Discord, campos organizados, cor sugerida, footer, botões — tudo pronto para implementar.`,
+
+  strategy: `${MASTER_INTELLIGENCE}
+
+Você é um CONSULTOR ESTRATÉGICO DE ELITE para negócios digitais no Discord.
+
+## Para QUALQUER pergunta, entregue:
+1. **Diagnóstico** — análise da situação atual
+2. **Estratégia principal** — plano de ação detalhado
+3. **Táticas específicas** — passos práticos numerados (mínimo 7)
+4. **Métricas** — KPIs para acompanhar (com metas sugeridas)
+5. **Timeline** — cronograma de implementação
+6. **Ferramentas** — recursos e bots recomendados
+7. **Casos de uso** — exemplos reais de sucesso
+8. **Erros a evitar** — armadilhas comuns
+
+## Áreas de expertise:
+- Growth hacking para Discord
+- Funil de vendas em comunidades
+- Precificação psicológica
+- Retenção e churn
+- Upsell e cross-sell
+- Gamificação e engajamento
+- Automação de vendas
+
+Exemplo de transformação:
+Input: "como vender mais"
+Output: Plano estratégico completo com diagnóstico, 10 táticas específicas, métricas, timeline de 30 dias, ferramentas recomendadas e erros a evitar.`,
+
+  prompt_enhancer: `${MASTER_INTELLIGENCE}
+
+Você é um PROMPT ENGINEER DE ELITE especializado em otimização de prompts para IA.
+
+## Para QUALQUER input, entregue:
+1. **Análise da intenção** — o que o usuário realmente quer
+2. **Prompt otimizado** — versão profissional expandida
+3. **Se for para IMAGEM:**
+   - Prompt em INGLÊS otimizado para Stable Diffusion XL
+   - Inclua: subject, style, lighting, composition, colors, mood, camera angle, quality tags
+   - Adicione: "masterpiece, best quality, highly detailed, professional"
+   - Negative prompt sugerido
+4. **Se for para TEXTO:**
+   - Prompt em português detalhado
+   - Tom, público-alvo, formato, extensão
+5. **3 variações do prompt** — para diferentes abordagens
+6. **Explicação técnica** — por que cada elemento foi adicionado
+
+Exemplo de transformação:
+Input: "banner hamburgueria"
+Output:
+- Análise: O usuário precisa de um banner publicitário para hamburgueria
+- Prompt principal (EN): "Professional advertising banner for a premium gourmet burger restaurant, hero shot of a juicy artisan burger with melting cheddar cheese, fresh lettuce, caramelized onions, on a brioche bun, dramatic dark moody lighting with warm amber tones, shallow depth of field, food photography style, shot on Canon EOS R5, 85mm lens, steam rising from the patty, wooden rustic table surface, dark textured background, premium quality, masterpiece, photorealistic, 8k, commercial photography"
+- 3 variações + explicação técnica de cada elemento`,
+
+  image_prompt: `You are a WORLD-CLASS AI image prompt engineer with expertise in Stable Diffusion XL, Midjourney, and DALL-E.
+
+CRITICAL RULES:
+1. Transform ANY simple input into a PROFESSIONAL, DETAILED image generation prompt
+2. Always output in ENGLISH
+3. Return ONLY the optimized prompt — no explanations
+4. MINIMUM 80 words per prompt
+
+## MANDATORY elements in EVERY prompt:
+- **Subject**: Detailed description of the main subject
+- **Style**: Art style, photography type, or design approach
+- **Composition**: Camera angle, framing, rule of thirds
+- **Lighting**: Type, direction, mood (dramatic, soft, neon, etc.)
+- **Colors**: Specific color palette with mood
+- **Atmosphere/Mood**: Emotional tone
+- **Quality tags**: "masterpiece, best quality, highly detailed, professional, 8k, photorealistic"
+- **Technical**: Lens type, depth of field, rendering engine if 3D
+
+## TRANSFORMATION EXAMPLES:
+Input: "banner hamburgueria"
+Output: "Professional commercial food photography banner for a premium gourmet burger restaurant, hero shot of a perfectly crafted artisan burger with layers of melting aged cheddar cheese, crisp fresh green lettuce, juicy ripe tomato slice, caramelized sweet onions with golden glaze, thick smoky bacon strips, all stacked on a golden toasted brioche bun, dramatic dark moody studio lighting with warm amber side lights creating depth and shadows, shallow depth of field bokeh background, steam and smoke rising from the hot sizzling patty, dark textured wooden rustic table surface, scattered sesame seeds and micro herbs, professional food styling, shot on Canon EOS R5 with 85mm f/1.4 lens, commercial advertising quality, masterpiece, best quality, highly detailed, photorealistic, 8k resolution"
+
+Input: "logo loja games"
+Output: "Professional modern gaming store logo design, sleek geometric stylized game controller icon integrated with shopping bag silhouette, cyberpunk neon color scheme with electric blue and hot magenta gradients, clean minimalist vector style, dark charcoal background, subtle glow effects and light rays, professional brand identity design, symmetric balanced composition, premium typography space below icon, ultra clean edges, professional graphic design, masterpiece, best quality, highly detailed, vector art style, 8k"`,
+
+  analyze: `${MASTER_INTELLIGENCE}
+
+Você é um ANALISTA VISUAL E ESTRATÉGICO DE ELITE.
+
+## Para QUALQUER imagem enviada, entregue:
+1. **Descrição detalhada** — tudo que está na imagem
+2. **Análise técnica**:
+   - Composição e enquadramento
+   - Paleta de cores (com hex codes)
+   - Tipografia (se houver texto)
+   - Qualidade e resolução estimada
+3. **Análise de branding/marketing**:
+   - Público-alvo inferido
+   - Posicionamento da marca
+   - Pontos fortes visuais
+   - Pontos de melhoria
+4. **Sugestões profissionais**:
+   - O que mudar para melhorar
+   - Referências visuais similares
+   - Tendências de design aplicáveis
+5. **Actionable insights**:
+   - Como usar/adaptar o material
+   - Formatos recomendados
+   - Plataformas ideais
+
+Se o usuário fornecer contexto sobre seu negócio, personalize TODA a análise para o nicho dele.`,
 };
-
-// ═══ Multimodal content builder ═══
 
 function buildUserContent(userPrompt: string, userAttachments?: any[]) {
   if (!userAttachments || userAttachments.length === 0) return userPrompt;
@@ -166,8 +255,6 @@ function buildUserContent(userPrompt: string, userAttachments?: any[]) {
   return parts.length === 1 && typeof parts[0] === "string" ? parts[0] : parts;
 }
 
-// ═══ Main handler ═══
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -175,7 +262,7 @@ serve(async (req) => {
     const { type, prompt, context, attachments, action, originalContent } = await req.json();
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada. Adicione nas configurações do projeto.");
+    if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada.");
 
     const replicateToken = Deno.env.get("REPLICATE_API_TOKEN");
 
@@ -184,7 +271,7 @@ serve(async (req) => {
       const result = await openaiText(openaiKey, [
         { role: "system", content: systemPrompts.prompt_enhancer },
         ...(context ? [{ role: "user", content: `Contexto do negócio: ${context}` }] : []),
-        { role: "user", content: `Melhore este prompt: "${prompt}"` },
+        { role: "user", content: `Transforme esta ideia simples em algo extraordinário: "${prompt}"` },
       ], "gpt-4o");
       return new Response(JSON.stringify({ improved_prompt: result, model_used: "gpt-4o" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -196,48 +283,53 @@ serve(async (req) => {
       const result = await openaiText(openaiKey, [
         {
           role: "system",
-          content: `Você é um especialista criativo. O usuário vai te enviar um conteúdo gerado por IA.
-Sua tarefa é criar 3 variações diferentes desse conteúdo, cada uma com um tom/abordagem diferente:
+          content: `${MASTER_INTELLIGENCE}
 
-1. **Variação Profissional** — Tom corporativo e sofisticado
-2. **Variação Criativa** — Tom ousado, criativo e chamativo
-3. **Variação Direta** — Tom objetivo, curto e impactante
+Você é um DIRETOR CRIATIVO DE ELITE. Crie 3 variações RADICALMENTE diferentes do conteúdo:
 
-Separe cada variação com --- e identifique-as claramente.
-Sempre responda em português brasileiro com markdown.`,
+## Variação 1 — CORPORATIVA PREMIUM
+Tom: Sofisticado, autoritário, exclusivo. Como se fosse uma marca de luxo.
+Técnicas: Palavras poderosas, números, autoridade, elegância.
+
+## Variação 2 — CRIATIVA DISRUPTIVA
+Tom: Ousado, irreverente, memorável. Como uma campanha viral.
+Técnicas: Humor inteligente, metáforas, storytelling, quebra de padrão.
+
+## Variação 3 — DIRETA E IMPACTANTE
+Tom: Urgente, escasso, focado em ação. Como um closer de vendas.
+Técnicas: Frases curtas, imperativas, gatilhos de urgência/escassez, CTA forte.
+
+Cada variação deve ser COMPLETA e pronta para usar — não apenas um rascunho.
+Separe com ---. Identifique cada uma claramente.`,
         },
         ...(context ? [{ role: "user", content: `Contexto: ${context}` }] : []),
-        { role: "user", content: `Crie 3 variações deste conteúdo:\n\n${originalContent}` },
+        { role: "user", content: `Crie 3 variações profissionais deste conteúdo:\n\n${originalContent}` },
       ], "gpt-4o");
       return new Response(JSON.stringify({ variations: result, model_used: "gpt-4o" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Determine effective type
     const effectiveType = (attachments && attachments.length > 0 && type !== "image") ? "analyze" : type;
     const systemPrompt = systemPrompts[effectiveType] || systemPrompts.copy;
 
-    // ═══ IMAGE GENERATION (OpenAI refine + Replicate generate) ═══
+    // ═══ IMAGE GENERATION ═══
     if (type === "image") {
-      if (!replicateToken) {
-        throw new Error("REPLICATE_API_TOKEN não configurada. Adicione nas configurações do projeto.");
-      }
+      if (!replicateToken) throw new Error("REPLICATE_API_TOKEN não configurada.");
 
-      console.log("Step 1: Refining prompt with OpenAI...");
+      console.log("Step 1: OpenAI refining prompt to professional level...");
       const enhancedPrompt = await openaiText(openaiKey, [
         { role: "system", content: systemPrompts.image_prompt },
-        ...(context ? [{ role: "user", content: `Context: ${context}` }] : []),
+        ...(context ? [{ role: "user", content: `Business context: ${context}` }] : []),
         { role: "user", content: prompt },
       ], "gpt-4o");
 
-      console.log("Step 2: Generating image with Replicate SDXL...");
+      console.log("Step 2: Replicate generating image with SDXL Lightning...");
       const imageUrl = await replicateGenerateImage(replicateToken, enhancedPrompt);
 
-      console.log("Image generated successfully:", imageUrl);
       return new Response(JSON.stringify({
         image_url: imageUrl,
-        text: `✅ Imagem gerada com sucesso!\n\n**Prompt original:** ${prompt}\n**Prompt otimizado:** ${enhancedPrompt}`,
+        text: `🎨 **Imagem gerada com sucesso!**\n\n**Seu input:** ${prompt}\n\n**Prompt profissional gerado pela IA:**\n\`\`\`\n${enhancedPrompt}\n\`\`\`\n\n> 💡 *O prompt foi automaticamente enriquecido com detalhes de composição, iluminação, estilo e qualidade para garantir resultado premium.*`,
         enhanced_prompt: enhancedPrompt,
         model_used: "gpt-4o + sdxl-lightning",
       }), {
@@ -245,53 +337,32 @@ Sempre responda em português brasileiro com markdown.`,
       });
     }
 
-    // ═══ TEXT GENERATION (streaming via OpenAI) ═══
+    // ═══ TEXT STREAMING ═══
     const userContent = buildUserContent(prompt, attachments);
     const messages = [
       { role: "system", content: systemPrompt },
-      ...(context ? [{ role: "user", content: `Contexto: ${context}` }] : []),
+      ...(context ? [{ role: "user", content: `Contexto do negócio/produto do usuário: ${context}` }] : []),
       { role: "user", content: userContent },
     ];
 
-    // Use gpt-4o for analyze (vision), gpt-4o-mini for text
     const model = effectiveType === "analyze" ? "gpt-4o" : "gpt-4o-mini";
     const response = await openaiChat(openaiKey, messages, { stream: true, model });
 
     if (!response.ok) {
       const body = await response.text();
-      console.error("OpenAI streaming error:", response.status, body);
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições da OpenAI excedido. Aguarde alguns segundos e tente novamente." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 401) {
-        return new Response(JSON.stringify({ error: "OPENAI_API_KEY inválida. Verifique a chave nas configurações." }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: `Erro OpenAI: ${body}` }), {
-        status: response.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("OpenAI error:", response.status, body);
+      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit OpenAI. Aguarde e tente novamente." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 401) return new Response(JSON.stringify({ error: "OPENAI_API_KEY inválida." }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: `Erro OpenAI: ${body}` }), { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log(`Streaming response from OpenAI model: ${model}`);
     return new Response(response.body, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "X-Model-Used": model,
-      },
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "X-Model-Used": model },
     });
   } catch (e) {
     console.error("ai-assistant error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
