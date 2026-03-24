@@ -604,7 +604,7 @@ const DashboardPage = () => {
           {auditLoading ? (
             <div className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
           ) : auditLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum registro de auditoria encontrado.</p>
+            <p className="text-sm text-muted-foreground">{t.dashboard.noAuditLogs}</p>
           ) : (
             <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-none">
               {auditLogs.map(log => (
