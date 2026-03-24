@@ -584,7 +584,7 @@ const DashboardPage = () => {
                   <div className="rounded-lg border border-border bg-muted/30 p-3">
                     <div className="flex items-center justify-center gap-2 text-sm text-foreground">
                       <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      Aguardando conexão automática...
+                      {t.dashboard.waitingConnection}
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="w-full" onClick={handleCancelBotPolling}>
