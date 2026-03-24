@@ -294,6 +294,7 @@ export default function AIAssistantPage() {
   const [dbHistory, setDbHistory] = useState<DbGeneration[]>([]);
   const [dbHistoryLoading, setDbHistoryLoading] = useState(false);
   const [showDbHistory, setShowDbHistory] = useState(false);
+  const [showDeleteControls, setShowDeleteControls] = useState(false);
   const [dbFilterCategory, setDbFilterCategory] = useState<string>("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
