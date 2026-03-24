@@ -538,7 +538,7 @@ serve(async (req) => {
     // ACTION: generate_image_variation (nova variação de imagem)
     // ═══════════════════════════════════════
     if (action === "generate_image_variation") {
-      if (!replicateToken) throw new Error("REPLICATE_API_TOKEN não configurada.");
+      
 
       const basePrompt = originalContent || prompt;
       console.log("🎨 Image variation: refining prompt with GPT-4o...");
@@ -548,7 +548,7 @@ serve(async (req) => {
       ], textModel, 0.95);
 
       console.log("🖼️ Image variation: generating with Replicate...");
-      const imageUrl = await replicateGenerateImage(replicateToken!, variationPrompt);
+      const imageUrl = await generateImage(apiKey, replicateToken, variationPrompt);
 
       return new Response(JSON.stringify({
         image_url: imageUrl,
@@ -615,7 +615,7 @@ REGRAS:
     // IMAGE GENERATION (orquestração GPT-4o + SDXL)
     // ═══════════════════════════════════════
     if (type === "image") {
-      if (!replicateToken) throw new Error("REPLICATE_API_TOKEN não configurada.");
+      
 
       console.log("🎨 Step 1: GPT-4o refining prompt to commercial-grade...");
       const enhancedPrompt = await gatewayText(apiKey, [
@@ -625,7 +625,7 @@ REGRAS:
       ], textModel, 0.7);
 
       console.log("🖼️ Step 2: Replicate generating with SDXL Lightning...");
-      const imageUrl = await replicateGenerateImage(replicateToken!, enhancedPrompt);
+      const imageUrl = await generateImage(apiKey, replicateToken, enhancedPrompt);
 
       return new Response(JSON.stringify({
         image_url: imageUrl,
