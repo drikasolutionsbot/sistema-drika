@@ -5,11 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-async function openaiChat(apiKey: string, messages: any[], options: { stream?: boolean; model?: string; temperature?: number; max_tokens?: number } = {}): Promise<Response> {
-  const model = options.model || "gpt-4o-mini";
-  return await fetch(OPENAI_URL, {
+async function gatewayChat(apiKey: string, messages: any[], options: { stream?: boolean; model?: string; temperature?: number; max_tokens?: number } = {}): Promise<Response> {
+  const model = options.model || "google/gemini-3-flash-preview";
+  return await fetch(GATEWAY_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -18,46 +18,32 @@ async function openaiChat(apiKey: string, messages: any[], options: { stream?: b
       stream: options.stream ?? false,
       max_tokens: options.max_tokens || 4096,
       temperature: options.temperature ?? 0.85,
-      top_p: 0.95,
-      frequency_penalty: 0.15,
-      presence_penalty: 0.2,
     }),
   });
 }
 
-async function openaiText(apiKey: string, messages: any[], model?: string, temperature?: number): Promise<string> {
-  const resp = await openaiChat(apiKey, messages, { stream: false, model, temperature });
-  if (!resp.ok) { const body = await resp.text(); throw new Error(`OpenAI error ${resp.status}: ${body}`); }
+async function gatewayText(apiKey: string, messages: any[], model?: string, temperature?: number): Promise<string> {
+  const resp = await gatewayChat(apiKey, messages, { stream: false, model, temperature });
+  if (!resp.ok) { const body = await resp.text(); throw new Error(`AI Gateway error ${resp.status}: ${body}`); }
   const data = await resp.json();
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function replicateGenerateImage(apiToken: string, prompt: string): Promise<string> {
-  const createResp = await fetch("https://api.replicate.com/v1/predictions", {
+async function gatewayGenerateImage(apiKey: string, prompt: string): Promise<string> {
+  const resp = await fetch(GATEWAY_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json", Prefer: "wait" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      version: "7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc",
-      input: { prompt, width: 1024, height: 1024, num_outputs: 1, scheduler: "K_EULER", num_inference_steps: 4, guidance_scale: 0 },
+      model: "google/gemini-2.5-flash-image",
+      messages: [{ role: "user", content: prompt }],
+      modalities: ["image", "text"],
     }),
   });
-  if (!createResp.ok) { const body = await createResp.text(); throw new Error(`Replicate error ${createResp.status}: ${body}`); }
-  let prediction = await createResp.json();
-  if (prediction.status !== "succeeded" && prediction.status !== "failed") {
-    const getUrl = prediction.urls?.get || `https://api.replicate.com/v1/predictions/${prediction.id}`;
-    for (let i = 0; i < 60; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      const pollResp = await fetch(getUrl, { headers: { Authorization: `Bearer ${apiToken}` } });
-      if (!pollResp.ok) { const body = await pollResp.text(); throw new Error(`Replicate poll error ${pollResp.status}: ${body}`); }
-      prediction = await pollResp.json();
-      if (prediction.status === "succeeded" || prediction.status === "failed") break;
-    }
-  }
-  if (prediction.status === "failed") throw new Error(`Replicate failed: ${prediction.error || "Unknown"}`);
-  const output = prediction.output;
-  if (Array.isArray(output) && output.length > 0) return output[0];
-  if (typeof output === "string") return output;
-  throw new Error("Replicate returned no output");
+  if (!resp.ok) { const body = await resp.text(); throw new Error(`Image generation error ${resp.status}: ${body}`); }
+  const data = await resp.json();
+  const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!imageData) throw new Error("No image returned from AI Gateway");
+  return imageData;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
