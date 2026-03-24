@@ -514,10 +514,10 @@ const DashboardPage = () => {
         <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
           <TabsList className="bg-muted/50 border border-border w-max min-w-full sm:w-auto">
             <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-background text-xs sm:text-sm">
-              <Eye className="h-4 w-4" /> Visão Geral
+              <Eye className="h-4 w-4" /> {t.dashboard.overviewTab}
             </TabsTrigger>
             <TabsTrigger value="resumo" className="gap-2 data-[state=active]:bg-background text-xs sm:text-sm">
-              <BarChart3 className="h-4 w-4" /> Resumo
+              <BarChart3 className="h-4 w-4" /> {t.dashboard.summaryTab}
             </TabsTrigger>
           </TabsList>
         </div>
