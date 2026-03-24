@@ -359,9 +359,9 @@ export const DashboardOverview = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-semibold">
-                  Receita — {period === "today" ? "Por hora" : periodLabel}
+                  {t.dashboardOverview.revenue} — {period === "today" ? t.dashboardOverview.perHour : periodLabel}
                 </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Valores em R$</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.dashboardOverview.valuesInCurrency}</p>
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
