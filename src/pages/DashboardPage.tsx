@@ -781,8 +781,8 @@ const DashboardPage = () => {
       <Dialog open={createRoleOpen} onOpenChange={setCreateRoleOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Criar novo cargo</DialogTitle>
-            <DialogDescription>O cargo será criado automaticamente no servidor Discord.</DialogDescription>
+            <DialogTitle>{t.dashboard.createNewRole}</DialogTitle>
+            <DialogDescription>{t.dashboard.createNewRoleDesc}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
