@@ -197,12 +197,12 @@ export const DashboardOverview = () => {
 
   const periodLabel = useMemo(() => {
     switch (period) {
-      case "today": return "Hoje";
-      case "7d": return "7 dias";
-      case "30d": return "30 dias";
+      case "today": return t.dashboardOverview.today;
+      case "7d": return t.dashboardOverview.days7;
+      case "30d": return t.dashboardOverview.days30;
       case "custom": return `${format(customRange.from, "dd/MM")} — ${format(customRange.to, "dd/MM")}`;
     }
-  }, [period, customRange]);
+  }, [period, customRange, t]);
 
   if (loading) {
     return (
