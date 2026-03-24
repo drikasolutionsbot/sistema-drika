@@ -506,7 +506,7 @@ const DashboardPage = () => {
       <div>
         <h1 className="font-display text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
-          Painel de controle de <strong className="text-foreground">{tenant.name}</strong>
+          {t.dashboard.controlPanel} <strong className="text-foreground">{tenant.name}</strong>
         </p>
       </div>
 
