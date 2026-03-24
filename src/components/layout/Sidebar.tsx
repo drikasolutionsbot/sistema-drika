@@ -238,6 +238,7 @@ const NavItem = ({ item, isActive, collapsed, reordering, onMoveUp, onMoveDown, 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
   const { tenant, tenantId } = useTenant();
+  const { t } = useLanguage();
   const [reorderingGroup, setReorderingGroup] = useState<string | null>(null);
   const [navGroups, setNavGroups] = useState<NavGroup[]>(defaultNavGroups);
 
