@@ -1000,7 +1000,7 @@ export default function AIAssistantPage() {
                     <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
                   </div>
                   <span className="text-[10px] font-semibold text-primary/80 tracking-wide">
-                    {actionLoading === "improve" ? "Melhorando..." : actionLoading === "variations" ? "Gerando 3 variações..." : "Processando..."}
+                    {actionLoading === "improve" ? "Melhorando..." : actionLoading === "variations" ? "Gerando 3 variações..." : actionLoading === "image_variation" ? "Gerando variação da imagem..." : selectedTool.id === "image" ? "Gerando imagem..." : "Processando..."}
                   </span>
                 </div>
               )}
