@@ -615,7 +615,52 @@ REGRAS:
     // IMAGE GENERATION (orquestração GPT-4o + SDXL)
     // ═══════════════════════════════════════
     if (type === "image") {
-      
+      // If user sent attachments with image tool → edit/transform the image
+      if (attachments && attachments.length > 0) {
+        console.log("🎨 Image edit: user sent attachment with image tool, using AI to edit...");
+        
+        const userContentParts: any[] = [];
+        if (prompt.trim()) {
+          userContentParts.push({ type: "text", text: `Edit/transform this image based on this instruction: ${prompt}${context ? `\nBusiness context: ${context}` : ""}` });
+        } else {
+          userContentParts.push({ type: "text", text: `Analyze this image and create an improved/enhanced version of it.${context ? `\nBusiness context: ${context}` : ""}` });
+        }
+        for (const att of attachments) {
+          if (att.type === "image" && att.data) {
+            userContentParts.push({ type: "image_url", image_url: { url: att.data, detail: "high" } });
+          }
+        }
+
+        const editResp = await fetch(GATEWAY_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image",
+            messages: [{ role: "user", content: userContentParts }],
+            modalities: ["image", "text"],
+          }),
+        });
+
+        if (!editResp.ok) {
+          const body = await editResp.text();
+          throw new Error(`Image edit error ${editResp.status}: ${body}`);
+        }
+
+        const editData = await editResp.json();
+        const editedImageUrl = editData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        const editText = editData.choices?.[0]?.message?.content || "";
+
+        return new Response(JSON.stringify({
+          image_url: editedImageUrl || null,
+          text: editedImageUrl
+            ? `🎨 **Imagem editada com sucesso!**\n\n${editText ? `${editText}\n\n` : ""}> 💡 *A imagem foi processada com base na sua instrução e no arquivo enviado.*`
+            : `⚠️ Não foi possível editar a imagem. ${editText || "Tente novamente com uma instrução diferente."}`,
+          enhanced_prompt: prompt,
+          model_used: "gemini-2.5-flash-image (edit)",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       console.log("🎨 Step 1: GPT-4o refining prompt to commercial-grade...");
       const enhancedPrompt = await gatewayText(apiKey, [

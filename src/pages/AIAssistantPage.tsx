@@ -665,9 +665,15 @@ export default function AIAssistantPage() {
     const assistantMsgId = crypto.randomUUID();
 
     try {
-      if (selectedTool.id === "image" && currentAttachments.length === 0) {
+      if (selectedTool.id === "image") {
+        const apiAttachments = currentAttachments.map(a => ({ type: a.type, data: a.data }));
         const { data, error } = await supabase.functions.invoke("ai-assistant", {
-          body: { type: "image", prompt: currentPrompt, context },
+          body: {
+            type: "image",
+            prompt: currentPrompt,
+            context,
+            attachments: apiAttachments.length > 0 ? apiAttachments : undefined,
+          },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
@@ -684,7 +690,6 @@ export default function AIAssistantPage() {
         setSessions(prev => prev.map(s =>
           s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
         ));
-        // Save image generation to DB
         saveGenerationToDb({
           category: "image",
           userInput: currentPrompt,
