@@ -1209,25 +1209,43 @@ export default function AIAssistantPage() {
                             <div className="relative h-8 w-8">
                               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/30 to-[#C44AFF]/30 animate-spin" style={{ animationDuration: "3s" }} />
                               <div className="absolute inset-[3px] rounded-full bg-card flex items-center justify-center">
-                                <Brain className="h-3.5 w-3.5 text-primary animate-pulse" />
+                                {selectedTool.id === "image" ? <Image className="h-3.5 w-3.5 text-primary animate-pulse" /> : <Brain className="h-3.5 w-3.5 text-primary animate-pulse" />}
                               </div>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <span className="text-[11px] font-bold text-foreground/60">Orquestrando IA</span>
-                              <div className="flex gap-1.5">
-                                {[0, 1, 2, 3, 4].map(i => (
-                                  <div key={i} className="h-1 w-4 rounded-full bg-gradient-to-r from-primary/50 to-[#C44AFF]/50" style={{ animation: `pulse 1.5s ease-in-out infinite`, animationDelay: `${i * 200}ms`, opacity: 0.3 }} />
-                                ))}
-                              </div>
+                              <span className="text-[11px] font-bold text-foreground/60">
+                                {selectedTool.id === "image" ? "Gerando imagem profissional..." : "Orquestrando IA"}
+                              </span>
+                              {selectedTool.id === "image" ? (
+                                <div className="flex flex-col gap-1 text-[9px] text-muted-foreground/50">
+                                  <span>① Refinando prompt com GPT-4o...</span>
+                                  <span>② Gerando imagem com SDXL Lightning...</span>
+                                </div>
+                              ) : (
+                                <div className="flex gap-1.5">
+                                  {[0, 1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-1 w-4 rounded-full bg-gradient-to-r from-primary/50 to-[#C44AFF]/50" style={{ animation: `pulse 1.5s ease-in-out infinite`, animationDelay: `${i * 200}ms`, opacity: 0.3 }} />
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="space-y-2.5">
-                            {[85, 65, 45].map((w, i) => (
-                              <div key={i} className="h-2 rounded-full overflow-hidden" style={{ width: `${w}%` }}>
-                                <div className="h-full w-[200%] bg-gradient-to-r from-muted/30 via-muted/10 to-muted/30" style={{ animation: `shimmer 2s linear infinite`, animationDelay: `${i * 300}ms` }} />
+                          {selectedTool.id === "image" ? (
+                            <div className="space-y-2">
+                              <div className="h-40 w-full rounded-xl bg-gradient-to-br from-muted/20 via-primary/5 to-muted/20 animate-pulse border border-border/10 flex items-center justify-center">
+                                <Image className="h-8 w-8 text-muted-foreground/20 animate-pulse" />
                               </div>
-                            ))}
-                          </div>
+                              <div className="h-2 w-3/4 rounded-full bg-muted/20 animate-pulse" />
+                            </div>
+                          ) : (
+                            <div className="space-y-2.5">
+                              {[85, 65, 45].map((w, i) => (
+                                <div key={i} className="h-2 rounded-full overflow-hidden" style={{ width: `${w}%` }}>
+                                  <div className="h-full w-[200%] bg-gradient-to-r from-muted/30 via-muted/10 to-muted/30" style={{ animation: `shimmer 2s linear infinite`, animationDelay: `${i * 300}ms` }} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
