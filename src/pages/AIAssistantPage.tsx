@@ -728,6 +728,7 @@ export default function AIAssistantPage() {
             context,
             attachments: apiAttachments.length > 0 ? apiAttachments : undefined,
           }),
+          signal: abortController.signal,
         });
         if (!resp.ok) {
           const errData = await resp.json().catch(() => ({}));
