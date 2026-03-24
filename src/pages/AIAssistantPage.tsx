@@ -299,6 +299,7 @@ export default function AIAssistantPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [showContext, setShowContext] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -1272,7 +1273,7 @@ export default function AIAssistantPage() {
 
                       {msg.imageUrl && (
                         <div className="mb-3 space-y-2">
-                          <div className="relative rounded-xl overflow-hidden border border-border/20 shadow-xl group/img max-w-[320px]">
+                          <div className="relative rounded-xl overflow-hidden border border-border/20 shadow-xl group/img max-w-[320px] cursor-pointer" onClick={() => setLightboxUrl(msg.imageUrl!)}>
                             <img src={msg.imageUrl} alt="IA Generated" className="w-full h-auto" />
                             <div className="absolute inset-0 ring-1 ring-inset ring-white/5 rounded-xl pointer-events-none" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300" />
@@ -1552,6 +1553,27 @@ export default function AIAssistantPage() {
           100% { transform: translateX(0%); }
         }
       `}</style>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-10"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Preview"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
