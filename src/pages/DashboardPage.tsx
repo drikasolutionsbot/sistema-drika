@@ -637,15 +637,18 @@ const DashboardPage = () => {
         </div>
 
         <div className="flex gap-4 sm:gap-6 border-b border-border overflow-x-auto scrollbar-none">
-          {(["membros", "cargos"] as const).map(tab => (
+          {([
+            { key: "membros" as const, label: t.dashboard.members },
+            { key: "cargos" as const, label: t.dashboard.roles },
+          ]).map(tab => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-2 text-sm font-medium transition-colors capitalize ${
-                activeTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`pb-2 text-sm font-medium transition-colors ${
+                activeTab === tab.key ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </div>
