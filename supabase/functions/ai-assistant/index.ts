@@ -32,12 +32,12 @@ async function gatewayText(apiKey: string, messages: any[], model?: string, temp
 async function generateImage(apiKey: string, replicateToken: string | undefined, prompt: string): Promise<string> {
   // Try Lovable AI Gateway image generation first (most reliable)
   try {
-    console.log("🖼️ Generating image with Lovable AI Gateway (gemini-2.5-flash-image)...");
+    console.log("🖼️ Generating image with Lovable AI Gateway (gemini-3-pro-image-preview)...");
     const resp = await fetch(GATEWAY_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
+        model: "google/gemini-3-pro-image-preview",
         messages: [{ role: "user", content: `Generate this image: ${prompt}` }],
         modalities: ["image", "text"],
       }),
@@ -645,7 +645,7 @@ REGRAS:
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
+            model: "google/gemini-3-pro-image-preview",
             messages: [{ role: "user", content: userContentParts }],
             modalities: ["image", "text"],
           }),
