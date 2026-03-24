@@ -179,8 +179,8 @@ const DashboardPage = () => {
     setSavingRole(true);
     const result = await updateRole(selectedRole.id, roleDraft);
     setSavingRole(false);
-    if (result) { setRoleDraft({}); toast.success("Permissões do cargo salvas!"); }
-    else toast.error("Erro ao salvar.");
+    if (result) { setRoleDraft({}); toast.success(t.dashboard.rolePermsSaved); }
+    else toast.error(t.dashboard.errorSaving);
   };
 
   const handleCreateRole = async () => {
