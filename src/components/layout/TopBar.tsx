@@ -344,21 +344,21 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 p-0 bg-card border-border">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h4 className="text-sm font-semibold">Notificações</h4>
+              <h4 className="text-sm font-semibold">{t.topbar.notifications}</h4>
               {unreadCount > 0 ? (
                 <button onClick={markAllRead} className="text-xs text-primary hover:underline">
-                  Marcar todas como lidas
+                  {t.topbar.markAllRead}
                 </button>
               ) : (
-                <span className="text-xs text-muted-foreground">Tudo lido</span>
+                <span className="text-xs text-muted-foreground">{t.topbar.allRead}</span>
               )}
             </div>
             <div className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                   <Inbox className="h-8 w-8 mb-2 opacity-30" />
-                  <p className="text-sm">Nenhuma notificação</p>
-                  <p className="text-xs mt-1">Webhooks processados aparecerão aqui</p>
+                  <p className="text-sm">{t.topbar.noNotifications}</p>
+                  <p className="text-xs mt-1">{t.topbar.webhooksHere}</p>
                 </div>
               ) : (
                 notifications.map((n) => (
