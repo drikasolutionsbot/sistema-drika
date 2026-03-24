@@ -299,6 +299,7 @@ export default function AIAssistantPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [showContext, setShowContext] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
