@@ -4,7 +4,7 @@ import {
   Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Orbit,
   Paperclip, X, RefreshCw, Stars, RotateCcw, Crown, Flame, Clock, ArrowRight,
   History, RotateCw, Bookmark, BookmarkCheck, Lock, TrendingUp, Gauge, Download,
-  ImagePlus, Database
+  ImagePlus, Database, Square
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
