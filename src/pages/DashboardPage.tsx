@@ -149,7 +149,7 @@ const DashboardPage = () => {
         loadAuditLogs();
       }
     }
-    else toast.error("Erro ao salvar.");
+    else toast.error(t.dashboard.errorSaving);
   };
 
   // --- Role permission helpers ---
