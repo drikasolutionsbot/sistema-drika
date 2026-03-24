@@ -5,11 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-async function openaiChat(apiKey: string, messages: any[], options: { stream?: boolean; model?: string; temperature?: number; max_tokens?: number } = {}): Promise<Response> {
-  const model = options.model || "gpt-4o-mini";
-  return await fetch(OPENAI_URL, {
+async function gatewayChat(apiKey: string, messages: any[], options: { stream?: boolean; model?: string; temperature?: number; max_tokens?: number } = {}): Promise<Response> {
+  const model = options.model || "google/gemini-3-flash-preview";
+  return await fetch(GATEWAY_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -18,46 +18,32 @@ async function openaiChat(apiKey: string, messages: any[], options: { stream?: b
       stream: options.stream ?? false,
       max_tokens: options.max_tokens || 4096,
       temperature: options.temperature ?? 0.85,
-      top_p: 0.95,
-      frequency_penalty: 0.15,
-      presence_penalty: 0.2,
     }),
   });
 }
 
-async function openaiText(apiKey: string, messages: any[], model?: string, temperature?: number): Promise<string> {
-  const resp = await openaiChat(apiKey, messages, { stream: false, model, temperature });
-  if (!resp.ok) { const body = await resp.text(); throw new Error(`OpenAI error ${resp.status}: ${body}`); }
+async function gatewayText(apiKey: string, messages: any[], model?: string, temperature?: number): Promise<string> {
+  const resp = await gatewayChat(apiKey, messages, { stream: false, model, temperature });
+  if (!resp.ok) { const body = await resp.text(); throw new Error(`AI Gateway error ${resp.status}: ${body}`); }
   const data = await resp.json();
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function replicateGenerateImage(apiToken: string, prompt: string): Promise<string> {
-  const createResp = await fetch("https://api.replicate.com/v1/predictions", {
+async function gatewayGenerateImage(apiKey: string, prompt: string): Promise<string> {
+  const resp = await fetch(GATEWAY_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json", Prefer: "wait" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      version: "7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc",
-      input: { prompt, width: 1024, height: 1024, num_outputs: 1, scheduler: "K_EULER", num_inference_steps: 4, guidance_scale: 0 },
+      model: "google/gemini-2.5-flash-image",
+      messages: [{ role: "user", content: prompt }],
+      modalities: ["image", "text"],
     }),
   });
-  if (!createResp.ok) { const body = await createResp.text(); throw new Error(`Replicate error ${createResp.status}: ${body}`); }
-  let prediction = await createResp.json();
-  if (prediction.status !== "succeeded" && prediction.status !== "failed") {
-    const getUrl = prediction.urls?.get || `https://api.replicate.com/v1/predictions/${prediction.id}`;
-    for (let i = 0; i < 60; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      const pollResp = await fetch(getUrl, { headers: { Authorization: `Bearer ${apiToken}` } });
-      if (!pollResp.ok) { const body = await pollResp.text(); throw new Error(`Replicate poll error ${pollResp.status}: ${body}`); }
-      prediction = await pollResp.json();
-      if (prediction.status === "succeeded" || prediction.status === "failed") break;
-    }
-  }
-  if (prediction.status === "failed") throw new Error(`Replicate failed: ${prediction.error || "Unknown"}`);
-  const output = prediction.output;
-  if (Array.isArray(output) && output.length > 0) return output[0];
-  if (typeof output === "string") return output;
-  throw new Error("Replicate returned no output");
+  if (!resp.ok) { const body = await resp.text(); throw new Error(`Image generation error ${resp.status}: ${body}`); }
+  const data = await resp.json();
+  const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!imageData) throw new Error("No image returned from AI Gateway");
+  return imageData;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -493,20 +479,21 @@ serve(async (req) => {
   try {
     const { type, prompt, context, attachments, action, originalContent } = await req.json();
 
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada.");
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada.");
 
-    const replicateToken = Deno.env.get("REPLICATE_API_TOKEN");
+    const textModel = "google/gemini-3-flash-preview";
+    const imageModel = "google/gemini-2.5-flash-image";
 
     // ═══════════════════════════════════════
     // ACTION: improve_prompt (enriquecimento inteligente)
     // ═══════════════════════════════════════
     if (action === "improve_prompt") {
-      const result = await openaiText(openaiKey, [
+      const result = await gatewayText(apiKey, [
         { role: "system", content: systemPrompts.prompt_enhancer },
         { role: "user", content: buildEnrichedPrompt("prompt_enhancer", prompt, context) },
-      ], "gpt-4o", 0.9);
-      return new Response(JSON.stringify({ improved_prompt: result, model_used: "gpt-4o" }), {
+      ], textModel, 0.9);
+      return new Response(JSON.stringify({ improved_prompt: result, model_used: textModel }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -515,23 +502,23 @@ serve(async (req) => {
     // ACTION: generate_image_variation (nova variação de imagem)
     // ═══════════════════════════════════════
     if (action === "generate_image_variation") {
-      if (!replicateToken) throw new Error("REPLICATE_API_TOKEN não configurada.");
+      
 
       const basePrompt = originalContent || prompt;
       console.log("🎨 Image variation: refining prompt with GPT-4o...");
-      const variationPrompt = await openaiText(openaiKey, [
+      const variationPrompt = await gatewayText(apiKey, [
         { role: "system", content: systemPrompts.image_prompt },
         { role: "user", content: `Create a DIFFERENT variation of this concept. Change the style, angle, lighting, or mood significantly while keeping the same subject:\n\n${basePrompt}` },
-      ], "gpt-4o", 0.95);
+      ], textModel, 0.95);
 
       console.log("🖼️ Image variation: generating with Replicate...");
-      const imageUrl = await replicateGenerateImage(replicateToken, variationPrompt);
+      const imageUrl = await gatewayGenerateImage(apiKey, variationPrompt);
 
       return new Response(JSON.stringify({
         image_url: imageUrl,
         text: `🎨 **Nova variação gerada!**\n\n**Prompt da variação (${variationPrompt.split(" ").length} palavras):**\n\`\`\`\n${variationPrompt}\n\`\`\`\n\n> 🔄 *Cada variação usa um estilo, iluminação ou composição diferente para o mesmo conceito.*`,
         enhanced_prompt: variationPrompt,
-        model_used: "gpt-4o + sdxl-lightning",
+        model_used: "gemini-flash + gemini-image",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -541,7 +528,7 @@ serve(async (req) => {
     // ACTION: generate_variations (3 variações reais e profundas)
     // ═══════════════════════════════════════
     if (action === "generate_variations") {
-      const result = await openaiText(openaiKey, [
+      const result = await gatewayText(apiKey, [
         {
           role: "system",
           content: `${MASTER_CORE}
@@ -578,9 +565,9 @@ REGRAS:
         },
         ...(context ? [{ role: "user", content: `Contexto do negócio: ${context}` }] : []),
         { role: "user", content: `Crie 3 variações profissionais e COMPLETAS (cada uma com 400+ palavras) deste conteúdo:\n\n${originalContent}` },
-      ], "gpt-4o", 0.95);
+      ], textModel, 0.95);
 
-      return new Response(JSON.stringify({ variations: result, model_used: "gpt-4o" }), {
+      return new Response(JSON.stringify({ variations: result, model_used: textModel }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -592,23 +579,23 @@ REGRAS:
     // IMAGE GENERATION (orquestração GPT-4o + SDXL)
     // ═══════════════════════════════════════
     if (type === "image") {
-      if (!replicateToken) throw new Error("REPLICATE_API_TOKEN não configurada.");
+      
 
       console.log("🎨 Step 1: GPT-4o refining prompt to commercial-grade...");
-      const enhancedPrompt = await openaiText(openaiKey, [
+      const enhancedPrompt = await gatewayText(apiKey, [
         { role: "system", content: systemPrompts.image_prompt },
         ...(context ? [{ role: "user", content: `Business context: ${context}` }] : []),
         { role: "user", content: prompt },
-      ], "gpt-4o", 0.7);
+      ], textModel, 0.7);
 
       console.log("🖼️ Step 2: Replicate generating with SDXL Lightning...");
-      const imageUrl = await replicateGenerateImage(replicateToken, enhancedPrompt);
+      const imageUrl = await gatewayGenerateImage(apiKey, enhancedPrompt);
 
       return new Response(JSON.stringify({
         image_url: imageUrl,
         text: `🎨 **Imagem gerada com sucesso!**\n\n**Seu input:** ${prompt}\n\n**Prompt profissional gerado pela IA (${enhancedPrompt.split(" ").length} palavras):**\n\`\`\`\n${enhancedPrompt}\n\`\`\`\n\n> 💡 *O prompt foi automaticamente enriquecido com detalhes de composição, iluminação, estilo, paleta de cores e especificações técnicas de câmera para garantir resultado de qualidade publicitária.*\n\n> 🔄 *Clique em "Gerar 3 Variações" para criar versões alternativas com estilos diferentes.*`,
         enhanced_prompt: enhancedPrompt,
-        model_used: "gpt-4o + sdxl-lightning",
+        model_used: "gemini-flash + gemini-image",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -628,8 +615,8 @@ REGRAS:
     ];
 
     // Use gpt-4o for all categories (premium quality)
-    const model = "gpt-4o";
-    const response = await openaiChat(openaiKey, messages, { stream: true, model, temperature: 0.85 });
+    const model = textModel;
+    const response = await gatewayChat(apiKey, messages, { stream: true, model, temperature: 0.85 });
 
     if (!response.ok) {
       const body = await response.text();
