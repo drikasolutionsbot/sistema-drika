@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Sparkles, Wand2, FileText, Image, MessageSquare, Lightbulb, Copy, Check,
   Loader2, Send, ChevronDown, Zap, Brain, Plus, User, Bot, Trash2, Orbit,
-  Paperclip, X, RefreshCw, Stars, RotateCcw
+  Paperclip, X, RefreshCw, Stars, RotateCcw, Crown, Flame, Clock, ArrowRight,
+  History, RotateCw, Bookmark, BookmarkCheck, Lock, TrendingUp, Gauge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,31 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Progress } from "@/components/ui/progress";
+
+// ═══════════════════════════════════════════════════════════
+// PLAN & CREDITS CONFIGURATION (ready for backend integration)
+// ═══════════════════════════════════════════════════════════
+
+const PLAN_LIMITS: Record<string, { daily: number; label: string; badge: string; color: string }> = {
+  free: { daily: 5, label: "Free", badge: "Gratuito", color: "text-muted-foreground" },
+  trial: { daily: 15, label: "Trial", badge: "Teste", color: "text-yellow-400" },
+  pro: { daily: 100, label: "Pro", badge: "Pro", color: "text-primary" },
+  business: { daily: 500, label: "Business", badge: "Business", color: "text-emerald-400" },
+};
+
+const CREDIT_COSTS: Record<string, number> = {
+  copy: 1,
+  description: 1,
+  embed: 1,
+  strategy: 2,
+  prompt_enhancer: 1,
+  image: 3,
+  variations: 2,
+  improve: 1,
+};
+
+// ═══════════════════════════════════════════════════════════
 
 const AI_TOOLS = [
   {
@@ -22,6 +48,7 @@ const AI_TOOLS = [
     ring: "ring-[#C44AFF]/30",
     description: "Textos persuasivos para vendas",
     emoji: "✍️",
+    credits: 1,
     prompts: [
       "Crie uma copy de venda para meu produto digital no Discord",
       "Escreva um texto de urgência para promoção relâmpago",
@@ -39,6 +66,7 @@ const AI_TOOLS = [
     ring: "ring-[#7C3AED]/30",
     description: "Descrições atraentes para produtos",
     emoji: "📝",
+    credits: 1,
     prompts: [
       "Crie uma descrição para meu produto de contas digitais",
       "Escreva uma descrição para serviço de boost Discord",
@@ -56,6 +84,7 @@ const AI_TOOLS = [
     ring: "ring-[#F59E0B]/30",
     description: "Banners, logos e thumbnails",
     emoji: "🎨",
+    credits: 3,
     prompts: [
       "Banner para loja de produtos digitais, estilo gaming neon",
       "Logo minimalista para servidor de vendas Discord",
@@ -73,6 +102,7 @@ const AI_TOOLS = [
     ring: "ring-[#3B82F6]/30",
     description: "Textos formatados para embeds",
     emoji: "💬",
+    credits: 1,
     prompts: [
       "Crie um embed de regras para meu servidor de vendas",
       "Escreva um embed de anúncio de novo produto",
@@ -90,6 +120,7 @@ const AI_TOOLS = [
     ring: "ring-[#10B981]/30",
     description: "Dicas e estratégias de vendas",
     emoji: "💡",
+    credits: 2,
     prompts: [
       "Como aumentar as vendas no meu servidor Discord?",
       "Estratégias para reter membros VIP",
@@ -105,8 +136,9 @@ const AI_TOOLS = [
     glow: "shadow-[0_0_60px_rgba(139,92,246,0.4)]",
     bgAccent: "bg-gradient-to-br from-[#EC4899]/10 to-[#8B5CF6]/10",
     ring: "ring-[#8B5CF6]/30",
-    description: "Transforme ideias simples em prompts profissionais",
+    description: "Transforme ideias em prompts profissionais",
     emoji: "🚀",
+    credits: 1,
     prompts: [
       "banner para barbearia premium",
       "logo para loja de games",
@@ -132,7 +164,8 @@ interface ChatMessage {
   enhancedPrompt?: string;
   attachments?: Attachment[];
   toolId: string;
-  timestamp: Date;
+  timestamp: string;
+  saved?: boolean;
 }
 
 interface ChatSession {
@@ -140,10 +173,67 @@ interface ChatSession {
   title: string;
   messages: ChatMessage[];
   toolId: string;
-  createdAt: Date;
+  createdAt: string;
 }
 
+interface CreditsState {
+  used: number;
+  date: string;
+}
+
+const STORAGE_KEY = "drika-ai-sessions";
+const CREDITS_KEY = "drika-ai-credits";
+const SAVED_KEY = "drika-ai-saved";
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+
+function loadSessions(): ChatSession[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSessions(sessions: ChatSession[]) {
+  try {
+    // Keep only last 50 sessions to avoid storage overflow
+    const trimmed = sessions.slice(0, 50);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  } catch { /* full storage */ }
+}
+
+function loadCredits(): CreditsState {
+  try {
+    const raw = localStorage.getItem(CREDITS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const today = new Date().toISOString().slice(0, 10);
+      if (parsed.date === today) return parsed;
+    }
+    return { used: 0, date: new Date().toISOString().slice(0, 10) };
+  } catch { return { used: 0, date: new Date().toISOString().slice(0, 10) }; }
+}
+
+function saveCredits(credits: CreditsState) {
+  try { localStorage.setItem(CREDITS_KEY, JSON.stringify(credits)); } catch { }
+}
+
+function loadSaved(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSavedMessages(msgs: ChatMessage[]) {
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(msgs.slice(0, 100))); } catch { }
+}
+
+// ═══════════════════════════════════════════════════════════
 
 const ParticleField = () => (
   <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -193,20 +283,48 @@ export default function AIAssistantPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [showContext, setShowContext] = useState(false);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [credits, setCredits] = useState<CreditsState>(() => loadCredits());
+  const [savedMessages, setSavedMessages] = useState<ChatMessage[]>(() => loadSaved());
+  const [showSaved, setShowSaved] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // TODO: Replace with real plan from tenant context
+  const currentPlan = "pro";
+  const planConfig = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free;
+  const creditsRemaining = Math.max(0, planConfig.daily - credits.used);
+  const creditsPercent = (credits.used / planConfig.daily) * 100;
+
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
+
+  // ═══ PERSIST ═══
+  useEffect(() => { saveSessions(sessions); }, [sessions]);
+  useEffect(() => { saveCredits(credits); }, [credits]);
+  useEffect(() => { saveSavedMessages(savedMessages); }, [savedMessages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => { scrollToBottom(); }, [messages.length, messages[messages.length - 1]?.content]);
+
+  const consumeCredits = useCallback((amount: number) => {
+    const today = new Date().toISOString().slice(0, 10);
+    setCredits(prev => {
+      const base = prev.date === today ? prev.used : 0;
+      return { used: base + amount, date: today };
+    });
+  }, []);
+
+  const canAfford = useCallback((cost: number) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const used = credits.date === today ? credits.used : 0;
+    return (planConfig.daily - used) >= cost;
+  }, [credits, planConfig]);
 
   const createNewSession = (toolId: string, firstMessage?: string) => {
     const id = crypto.randomUUID();
@@ -215,7 +333,7 @@ export default function AIAssistantPage() {
       title: firstMessage?.slice(0, 50) || "Novo chat",
       messages: [],
       toolId,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     };
     setSessions(prev => [session, ...prev]);
     setActiveSessionId(id);
@@ -237,7 +355,7 @@ export default function AIAssistantPage() {
         continue;
       }
       if (!file.type.startsWith("image/")) {
-        toast({ title: "Formato não suportado", description: "Envie apenas imagens (PNG, JPG, GIF, WebP).", variant: "destructive" });
+        toast({ title: "Formato não suportado", description: "Envie apenas imagens.", variant: "destructive" });
         continue;
       }
       const reader = new FileReader();
@@ -254,10 +372,41 @@ export default function AIAssistantPage() {
     setAttachments(prev => prev.filter(a => a.id !== id));
   };
 
+  // ═══ REUSE GENERATION ═══
+  const handleReuse = (msg: ChatMessage) => {
+    // Find the user message that preceded this assistant message
+    if (!activeSession) return;
+    const idx = activeSession.messages.findIndex(m => m.id === msg.id);
+    if (idx <= 0) return;
+    const userMsg = activeSession.messages[idx - 1];
+    if (userMsg?.role === "user") {
+      setPrompt(userMsg.content);
+      const tool = AI_TOOLS.find(t => t.id === msg.toolId);
+      if (tool) setSelectedTool(tool);
+      toast({ title: "♻️ Prompt restaurado", description: "Edite e gere novamente!" });
+    }
+  };
+
+  // ═══ SAVE/BOOKMARK ═══
+  const handleToggleSave = (msg: ChatMessage) => {
+    const isSaved = savedMessages.some(m => m.id === msg.id);
+    if (isSaved) {
+      setSavedMessages(prev => prev.filter(m => m.id !== msg.id));
+      toast({ title: "Removido dos salvos" });
+    } else {
+      setSavedMessages(prev => [{ ...msg, saved: true }, ...prev]);
+      toast({ title: "⭐ Salvo!", description: "Acesse seus favoritos no histórico." });
+    }
+  };
+
   // ═══ IMPROVE PROMPT ═══
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
       toast({ title: "Digite algo", description: "Escreva uma ideia para melhorar.", variant: "destructive" });
+      return;
+    }
+    if (!canAfford(CREDIT_COSTS.improve)) {
+      toast({ title: "Créditos insuficientes", description: "Você atingiu o limite diário do seu plano.", variant: "destructive" });
       return;
     }
     setActionLoading("improve");
@@ -268,6 +417,7 @@ export default function AIAssistantPage() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setPrompt(data.improved_prompt || prompt);
+      consumeCredits(CREDIT_COSTS.improve);
       toast({ title: "✨ Prompt melhorado!", description: "Seu prompt foi otimizado pela IA." });
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao melhorar prompt", variant: "destructive" });
@@ -278,14 +428,17 @@ export default function AIAssistantPage() {
 
   // ═══ GENERATE VARIATIONS ═══
   const handleGenerateVariations = async (originalContent: string, sessionId: string) => {
+    if (!canAfford(CREDIT_COSTS.variations)) {
+      toast({ title: "Créditos insuficientes", description: "Limite diário atingido.", variant: "destructive" });
+      return;
+    }
     setActionLoading("variations");
-    const variationMsgId = crypto.randomUUID();
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: "🔄 Gerar variações do conteúdo acima",
+      content: "🔄 Gerar 3 variações profissionais",
       toolId: selectedTool.id,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
     setSessions(prev => prev.map(s =>
       s.id === sessionId ? { ...s, messages: [...s.messages, userMsg] } : s
@@ -299,15 +452,16 @@ export default function AIAssistantPage() {
       if (data?.error) throw new Error(data.error);
 
       const assistantMsg: ChatMessage = {
-        id: variationMsgId,
+        id: crypto.randomUUID(),
         role: "assistant",
         content: data.variations || "Não foi possível gerar variações.",
         toolId: selectedTool.id,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
       setSessions(prev => prev.map(s =>
         s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
       ));
+      consumeCredits(CREDIT_COSTS.variations);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao gerar variações", variant: "destructive" });
     } finally {
@@ -318,7 +472,13 @@ export default function AIAssistantPage() {
   // ═══ MAIN GENERATE ═══
   const handleGenerate = async () => {
     if (!prompt.trim() && attachments.length === 0) {
-      toast({ title: "Digite algo", description: "Escreva o que deseja gerar ou envie uma imagem.", variant: "destructive" });
+      toast({ title: "Digite algo", description: "Escreva o que deseja gerar.", variant: "destructive" });
+      return;
+    }
+
+    const cost = CREDIT_COSTS[selectedTool.id] || 1;
+    if (!canAfford(cost)) {
+      toast({ title: "🔒 Limite atingido", description: `Você usou todos os ${planConfig.daily} créditos diários do plano ${planConfig.label}. Faça upgrade para mais gerações!`, variant: "destructive" });
       return;
     }
 
@@ -334,14 +494,14 @@ export default function AIAssistantPage() {
       content: prompt || (currentAttachments.length > 0 ? "Analise esta imagem" : ""),
       attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       toolId: selectedTool.id,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
 
     setSessions(prev => prev.map(s =>
       s.id === sessionId ? { ...s, messages: [...s.messages, userMsg], title: s.messages.length === 0 ? (prompt || "Análise de imagem").slice(0, 50) : s.title } : s
     ));
 
-    const currentPrompt = prompt || (currentAttachments.length > 0 ? "Analise detalhadamente esta imagem. Descreva tudo que você vê." : "");
+    const currentPrompt = prompt || (currentAttachments.length > 0 ? "Analise detalhadamente esta imagem." : "");
     setPrompt("");
     setAttachments([]);
     setLoading(true);
@@ -363,7 +523,7 @@ export default function AIAssistantPage() {
           imageUrl: data?.image_url || undefined,
           enhancedPrompt: data?.enhanced_prompt || undefined,
           toolId: selectedTool.id,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         };
         setSessions(prev => prev.map(s =>
           s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
@@ -374,7 +534,7 @@ export default function AIAssistantPage() {
           role: "assistant",
           content: "",
           toolId: selectedTool.id,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         };
         setSessions(prev => prev.map(s =>
           s.id === sessionId ? { ...s, messages: [...s.messages, emptyAssistant] } : s
@@ -433,6 +593,7 @@ export default function AIAssistantPage() {
           }
         }
       }
+      consumeCredits(cost);
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Erro ao gerar conteúdo", variant: "destructive" });
       setSessions(prev => prev.map(s =>
@@ -444,7 +605,7 @@ export default function AIAssistantPage() {
   const handleCopy = (text: string, msgId: string) => {
     navigator.clipboard.writeText(text);
     setCopied(msgId);
-    toast({ title: "Copiado!", description: "Texto copiado para a área de transferência." });
+    toast({ title: "Copiado!" });
     setTimeout(() => setCopied(null), 2000);
   };
 
@@ -455,7 +616,6 @@ export default function AIAssistantPage() {
 
   const filteredSessions = sessions.filter(s => s.toolId === selectedTool.id);
 
-  // Find last assistant text message for variations
   const lastAssistantContent = messages.filter(m => m.role === "assistant" && m.content && !m.imageUrl).pop()?.content;
 
   return (
@@ -510,29 +670,61 @@ export default function AIAssistantPage() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
-              Escreva pouco, receba muito — textos, imagens, descrições e estratégias de nível premium com orquestração inteligente de IA.
+              Escreva pouco, receba muito — textos, imagens e estratégias de nível premium com orquestração inteligente.
             </p>
           </div>
 
-          <div className="hidden lg:flex flex-col items-end gap-3">
-            <div className="relative flex items-center gap-0 p-1.5 rounded-2xl bg-card/50 border border-border/20 backdrop-blur-xl shadow-lg">
-              <div className="relative z-10 flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-primary/20 to-[#C44AFF]/20 text-primary border border-primary/30 shadow-[0_0_16px_hsl(330_100%_50%/0.12)]">
-                <div className="h-6 w-6 rounded-lg flex items-center justify-center bg-primary/20">
-                  <Zap className="h-3.5 w-3.5 text-primary drop-shadow-[0_0_6px_rgba(255,105,180,0.6)]" />
+          {/* ── Credits Widget ── */}
+          <div className="hidden lg:flex flex-col items-end gap-3 min-w-[200px]">
+            <div className="w-full p-3.5 rounded-2xl bg-card/50 border border-border/20 backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Flame className={cn("h-4 w-4", creditsPercent > 80 ? "text-red-400" : "text-primary")} />
+                  <span className="text-[11px] font-bold text-foreground/80">Créditos Diários</span>
                 </div>
-                <div className="flex flex-col items-start">
-                  <span className="leading-none">Drika Engine</span>
-                  <span className="text-[8px] font-medium mt-0.5 text-primary/60">Orquestrador Multi-IA</span>
-                </div>
+                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", planConfig.color,
+                  currentPlan === "pro" ? "bg-primary/10 border-primary/20" :
+                  currentPlan === "business" ? "bg-emerald-400/10 border-emerald-400/20" :
+                  "bg-muted/20 border-border/20"
+                )}>
+                  {planConfig.badge}
+                </span>
               </div>
+              <div className="flex items-end justify-between mb-1.5">
+                <span className={cn("text-2xl font-extrabold tabular-nums", creditsRemaining <= 5 ? "text-red-400" : "text-foreground")}>
+                  {creditsRemaining}
+                </span>
+                <span className="text-[10px] text-muted-foreground/60">/ {planConfig.daily} hoje</span>
+              </div>
+              <Progress value={Math.min(creditsPercent, 100)} className="h-1.5" />
+              {creditsPercent >= 80 && (
+                <p className="text-[9px] text-red-400/70 mt-1.5 flex items-center gap-1">
+                  <TrendingUp className="h-2.5 w-2.5" />
+                  Créditos baixos — faça upgrade!
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50">
               <div className="h-1.5 w-1.5 rounded-full bg-primary/60" />
-              <span className="font-medium">Prompt Enhancer • Variações • Visão</span>
+              <span className="font-medium">Custo: {CREDIT_COSTS[selectedTool.id] || 1} crédito(s) por geração</span>
             </div>
           </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+      </div>
+
+      {/* ── Mobile Credits Bar ── */}
+      <div className="lg:hidden flex items-center gap-3 p-3 rounded-2xl bg-card/50 border border-border/20">
+        <Flame className={cn("h-4 w-4 shrink-0", creditsPercent > 80 ? "text-red-400" : "text-primary")} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-bold">{creditsRemaining} créditos restantes</span>
+            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full", planConfig.color, "bg-primary/10 border border-primary/20")}>
+              {planConfig.badge}
+            </span>
+          </div>
+          <Progress value={Math.min(creditsPercent, 100)} className="h-1" />
+        </div>
       </div>
 
       {/* ═══════════════ TOOL SELECTOR ═══════════════ */}
@@ -542,7 +734,7 @@ export default function AIAssistantPage() {
           return (
             <button
               key={tool.id}
-              onClick={() => { setSelectedTool(tool); setActiveSessionId(null); }}
+              onClick={() => { setSelectedTool(tool); setActiveSessionId(null); setShowSaved(false); }}
               className={cn(
                 "relative group flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all duration-500 text-center overflow-hidden",
                 isActive
@@ -563,7 +755,16 @@ export default function AIAssistantPage() {
                 <tool.icon className={cn("h-5 w-5 transition-all duration-300", isActive ? "text-white" : "text-muted-foreground")} />
                 {isActive && <div className="absolute inset-0 rounded-xl bg-white/10 animate-pulse" />}
               </div>
-              <span className="text-lg leading-none">{tool.emoji}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-lg leading-none">{tool.emoji}</span>
+                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full",
+                  tool.credits >= 3 ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" :
+                  tool.credits >= 2 ? "bg-purple-500/15 text-purple-400 border border-purple-500/20" :
+                  "bg-muted/20 text-muted-foreground/60 border border-border/20"
+                )}>
+                  {tool.credits}cr
+                </span>
+              </div>
               <span className={cn("text-xs font-bold tracking-wide", isActive ? "text-foreground" : "text-muted-foreground")}>{tool.label}</span>
               <span className="text-[10px] text-muted-foreground/50 leading-tight">{tool.description}</span>
               {isActive && (
@@ -583,51 +784,106 @@ export default function AIAssistantPage() {
             Novo Chat
           </Button>
 
+          {/* Saved / History Toggle */}
+          <div className="flex gap-1 p-1 rounded-xl bg-card/30 border border-border/20">
+            <button
+              onClick={() => setShowSaved(false)}
+              className={cn("flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                !showSaved ? "bg-primary/15 text-primary border border-primary/20" : "text-muted-foreground/60 hover:text-muted-foreground"
+              )}
+            >
+              <History className="h-3 w-3" /> Histórico
+            </button>
+            <button
+              onClick={() => setShowSaved(true)}
+              className={cn("flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                showSaved ? "bg-amber-400/15 text-amber-400 border border-amber-400/20" : "text-muted-foreground/60 hover:text-muted-foreground"
+              )}
+            >
+              <Bookmark className="h-3 w-3" /> Salvos
+              {savedMessages.length > 0 && (
+                <span className="text-[8px] bg-amber-400/20 px-1 rounded">{savedMessages.length}</span>
+              )}
+            </button>
+          </div>
+
           <div className="rounded-2xl border border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-border/10 flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-primary/60" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/70">Histórico</p>
-            </div>
             <ScrollArea className="h-[280px]">
-              {filteredSessions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-muted/20 flex items-center justify-center mb-3">
-                    <MessageSquare className="h-5 w-5 text-muted-foreground/15" />
+              {showSaved ? (
+                savedMessages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+                    <Bookmark className="h-8 w-8 text-muted-foreground/15 mb-3" />
+                    <p className="text-xs text-muted-foreground/50">Nenhuma geração salva</p>
+                    <p className="text-[10px] text-muted-foreground/40 mt-1">Clique ⭐ em qualquer resultado</p>
                   </div>
-                  <p className="text-xs text-muted-foreground/50">Nenhum chat ainda</p>
-                  <p className="text-[10px] text-muted-foreground/40 mt-1">Comece uma conversa!</p>
-                </div>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {savedMessages.map(msg => (
+                      <div
+                        key={msg.id}
+                        className="group flex items-start gap-2 px-3 py-2.5 rounded-xl hover:bg-amber-400/5 border border-transparent hover:border-amber-400/15 cursor-pointer transition-all"
+                        onClick={() => {
+                          handleCopy(msg.content, msg.id);
+                        }}
+                      >
+                        <BookmarkCheck className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-foreground/70 line-clamp-2">{msg.content.slice(0, 100)}...</p>
+                          <p className="text-[9px] text-muted-foreground/40 mt-1">
+                            {AI_TOOLS.find(t => t.id === msg.toolId)?.emoji} {AI_TOOLS.find(t => t.id === msg.toolId)?.label}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleToggleSave(msg); }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10"
+                        >
+                          <X className="h-3 w-3 text-destructive/50" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
               ) : (
-                <div className="p-2 space-y-1">
-                  {filteredSessions.map(session => (
-                    <div
-                      key={session.id}
-                      className={cn(
-                        "group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
-                        activeSessionId === session.id ? "bg-primary/10 border border-primary/20 shadow-sm" : "hover:bg-muted/30 border border-transparent"
-                      )}
-                      onClick={() => setActiveSessionId(session.id)}
-                    >
-                      <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center shrink-0", activeSessionId === session.id ? "bg-primary/20" : "bg-muted/20")}>
-                        <MessageSquare className="h-3 w-3 text-muted-foreground/60" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground/80 truncate">{session.title}</p>
-                        <p className="text-[10px] text-muted-foreground/55">
-                          {session.messages.length} msg • {session.createdAt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                        </p>
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-destructive/10">
-                        <Trash2 className="h-3 w-3 text-destructive/50" />
-                      </button>
+                filteredSessions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+                    <div className="h-12 w-12 rounded-2xl bg-muted/20 flex items-center justify-center mb-3">
+                      <MessageSquare className="h-5 w-5 text-muted-foreground/15" />
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs text-muted-foreground/50">Nenhum chat ainda</p>
+                    <p className="text-[10px] text-muted-foreground/40 mt-1">Comece uma conversa!</p>
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {filteredSessions.map(session => (
+                      <div
+                        key={session.id}
+                        className={cn(
+                          "group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
+                          activeSessionId === session.id ? "bg-primary/10 border border-primary/20 shadow-sm" : "hover:bg-muted/30 border border-transparent"
+                        )}
+                        onClick={() => { setActiveSessionId(session.id); setShowSaved(false); }}
+                      >
+                        <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center shrink-0", activeSessionId === session.id ? "bg-primary/20" : "bg-muted/20")}>
+                          <MessageSquare className="h-3 w-3 text-muted-foreground/60" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground/80 truncate">{session.title}</p>
+                          <p className="text-[10px] text-muted-foreground/55">
+                            {session.messages.length} msg • {new Date(session.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                          </p>
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-destructive/10">
+                          <Trash2 className="h-3 w-3 text-destructive/50" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </ScrollArea>
           </div>
 
-          {!activeSessionId && (
+          {!activeSessionId && !showSaved && (
             <div className="rounded-2xl border border-primary/10 p-4 bg-gradient-to-b from-card/50 to-card/30 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="h-3.5 w-3.5 text-primary/70" />
@@ -678,7 +934,7 @@ export default function AIAssistantPage() {
                     <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
                   </div>
                   <span className="text-[10px] font-semibold text-primary/80 tracking-wide">
-                    {actionLoading === "improve" ? "Melhorando..." : actionLoading === "variations" ? "Gerando variações..." : "Processando..."}
+                    {actionLoading === "improve" ? "Melhorando..." : actionLoading === "variations" ? "Gerando 3 variações..." : "Processando..."}
                   </span>
                 </div>
               )}
@@ -699,7 +955,7 @@ export default function AIAssistantPage() {
                   <div>
                     <p className="text-base font-bold text-foreground/80 mb-1">Escreva pouco, receba muito</p>
                     <p className="text-xs text-muted-foreground/60 max-w-[320px] leading-relaxed">
-                      Digite uma ideia simples como "banner para barbearia premium" e o Gerador IA entrega resultados profissionais automaticamente
+                      Digite uma ideia simples e o Gerador IA entrega resultados de agência premium automaticamente
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] text-muted-foreground/45">
@@ -707,15 +963,18 @@ export default function AIAssistantPage() {
                       <Wand2 className="h-3 w-3" /> Melhorar prompt
                     </span>
                     <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/10 border border-border/10">
-                      <RefreshCw className="h-3 w-3" /> Gerar variações
+                      <RefreshCw className="h-3 w-3" /> 3 variações
                     </span>
                     <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/10 border border-border/10">
-                      <Paperclip className="h-3 w-3" /> Analisar imagens
+                      <RotateCw className="h-3 w-3" /> Reutilizar
+                    </span>
+                    <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/10 border border-border/10">
+                      <Bookmark className="h-3 w-3" /> Favoritos
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground/45">
                     <Orbit className="h-3 w-3" />
-                    <span>Powered by Drika Engine v4.0 Orchestrator</span>
+                    <span>Powered by Drika Engine v4.0</span>
                   </div>
                 </div>
               ) : (
@@ -745,7 +1004,6 @@ export default function AIAssistantPage() {
                         </div>
                       )}
 
-                      {/* Enhanced prompt badge */}
                       {msg.enhancedPrompt && (
                         <div className="mb-3 p-3 rounded-xl bg-primary/5 border border-primary/15">
                           <div className="flex items-center gap-1.5 mb-1.5">
@@ -781,20 +1039,46 @@ export default function AIAssistantPage() {
                         <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                       )}
 
-                      {/* Action buttons for assistant messages */}
+                      {/* ── Action buttons (premium feel) ── */}
                       {msg.role === "assistant" && msg.content && !loading && !actionLoading && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-border/10">
-                          <button onClick={() => handleCopy(msg.content, msg.id)} className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-primary/5">
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/10">
+                          <button onClick={() => handleCopy(msg.content, msg.id)} className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-primary transition-colors px-2 py-1.5 rounded-lg hover:bg-primary/5">
                             {copied === msg.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                             {copied === msg.id ? "Copiado" : "Copiar"}
                           </button>
+
+                          {/* ★ Reuse button */}
+                          <button
+                            onClick={() => handleReuse(msg)}
+                            className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-emerald-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-emerald-400/5"
+                            title="Reutilizar este prompt"
+                          >
+                            <RotateCw className="h-3 w-3" />
+                            Reutilizar
+                          </button>
+
+                          {/* ★ Save/Bookmark */}
+                          <button
+                            onClick={() => handleToggleSave(msg)}
+                            className={cn("flex items-center gap-1.5 text-[10px] transition-colors px-2 py-1.5 rounded-lg",
+                              savedMessages.some(m => m.id === msg.id)
+                                ? "text-amber-400 bg-amber-400/5"
+                                : "text-muted-foreground/60 hover:text-amber-400 hover:bg-amber-400/5"
+                            )}
+                          >
+                            {savedMessages.some(m => m.id === msg.id) ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
+                            {savedMessages.some(m => m.id === msg.id) ? "Salvo" : "Salvar"}
+                          </button>
+
+                          {/* ★ Generate 3 Variations (prominent) */}
                           {!msg.imageUrl && activeSessionId && (
                             <button
                               onClick={() => handleGenerateVariations(msg.content, activeSessionId!)}
-                              className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-[#8B5CF6] transition-colors px-2 py-1 rounded-lg hover:bg-[#8B5CF6]/5"
+                              className="flex items-center gap-1.5 text-[10px] font-bold text-[#8B5CF6] transition-all px-3 py-1.5 rounded-lg bg-[#8B5CF6]/8 border border-[#8B5CF6]/20 hover:bg-[#8B5CF6]/15 hover:scale-[1.02] ml-auto"
                             >
                               <RefreshCw className="h-3 w-3" />
-                              Gerar variações
+                              Gerar 3 Variações
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-[#8B5CF6]/15 border border-[#8B5CF6]/20">2cr</span>
                             </button>
                           )}
                         </div>
@@ -854,6 +1138,12 @@ export default function AIAssistantPage() {
                 <ChevronDown className={cn("h-3 w-3 transition-transform duration-300", showContext && "rotate-180")} />
                 Contexto (opcional)
               </button>
+
+              {/* Credit cost indicator */}
+              <div className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
+                <Gauge className="h-3 w-3" />
+                <span>Esta geração: <strong className="text-foreground/70">{CREDIT_COSTS[selectedTool.id] || 1} crédito(s)</strong></span>
+              </div>
             </div>
             {showContext && (
               <Textarea
@@ -899,7 +1189,6 @@ export default function AIAssistantPage() {
                   className="min-h-[44px] max-h-[120px] bg-transparent border-0 text-sm resize-none focus-visible:ring-0 focus-visible:ring-offset-0 py-2.5 placeholder:text-muted-foreground/40"
                 />
 
-                {/* Improve prompt button */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -907,7 +1196,7 @@ export default function AIAssistantPage() {
                   onClick={handleImprovePrompt}
                   disabled={loading || !!actionLoading || !prompt.trim()}
                   className="h-10 w-10 shrink-0 rounded-xl text-muted-foreground/60 hover:text-[#8B5CF6] hover:bg-[#8B5CF6]/10 transition-all"
-                  title="Melhorar prompt com IA"
+                  title="Melhorar prompt com IA (1cr)"
                 >
                   {actionLoading === "improve" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                 </Button>
@@ -919,7 +1208,7 @@ export default function AIAssistantPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground/40 mt-2 text-center tracking-wide">
-              ✨ Melhorar prompt (varinha) • 📎 Enviar imagens • 🔄 Gerar variações • Enter para enviar
+              ✨ Melhorar (varinha) • 📎 Imagens • 🔄 3 Variações • ⭐ Salvar • ♻️ Reutilizar • Enter para enviar
             </p>
           </div>
         </div>
