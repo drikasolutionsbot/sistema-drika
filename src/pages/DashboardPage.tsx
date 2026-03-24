@@ -920,6 +920,7 @@ function PermissionPanel({
   onDelete?: () => void;
   roleColor?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="rounded-xl border border-border bg-card p-5 relative">
       {title ? (
