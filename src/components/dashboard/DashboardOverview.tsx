@@ -218,14 +218,30 @@ export const DashboardOverview = () => {
     );
   }
 
+  const statusLabels: Record<string, string> = {
+    paid: t.dashboardOverview.statusPaid,
+    delivered: t.dashboardOverview.statusDelivered,
+    delivering: t.dashboardOverview.statusDelivering,
+    pending_payment: t.dashboardOverview.statusPending,
+    canceled: t.dashboardOverview.statusCanceled,
+    refunded: t.dashboardOverview.statusRefunded,
+  };
+
+  const periodButtons: { key: PeriodKey; label: string }[] = [
+    { key: "today", label: t.dashboardOverview.today },
+    { key: "7d", label: t.dashboardOverview.days7 },
+    { key: "30d", label: t.dashboardOverview.days30 },
+    { key: "custom", label: t.dashboardOverview.custom },
+  ];
+
   const chartConfig = {
-    revenue: { label: "Receita", color: "hsl(var(--primary))" },
-    orders: { label: "Pedidos", color: "hsl(var(--secondary))" },
+    revenue: { label: t.dashboardOverview.revenue, color: "hsl(var(--primary))" },
+    orders: { label: t.dashboardOverview.orders, color: "hsl(var(--secondary))" },
   };
 
   const statCards = [
     {
-      title: `Receita (${periodLabel})`,
+      title: `${t.dashboardOverview.revenue} (${periodLabel})`,
       value: formatCurrency(stats.revenue),
       change: stats.revenueChange,
       icon: DollarSign,
@@ -233,7 +249,7 @@ export const DashboardOverview = () => {
       iconBg: "bg-primary/15 text-primary",
     },
     {
-      title: `Pedidos (${periodLabel})`,
+      title: `${t.dashboardOverview.orders} (${periodLabel})`,
       value: stats.ordersCount.toString(),
       change: stats.ordersChange,
       icon: ShoppingCart,
@@ -241,7 +257,7 @@ export const DashboardOverview = () => {
       iconBg: "bg-secondary/15 text-secondary",
     },
     {
-      title: "Ticket Médio",
+      title: t.dashboardOverview.avgTicket,
       value: formatCurrency(stats.avgTicket),
       change: stats.avgChange,
       icon: TrendingUp,
