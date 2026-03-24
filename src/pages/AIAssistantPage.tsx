@@ -663,6 +663,15 @@ export default function AIAssistantPage() {
         setSessions(prev => prev.map(s =>
           s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
         ));
+        // Save image generation to DB
+        saveGenerationToDb({
+          category: "image",
+          userInput: currentPrompt,
+          enhancedPrompt: data?.enhanced_prompt,
+          resultText: data?.text,
+          resultImageUrl: data?.image_url,
+          creditsUsed: cost,
+        });
       } else {
         const emptyAssistant: ChatMessage = {
           id: assistantMsgId,
