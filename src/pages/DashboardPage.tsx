@@ -614,7 +614,7 @@ const DashboardPage = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">
-                      <span className="text-primary">{log.actor_name || "Sistema"}</span>{" "}
+                      <span className="text-primary">{log.actor_name || t.dashboard.system}</span>{" "}
                       <span className="text-muted-foreground font-normal">{getAuditActionLabel(log.action)}</span>{" "}
                       {log.entity_name && <span className="font-semibold">{log.entity_name}</span>}
                     </p>
