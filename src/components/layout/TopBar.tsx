@@ -227,7 +227,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
       }));
       setNotifications(notifs);
     }
-  }, [tenantId, readIds]);
+  }, [tenantId, readIds, t]);
 
   useEffect(() => {
     fetchNotifications();
