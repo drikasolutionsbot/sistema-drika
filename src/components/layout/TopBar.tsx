@@ -117,8 +117,8 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
           
           {tenant.plan_started_at && (
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Início</span>
-              <span className="font-medium">{new Date(tenant.plan_started_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+              <span className="text-muted-foreground">{t.plan.start}</span>
+              <span className="font-medium">{new Date(tenant.plan_started_at).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
             </div>
           )}
           
