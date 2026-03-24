@@ -1273,7 +1273,7 @@ export default function AIAssistantPage() {
 
                       {msg.imageUrl && (
                         <div className="mb-3 space-y-2">
-                          <div className="relative rounded-xl overflow-hidden border border-border/20 shadow-xl group/img max-w-[320px]">
+                          <div className="relative rounded-xl overflow-hidden border border-border/20 shadow-xl group/img max-w-[320px] cursor-pointer" onClick={() => setLightboxUrl(msg.imageUrl!)}>
                             <img src={msg.imageUrl} alt="IA Generated" className="w-full h-auto" />
                             <div className="absolute inset-0 ring-1 ring-inset ring-white/5 rounded-xl pointer-events-none" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300" />
