@@ -588,7 +588,7 @@ const DashboardPage = () => {
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="w-full" onClick={handleCancelBotPolling}>
-                    Cancelar
+                    {t.common.cancel}
                   </Button>
                 </div>
               ) : (
