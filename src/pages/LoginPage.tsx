@@ -13,6 +13,7 @@ import { languageFlags, languageLabels, type Language } from "@/i18n/LanguageCon
 const LoginPage = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
   const [token, setToken] = useState("");
   const [validating, setValidating] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
