@@ -752,9 +752,9 @@ const DashboardPage = () => {
             </div>
 
             <PermissionPanel
-              title={selectedRole ? `Permissões do cargo ${selectedRole.name}` : null}
-              subtitle="Selecione as permissões que este cargo concede"
-              emptyText="Selecione um cargo para configurar as permissões"
+              title={selectedRole ? `${t.dashboard.rolePermissions} ${selectedRole.name}` : null}
+              subtitle={t.dashboard.selectRolePermissions}
+              emptyText={t.dashboard.selectRole}
               getValue={getRoleValue}
               onToggle={toggleRolePerm}
               hasChanges={roleHasChanges}
