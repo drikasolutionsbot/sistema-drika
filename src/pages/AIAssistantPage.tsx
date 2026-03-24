@@ -1146,11 +1146,10 @@ export default function AIAssistantPage() {
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
-                          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive hover:bg-destructive/20 transition-all"
+                          className="shrink-0 p-1 rounded-md text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-all"
                           title="Excluir chat"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          <span>Excluir</span>
                         </button>
                       </div>
                     ))}
