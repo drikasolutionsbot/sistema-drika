@@ -1130,7 +1130,7 @@ export default function AIAssistantPage() {
                       <div
                         key={session.id}
                         className={cn(
-                          "relative group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
+                          "group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
                           activeSessionId === session.id ? "bg-primary/10 border border-primary/20 shadow-sm" : "hover:bg-muted/30 border border-transparent"
                         )}
                         onClick={() => { setActiveSessionId(session.id); setShowSaved(false); setShowDbHistory(false); }}
@@ -1138,7 +1138,7 @@ export default function AIAssistantPage() {
                         <div className={cn("h-6 w-6 rounded-lg flex items-center justify-center shrink-0", activeSessionId === session.id ? "bg-primary/20" : "bg-muted/20")}>
                           <MessageSquare className="h-3 w-3 text-muted-foreground/60" />
                         </div>
-                        <div className="flex-1 min-w-0 pr-7">
+                        <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-foreground/80 truncate">{session.title}</p>
                           <p className="text-[10px] text-muted-foreground/55">
                             {session.messages.length} msg • {new Date(session.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
@@ -1146,10 +1146,11 @@ export default function AIAssistantPage() {
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/25 transition-all z-10"
+                          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive hover:bg-destructive/20 transition-all"
                           title="Excluir chat"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Excluir</span>
                         </button>
                       </div>
                     ))}
