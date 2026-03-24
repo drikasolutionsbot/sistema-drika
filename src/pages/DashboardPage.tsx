@@ -30,6 +30,7 @@ const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
 
 const DashboardPage = () => {
   const { tenant, tenantId, loading: tenantLoading, refetch } = useTenant();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"membros" | "cargos">("membros");
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
 
