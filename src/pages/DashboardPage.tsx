@@ -786,7 +786,7 @@ const DashboardPage = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Nome do cargo</label>
+              <label className="text-sm font-medium">{t.dashboard.roleName}</label>
               <Input
                 placeholder="Ex: Moderador"
                 value={newRoleName}
