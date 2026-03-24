@@ -150,7 +150,7 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
             ) : isExpiring ? (
               <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
                 <p className="text-xs text-destructive/80">
-                  ⚠️ Seu plano está prestes a expirar. Após o vencimento, o painel será <strong>bloqueado automaticamente</strong> até a renovação.
+                  ⚠️ {t.plan.aboutToExpire}
                 </p>
               </div>
             ) : (
