@@ -19,9 +19,10 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   BarChart, Bar,
 } from "recharts";
-import { format, parseISO, subDays, startOfDay, eachDayOfInterval, isWithinInterval, isSameDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format, parseISO, subDays, startOfDay, eachDayOfInterval } from "date-fns";
+import { ptBR as ptBRLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface Order {
   id: string;
