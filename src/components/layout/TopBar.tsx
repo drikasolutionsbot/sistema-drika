@@ -305,6 +305,26 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         {tenant && <PlanBadge tenant={tenant} />}
         {/* Wallet */}
         <WalletBadge />
+        {/* Language Switcher */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <span className="text-base leading-none">{languageFlags[language]}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[140px] bg-card border-border">
+            {(Object.keys(languageLabels) as Language[]).map((lang) => (
+              <DropdownMenuItem
+                key={lang}
+                onClick={() => setLanguage(lang)}
+                className={`cursor-pointer gap-2 ${language === lang ? "bg-primary/10 text-primary" : ""}`}
+              >
+                <span>{languageFlags[lang]}</span>
+                <span>{languageLabels[lang]}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         {/* Theme Toggle */}
         <ThemeToggle
           checked={theme === "dark"}
