@@ -1442,53 +1442,39 @@ export default function AIAssistantPage() {
 
                       {/* Loading animation */}
                       {msg.role === "assistant" && !msg.content && !msg.imageUrl && loading && (
-                        <div className="flex flex-col gap-4 py-3 min-w-[260px] animate-fade-in">
-                          <div className="flex items-center gap-3">
-                            <div className="relative h-10 w-10">
-                              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/40 to-[#C44AFF]/40 animate-spin" style={{ animationDuration: "2.5s" }} />
-                              <div className="absolute inset-[3px] rounded-full bg-card flex items-center justify-center">
-                                {selectedTool.id === "image" ? <Image className="h-4 w-4 text-primary animate-pulse" /> : <Brain className="h-4 w-4 text-primary animate-pulse" />}
+                        <div className="w-[300px] rounded-2xl border border-border/20 bg-card/80 backdrop-blur-sm p-5 shadow-xl animate-fade-in">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="relative h-10 w-10 shrink-0">
+                              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/30 to-[#C44AFF]/30 animate-pulse" />
+                              <div className="absolute inset-[2px] rounded-[10px] bg-card flex items-center justify-center">
+                                {selectedTool.id === "image" ? <Image className="h-4 w-4 text-primary" /> : <Brain className="h-4 w-4 text-primary" />}
                               </div>
                             </div>
-                            <div className="flex flex-col gap-1">
-                              <span className="text-xs font-bold text-foreground/70">
-                                {selectedTool.id === "image" ? "🎨 Criando sua imagem..." : "🧠 Pensando..."}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground/50">
-                                {selectedTool.id === "image" ? "Isso pode levar alguns segundos" : "Gerando resposta"}
-                              </span>
+                            <div>
+                              <p className="text-sm font-bold text-foreground/80">
+                                {selectedTool.id === "image" ? "Gerando imagem..." : "Processando..."}
+                              </p>
+                              {selectedTool.id === "image" && (
+                                <div className="mt-1 space-y-0.5 text-[10px] text-muted-foreground/50">
+                                  <p>① Refinando prompt com GPT-4o...</p>
+                                  <p>② Gerando imagem com SDXL Lightning...</p>
+                                </div>
+                              )}
                             </div>
                           </div>
 
                           {selectedTool.id === "image" ? (
-                            <div className="space-y-3">
-                              <div className="relative h-44 w-full rounded-xl bg-gradient-to-br from-muted/20 via-primary/5 to-[#C44AFF]/10 border border-border/10 overflow-hidden">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="relative">
-                                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-[#C44AFF]/20 flex items-center justify-center animate-pulse">
-                                      <Image className="h-8 w-8 text-primary/40" />
-                                    </div>
-                                    <div className="absolute -inset-4 rounded-full border-2 border-dashed border-primary/20 animate-spin" style={{ animationDuration: "8s" }} />
-                                  </div>
-                                </div>
-                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/20 overflow-hidden">
-                                  <div className="h-full bg-gradient-to-r from-primary/50 to-[#C44AFF]/50 animate-[shimmer_2s_linear_infinite]" style={{ width: "200%", transform: "translateX(-50%)" }} />
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 px-1">
-                                <div className="flex gap-1">
-                                  {[0, 1, 2].map(i => (
-                                    <div key={i} className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: `${i * 200}ms` }} />
-                                  ))}
-                                </div>
-                                <span className="text-[9px] text-muted-foreground/40">Processando com IA generativa</span>
+                            <div className="h-40 w-full rounded-xl bg-muted/10 border border-border/10 flex items-center justify-center relative overflow-hidden">
+                              <Image className="h-10 w-10 text-muted-foreground/15 animate-pulse" />
+                              <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/10 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-primary/40 to-[#C44AFF]/40" style={{ animation: "shimmer 2s linear infinite", width: "200%" }} />
                               </div>
                             </div>
                           ) : (
-                            <div className="space-y-2.5">
-                              {[85, 65, 45].map((w, i) => (
+                            <div className="space-y-2">
+                              {[90, 70, 50].map((w, i) => (
                                 <div key={i} className="h-2 rounded-full overflow-hidden" style={{ width: `${w}%` }}>
-                                  <div className="h-full w-[200%] bg-gradient-to-r from-muted/30 via-muted/10 to-muted/30" style={{ animation: `shimmer 2s linear infinite`, animationDelay: `${i * 300}ms` }} />
+                                  <div className="h-full w-[200%] bg-gradient-to-r from-muted/30 via-muted/10 to-muted/30" style={{ animation: "shimmer 2s linear infinite", animationDelay: `${i * 300}ms` }} />
                                 </div>
                               ))}
                             </div>
@@ -1496,7 +1482,7 @@ export default function AIAssistantPage() {
 
                           <button
                             onClick={handleCancel}
-                            className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-destructive/70 hover:text-destructive bg-destructive/5 hover:bg-destructive/10 border border-destructive/10 hover:border-destructive/20 transition-all"
+                            className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-destructive/70 hover:text-destructive bg-destructive/5 hover:bg-destructive/10 border border-destructive/10 hover:border-destructive/20 transition-all"
                           >
                             <Square className="h-3 w-3 fill-current" />
                             Cancelar
