@@ -7,6 +7,8 @@ import WifiLoader from "@/components/ui/wifi-loader";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import TermsModal from "@/components/TermsModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/i18n/LanguageContext";
+import { languageFlags, languageLabels, type Language } from "@/i18n/LanguageContext";
 
 const LoginPage = () => {
   const navigate = useNavigate();
