@@ -641,7 +641,7 @@ export default function AIAssistantPage() {
     };
 
     setSessions(prev => prev.map(s =>
-      s.id === sessionId ? { ...s, messages: [...s.messages, userMsg], title: s.messages.length === 0 ? (prompt || "Análise de imagem").slice(0, 50) : s.title } : s
+      s.id === sessionId ? { ...s, messages: [...s.messages, userMsg], title: s.messages.length === 0 ? (prompt || t.ai.imageAnalysis).slice(0, 50) : s.title } : s
     ));
 
     const currentPrompt = prompt || (currentAttachments.length > 0 ? "Analise detalhadamente esta imagem." : "");
