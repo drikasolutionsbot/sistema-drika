@@ -721,7 +721,7 @@ export default function AIAssistantPage() {
           throw new Error(errData?.error || t.ai.errorGenerating);
         }
         const reader = resp.body?.getReader();
-        if (!reader) throw new Error("Stream não disponível");
+        if (!reader) throw new Error(t.ai.streamNotAvailable);
         const decoder = new TextDecoder();
         let buffer = "";
         let accumulated = "";
