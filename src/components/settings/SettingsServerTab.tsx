@@ -120,6 +120,49 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     pollCountRef.current = 0;
   }, []);
 
+  const tryAutoLink = useCallback(async () => {
+    try {
+      const baselineIds = Array.from(guildsBeforeInviteRef.current);
+      const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: { ...getRequestBody(), baseline_guild_ids: baselineIds },
+      });
+
+      if (!autoError && autoData && !Array.isArray(autoData) && autoData.auto_linked) {
+        stopPolling();
+        setWaitingForBot(false);
+        await refetchTenant();
+        toast({ title: "Servidor conectado automaticamente! 🎉" });
+        return true;
+      }
+    } catch {
+      // silently ignore
+    }
+    return false;
+  }, [stopPolling, refetchTenant, tenantId]);
+
+  // Listen for tab focus / visibility to trigger immediate check
+  useEffect(() => {
+    if (!waitingForBot) return;
+
+    const handleFocus = async () => {
+      await tryAutoLink();
+    };
+
+    const handleVisibility = async () => {
+      if (document.visibilityState === "visible") {
+        await tryAutoLink();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [waitingForBot, tryAutoLink]);
+
   const startPollingForNewGuild = useCallback(() => {
     setWaitingForBot(true);
     setDetectedGuild(null);
@@ -141,51 +184,38 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       }
 
       try {
+        // First check for new guilds via diff
         const currentGuilds = await fetchAllBotGuilds();
-        // null means API error / rate limit — skip this iteration
-        if (!currentGuilds) return;
+        if (currentGuilds) {
+          const newGuilds = currentGuilds.filter((g) => !guildsBeforeInviteRef.current.has(g.id));
 
-        const newGuilds = currentGuilds.filter((g) => !guildsBeforeInviteRef.current.has(g.id));
-
-        if (newGuilds.length > 0) {
-          stopPolling();
-          setWaitingForBot(false);
-
-          // Check if already claimed by another tenant
-          const { data: verifyData } = await supabase.functions.invoke("discord-bot-guilds", {
-            body: { ...getRequestBody(), action: "verify_guild", guild_id: newGuilds[0].id },
-          });
-
-          if (verifyData?.error) {
-            toast({ title: "Erro", description: verifyData.error, variant: "destructive" });
-            return;
-          }
-
-          // Auto-link directly
-          setDetectedGuild(newGuilds[0]);
-          await autoLinkGuild(newGuilds[0]);
-          return;
-        }
-
-        // Fallback totalmente automático: se o bot já entrou antes do snapshot,
-        // tenta auto-link no backend sem depender de "guild nova".
-        if (pollCountRef.current % 2 === 0) {
-          const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
-            body: { ...getRequestBody() },
-          });
-
-          if (!autoError && autoData && !Array.isArray(autoData) && autoData.auto_linked) {
+          if (newGuilds.length > 0) {
             stopPolling();
             setWaitingForBot(false);
-            await refetchTenant();
-            toast({ title: "Servidor conectado automaticamente! 🎉" });
+
+            const { data: verifyData } = await supabase.functions.invoke("discord-bot-guilds", {
+              body: { ...getRequestBody(), action: "verify_guild", guild_id: newGuilds[0].id },
+            });
+
+            if (verifyData?.error) {
+              toast({ title: "Erro", description: verifyData.error, variant: "destructive" });
+              return;
+            }
+
+            setDetectedGuild(newGuilds[0]);
+            await autoLinkGuild(newGuilds[0]);
+            return;
           }
         }
+
+        // Fallback: try auto-link via backend on every poll
+        // This handles reconnection (bot already in server)
+        await tryAutoLink();
       } catch {
         // silently retry next interval
       }
     }, 5000);
-  }, [fetchAllBotGuilds, stopPolling]);
+  }, [fetchAllBotGuilds, stopPolling, tryAutoLink]);
 
   const autoLinkGuild = async (guild: Guild) => {
     if (!tenantId) return;
