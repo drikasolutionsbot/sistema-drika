@@ -1329,7 +1329,7 @@ export default function AIAssistantPage() {
                                   disabled={!!actionLoading}
                                 >
                                   {actionLoading === "image_variation" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5 mr-1" />}
-                                  Nova Variação
+                                  {t.ai.newVariation}
                                 </Button>
                               )}
                             </div>
