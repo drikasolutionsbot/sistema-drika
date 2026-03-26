@@ -896,7 +896,7 @@ export default function AIAssistantPage() {
               {creditsPercent >= 80 && (
                 <p className="text-[9px] text-red-400/70 mt-1.5 flex items-center gap-1">
                   <TrendingUp className="h-2.5 w-2.5" />
-                  Créditos baixos — faça upgrade!
+                  {t.ai.creditsLow}
                 </p>
               )}
             </div>
