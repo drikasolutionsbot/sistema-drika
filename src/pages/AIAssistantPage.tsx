@@ -1204,7 +1204,7 @@ export default function AIAssistantPage() {
                   {activeSession ? activeSession.title.slice(0, 30) : selectedTool.label}
                 </p>
                 {!loading && messages.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground/55">{messages.length} mensagens</p>
+                  <p className="text-[10px] text-muted-foreground/55">{messages.length} {t.ai.messages}</p>
                 )}
               </div>
               {actionLoading && (
