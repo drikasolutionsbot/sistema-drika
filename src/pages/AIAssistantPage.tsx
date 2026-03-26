@@ -876,7 +876,7 @@ export default function AIAssistantPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
                   <Flame className={cn("h-4 w-4", creditsPercent > 80 ? "text-red-400" : "text-primary")} />
-                  <span className="text-[11px] font-bold text-foreground/80">Créditos Diários</span>
+                  <span className="text-[11px] font-bold text-foreground/80">{t.ai.dailyCredits}</span>
                 </div>
                 <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", planConfig.color,
                   currentPlan === "pro" ? "bg-primary/10 border-primary/20" :
