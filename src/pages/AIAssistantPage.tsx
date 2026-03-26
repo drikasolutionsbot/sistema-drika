@@ -22,8 +22,8 @@ import { useLanguage } from "@/i18n/LanguageContext";
 // ═══════════════════════════════════════════════════════════
 
 const PLAN_LIMITS: Record<string, { daily: number; label: string; badge: string; color: string }> = {
-  free: { daily: 5, label: "Free", badge: "Gratuito", color: "text-muted-foreground" },
-  trial: { daily: 15, label: "Trial", badge: "Teste", color: "text-yellow-400" },
+  free: { daily: 5, label: "Free", badge: "Free", color: "text-muted-foreground" },
+  trial: { daily: 15, label: "Trial", badge: "Trial", color: "text-yellow-400" },
   pro: { daily: 100, label: "Pro", badge: "Pro", color: "text-primary" },
   business: { daily: 500, label: "Business", badge: "Business", color: "text-emerald-400" },
 };
