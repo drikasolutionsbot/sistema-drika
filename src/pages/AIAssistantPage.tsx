@@ -480,11 +480,11 @@ export default function AIAssistantPage() {
   // ═══ IMPROVE PROMPT ═══
   const handleImprovePrompt = async () => {
     if (!prompt.trim()) {
-      toast({ title: "Digite algo", description: "Escreva uma ideia para melhorar.", variant: "destructive" });
+      toast({ title: t.ai.typeSomething, description: t.ai.writeIdeaToImprove, variant: "destructive" });
       return;
     }
     if (!canAfford(CREDIT_COSTS.improve)) {
-      toast({ title: "Créditos insuficientes", description: "Você atingiu o limite diário do seu plano.", variant: "destructive" });
+      toast({ title: t.ai.insufficientCredits, description: t.ai.dailyLimitReached, variant: "destructive" });
       return;
     }
     setActionLoading("improve");
@@ -496,9 +496,9 @@ export default function AIAssistantPage() {
       if (data?.error) throw new Error(data.error);
       setPrompt(data.improved_prompt || prompt);
       consumeCredits(CREDIT_COSTS.improve);
-      toast({ title: "✨ Prompt melhorado!", description: "Seu prompt foi otimizado pela IA." });
+      toast({ title: t.ai.promptImproved, description: t.ai.promptImprovedDesc });
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message || "Erro ao melhorar prompt", variant: "destructive" });
+      toast({ title: t.ai.error, description: e.message || t.ai.errorImproving, variant: "destructive" });
     } finally {
       setActionLoading(null);
     }
