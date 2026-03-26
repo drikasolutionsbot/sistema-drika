@@ -634,7 +634,7 @@ export default function AIAssistantPage() {
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: prompt || (currentAttachments.length > 0 ? "Analise esta imagem" : ""),
+      content: prompt || (currentAttachments.length > 0 ? t.ai.analyzeImage : ""),
       attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       toolId: selectedTool.id,
       timestamp: new Date().toISOString(),
