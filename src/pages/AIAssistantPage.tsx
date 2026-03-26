@@ -615,7 +615,7 @@ export default function AIAssistantPage() {
   // ═══ MAIN GENERATE ═══
   const handleGenerate = async () => {
     if (!prompt.trim() && attachments.length === 0) {
-      toast({ title: "Digite algo", description: "Escreva o que deseja gerar.", variant: "destructive" });
+      toast({ title: t.ai.typeSomething, description: t.ai.writeWhatToGenerate, variant: "destructive" });
       return;
     }
 
