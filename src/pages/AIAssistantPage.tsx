@@ -532,7 +532,7 @@ export default function AIAssistantPage() {
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.variations || "Não foi possível gerar variações.",
+        content: data.variations || t.ai.couldNotGenerate,
         toolId: selectedTool.id,
         timestamp: new Date().toISOString(),
       };
