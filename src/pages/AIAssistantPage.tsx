@@ -1374,7 +1374,7 @@ export default function AIAssistantPage() {
                         msg.imageUrl && msg.content.length > 200 ? (
                           <details className="rounded-xl bg-muted/10 border border-border/10 overflow-hidden">
                             <summary className="px-3 py-2 cursor-pointer select-none text-[11px] text-muted-foreground/70 hover:text-muted-foreground transition-colors">
-                              📝 Ver detalhes da geração
+                              {t.ai.viewGenerationDetails}
                             </summary>
                             <div className="px-3 pb-3 whitespace-pre-wrap leading-relaxed text-[12px]">{msg.content}</div>
                           </details>
