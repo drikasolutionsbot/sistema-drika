@@ -1020,7 +1020,7 @@ export default function AIAssistantPage() {
                 <>
                   {/* Category filter */}
                   <div className="sticky top-0 z-10 flex gap-1 p-2 bg-card/80 backdrop-blur-md border-b border-border/10">
-                    {[{ id: "all", label: "Todos" }, ...AI_TOOLS.map(t => ({ id: t.id, label: t.emoji }))].map(cat => (
+                    {[{ id: "all", label: t.ai.all }, ...AI_TOOLS.map(t2 => ({ id: t2.id, label: t2.emoji }))].map(cat => (
                       <button
                         key={cat.id}
                         onClick={() => setDbFilterCategory(cat.id)}
