@@ -248,6 +248,16 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export default function AIAssistantPage() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
+  const { t } = useLanguage();
+
+  // Build translated tools
+  const AI_TOOLS = AI_TOOL_DEFS.map(def => ({
+    ...def,
+    label: t.ai[def.labelKey],
+    description: t.ai[def.descKey],
+    prompts: def.promptKeys.map(k => t.ai[k]),
+  }));
+
   const [selectedTool, setSelectedTool] = useState(AI_TOOLS[0]);
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState("");
