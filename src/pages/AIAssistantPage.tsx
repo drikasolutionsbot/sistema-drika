@@ -551,7 +551,7 @@ export default function AIAssistantPage() {
   const handleImageVariation = async (enhancedPrompt: string, sessionId: string) => {
     const cost = CREDIT_COSTS.image;
     if (!canAfford(cost)) {
-      toast({ title: "Créditos insuficientes", description: "Limite diário atingido.", variant: "destructive" });
+      toast({ title: t.ai.insufficientCredits, description: t.ai.dailyLimitReached, variant: "destructive" });
       return;
     }
     setActionLoading("image_variation");
