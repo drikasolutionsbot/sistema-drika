@@ -424,5 +424,3 @@ export const ptBR = {
 };
 
 export type TranslationKeys = typeof ptBR;
-
-export type TranslationKeys = typeof ptBR;
