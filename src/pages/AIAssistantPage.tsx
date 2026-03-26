@@ -1438,12 +1438,12 @@ export default function AIAssistantPage() {
                             </div>
                             <div>
                               <p className="text-sm font-bold text-foreground/80">
-                                {selectedTool.id === "image" ? "Gerando imagem..." : "Processando..."}
+                                {selectedTool.id === "image" ? t.ai.generatingImage : t.ai.processing}
                               </p>
                               {selectedTool.id === "image" && (
                                 <div className="mt-1 space-y-0.5 text-[10px] text-muted-foreground/50">
-                                  <p>① Refinando prompt com GPT-4o...</p>
-                                  <p>② Gerando imagem com SDXL Lightning...</p>
+                                  <p>{t.ai.refiningPrompt}</p>
+                                  <p>{t.ai.generatingWithSDXL}</p>
                                 </div>
                               )}
                             </div>
