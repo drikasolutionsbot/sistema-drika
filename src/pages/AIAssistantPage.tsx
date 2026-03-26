@@ -1505,7 +1505,7 @@ export default function AIAssistantPage() {
               {/* Credit cost indicator */}
               <div className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground/50">
                 <Gauge className="h-3 w-3" />
-                <span>Esta geração: <strong className="text-foreground/70">{CREDIT_COSTS[selectedTool.id] || 1} crédito(s)</strong></span>
+                <span>{t.ai.thisGeneration.replace("{cost}", String(CREDIT_COSTS[selectedTool.id] || 1))}</span>
               </div>
             </div>
             {showContext && (
