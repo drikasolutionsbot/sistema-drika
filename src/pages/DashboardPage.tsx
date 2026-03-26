@@ -257,6 +257,20 @@ const DashboardPage = () => {
     }
   };
 
+  const disconnectedGuildStorageKey = tenantId ? `last_disconnected_guild:${tenantId}` : null;
+
+  const getPreferredReconnectGuildId = useCallback(() => {
+    if (!disconnectedGuildStorageKey) return null;
+    const value = localStorage.getItem(disconnectedGuildStorageKey);
+    if (!value || !/^\d{17,20}$/.test(value)) return null;
+    return value;
+  }, [disconnectedGuildStorageKey]);
+
+  const clearPreferredReconnectGuildId = useCallback(() => {
+    if (!disconnectedGuildStorageKey) return;
+    localStorage.removeItem(disconnectedGuildStorageKey);
+  }, [disconnectedGuildStorageKey]);
+
   const getDiscordRequestBody = useCallback(() => {
     const body: Record<string, unknown> = { tenant_id: tenantId };
     const tokenSession = sessionStorage.getItem("token_session");
@@ -302,6 +316,7 @@ const DashboardPage = () => {
       if (data?.error) throw new Error(data.error);
 
       await refetch();
+      clearPreferredReconnectGuildId();
       stopPolling();
       setWaitingForBot(false);
       toast.success(`Servidor ${guild.name} conectado! 🎉`);
@@ -309,9 +324,24 @@ const DashboardPage = () => {
     } catch {
       return false;
     }
-  }, [tenantId, refetch, stopPolling]);
+  }, [tenantId, refetch, clearPreferredReconnectGuildId, stopPolling]);
 
   const tryBackendAutoLink = useCallback(async () => {
+    const preferredGuildId = getPreferredReconnectGuildId();
+    if (preferredGuildId) {
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: { ...getDiscordRequestBody(), action: "verify_guild", guild_id: preferredGuildId },
+      });
+
+      if (!verifyError && verifyData?.guild) {
+        return await autoLinkGuild(verifyData.guild);
+      }
+
+      if (verifyData?.error) {
+        clearPreferredReconnectGuildId();
+      }
+    }
+
     const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
       body: {
         ...getDiscordRequestBody(),
@@ -325,6 +355,7 @@ const DashboardPage = () => {
       stopPolling();
       setWaitingForBot(false);
       await refetch();
+      clearPreferredReconnectGuildId();
       toast.success("Servidor conectado automaticamente! 🎉");
       return true;
     }
@@ -335,7 +366,7 @@ const DashboardPage = () => {
     }
 
     return false;
-  }, [getDiscordRequestBody, autoLinkGuild, stopPolling, refetch]);
+  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch]);
 
   const startPollingForGuildConnection = useCallback(() => {
     if (!tenantId) return;
@@ -378,10 +409,8 @@ const DashboardPage = () => {
           }
         }
 
-        if (pollCountRef.current % 2 === 0) {
-          const linked = await tryBackendAutoLink();
-          if (linked) return;
-        }
+        const linked = await tryBackendAutoLink();
+        if (linked) return;
       } catch {
         // keep polling
       }
