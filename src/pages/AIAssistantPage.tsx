@@ -1510,7 +1510,7 @@ export default function AIAssistantPage() {
             </div>
             {showContext && (
               <Textarea
-                placeholder="Ex: Minha loja vende contas de jogos..."
+                placeholder={t.ai.contextPlaceholder}
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
                 className="mb-2 min-h-[50px] bg-muted/10 border-border/15 text-xs resize-none"
