@@ -718,7 +718,7 @@ export default function AIAssistantPage() {
         });
         if (!resp.ok) {
           const errData = await resp.json().catch(() => ({}));
-          throw new Error(errData?.error || "Erro ao gerar conteúdo");
+          throw new Error(errData?.error || t.ai.errorGenerating);
         }
         const reader = resp.body?.getReader();
         if (!reader) throw new Error("Stream não disponível");
