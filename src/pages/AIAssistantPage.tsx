@@ -1388,7 +1388,7 @@ export default function AIAssistantPage() {
                         <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-border/15">
                           <button onClick={() => handleCopy(msg.content, msg.id)} className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-primary transition-all px-3 py-2 rounded-xl border border-border/20 hover:border-primary/30 hover:bg-primary/10 bg-card/40 backdrop-blur-sm">
                             {copied === msg.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                            {copied === msg.id ? "Copiado" : "Copiar"}
+                            {copied === msg.id ? t.ai.copied : t.ai.copy}
                           </button>
 
                           <button
