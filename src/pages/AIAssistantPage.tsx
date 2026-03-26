@@ -459,9 +459,9 @@ export default function AIAssistantPage() {
     const userMsg = activeSession.messages[idx - 1];
     if (userMsg?.role === "user") {
       setPrompt(userMsg.content);
-      const tool = AI_TOOLS.find(t => t.id === msg.toolId);
+      const tool = AI_TOOLS.find(t2 => t2.id === msg.toolId);
       if (tool) setSelectedTool(tool);
-      toast({ title: "♻️ Prompt restaurado", description: "Edite e gere novamente!" });
+      toast({ title: t.ai.promptRestored });
     }
   };
 
