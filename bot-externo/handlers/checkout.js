@@ -320,7 +320,9 @@ async function goToPayment(interaction, tenant, orderId) {
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   const channel = interaction.channel;
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(0x2B2D31)] });
+  const preStoreConfig = await getStoreConfig(tenant.id);
+  const preEmbedColor = parseInt((preStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
