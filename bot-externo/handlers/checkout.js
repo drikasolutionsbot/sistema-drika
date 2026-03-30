@@ -306,6 +306,30 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
           checkoutThread.setArchived?.(true).catch(() => {});
           checkoutThread.setLocked?.(true).catch(() => {});
         }, 5000);
+
+        // ── Send "Pagamento expirado" log ──
+        try {
+          const expStoreConfig = await getStoreConfig(tenant.id);
+          if (expStoreConfig?.logs_channel_id) {
+            const expStoreName = expStoreConfig?.store_title || tenant.name || "Loja";
+            const expStoreLogo = expStoreConfig?.store_logo_url || tenant.logo_url;
+            const { date: expDate, time: expTime } = formatDateTime();
+
+            const logsChannel = await interaction.guild.channels.fetch(expStoreConfig.logs_channel_id);
+            const expiredEmbed = new EmbedBuilder()
+              .setTitle("🍃 Pagamento expirado")
+              .setDescription(`Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`)
+              .setColor(0xED4245)
+              .addFields(
+                { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
+              )
+              .setFooter({ text: `${expStoreName} | ${expDate}, ${expTime}`, iconURL: expStoreLogo || undefined });
+
+            await sendWithIdentity(logsChannel, tenant, { embeds: [expiredEmbed] });
+          }
+        } catch (logErr) {
+          console.error("Failed to send expired log:", logErr);
+        }
       }
     } catch {}
   }, timeout);
