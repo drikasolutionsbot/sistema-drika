@@ -38,16 +38,25 @@ serve(async (req) => {
     });
   }
 
-  // Get store configs for timeouts
+  // Get store configs for timeouts + logs
   const tenantIds = [...new Set(pendingOrders.map((o: any) => o.tenant_id))];
   const { data: storeConfigs } = await supabase
     .from("store_configs")
-    .select("tenant_id, payment_timeout_minutes")
+    .select("tenant_id, payment_timeout_minutes, logs_channel_id, store_title, store_logo_url, embed_color")
     .in("tenant_id", tenantIds);
 
-  const timeoutMap: Record<string, number> = {};
+  const { data: tenants } = await supabase
+    .from("tenants")
+    .select("id, name, logo_url")
+    .in("id", tenantIds);
+
+  const configMap: Record<string, any> = {};
   for (const sc of storeConfigs || []) {
-    timeoutMap[sc.tenant_id] = sc.payment_timeout_minutes || 30;
+    configMap[sc.tenant_id] = sc;
+  }
+  const tenantMap: Record<string, any> = {};
+  for (const t of tenants || []) {
+    tenantMap[t.id] = t;
   }
 
   const now = Date.now();
@@ -55,7 +64,7 @@ serve(async (req) => {
   const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
   for (const order of pendingOrders) {
-    const timeoutMinutes = timeoutMap[order.tenant_id] || 30;
+    const timeoutMinutes = configMap[order.tenant_id]?.payment_timeout_minutes || 30;
     const createdAt = new Date(order.created_at).getTime();
     const elapsed = (now - createdAt) / 1000 / 60; // minutes
 
@@ -64,9 +73,41 @@ serve(async (req) => {
       await supabase.from("orders").update({ status: "canceled" }).eq("id", order.id);
       expiredCount++;
 
-      // Notify buyer via DM com bot externo único
-
       if (botToken) {
+        // ── Send "Pagamento expirado" log to logs channel ──
+        const sc = configMap[order.tenant_id];
+        const tenant = tenantMap[order.tenant_id];
+        if (sc?.logs_channel_id) {
+          try {
+            const storeName = sc.store_title || tenant?.name || "Loja";
+            const storeLogo = sc.store_logo_url || tenant?.logo_url;
+            const dateStr = new Date().toLocaleDateString("pt-BR");
+            const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+            await fetch(`${DISCORD_API}/channels/${sc.logs_channel_id}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                embeds: [{
+                  title: "🍃 Pagamento expirado",
+                  description: `Usuário <@${order.discord_user_id}> deixou o pagamento expirar.`,
+                  color: 0xED4245,
+                  fields: [
+                    { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+                  ],
+                  footer: {
+                    text: `${storeName} | ${dateStr}, ${timeStr}`,
+                    icon_url: storeLogo || undefined,
+                  },
+                }],
+              }),
+            });
+          } catch (logErr) {
+            console.error("Failed to send expired log:", logErr);
+          }
+        }
+
+        // Notify buyer via DM
         try {
           const dmCh = await fetch(`${DISCORD_API}/users/@me/channels`, {
             method: "POST",
