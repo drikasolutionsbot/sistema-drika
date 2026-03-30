@@ -1164,6 +1164,54 @@ export type Database = {
           },
         ]
       }
+      product_messages: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          message_id: string
+          product_id: string
+          tenant_id: string
+          webhook_id: string | null
+          webhook_token: string | null
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+          product_id: string
+          tenant_id: string
+          webhook_id?: string | null
+          webhook_token?: string | null
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          product_id?: string
+          tenant_id?: string
+          webhook_id?: string | null
+          webhook_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_messages_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_stock_items: {
         Row: {
           content: string
