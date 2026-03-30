@@ -320,7 +320,9 @@ async function goToPayment(interaction, tenant, orderId) {
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   const channel = interaction.channel;
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(0x2B2D31)] });
+  const preStoreConfig = await getStoreConfig(tenant.id);
+  const preEmbedColor = parseInt((preStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
@@ -449,13 +451,17 @@ async function approveOrder(interaction, tenant, orderId) {
   // DM buyer
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(0x2B2D31).setTimestamp()] });
+    const dmStoreConfig = await getStoreConfig(tenant.id);
+    const dmEmbedColor = parseInt((dmStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+    await user.send({ embeds: [new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
   } catch {}
 
+  const approveStoreConfig = await getStoreConfig(tenant.id);
+  const approveEmbedColor = parseInt((approveStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
   const approvedEmbed = new EmbedBuilder()
     .setTitle("✅ Pedido Aprovado")
     .setDescription(`Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
-    .setColor(0x2B2D31)
+    .setColor(approveEmbedColor)
     .addFields(
       { name: "📦 Produto", value: order.product_name, inline: true },
       { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
@@ -477,11 +483,11 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0x2B2D31).setTimestamp()] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0xED4245).setTimestamp()] });
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0x2B2D31).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
+    embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
     components: [],
   });
 }
@@ -497,7 +503,9 @@ async function cancelOrder(interaction, tenant, orderId) {
   }
 
   const channel = interaction.channel;
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(0x2B2D31)] });
+  const cancelStoreConfig = await getStoreConfig(tenant.id);
+  const cancelEmbedColor = parseInt((cancelStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
 
   setTimeout(() => {
     channel.setArchived?.(true).catch(() => {});
@@ -581,7 +589,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
   await updateOrderStatus(order.id, "pending_payment", { total_cents: newTotal });
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(0x2B2D31)],
+    embeds: [new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(parseInt(((await getStoreConfig(tenant.id))?.embed_color || "#2B2D31").replace("#", ""), 16))],
   });
 
   await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
@@ -596,7 +604,7 @@ async function markDelivered(interaction, tenant, orderId) {
   await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(0x2B2D31)],
+    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(parseInt(((await getStoreConfig(tenant.id))?.embed_color || "#2B2D31").replace("#", ""), 16))],
   });
 
   await interaction.editReply({
