@@ -300,6 +300,12 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
   const selectedUserId = interaction.values?.[0];
   if (!selectedUserId) return;
 
+  // Only staff can add members
+  const isStaff = await checkStaffPermission(tenant, interaction);
+  if (!isStaff) {
+    return interaction.reply({ content: "❌ Apenas membros da equipe podem adicionar pessoas ao ticket.", ephemeral: true });
+  }
+
   await interaction.deferReply({ ephemeral: true });
 
   const ticket = await getTicketById(ticketId);
