@@ -453,9 +453,12 @@ async function goToPayment(interaction, tenant, orderId) {
           .setFooter({ text: `${reqStoreName} | ${reqDate}, ${reqTime}`, iconURL: reqStoreLogo || undefined });
 
         await sendWithIdentity(logsChannel, tenant, { embeds: [reqLogEmbed] });
+        console.log(`[LOG] Pedido solicitado (${providerKey}) sent for order ${order.id} to channel ${reqStoreConfig.logs_channel_id}`);
       } catch (logErr) {
-        console.error("Failed to send order requested log:", logErr);
+        console.error("Failed to send order requested log:", logErr.message, logErr.stack);
       }
+    } else {
+      console.warn(`[LOG] No logs_channel_id configured for tenant ${tenant.id}, skipping order log`);
     }
   } else {
     // Static PIX
@@ -465,7 +468,7 @@ async function goToPayment(interaction, tenant, orderId) {
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
 
-    // Send admin approval notification
+    // Send admin approval notification + log
     const storeConfig = await getStoreConfig(tenant.id);
     if (storeConfig?.logs_channel_id) {
       try {
@@ -492,7 +495,12 @@ async function goToPayment(interaction, tenant, orderId) {
         );
 
         await sendWithIdentity(logsChannel, tenant, { embeds: [logEmbed], components: [approvalRow] });
-      } catch {}
+        console.log(`[LOG] Pedido solicitado (static) sent for order ${order.id} to channel ${storeConfig.logs_channel_id}`);
+      } catch (logErr) {
+        console.error("Failed to send static PIX order log:", logErr.message, logErr.stack);
+      }
+    } else {
+      console.warn(`[LOG] No logs_channel_id configured for tenant ${tenant.id}, skipping order log`);
     }
   }
 
