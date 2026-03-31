@@ -647,6 +647,18 @@ async function approveOrder(interaction, tenant, orderId) {
     .setTimestamp();
 
   await interaction.editReply({ embeds: [approvedEmbed], components: [] });
+
+  // Log: Pedido aprovado
+  await sendLog(interaction.guild, tenant, {
+    title: "✅ Pedido aprovado",
+    description: `Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>.`,
+    color: 0x57F287,
+    fields: [
+      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+    ],
+  });
 }
 
 // ── Reject Order ──
