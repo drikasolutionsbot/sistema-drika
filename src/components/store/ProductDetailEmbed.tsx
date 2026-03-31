@@ -12,7 +12,6 @@ export interface EmbedConfig {
   title?: string;
   description?: string;
   footer?: string;
-  footer_text?: string;
   color?: string;
   bg_style?: EmbedBgStyle;
   price_label?: string;
@@ -265,18 +264,6 @@ export const ProductDetailEmbed = ({ product, onChange, storeEmbedColor }: Produ
           </div>
           {config.show_footer !== false && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-bold">Texto do Rodapé</Label>
-                <Input
-                  value={config.footer_text || ""}
-                  onChange={(e) => update("footer_text", e.target.value)}
-                  placeholder="Servidor de {loja} • {data}"
-                  className="bg-muted border-border"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Use <code className="bg-muted-foreground/20 px-1 rounded">{'{loja}'}</code> para o nome da loja e <code className="bg-muted-foreground/20 px-1 rounded">{'{data}'}</code> para a data/hora. Deixe vazio para o padrão.
-                </p>
-              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="text-sm font-bold">Disponível</Label>

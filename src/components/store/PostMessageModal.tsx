@@ -113,7 +113,7 @@ export const PostMessageModal = ({
       const showFooter = ec.show_footer !== false;
       let footerText = "";
       if (showFooter) {
-        const customFooter = ec.footer_text || ec.footer_available_text || ec.footer || "";
+        const customFooter = ec.footer_available_text || ec.footer || "";
         if (customFooter) {
           footerText = customFooter
             .replace(/\{loja\}/gi, tenant?.name || "Loja")

@@ -64,8 +64,7 @@ function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
 
   const productFooter = embedConfig.show_footer === false
     ? ""
-    : (embedConfig.footer_text)
-      || ((hasStock ? embedConfig.footer_available_text : embedConfig.footer_unavailable_text) || embedConfig.footer || "");
+    : (hasStock ? embedConfig.footer_available_text : embedConfig.footer_unavailable_text) || embedConfig.footer || "";
 
   const storeFooter = storeConfig?.purchase_embed_footer || "";
   const fallback = `${context.storeName} • ${context.date} ${context.time}`;
