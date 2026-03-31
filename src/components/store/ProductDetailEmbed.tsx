@@ -264,22 +264,36 @@ export const ProductDetailEmbed = ({ product, onChange, storeEmbedColor }: Produ
             />
           </div>
           {config.show_footer !== false && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm font-bold">Disponível</Label>
+                <Label className="text-sm font-bold">Texto do Rodapé</Label>
                 <Input
-                  value={config.footer_available_text || ""}
-                  onChange={(e) => update("footer_available_text", e.target.value)}
+                  value={config.footer_text || ""}
+                  onChange={(e) => update("footer_text", e.target.value)}
+                  placeholder="Servidor de {loja} • {data}"
                   className="bg-muted border-border"
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  Use <code className="bg-muted-foreground/20 px-1 rounded">{'{loja}'}</code> para o nome da loja e <code className="bg-muted-foreground/20 px-1 rounded">{'{data}'}</code> para a data/hora. Deixe vazio para o padrão.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-bold">Indisponível</Label>
-                <Input
-                  value={config.footer_unavailable_text || ""}
-                  onChange={(e) => update("footer_unavailable_text", e.target.value)}
-                  className="bg-muted border-border"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">Disponível</Label>
+                  <Input
+                    value={config.footer_available_text || ""}
+                    onChange={(e) => update("footer_available_text", e.target.value)}
+                    className="bg-muted border-border"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold">Indisponível</Label>
+                  <Input
+                    value={config.footer_unavailable_text || ""}
+                    onChange={(e) => update("footer_unavailable_text", e.target.value)}
+                    className="bg-muted border-border"
+                  />
+                </div>
               </div>
             </div>
           )}
