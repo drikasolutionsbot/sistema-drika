@@ -818,6 +818,18 @@ async function handleQuantityModal(interaction, tenant, orderId) {
   });
 
   await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
+
+  // Log: Quantidade editada
+  await sendLog(interaction.guild, tenant, {
+    title: "✏️ Quantidade editada",
+    description: `Usuário <@${interaction.user.id}> alterou a quantidade do pedido.`,
+    fields: [
+      { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
+      { name: "**Quantidade**", value: `\`${qty}x\``, inline: true },
+      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+    ],
+  });
 }
 
 // ── Mark Delivered ──
