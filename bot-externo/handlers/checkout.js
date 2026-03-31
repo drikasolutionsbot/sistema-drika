@@ -18,7 +18,7 @@ const formatDateTime = (dateObj = new Date()) => ({
 });
 
 // ── Log helper ──
-async function sendLog(guild, tenant, { title, description, color, fields: extraFields, storeConfig: sc }) {
+async function sendLog(guild, tenant, { title, description, color, fields: extraFields, storeConfig: sc, components }) {
   try {
     const storeConfig = sc || await getStoreConfig(tenant.id);
     if (!storeConfig?.logs_channel_id) return;
@@ -37,12 +37,13 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
 
     if (extraFields?.length) embed.addFields(extraFields);
 
-    const payload = { embeds: [embed.toJSON()] };
+    const payload = { embeds: [embed.toJSON()], components: components || [] };
 
     try {
       const logsChannel = await guild.channels.fetch(storeConfig.logs_channel_id);
       if (logsChannel?.isTextBased?.()) {
-        await logsChannel.send(payload);
+        await sendWithIdentity(logsChannel, tenant, payload);
+        console.log(`[LOG] ${title} sent for tenant ${tenant.id} to channel ${storeConfig.logs_channel_id}`);
         return;
       }
     } catch (channelErr) {
@@ -64,6 +65,8 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       const body = await res.text();
       throw new Error(`Discord API ${res.status}: ${body}`);
     }
+
+    console.log(`[LOG] ${title} sent via REST fallback for tenant ${tenant.id} to channel ${storeConfig.logs_channel_id}`);
   } catch (err) {
     console.error(`Failed to send log [${title}]:`, err.message);
   }
@@ -444,40 +447,21 @@ async function goToPayment(interaction, tenant, orderId) {
 
     await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey });
 
-    // ── Send "Pedido solicitado" log ──
-    const reqStoreConfig = await getStoreConfig(tenant.id);
-    if (reqStoreConfig?.logs_channel_id) {
-      try {
-        const reqStoreName = reqStoreConfig?.store_title || tenant.name || "Loja";
-        const reqStoreLogo = reqStoreConfig?.store_logo_url || tenant.logo_url;
-        const reqEmbedColor = parseInt((reqStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
-        const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
-          : providerKey === "efi" ? "Pix – Efi Bank"
-          : providerKey === "mercadopago" ? "Pix – Mercado Pago"
-          : providerKey === "misticpay" ? "Pix – Mistic Pay"
-          : `Pix – ${providerKey}`;
-        const { date: reqDate, time: reqTime } = formatDateTime();
+    const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
+      : providerKey === "efi" ? "Pix – Efi Bank"
+      : providerKey === "mercadopago" ? "Pix – Mercado Pago"
+      : providerKey === "misticpay" ? "Pix – Mistic Pay"
+      : `Pix – ${providerKey}`;
 
-        const logsChannel = await interaction.guild.channels.fetch(reqStoreConfig.logs_channel_id);
-        const reqLogEmbed = new EmbedBuilder()
-          .setTitle("🆕 Pedido solicitado")
-          .setDescription(`Usuário <@${order.discord_user_id}> solicitou um pedido.`)
-          .setColor(reqEmbedColor)
-          .addFields(
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
-          )
-          .setFooter({ text: `${reqStoreName} | ${reqDate}, ${reqTime}`, iconURL: reqStoreLogo || undefined });
-
-        await sendWithIdentity(logsChannel, tenant, { embeds: [reqLogEmbed] });
-        console.log(`[LOG] Pedido solicitado (${providerKey}) sent for order ${order.id} to channel ${reqStoreConfig.logs_channel_id}`);
-      } catch (logErr) {
-        console.error("Failed to send order requested log:", logErr.message, logErr.stack);
-      }
-    } else {
-      console.warn(`[LOG] No logs_channel_id configured for tenant ${tenant.id}, skipping order log`);
-    }
+    await sendLog(interaction.guild, tenant, {
+      title: "🆕 Pedido solicitado",
+      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      fields: [
+        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+        { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
+      ],
+    });
   } else {
     // Static PIX
     if (!tenant.pix_key) {
@@ -486,40 +470,23 @@ async function goToPayment(interaction, tenant, orderId) {
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
 
-    // Send admin approval notification + log
     const storeConfig = await getStoreConfig(tenant.id);
-    if (storeConfig?.logs_channel_id) {
-      try {
-        const logsChannel = await interaction.guild.channels.fetch(storeConfig.logs_channel_id);
-        const reqStoreName = storeConfig?.store_title || tenant.name || "Loja";
-        const reqStoreLogo = storeConfig?.store_logo_url || tenant.logo_url;
-        const reqEmbedColor = parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
-        const { date: reqDate, time: reqTime } = formatDateTime();
+    const approvalRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
+    );
 
-        const logEmbed = new EmbedBuilder()
-          .setTitle("🆕 Pedido solicitado")
-          .setDescription(`Usuário <@${order.discord_user_id}> solicitou um pedido.`)
-          .setColor(reqEmbedColor)
-          .addFields(
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Forma de Pagamento**", value: `\`💎 Pix – Estático\``, inline: false },
-          )
-          .setFooter({ text: `${reqStoreName} | ${reqDate}, ${reqTime}`, iconURL: reqStoreLogo || undefined });
-
-        const approvalRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
-          new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
-        );
-
-        await sendWithIdentity(logsChannel, tenant, { embeds: [logEmbed], components: [approvalRow] });
-        console.log(`[LOG] Pedido solicitado (static) sent for order ${order.id} to channel ${storeConfig.logs_channel_id}`);
-      } catch (logErr) {
-        console.error("Failed to send static PIX order log:", logErr.message, logErr.stack);
-      }
-    } else {
-      console.warn(`[LOG] No logs_channel_id configured for tenant ${tenant.id}, skipping order log`);
-    }
+    await sendLog(interaction.guild, tenant, {
+      title: "🆕 Pedido solicitado",
+      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      fields: [
+        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+        { name: "**Forma de Pagamento**", value: "`💎 Pix – Estático`", inline: false },
+      ],
+      components: [approvalRow],
+      storeConfig,
+    });
   }
 
   // Send PIX embed

@@ -2607,43 +2607,14 @@ async function processPurchase(
     ],
   });
 
-  // ── Send "Carrinho aberto" log to logs channel ──
-  try {
-    const { data: logStoreConfig } = await supabase
-      .from("store_configs")
-      .select("logs_channel_id, store_title, store_logo_url, embed_color")
-      .eq("tenant_id", tenantId)
-      .single();
-
-    if (logStoreConfig?.logs_channel_id) {
-      const { data: logTenantInfo } = await supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single();
-      const logStoreName = logStoreConfig.store_title || logTenantInfo?.name || "Loja";
-      const logStoreLogo = logStoreConfig.store_logo_url || logTenantInfo?.logo_url;
-      const logEmbedColor = logStoreConfig.embed_color ? parseInt(logStoreConfig.embed_color.replace("#", ""), 16) : 0x2B2D31;
-      const logDate = new Date().toLocaleDateString("pt-BR");
-      const logTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-      await fetch(`${DISCORD_API}/channels/${logStoreConfig.logs_channel_id}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          embeds: [{
-            title: "🛒 Carrinho aberto",
-            description: `Usuário <@${userId}> abriu um carrinho.`,
-            color: logEmbedColor,
-            fields: [
-              { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
-              { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            ],
-            footer: { text: `${logStoreName} | ${logDate}, ${logTime}`, icon_url: logStoreLogo || undefined },
-          }],
-        }),
-      });
-      console.log(`[LOG] Carrinho aberto sent for order ${order.id}`);
-    }
-  } catch (cartLogErr: any) {
-    console.error("Failed to send cart opened log:", cartLogErr.message);
-  }
+  await sendStoreLog(supabase, botToken, tenantId, {
+    title: "🛒 Carrinho aberto",
+    description: `Usuário <@${userId}> abriu um carrinho.`,
+    fields: [
+      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+    ],
+  });
 }
 
 // ─── Discord response helpers ───────────────────────────────
