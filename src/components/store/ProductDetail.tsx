@@ -58,10 +58,20 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
   const [embedColor, setEmbedColor] = useState("#2B2D31");
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editedRef = useRef(edited);
+  const dirtyRef = useRef(false);
+  const onSaveRef = useRef(onSave);
 
   useEffect(() => {
     editedRef.current = edited;
   }, [edited]);
+
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -78,25 +88,25 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
     autoSaveTimer.current = setTimeout(async () => {
       const current = editedRef.current;
       try {
-        const ok = await onSave(current);
+        const ok = await onSaveRef.current(current);
         if (ok) setDirty(false);
       } catch {
         // silent
       }
     }, 2000);
-  }, [onSave]);
+  }, []);
 
   // Cleanup timer on unmount & flush save
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) {
         clearTimeout(autoSaveTimer.current);
-        if (editedRef.current && dirty) {
-          onSave(editedRef.current).catch(() => {});
+        if (editedRef.current && dirtyRef.current) {
+          onSaveRef.current(editedRef.current).catch(() => {});
         }
       }
     };
-  }, [dirty, onSave]);
+  }, []);
 
   const handleChange = (updates: Partial<Product>) => {
     setEdited((prev) => ({ ...prev, ...updates }));
