@@ -144,13 +144,9 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Deletar").setStyle(ButtonStyle.Danger),
   );
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new UserSelectMenuBuilder().setCustomId(`ticket_assign_${ticket.id}`).setPlaceholder("Selecione algum membro").setMinValues(1).setMaxValues(1),
-  );
-
   const welcomeMsg = await sendWithIdentity(ticketThread, tenant, {
     content: contentMention, allowedMentions: { users: [userId], roles: staffRoleIds },
-    embeds: [welcomeEmbed], components: [row1, row2],
+    embeds: [welcomeEmbed], components: [row1],
   });
 
   try { await welcomeMsg.pin(); } catch {}
