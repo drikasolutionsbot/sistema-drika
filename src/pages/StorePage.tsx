@@ -28,6 +28,7 @@ interface Product {
   show_stock?: boolean;
   show_sold?: boolean;
   enable_instructions?: boolean;
+  role_id?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
 }
 
