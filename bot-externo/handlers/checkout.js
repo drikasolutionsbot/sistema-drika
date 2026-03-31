@@ -320,24 +320,15 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   await interaction.editReply({ content: "✅ | Seu carrinho foi criado com êxito.", components: [linkRow] });
 
   // ── Send "Carrinho aberto" log to logs channel ──
-  if (storeConfig?.logs_channel_id) {
-    try {
-      const logsChannel = await interaction.guild.channels.fetch(storeConfig.logs_channel_id);
-      const cartLogEmbed = new EmbedBuilder()
-        .setTitle("🛒 Carrinho aberto")
-        .setDescription(`Usuário <@${userId}> abriu um carrinho.`)
-        .setColor(embedColor)
-        .addFields(
-          { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
-          { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        )
-        .setFooter({ text: `${storeName} | ${checkoutDate}, ${checkoutTime}`, iconURL: storeLogo || undefined });
-
-      await sendWithIdentity(logsChannel, tenant, { embeds: [cartLogEmbed] });
-    } catch (logErr) {
-      console.error("Failed to send cart opened log:", logErr);
-    }
-  }
+  await sendLog(interaction.guild, tenant, {
+    title: "🛒 Carrinho aberto",
+    description: `Usuário <@${userId}> abriu um carrinho.`,
+    fields: [
+      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+    ],
+    storeConfig,
+  });
 
   // Auto-expire
   const timeout = (storeConfig?.payment_timeout_minutes || 30) * 60 * 1000;
