@@ -30,6 +30,7 @@ interface Product {
   enable_instructions?: boolean;
   role_id?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
+  embed_config?: Record<string, unknown>;
 }
 
 const StorePage = () => {
@@ -99,6 +100,7 @@ const StorePage = () => {
           show_sold: product.show_sold,
           enable_instructions: product.enable_instructions,
           button_style: product.button_style,
+          embed_config: product.embed_config,
           role_id: product.role_id,
         },
       },
