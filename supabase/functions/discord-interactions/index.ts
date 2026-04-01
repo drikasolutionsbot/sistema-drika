@@ -52,6 +52,25 @@ function applyPurchaseFooterTemplate(template: string | null | undefined, contex
     .replace(/\{user\}/gi, String(context.username ?? ""));
 }
 
+function parseProductEmbedConfig(rawConfig: unknown): Record<string, unknown> {
+  if (!rawConfig) return {};
+  if (typeof rawConfig === "string") {
+    try {
+      const parsed = JSON.parse(rawConfig);
+      return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof rawConfig === "object" ? rawConfig as Record<string, unknown> : {};
+}
+
+function resolveHexColor(value: unknown, fallback = "#5865F2") {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const normalized = raw ? (raw.startsWith("#") ? raw : `#${raw}`) : fallback;
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
+}
+
 // ─── PIX generation helpers (same as generate-pix) ──────────
 function tlv(id: string, value: string): string {
   return `${id}${value.length.toString().padStart(2, "0")}${value}`;
@@ -2493,11 +2512,9 @@ async function processPurchase(
 
   const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || "Loja";
   const storeLogo = storeConfigForCheckout?.store_logo_url || tenantInfo?.logo_url;
-  const productEmbedColor = typeof product.embed_config?.color === "string"
-    ? product.embed_config.color
-    : null;
-  const storeEmbedColor = productEmbedColor || storeConfigForCheckout?.embed_color || "#5865F2";
-  const reviewEmbedColor = parseInt(storeEmbedColor.replace("#", ""), 16);
+  const productEmbedConfig = parseProductEmbedConfig(product.embed_config);
+  const resolvedEmbedHex = resolveHexColor(productEmbedConfig.color, resolveHexColor(storeConfigForCheckout?.embed_color || "#5865F2"));
+  const reviewEmbedColor = parseInt(resolvedEmbedHex.replace("#", ""), 16);
 
   // Get stock count
   let stockCount = "∞";
