@@ -71,11 +71,29 @@ const FinancePage = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(subDays(new Date(), 30));
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
+  const { tenantId } = useTenant();
+  const queryClient = useQueryClient();
 
   const { data: orders = [], isLoading, refetch } = useTenantQuery<Order>(
     "finance-orders", "orders",
     { select: "id,order_number,discord_username,product_name,total_cents,status,payment_provider,created_at", orderBy: "created_at", ascending: false }
   );
+
+  // Realtime: auto-refresh when orders are inserted or updated
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel("finance-orders-realtime")
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "orders", filter: `tenant_id=eq.${tenantId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["finance-orders", tenantId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, queryClient]);
 
   // Period range
   const periodRange = useMemo(() => {
