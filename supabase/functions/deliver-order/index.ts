@@ -389,8 +389,40 @@ serve(async (req) => {
       .eq("id", order_id)
       .eq("tenant_id", tenant_id);
 
-    // 11. Log to store logs channel
+    // 11. Log "Pagamento confirmado" + delivery to store logs channel
     if (storeConfig?.logs_channel_id) {
+      // 11a. Send "Pagamento confirmado" log
+      try {
+        const providerLabel = order.payment_provider === "pushinpay" ? "PushinPay"
+          : order.payment_provider === "efi" ? "EFI Bank"
+          : order.payment_provider === "mercadopago" ? "Mercado Pago"
+          : order.payment_provider === "misticpay" ? "Mistic Pay"
+          : order.payment_provider === "static_pix" ? "PIX Manual"
+          : order.payment_provider || "PIX";
+
+        const paymentLogEmbed: any = {
+          title: "💰 Pagamento confirmado",
+          description: `Usuário <@${order.discord_user_id}> teve o pagamento confirmado.`,
+          color: 0x57F287,
+          fields: [
+            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: "**Forma de Pagamento**", value: `\`💎 Pix – ${providerLabel}\``, inline: false },
+          ],
+          footer: { text: `${tenant?.name || "Loja"} | ${new Date().toLocaleDateString("pt-BR")}, ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, icon_url: tenant?.logo_url || undefined },
+          timestamp: new Date().toISOString(),
+        };
+
+        await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [paymentLogEmbed] }),
+        });
+      } catch (payLogErr) {
+        console.error("Failed to send payment log:", payLogErr);
+      }
+
+      // 11b. Send delivery log
       try {
         const deliveryLogEmbed: any = {
           title: isAutoDelivery ? "⚡ Entrega Automática" : "📦 Entrega Manual Pendente",
