@@ -678,7 +678,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
 
   const statusLabel = action === "deleted" ? "Deletado" : "Fechado";
   const statusEmoji = action === "deleted" ? "🗑️" : "🔒";
-  const embedColor = action === "deleted" ? 0xED4245 : 0x2B2D31;
+  const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
 
   // Calculate duration
   const createdAt = new Date(ticket.created_at);

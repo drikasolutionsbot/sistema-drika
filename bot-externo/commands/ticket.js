@@ -41,7 +41,7 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     const storeConfig = await getStoreConfig(tenant.id);
-    const embedColor = parseInt((storeConfig?.ticket_embed_color || "#5865F2").replace("#", ""), 16);
+    const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
 
     const embed = new EmbedBuilder()
       .setTitle(storeConfig?.ticket_embed_title || "🎫 Ticket de Suporte")
