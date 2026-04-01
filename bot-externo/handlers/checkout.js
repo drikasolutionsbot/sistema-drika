@@ -273,22 +273,24 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   const channel = interaction.channel;
   const threadName = `🛒 • ${username} • ${order.order_number}`.substring(0, 100);
 
-  let checkoutThread;
-  try {
-    checkoutThread = await channel.threads.create({
-      name: threadName, autoArchiveDuration: 1440,
-      type: ChannelType.PrivateThread, reason: `Checkout #${order.order_number}`,
-    });
-    await checkoutThread.members.add(userId);
-  } catch {
-    checkoutThread = await interaction.guild.channels.create({
-      name: `checkout-${order.order_number}`, type: ChannelType.GuildText,
-      permissionOverwrites: [
-        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-        { id: userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-      ],
-    });
-  }
+  const safeUsername = String(username || "cliente")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "cliente";
+
+  const checkoutThread = await interaction.guild.channels.create({
+    name: `carrinho-${safeUsername}-${order.order_number}`,
+    type: ChannelType.GuildText,
+    permissionOverwrites: [
+      { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+      { id: userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+    ],
+    reason: `Checkout #${order.order_number}`,
+  });
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
 
