@@ -62,19 +62,34 @@ export const DashboardOverview = () => {
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  const fetchOrders = async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("orders")
+      .select("id, order_number, discord_user_id, discord_username, product_name, total_cents, status, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    setOrders((data as Order[]) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [tenantId]);
+
+  // Realtime: auto-refresh when orders change
   useEffect(() => {
     if (!tenantId) return;
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, order_number, discord_user_id, discord_username, product_name, total_cents, status, created_at")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      setOrders((data as Order[]) ?? []);
-      setLoading(false);
-    };
-    fetch();
+    const channel = supabase
+      .channel("dashboard-orders-realtime")
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "orders", filter: `tenant_id=eq.${tenantId}` },
+        () => { fetchOrders(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [tenantId]);
 
   // Compute date range based on period
