@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ShieldCheck, Save, Loader2, Send, Eye, Upload, X, ImageIcon, Undo2 } from "lucide-react";
+import { ShieldCheck, Save, Loader2, Send, Eye, Upload, X, ImageIcon, Undo2, FolderOpen, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { useTenant } from "@/contexts/TenantContext";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { DiscordButtonStylePicker, type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 import ButtonLabelWithEmoji from "@/components/discord/ButtonLabelWithEmoji";
@@ -51,6 +52,12 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
   const [categories, setCategories] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
 
   const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<VerifyConfig>(
     "verification",
@@ -185,6 +192,83 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
     setConfig(prev => ({ ...prev, [field]: value }));
   };
 
+  const fetchTemplates = async () => {
+    if (!tenantId) return;
+    setLoadingTemplates(true);
+    try {
+      const { data } = await supabase.functions.invoke("manage-saved-embeds", {
+        body: { action: "list", tenant_id: tenantId },
+      });
+      const all = (data?.embeds || []) as any[];
+      setSavedTemplates(all.filter((e: any) => e.embed_data?.type === "verification_embed"));
+    } catch {
+      setSavedTemplates([]);
+    }
+    setLoadingTemplates(false);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!tenantId || !templateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const { error } = await supabase.functions.invoke("manage-saved-embeds", {
+        body: {
+          action: "save",
+          tenant_id: tenantId,
+          name: templateName.trim(),
+          embed_data: {
+            type: "verification_embed",
+            config: {
+              verify_title: config.verify_title,
+              verify_description: config.verify_description,
+              verify_button_label: config.verify_button_label,
+              verify_embed_color: config.verify_embed_color,
+              verify_image_url: config.verify_image_url,
+              verify_button_style: config.verify_button_style,
+            },
+          },
+        },
+      });
+      if (error) throw error;
+      toast({ title: `Template "${templateName}" salvo! ✅` });
+      setTemplateName("");
+      setSaveDialogOpen(false);
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar template", description: err.message, variant: "destructive" });
+    }
+    setSavingTemplate(false);
+  };
+
+  const handleLoadTemplate = (tpl: any) => {
+    const data = tpl.embed_data?.config;
+    if (data) {
+      setConfig(prev => ({
+        ...prev,
+        verify_title: data.verify_title ?? prev.verify_title,
+        verify_description: data.verify_description ?? prev.verify_description,
+        verify_button_label: data.verify_button_label ?? prev.verify_button_label,
+        verify_embed_color: data.verify_embed_color ?? prev.verify_embed_color,
+        verify_image_url: data.verify_image_url ?? prev.verify_image_url,
+        verify_button_style: data.verify_button_style ?? prev.verify_button_style,
+      }));
+      toast({ title: `Template "${tpl.name}" aplicado! ✅` });
+      setLoadDialogOpen(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!tenantId) return;
+    try {
+      await supabase.functions.invoke("manage-saved-embeds", {
+        body: { action: "delete", tenant_id: tenantId, id },
+      });
+      setSavedTemplates(prev => prev.filter(t => t.id !== id));
+      toast({ title: "Template excluído ✅" });
+    } catch {
+      toast({ title: "Erro ao excluir", variant: "destructive" });
+    }
+  };
+
   const botName = tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
 
@@ -223,6 +307,12 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={() => { fetchTemplates(); setLoadDialogOpen(true); }} title="Carregar Template">
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setSaveDialogOpen(true)} title="Salvar Template">
+              <Save className="h-4 w-4" />
+            </Button>
             <Button onClick={handlePost} disabled={posting || !config.verify_channel_id} variant="outline" className="gap-2">
               {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Enviar Embed
@@ -236,6 +326,12 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
       )}
       {embedded && (
         <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="icon" onClick={() => { fetchTemplates(); setLoadDialogOpen(true); }} title="Carregar Template">
+            <FolderOpen className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => setSaveDialogOpen(true)} title="Salvar Template">
+            <Save className="h-4 w-4" />
+          </Button>
           <Button onClick={handlePost} disabled={posting || !config.verify_channel_id} variant="outline" className="gap-2">
             {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Enviar Embed
@@ -524,6 +620,53 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
           </p>
         </div>
       </div>
+
+      {/* Save Template Dialog */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Salvar Template de Verificação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Template</Label>
+              <Input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="Ex: Verificação padrão" className="mt-1" />
+            </div>
+            <Button onClick={handleSaveTemplate} disabled={savingTemplate || !templateName.trim()} className="w-full">
+              {savingTemplate ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Salvar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Load Template Dialog */}
+      <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Carregar Template de Verificação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {loadingTemplates ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : savedTemplates.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum template salvo ainda.</p>
+            ) : (
+              savedTemplates.map((tpl) => (
+                <div key={tpl.id} className="flex items-center gap-2 p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
+                  <button type="button" className="flex-1 text-left" onClick={() => handleLoadTemplate(tpl)}>
+                    <p className="text-sm font-medium">{tpl.name}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(tpl.created_at).toLocaleDateString("pt-BR")}</p>
+                  </button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteTemplate(tpl.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
