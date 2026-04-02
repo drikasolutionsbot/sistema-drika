@@ -482,7 +482,7 @@ async function goToPayment(interaction, tenant, orderId) {
 
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
-  const preEmbedColor = parseInt((preStoreConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+  const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
   await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
   const priceCents = order.total_cents;
