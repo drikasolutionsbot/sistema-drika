@@ -828,14 +828,29 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       ) : filtered.length > 0 ? (
         <div className="space-y-2">
           <h4 className="text-sm font-bold">Campos</h4>
-          {filtered.map((field) => {
+          {filtered.map((field, idx) => {
             const isExpanded = expandedId === field.id;
+            const realIndex = fields.findIndex((f) => f.id === field.id);
             return (
               <div key={field.id} className="rounded-xl border border-border bg-card overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center">
-                  <div className="px-2 text-muted-foreground/40">
-                    <GripVertical className="h-4 w-4" />
+                  <div className="flex flex-col items-center px-1 gap-0.5">
+                    <button
+                      onClick={() => moveField(realIndex, "up")}
+                      disabled={realIndex === 0}
+                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
+                    <button
+                      onClick={() => moveField(realIndex, "down")}
+                      disabled={realIndex === fields.length - 1}
+                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
                   </div>
 
                   <button
