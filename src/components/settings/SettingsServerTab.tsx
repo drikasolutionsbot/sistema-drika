@@ -62,6 +62,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
   const [cloneGuildId, setCloneGuildId] = useState("");
   const [cloning, setCloning] = useState(false);
+  const [cloneResult, setCloneResult] = useState<{ token: string; stats: any } | null>(null);
 
   const isConnected = !!tenant?.discord_guild_id;
   const disconnectedGuildStorageKey = tenantId ? `last_disconnected_guild:${tenantId}` : null;
