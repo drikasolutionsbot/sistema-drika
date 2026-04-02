@@ -1126,13 +1126,14 @@ serve(async (req) => {
           return ok();
         }
 
-        // Send loading message
+        // Send loading message with product color
         const channelId = interaction.channel_id;
+        const loadingColor = await resolveOrderEmbedColor(order) || 0x2B2D31;
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            embeds: [{ description: "⏳ | Gerando QR Code...\nQuase lá, só mais um instante!", color: 0x2B2D31 }],
+            embeds: [{ description: "⏳ | Gerando QR Code...\nQuase lá, só mais um instante!", color: loadingColor }],
           }),
         });
 
