@@ -489,53 +489,69 @@ serve(async (req) => {
       }
     }
 
-    // 12. Send public sales announcement
+    // 12. Send public sales announcement (to sales channel AND logs channel)
+    const salesEmbedColor = storeConfig?.purchase_embed_color
+      ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16)
+      : 0x2B2D31;
+
+    const salesEmbed: any = {
+      author: {
+        name: tenant?.name || "Loja",
+        icon_url: tenant?.logo_url || undefined,
+      },
+      description: [
+        `<@${order.discord_user_id}>`,
+        "",
+        "🛒 **Compra Realizada!**",
+        "",
+        "**Carrinho**",
+        `1x ${order.product_name}`,
+        "",
+        "**Valor pago**",
+        `R$ ${(order.total_cents / 100).toFixed(2).replace(".", ",")}`,
+      ].join("\n"),
+      color: salesEmbedColor,
+      footer: {
+        text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+        icon_url: tenant?.logo_url || undefined,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    if (storeConfig?.purchase_embed_thumbnail_url) salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
+    if (storeConfig?.purchase_embed_image_url) salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
+
+    const salesPayload = {
+      embeds: [salesEmbed],
+      components: [{
+        type: 1,
+        components: [{ type: 2, style: 5, label: "Comprar", url: `https://discord.com/channels/${guildId}` }],
+      }],
+    };
+
+    // Send to sales channel
     if (storeConfig?.sales_channel_id) {
       try {
-        const salesEmbedColor = storeConfig?.purchase_embed_color
-          ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16)
-          : 0x2B2D31;
-
-        const salesEmbed: any = {
-          author: {
-            name: tenant?.name || "Loja",
-            icon_url: tenant?.logo_url || undefined,
-          },
-          description: [
-            `<@${order.discord_user_id}>`,
-            "",
-            "🛒 **Compra Realizada!**",
-            "",
-            "**Carrinho**",
-            `1x ${order.product_name}`,
-            "",
-            "**Valor pago**",
-            `R$ ${(order.total_cents / 100).toFixed(2).replace(".", ",")}`,
-          ].join("\n"),
-          color: salesEmbedColor,
-          footer: {
-            text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-            icon_url: tenant?.logo_url || undefined,
-          },
-          timestamp: new Date().toISOString(),
-        };
-
-        if (storeConfig?.purchase_embed_thumbnail_url) salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
-        if (storeConfig?.purchase_embed_image_url) salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
-
         await fetch(`${DISCORD_API}/channels/${storeConfig.sales_channel_id}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            embeds: [salesEmbed],
-            components: [{
-              type: 1,
-              components: [{ type: 2, style: 5, label: "Comprar", url: `https://discord.com/channels/${guildId}` }],
-            }],
-          }),
+          body: JSON.stringify(salesPayload),
         });
       } catch (salesErr) {
         console.error("Failed to send sales announcement:", salesErr);
+      }
+    }
+
+    // Send to logs channel too
+    if (storeConfig?.logs_channel_id) {
+      try {
+        await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [salesEmbed] }),
+        });
+      } catch (logSalesErr) {
+        console.error("Failed to send sales log:", logSalesErr);
       }
     }
 
