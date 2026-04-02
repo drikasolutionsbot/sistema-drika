@@ -705,6 +705,29 @@ serve(async (req) => {
       return parseInt(sc.embed_color.replace("#", ""), 16);
     };
 
+    // Helper to resolve product-specific embed color: product color > store color > fallback
+    const resolveProductEmbedColor = async (product: any, tid: string): Promise<number | undefined> => {
+      const embedConfig = parseProductEmbedConfig(product?.embed_config);
+      const { data: sc } = await supabase
+        .from("store_configs")
+        .select("embed_color")
+        .eq("tenant_id", tid)
+        .single();
+      const storeColor = sc?.embed_color || "#5865F2";
+      const hex = resolveHexColor(embedConfig.color, resolveHexColor(storeColor));
+      if (hex === "#2B2D31") return undefined;
+      return parseInt(hex.replace("#", ""), 16);
+    };
+
+    // Helper to resolve embed color from an order (fetches product if available)
+    const resolveOrderEmbedColor = async (order: any): Promise<number | undefined> => {
+      if (order?.product_id) {
+        const { data: product } = await supabase.from("products").select("embed_config").eq("id", order.product_id).single();
+        if (product) return resolveProductEmbedColor(product, order.tenant_id);
+      }
+      return getStoreEmbedColor(order.tenant_id);
+    };
+
     try {
       // ─── BUY PRODUCT ─────────────────────────────────────
       if (customId.startsWith("buy_product:")) {
