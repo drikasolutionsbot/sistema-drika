@@ -893,7 +893,7 @@ serve(async (req) => {
           .eq("product_id", productId)
           .eq("tenant_id", product.tenant_id);
 
-        const detailEmbedColor = await getStoreEmbedColor(product.tenant_id);
+        const detailEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
         const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
         const embed: any = {
           title: `ℹ️ ${product.name}`,
