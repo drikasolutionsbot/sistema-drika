@@ -918,7 +918,7 @@ async function markDelivered(interaction, tenant, orderId) {
   await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(parseInt(((await getStoreConfig(tenant.id))?.embed_color || "#2B2D31").replace("#", ""), 16))],
+    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
   await interaction.editReply({
