@@ -555,6 +555,27 @@ serve(async (req) => {
       }
     }
 
+    // 13. Sync product embed messages (update stock visually)
+    if (order.product_id) {
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/send-webhook-message`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            action: "sync",
+            tenant_id: tenantId,
+            product_id: order.product_id,
+          }),
+        });
+        console.log("Product embed synced after delivery");
+      } catch (syncErr) {
+        console.error("Failed to sync product embed:", syncErr);
+      }
+    }
+
     const result = {
       success: true,
       order_id,
