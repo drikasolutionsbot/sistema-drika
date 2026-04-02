@@ -238,7 +238,9 @@ async function startCheckout(interaction, tenant, productId) {
   if (fields.length > 0) {
     // Show variation selector
     const storeConfig = await getStoreConfig(tenant.id);
-    const embedColor = parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+    const productEmbedCfg = getProductEmbedConfig(product);
+    const resolvedHex = resolveHexColor(productEmbedCfg.color, resolveHexColor(storeConfig?.embed_color || "#5865F2"));
+    const embedColor = parseInt(resolvedHex.replace("#", ""), 16);
 
     // Get stock counts per field
     const stockMap = {};
