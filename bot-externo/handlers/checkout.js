@@ -109,6 +109,22 @@ function getProductEmbedConfig(product) {
   return typeof rawConfig === "object" ? rawConfig : {};
 }
 
+// Resolve embed color for a product: product color > store color > fallback
+function resolveProductColor(product, storeConfig) {
+  const embedConfig = getProductEmbedConfig(product);
+  const hex = resolveHexColor(embedConfig.color, resolveHexColor(storeConfig?.embed_color || "#5865F2"));
+  return parseInt(hex.replace("#", ""), 16);
+}
+
+// Resolve embed color from an order (fetches product if available)
+async function resolveOrderColor(order, storeConfig) {
+  if (order?.product_id) {
+    const { data: product } = await supabase.from("products").select("embed_config").eq("id", order.product_id).single();
+    if (product) return resolveProductColor(product, storeConfig);
+  }
+  return parseInt(resolveHexColor(storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
+}
+
 function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
   const embedConfig = getProductEmbedConfig(product);
 
