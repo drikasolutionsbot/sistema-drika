@@ -113,6 +113,7 @@ serve(async (req) => {
     if (tenantErr || !newTenant) throw tenantErr || new Error("Falha ao criar tenant clonado.");
 
     const newTenantId = newTenant.id;
+    const stats = { products: 0, stock: 0, coupons: 0, commands: 0, modules: 0, automations: 0 };
 
     // Link user as owner
     await supabase.from("user_roles").insert({
@@ -121,7 +122,7 @@ serve(async (req) => {
       role: "owner",
     });
 
-    // Clone store_configs
+    // ── Clone store_configs ──
     const { data: storeConfig } = await supabase
       .from("store_configs")
       .select("*")
@@ -133,7 +134,7 @@ serve(async (req) => {
       await supabase.from("store_configs").insert({
         ...configFields,
         tenant_id: newTenantId,
-        // Reset discord-specific IDs since it's a new server
+        // Reset discord-specific IDs (new server = new channels)
         logs_channel_id: null,
         sales_channel_id: null,
         ticket_channel_id: null,
@@ -142,7 +143,7 @@ serve(async (req) => {
       });
     }
 
-    // Clone categories
+    // ── Clone categories ──
     const { data: categories } = await supabase
       .from("categories")
       .select("*")
@@ -160,7 +161,7 @@ serve(async (req) => {
       }
     }
 
-    // Clone products
+    // ── Clone products ──
     const { data: products } = await supabase
       .from("products")
       .select("*")
@@ -180,11 +181,14 @@ serve(async (req) => {
           })
           .select("id")
           .single();
-        if (newProd) productMap[prod.id] = newProd.id;
+        if (newProd) {
+          productMap[prod.id] = newProd.id;
+          stats.products++;
+        }
       }
     }
 
-    // Clone product_fields
+    // ── Clone product_fields ──
     const { data: fields } = await supabase
       .from("product_fields")
       .select("*")
@@ -205,7 +209,26 @@ serve(async (req) => {
       }
     }
 
-    // Clone product_stock_items (not delivered ones)
+    // ── Clone product_hooks ──
+    const { data: hooks } = await supabase
+      .from("product_hooks")
+      .select("*")
+      .eq("tenant_id", source_tenant_id);
+
+    if (hooks && hooks.length > 0) {
+      for (const hook of hooks) {
+        const newProductId = productMap[hook.product_id];
+        if (!newProductId) continue;
+        const { id: _, tenant_id: __, created_at: ___, updated_at: ____, ...hookData } = hook;
+        await supabase.from("product_hooks").insert({
+          ...hookData,
+          tenant_id: newTenantId,
+          product_id: newProductId,
+        });
+      }
+    }
+
+    // ── Clone product_stock_items (only undelivered) ──
     const { data: stockItems } = await supabase
       .from("product_stock_items")
       .select("*")
@@ -224,10 +247,11 @@ serve(async (req) => {
         }));
       if (mapped.length > 0) {
         await supabase.from("product_stock_items").insert(mapped);
+        stats.stock = mapped.length;
       }
     }
 
-    // Clone coupons
+    // ── Clone coupons (only active) ──
     const { data: coupons } = await supabase
       .from("coupons")
       .select("*")
@@ -243,10 +267,11 @@ serve(async (req) => {
           product_id: coupon.product_id ? (productMap[coupon.product_id] || null) : null,
           used_count: 0,
         });
+        stats.coupons++;
       }
     }
 
-    // Clone payment_providers
+    // ── Clone payment_providers ──
     const { data: providers } = await supabase
       .from("payment_providers")
       .select("*")
@@ -259,7 +284,35 @@ serve(async (req) => {
       }
     }
 
-    // Clone saved_embeds
+    // ── Clone bot_commands ──
+    const { data: commands } = await supabase
+      .from("bot_commands")
+      .select("*")
+      .eq("tenant_id", source_tenant_id);
+
+    if (commands && commands.length > 0) {
+      for (const cmd of commands) {
+        const { id: _, tenant_id: __, created_at: ___, updated_at: ____, ...cmdData } = cmd;
+        await supabase.from("bot_commands").insert({ ...cmdData, tenant_id: newTenantId });
+        stats.commands++;
+      }
+    }
+
+    // ── Clone bot_modules ──
+    const { data: modules } = await supabase
+      .from("bot_modules")
+      .select("*")
+      .eq("tenant_id", source_tenant_id);
+
+    if (modules && modules.length > 0) {
+      for (const mod of modules) {
+        const { id: _, tenant_id: __, created_at: ___, updated_at: ____, ...modData } = mod;
+        await supabase.from("bot_modules").insert({ ...modData, tenant_id: newTenantId });
+        stats.modules++;
+      }
+    }
+
+    // ── Clone saved_embeds ──
     const { data: embeds } = await supabase
       .from("saved_embeds")
       .select("*")
@@ -272,7 +325,20 @@ serve(async (req) => {
       }
     }
 
-    // Clone protection_settings
+    // ── Clone saved_ticket_presets ──
+    const { data: ticketPresets } = await supabase
+      .from("saved_ticket_presets")
+      .select("*")
+      .eq("tenant_id", source_tenant_id);
+
+    if (ticketPresets && ticketPresets.length > 0) {
+      for (const preset of ticketPresets) {
+        const { id: _, tenant_id: __, created_at: ___, updated_at: ____, ...presetData } = preset;
+        await supabase.from("saved_ticket_presets").insert({ ...presetData, tenant_id: newTenantId });
+      }
+    }
+
+    // ── Clone protection_settings ──
     const { data: protSettings } = await supabase
       .from("protection_settings")
       .select("*")
@@ -285,7 +351,20 @@ serve(async (req) => {
       }
     }
 
-    // Clone automations
+    // ── Clone protection_whitelist ──
+    const { data: whitelist } = await supabase
+      .from("protection_whitelist")
+      .select("*")
+      .eq("tenant_id", source_tenant_id);
+
+    if (whitelist && whitelist.length > 0) {
+      for (const wl of whitelist) {
+        const { id: _, tenant_id: __, created_at: ___, ...wlData } = wl;
+        await supabase.from("protection_whitelist").insert({ ...wlData, tenant_id: newTenantId });
+      }
+    }
+
+    // ── Clone automations ──
     const { data: automations } = await supabase
       .from("automations")
       .select("*")
@@ -295,12 +374,71 @@ serve(async (req) => {
       for (const auto of automations) {
         const { id: _, tenant_id: __, created_at: ___, updated_at: ____, last_executed_at: _____, ...autoData } = auto;
         await supabase.from("automations").insert({ ...autoData, tenant_id: newTenantId, executions: 0 });
+        stats.automations++;
       }
     }
 
-    console.log(`Tenant cloned: ${source_tenant_id} → ${newTenantId} (guild: ${new_discord_guild_id})`);
+    // ── Clone affiliates ──
+    const { data: affiliates } = await supabase
+      .from("affiliates")
+      .select("*")
+      .eq("tenant_id", source_tenant_id)
+      .eq("active", true);
 
-    return new Response(JSON.stringify({ tenant: newTenant, cloned_products: Object.keys(productMap).length }), {
+    if (affiliates && affiliates.length > 0) {
+      for (const aff of affiliates) {
+        const { id: _, tenant_id: __, created_at: ___, ...affData } = aff;
+        await supabase.from("affiliates").insert({
+          ...affData,
+          tenant_id: newTenantId,
+          total_sales: 0,
+          total_revenue_cents: 0,
+        });
+      }
+    }
+
+    // ── Clone channel_configs (structure only, reset channel IDs) ──
+    const { data: channelConfigs } = await supabase
+      .from("channel_configs")
+      .select("*")
+      .eq("tenant_id", source_tenant_id);
+
+    if (channelConfigs && channelConfigs.length > 0) {
+      for (const cc of channelConfigs) {
+        await supabase.from("channel_configs").insert({
+          channel_key: cc.channel_key,
+          tenant_id: newTenantId,
+          discord_channel_id: null, // Reset - new server has different channels
+        });
+      }
+    }
+
+    // ── Clone tenant_credits ──
+    await supabase.from("tenant_credits").insert({
+      tenant_id: newTenantId,
+      daily_limit: 100,
+      credits_remaining: 100,
+    });
+
+    // ── Generate access token for the new tenant ──
+    const { data: tokenData } = await supabase
+      .from("access_tokens")
+      .insert({
+        tenant_id: newTenantId,
+        label: "Token inicial (clone)",
+        created_by: user.id,
+      })
+      .select("token")
+      .single();
+
+    console.log(`Tenant cloned: ${source_tenant_id} → ${newTenantId} (guild: ${new_discord_guild_id})`);
+    console.log(`Stats:`, JSON.stringify(stats));
+
+    return new Response(JSON.stringify({
+      tenant: newTenant,
+      access_token: tokenData?.token || null,
+      stats,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
