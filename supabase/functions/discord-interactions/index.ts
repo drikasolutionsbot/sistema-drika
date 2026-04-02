@@ -870,7 +870,7 @@ serve(async (req) => {
           return `${emoji} **${f.name}** — ${priceStr}${desc}`;
         });
 
-        const varEmbedColor = await getStoreEmbedColor(product.tenant_id);
+        const varEmbedColor = await resolveProductEmbedColor(fullProduct || product, product.tenant_id);
         const embed = {
           title: `📋 Variações de ${product.name}`,
           description: fieldLines.join("\n"),
