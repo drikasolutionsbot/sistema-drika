@@ -745,6 +745,29 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
     }
   };
 
+  const moveField = async (index: number, direction: "up" | "down") => {
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= fields.length) return;
+    const reordered = [...fields];
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    const updated = reordered.map((f, i) => ({ ...f, sort_order: i }));
+    setFields(updated);
+
+    // Persist both changed sort_orders
+    try {
+      await Promise.all([
+        supabase.functions.invoke("manage-product-fields", {
+          body: { action: "update", tenant_id: tenantId, field_id: updated[index].id, field: { sort_order: index } },
+        }),
+        supabase.functions.invoke("manage-product-fields", {
+          body: { action: "update", tenant_id: tenantId, field_id: updated[newIndex].id, field: { sort_order: newIndex } },
+        }),
+      ]);
+    } catch (e) {
+      console.error("Erro ao reordenar", e);
+    }
+  };
+
   const duplicateField = async (field: ProductField) => {
     if (!tenantId) return;
     try {
@@ -805,14 +828,29 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       ) : filtered.length > 0 ? (
         <div className="space-y-2">
           <h4 className="text-sm font-bold">Campos</h4>
-          {filtered.map((field) => {
+          {filtered.map((field, idx) => {
             const isExpanded = expandedId === field.id;
+            const realIndex = fields.findIndex((f) => f.id === field.id);
             return (
               <div key={field.id} className="rounded-xl border border-border bg-card overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center">
-                  <div className="px-2 text-muted-foreground/40">
-                    <GripVertical className="h-4 w-4" />
+                  <div className="flex flex-col items-center px-1 gap-0.5">
+                    <button
+                      onClick={() => moveField(realIndex, "up")}
+                      disabled={realIndex === 0}
+                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
+                    <button
+                      onClick={() => moveField(realIndex, "down")}
+                      disabled={realIndex === fields.length - 1}
+                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
                   </div>
 
                   <button
