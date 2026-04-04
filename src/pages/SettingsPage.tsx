@@ -1,3 +1,4 @@
+// Settings Page
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Server, Bot, Palette, LayoutTemplate } from "lucide-react";
