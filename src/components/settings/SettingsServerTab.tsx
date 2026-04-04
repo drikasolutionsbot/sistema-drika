@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Server, Unplug, Loader2, Check, AlertTriangle, Bot } from "lucide-react";
+import { Server, Unplug, Loader2, Check, AlertTriangle, Bot, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -410,6 +410,40 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Clear local cache */}
+      <div className="wallet-section">
+        <div className="wallet-section-header mb-3">
+          <div className="wallet-section-icon">
+            <Trash2 className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-foreground font-display font-semibold text-sm">Cache Local</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Limpe dados salvos no navegador caso algo esteja bugado</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          onClick={() => {
+            // Clear all localStorage keys for this tenant
+            const keys = Object.keys(localStorage);
+            keys.forEach((key) => {
+              if (tenantId && key.includes(tenantId)) {
+                localStorage.removeItem(key);
+              }
+              if (key.startsWith("draft:") || key.startsWith("last_disconnected_guild:")) {
+                localStorage.removeItem(key);
+              }
+            });
+            // Clear react-query cache
+            window.location.reload();
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+          Limpar cache e recarregar
+        </Button>
       </div>
     </div>
   );
