@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useTenant } from "@/contexts/TenantContext";
@@ -13,6 +13,18 @@ export const DashboardLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isPlanExpired } = useTenant();
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  useEffect(() => {
+    setMobileOpen(false);
+    document.body.style.pointerEvents = "";
+  }, [location.pathname]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.pointerEvents = "";
+    };
+  }, []);
 
   if (isPlanExpired) {
     return <PlanExpiredPage />;
