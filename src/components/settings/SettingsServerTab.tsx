@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { openAsyncExternalUrl } from "@/lib/openAsyncExternalUrl";
 
 const BOT_PERMISSIONS = "536870920";
 
@@ -207,13 +208,18 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void handleFocus();
+      }
+    };
+
     window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") handleFocus();
-    });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [waitingForBot, fetchAllBotGuilds, stopPolling]);
 
@@ -242,26 +248,40 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   };
 
   const handleAddBot = async () => {
-    setInviteRequested(true);
-    let inviteUrl = botInviteData?.invite_url;
-    if (!inviteUrl) {
-      const refreshed = await refetchInvite();
-      inviteUrl = refreshed.data?.invite_url;
-    }
-    if (!inviteUrl) {
-      toast({ title: "Não foi possível gerar o link do bot", description: "Tente novamente.", variant: "destructive" });
-      return;
-    }
-
     try {
-      const currentGuilds = await fetchAllBotGuilds();
-      guildsBeforeInviteRef.current = new Set(currentGuilds.map((g) => g.id));
-    } catch {
-      guildsBeforeInviteRef.current = new Set();
-    }
+      await openAsyncExternalUrl(async () => {
+        setInviteRequested(true);
 
-    window.open(inviteUrl, "_blank", "noopener,noreferrer");
-    startPollingForNewGuild();
+        let inviteUrl = botInviteData?.invite_url;
+        if (!inviteUrl) {
+          const refreshed = await refetchInvite();
+          inviteUrl = refreshed.data?.invite_url;
+        }
+
+        if (!inviteUrl) {
+          throw new Error("Não foi possível gerar o link do bot. Tente novamente.");
+        }
+
+        try {
+          const currentGuilds = await fetchAllBotGuilds();
+          guildsBeforeInviteRef.current = new Set(currentGuilds.map((g) => g.id));
+        } catch {
+          guildsBeforeInviteRef.current = new Set();
+        }
+
+        return inviteUrl;
+      }, {
+        loadingTitle: "Abrindo convite do Discord...",
+      });
+
+      startPollingForNewGuild();
+    } catch (err: any) {
+      toast({
+        title: "Não foi possível gerar o link do bot",
+        description: err?.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCancelPolling = () => {

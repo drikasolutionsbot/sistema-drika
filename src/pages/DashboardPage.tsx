@@ -25,6 +25,7 @@ import { logTenantAudit, fetchTenantAuditLogs, type AuditLogEntry } from "@/lib/
 import { formatDistanceToNow } from "date-fns";
 import { ptBR as ptBRLocale } from "date-fns/locale";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { openAsyncExternalUrl } from "@/lib/openAsyncExternalUrl";
 
 const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
 
@@ -452,18 +453,23 @@ const DashboardPage = () => {
 
   const handleAddBot = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: { ...getDiscordRequestBody(), action: "invite_url", permissions: BOT_PERMISSIONS },
+      await openAsyncExternalUrl(async () => {
+        const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+          body: { ...getDiscordRequestBody(), action: "invite_url", permissions: BOT_PERMISSIONS },
+        });
+
+        if (error || !data?.invite_url) {
+          throw new Error(data?.error || error?.message || "Não foi possível gerar o convite do bot externo.");
+        }
+
+        const currentGuilds = await fetchAllBotGuilds();
+        guildsBeforeInviteRef.current = new Set((currentGuilds || []).map((guild: { id: string }) => guild.id));
+
+        return appendGuildToInvite(data.invite_url);
+      }, {
+        loadingTitle: "Abrindo convite do Discord...",
       });
 
-      if (error || !data?.invite_url) {
-        throw new Error(data?.error || error?.message || "Não foi possível gerar o convite do bot externo.");
-      }
-
-      const currentGuilds = await fetchAllBotGuilds();
-      guildsBeforeInviteRef.current = new Set((currentGuilds || []).map((guild: { id: string }) => guild.id));
-
-      window.open(appendGuildToInvite(data.invite_url), "_blank", "noopener,noreferrer");
       startPollingForGuildConnection();
     } catch (err: any) {
       toast.error(err?.message || "Não foi possível abrir o convite do bot externo.");

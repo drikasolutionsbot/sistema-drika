@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Settings,
 } from "lucide-react";
+import { openAsyncExternalUrl } from "@/lib/openAsyncExternalUrl";
 
 const BOT_PERMISSIONS = "536870920";
 
@@ -70,16 +71,19 @@ const OnboardingPage = () => {
 
   const handleAddBot = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: { action: "invite_url", permissions: BOT_PERMISSIONS },
+      await openAsyncExternalUrl(async () => {
+        const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
+          body: { action: "invite_url", permissions: BOT_PERMISSIONS },
+        });
+
+        if (error || !data?.invite_url) {
+          throw new Error(data?.error || error?.message || "Não foi possível gerar o link de convite.");
+        }
+
+        return appendGuildToInvite(data.invite_url, guildId);
+      }, {
+        loadingTitle: "Abrindo convite do Discord...",
       });
-
-      if (error || !data?.invite_url) {
-        throw new Error(data?.error || error?.message || "Não foi possível gerar o link de convite.");
-      }
-
-      const inviteUrl = appendGuildToInvite(data.invite_url, guildId);
-      window.open(inviteUrl, "_blank", "noopener,noreferrer");
     } catch (err: any) {
       toast({
         title: "Erro ao abrir convite",
