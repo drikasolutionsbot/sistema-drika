@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Server, Unplug, Loader2, Check, AlertTriangle, Bot, Trash2 } from "lucide-react";
+import { Server, Unplug, Loader2, Check, AlertTriangle, Bot, Trash2, Database, Cookie, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -414,7 +414,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
       {/* Clear local cache */}
       <div className="wallet-section">
-        <div className="wallet-section-header mb-3">
+        <div className="wallet-section-header mb-5">
           <div className="wallet-section-icon">
             <Trash2 className="h-4 w-4 text-primary" />
           </div>
@@ -423,27 +423,113 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             <p className="text-[11px] text-muted-foreground mt-0.5">Limpe dados salvos no navegador caso algo esteja bugado</p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          onClick={() => {
-            // Clear all localStorage keys for this tenant
-            const keys = Object.keys(localStorage);
-            keys.forEach((key) => {
-              if (tenantId && key.includes(tenantId)) {
-                localStorage.removeItem(key);
-              }
-              if (key.startsWith("draft:") || key.startsWith("last_disconnected_guild:")) {
-                localStorage.removeItem(key);
-              }
-            });
-            // Clear react-query cache
-            window.location.reload();
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-          Limpar cache e recarregar
-        </Button>
+
+        <div className="space-y-2">
+          {/* Limpar apenas rascunhos */}
+          <Button
+            variant="outline"
+            className="w-full gap-2 justify-start text-left h-auto py-3"
+            onClick={() => {
+              const keys = Object.keys(localStorage);
+              let count = 0;
+              keys.forEach((key) => {
+                if (key.startsWith("draft:")) {
+                  localStorage.removeItem(key);
+                  count++;
+                }
+              });
+              toast({ title: `${count} rascunho(s) removido(s) ✓` });
+            }}
+          >
+            <Cookie className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Limpar rascunhos</p>
+              <p className="text-[11px] text-muted-foreground font-normal">Remove formulários salvos localmente</p>
+            </div>
+          </Button>
+
+          {/* Limpar cache do tenant */}
+          <Button
+            variant="outline"
+            className="w-full gap-2 justify-start text-left h-auto py-3"
+            onClick={() => {
+              const keys = Object.keys(localStorage);
+              let count = 0;
+              keys.forEach((key) => {
+                if (tenantId && key.includes(tenantId)) {
+                  localStorage.removeItem(key);
+                  count++;
+                }
+                if (key.startsWith("last_disconnected_guild:")) {
+                  localStorage.removeItem(key);
+                  count++;
+                }
+              });
+              // Limpar sessionStorage do tenant
+              const sKeys = Object.keys(sessionStorage);
+              sKeys.forEach((key) => {
+                if (tenantId && key.includes(tenantId)) {
+                  sessionStorage.removeItem(key);
+                  count++;
+                }
+              });
+              toast({ title: `${count} item(ns) de cache removido(s) ✓` });
+            }}
+          >
+            <Database className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Limpar cache do servidor</p>
+              <p className="text-[11px] text-muted-foreground font-normal">Remove dados em cache deste tenant específico</p>
+            </div>
+          </Button>
+
+          {/* Limpeza total */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full gap-2 justify-start text-left h-auto py-3 border-destructive/30 text-destructive hover:bg-destructive/10"
+              >
+                <HardDrive className="h-4 w-4 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Limpeza total + recarregar</p>
+                  <p className="text-[11px] text-muted-foreground font-normal">Remove todo localStorage, sessionStorage, cache do navegador e recarrega</p>
+                </div>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Limpeza total?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Isso removerá todos os dados em cache do navegador (rascunhos, sessões, preferências) e recarregará a página. Você pode precisar fazer login novamente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    // Limpar Cache API (service workers, etc.)
+                    if ('caches' in window) {
+                      try {
+                        const cacheNames = await caches.keys();
+                        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+                      } catch { /* ignore */ }
+                    }
+                    window.location.reload();
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sim, limpar tudo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </div>
   );
