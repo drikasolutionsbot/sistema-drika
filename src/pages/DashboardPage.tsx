@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Loader2, Shield,
-  BarChart3, Eye,
+  BarChart3, Eye, Unplug,
 } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
