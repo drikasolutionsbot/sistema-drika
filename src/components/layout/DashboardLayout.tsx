@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useTenant } from "@/contexts/TenantContext";
