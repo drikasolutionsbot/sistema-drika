@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigationType } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useTenant } from "@/contexts/TenantContext";
@@ -15,14 +15,43 @@ export const DashboardLayout = () => {
   const isMobile = useIsMobile();
   const location = useLocation();
 
+  // Global cleanup of stuck Radix UI overlays on every route change
   useEffect(() => {
     setMobileOpen(false);
+    // Force-clear all Radix body locks
     document.body.style.pointerEvents = "";
+    document.body.style.overflow = "";
+    document.body.removeAttribute("data-scroll-locked");
+    // Remove any orphaned Radix overlay elements left by portals
+    document.querySelectorAll("[data-radix-portal]").forEach((el) => {
+      // Only remove overlays that are visually blocking (fixed overlays)
+      const overlay = el.querySelector("[data-state]");
+      if (overlay && overlay.getAttribute("data-state") === "closed") {
+        el.remove();
+      }
+    });
   }, [location.pathname]);
 
+  // Safety net: periodically check for stuck body locks (every 2s)
   useEffect(() => {
+    const interval = setInterval(() => {
+      // If no Radix dialog is actually open but body is locked, unlock it
+      const hasOpenDialog = document.querySelector("[role='dialog'][data-state='open']");
+      if (!hasOpenDialog) {
+        if (document.body.style.pointerEvents === "none") {
+          document.body.style.pointerEvents = "";
+        }
+        if (document.body.hasAttribute("data-scroll-locked")) {
+          document.body.style.overflow = "";
+          document.body.removeAttribute("data-scroll-locked");
+        }
+      }
+    }, 2000);
     return () => {
+      clearInterval(interval);
       document.body.style.pointerEvents = "";
+      document.body.style.overflow = "";
+      document.body.removeAttribute("data-scroll-locked");
     };
   }, []);
 

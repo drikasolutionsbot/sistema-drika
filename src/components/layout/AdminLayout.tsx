@@ -294,11 +294,28 @@ export const AdminLayout = () => {
   useEffect(() => {
     setMobileOpen(false);
     document.body.style.pointerEvents = "";
+    document.body.style.overflow = "";
+    document.body.removeAttribute("data-scroll-locked");
   }, [location.pathname]);
 
   useEffect(() => {
+    const interval = setInterval(() => {
+      const hasOpenDialog = document.querySelector("[role='dialog'][data-state='open']");
+      if (!hasOpenDialog) {
+        if (document.body.style.pointerEvents === "none") {
+          document.body.style.pointerEvents = "";
+        }
+        if (document.body.hasAttribute("data-scroll-locked")) {
+          document.body.style.overflow = "";
+          document.body.removeAttribute("data-scroll-locked");
+        }
+      }
+    }, 2000);
     return () => {
+      clearInterval(interval);
       document.body.style.pointerEvents = "";
+      document.body.style.overflow = "";
+      document.body.removeAttribute("data-scroll-locked");
     };
   }, []);
 
