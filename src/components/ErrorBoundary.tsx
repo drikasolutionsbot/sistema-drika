@@ -31,11 +31,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   handleReset = () => {
     this.setState({ hasError: false, error: null });
-    // Clean up any stuck overlays
+    // Clean up any stuck body locks without mutating React/Radix portals directly
     document.body.style.pointerEvents = "";
     document.body.style.overflow = "";
     document.body.removeAttribute("data-scroll-locked");
-    document.querySelectorAll("[data-radix-portal]").forEach((el) => el.remove());
   };
 
   render() {

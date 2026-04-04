@@ -19,18 +19,9 @@ export const DashboardLayout = () => {
   // Global cleanup of stuck Radix UI overlays on every route change
   useEffect(() => {
     setMobileOpen(false);
-    // Force-clear all Radix body locks
     document.body.style.pointerEvents = "";
     document.body.style.overflow = "";
     document.body.removeAttribute("data-scroll-locked");
-    // Remove any orphaned Radix overlay elements left by portals
-    document.querySelectorAll("[data-radix-portal]").forEach((el) => {
-      // Only remove overlays that are visually blocking (fixed overlays)
-      const overlay = el.querySelector("[data-state]");
-      if (overlay && overlay.getAttribute("data-state") === "closed") {
-        el.remove();
-      }
-    });
   }, [location.pathname]);
 
   // Safety net: periodically check for stuck body locks (every 2s)

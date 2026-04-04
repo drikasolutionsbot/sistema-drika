@@ -9,13 +9,6 @@ const resetBodyLocks = () => {
   document.body.style.pointerEvents = "";
   document.body.style.overflow = "";
   document.body.removeAttribute("data-scroll-locked");
-
-  document.querySelectorAll("[data-radix-portal]").forEach((portal) => {
-    const statefulChild = portal.querySelector("[data-state]");
-    if (!statefulChild || statefulChild.getAttribute("data-state") === "closed") {
-      portal.remove();
-    }
-  });
 };
 
 export const openAsyncExternalUrl = async (
