@@ -292,6 +292,17 @@ export const AdminLayout = () => {
   }, [isSuperAdmin, fetchNotifications]);
 
   useEffect(() => {
+    setMobileOpen(false);
+    document.body.style.pointerEvents = "";
+  }, [location.pathname]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.pointerEvents = "";
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isSuperAdmin) return;
 
     const channel = supabase
