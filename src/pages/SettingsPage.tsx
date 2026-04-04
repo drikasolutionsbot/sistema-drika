@@ -165,17 +165,17 @@ const SettingsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header with gradient bg */}
-      <div className="relative rounded-2xl overflow-hidden p-6 pb-4">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/5" />
-        <div className="absolute inset-0 border border-primary/10 rounded-2xl" />
-        <div className="relative">
-          <h1 className="font-display text-2xl font-bold">Configurações</h1>
-          <p className="text-muted-foreground text-sm mt-1">Personalize seu painel</p>
-        </div>
+      <Tabs defaultValue={defaultTab}>
+        {/* Header with gradient bg */}
+        <div className="relative rounded-2xl overflow-hidden p-6 pb-4">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/5" />
+          <div className="absolute inset-0 border border-primary/10 rounded-2xl" />
+          <div className="relative">
+            <h1 className="font-display text-2xl font-bold">Configurações</h1>
+            <p className="text-muted-foreground text-sm mt-1">Personalize seu painel</p>
+          </div>
 
-        <Tabs defaultValue={defaultTab} className="relative mt-5">
-          <div className="overflow-x-auto -mx-6 px-6 scrollbar-none">
+          <div className="relative mt-5 overflow-x-auto -mx-6 px-6 scrollbar-none">
             <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-auto gap-1 w-max min-w-full sm:w-auto">
               <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <User className="h-4 w-4" /> Perfil
@@ -191,6 +191,7 @@ const SettingsPage = () => {
               </TabsTrigger>
             </TabsList>
           </div>
+        </div>
 
         {/* Profile Tab */}
         <TabsContent value="profile">
@@ -424,7 +425,6 @@ const SettingsPage = () => {
           </div>
         </TabsContent>
 
-
         {/* Plan Tab */}
         <TabsContent value="plan">
           <SettingsPlanTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
@@ -434,12 +434,7 @@ const SettingsPage = () => {
         <TabsContent value="server">
           <SettingsServerTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
         </TabsContent>
-
-
-
-
       </Tabs>
-      </div>
     </div>
   );
 };
