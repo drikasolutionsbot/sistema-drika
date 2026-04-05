@@ -87,6 +87,17 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   let ticketThread;
   try {
     const parentCh = await interaction.guild.channels.fetch(parentChannelId);
+
+    // Ensure the user has SendMessagesInThreads on the parent channel
+    try {
+      await parentCh.permissionOverwrites.edit(userId, {
+        SendMessagesInThreads: true,
+        ViewChannel: true,
+      }, { reason: "Ticket: permitir usuário enviar mensagens na thread" });
+    } catch (permErr) {
+      console.error("[TICKET_OPEN] permission overwrite error:", permErr.message);
+    }
+
     ticketThread = await parentCh.threads.create({
       name: threadName, type: ChannelType.PrivateThread, autoArchiveDuration: 10080,
       reason: "Ticket de suporte",
