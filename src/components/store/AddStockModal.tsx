@@ -18,6 +18,7 @@ interface AddStockModalProps {
   onOpenChange: (open: boolean) => void;
   productId: string;
   tenantId: string;
+  fieldId?: string;
   onAdded: () => void;
 }
 
@@ -26,6 +27,7 @@ export const AddStockModal = ({
   onOpenChange,
   productId,
   tenantId,
+  fieldId,
   onAdded,
 }: AddStockModalProps) => {
   const [adding, setAdding] = useState(false);
@@ -48,6 +50,7 @@ export const AddStockModal = ({
           action: "add_stock",
           tenant_id: tenantId,
           product_id: productId,
+          field_id: fieldId || null,
           items: filtered,
         },
       });

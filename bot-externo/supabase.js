@@ -125,6 +125,17 @@ async function getAvailableStock(productId, tenantId, fieldId = null, limit = 1)
   if (fieldId) q = q.eq("field_id", fieldId);
   else q = q.eq("product_id", productId);
   const { data } = await q;
+  // Fallback: if field-specific stock is empty, check product-level stock (field_id IS NULL)
+  if (fieldId && (!data || data.length === 0)) {
+    const { data: generalData } = await supabase.from("product_stock_items")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .is("field_id", null)
+      .eq("delivered", false)
+      .limit(limit);
+    return generalData || [];
+  }
   return data || [];
 }
 
@@ -133,6 +144,16 @@ async function countStock(productId, tenantId, fieldId = null) {
   if (fieldId) q = q.eq("field_id", fieldId);
   else q = q.eq("product_id", productId);
   const { count } = await q;
+  // Fallback: if field-specific stock is 0, check product-level stock (field_id IS NULL)
+  if (fieldId && (count || 0) === 0) {
+    const { count: generalCount } = await supabase.from("product_stock_items")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .is("field_id", null)
+      .eq("delivered", false);
+    return generalCount || 0;
+  }
   return count || 0;
 }
 

@@ -118,11 +118,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const resolvedFieldId = body.field_id || null;
       const rows = items.map((content: string) => ({
         product_id,
         tenant_id,
         content,
-        field_id: null,
+        field_id: resolvedFieldId,
       }));
       const { data, error } = await supabase
         .from("product_stock_items")
