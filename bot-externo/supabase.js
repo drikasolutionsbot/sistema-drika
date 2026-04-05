@@ -125,6 +125,17 @@ async function getAvailableStock(productId, tenantId, fieldId = null, limit = 1)
   if (fieldId) q = q.eq("field_id", fieldId);
   else q = q.eq("product_id", productId);
   const { data } = await q;
+  // Fallback: if field-specific stock is empty, check product-level stock (field_id IS NULL)
+  if (fieldId && (!data || data.length === 0)) {
+    const { data: generalData } = await supabase.from("product_stock_items")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .is("field_id", null)
+      .eq("delivered", false)
+      .limit(limit);
+    return generalData || [];
+  }
   return data || [];
 }
 
