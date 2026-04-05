@@ -478,10 +478,21 @@ serve(async (req) => {
             body: logFormData,
           });
         } else {
+          // For manual delivery, include action buttons in the logs channel too
+          const logPayload: any = { embeds: [deliveryLogEmbed] };
+          if (!isAutoDelivery) {
+            logPayload.components = [{
+              type: 1,
+              components: [
+                { type: 2, style: 3, label: "Marcar como Entregue", emoji: { name: "✅" }, custom_id: `mark_delivered_${order_id}` },
+                { type: 2, style: 4, label: "Cancelar Pedido", emoji: { name: "❌" }, custom_id: `cancel_manual_${order_id}` },
+              ],
+            }];
+          }
           await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ embeds: [deliveryLogEmbed] }),
+            body: JSON.stringify(logPayload),
           });
         }
       } catch (logErr) {
