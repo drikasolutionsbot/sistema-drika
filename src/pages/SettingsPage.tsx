@@ -430,6 +430,93 @@ const SettingsPage = () => {
           <SettingsPlanTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
         </TabsContent>
 
+        {/* Advanced Tab - Cache */}
+        <TabsContent value="advanced">
+          <div className="space-y-6">
+            <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+              <div>
+                <h3 className="text-lg font-semibold">Limpeza de Cache</h3>
+                <p className="text-sm text-muted-foreground mt-1">Resolva conflitos de dados, sessões obsoletas ou bugs visuais limpando o cache do navegador.</p>
+              </div>
+
+              <div className="space-y-3">
+                {/* Clear drafts */}
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+                      <Trash2 className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Limpar Rascunhos</p>
+                      <p className="text-xs text-muted-foreground">Remove rascunhos salvos localmente (formulários não enviados)</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const keysToRemove: string[] = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                      const key = localStorage.key(i);
+                      if (key && key.startsWith("draft:")) keysToRemove.push(key);
+                    }
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                    toast({ title: `${keysToRemove.length} rascunho(s) removido(s) ✅` });
+                  }}>
+                    Limpar
+                  </Button>
+                </div>
+
+                {/* Clear tenant cache */}
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                      <Database className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Limpar Cache do Servidor</p>
+                      <p className="text-xs text-muted-foreground">Remove dados em cache do servidor/tenant atual</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const keysToRemove: string[] = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                      const key = localStorage.key(i);
+                      if (key && tenantId && key.includes(tenantId)) keysToRemove.push(key);
+                    }
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                    toast({ title: `Cache do servidor limpo (${keysToRemove.length} itens) ✅` });
+                  }}>
+                    Limpar
+                  </Button>
+                </div>
+
+                {/* Full reset */}
+                <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10">
+                      <HardDrive className="h-4 w-4 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Limpeza Total</p>
+                      <p className="text-xs text-muted-foreground">Remove localStorage, sessionStorage e Cache API. Recarrega a página.</p>
+                    </div>
+                  </div>
+                  <Button variant="destructive" size="sm" onClick={async () => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    if ("caches" in window) {
+                      const names = await caches.keys();
+                      await Promise.all(names.map(n => caches.delete(n)));
+                    }
+                    toast({ title: "Cache total limpo ✅ Recarregando..." });
+                    setTimeout(() => window.location.reload(), 800);
+                  }}>
+                    Limpar Tudo
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
 
 
 
