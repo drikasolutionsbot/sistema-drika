@@ -50,6 +50,7 @@ export const AddStockModal = ({
           action: "add_stock",
           tenant_id: tenantId,
           product_id: productId,
+          field_id: fieldId || null,
           items: filtered,
         },
       });

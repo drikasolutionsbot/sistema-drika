@@ -432,6 +432,7 @@ const FieldEstoqueTab = ({
           onOpenChange={setAddModalOpen}
           productId={field.product_id}
           tenantId={tenantId}
+          fieldId={field.id}
           onAdded={() => {
             fetchStock();
             setAddModalOpen(false);
