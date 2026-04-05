@@ -186,6 +186,9 @@ const SettingsPage = () => {
               <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Crown className="h-4 w-4" /> Plano
               </TabsTrigger>
+              <TabsTrigger value="advanced" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <HardDrive className="h-4 w-4" /> Avançado
+              </TabsTrigger>
             </TabsList>
           </div>
 
