@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle } from "lucide-react";
+import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle, PackageCheck } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
