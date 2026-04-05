@@ -27,6 +27,7 @@ export const AddStockModal = ({
   onOpenChange,
   productId,
   tenantId,
+  fieldId,
   onAdded,
 }: AddStockModalProps) => {
   const [adding, setAdding] = useState(false);
