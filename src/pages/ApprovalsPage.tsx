@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle } from "lucide-react";
+import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle, PackageCheck } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,7 +137,25 @@ export default function ApprovalsPage() {
     }
   };
 
+  const handleMarkDelivered = async (orderId: string) => {
+    setProcessing(orderId);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "delivered" as any, updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+      if (error) throw error;
+      toast({ title: "📦 Pedido marcado como entregue!" });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Erro ao marcar entrega", description: err.message, variant: "destructive" });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const pendingCount = orders?.filter(o => o.status === "pending_payment").length || 0;
+  const paidCount = orders?.filter(o => o.status === "paid").length || 0;
 
   const getTimeSince = (date: string) => {
     const diff = Date.now() - new Date(date).getTime();
@@ -158,12 +176,20 @@ export default function ApprovalsPage() {
             Gerencie pedidos pendentes de confirmação de pagamento
           </p>
         </div>
-        {pendingCount > 0 && (
-          <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-sm px-3 py-1.5 self-start">
-            <Clock className="h-3.5 w-3.5 mr-1.5" />
-            {pendingCount} pendente{pendingCount > 1 ? "s" : ""}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2 self-start flex-wrap">
+          {pendingCount > 0 && (
+            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-sm px-3 py-1.5">
+              <Clock className="h-3.5 w-3.5 mr-1.5" />
+              {pendingCount} pendente{pendingCount > 1 ? "s" : ""}
+            </Badge>
+          )}
+          {paidCount > 0 && (
+            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-sm px-3 py-1.5">
+              <PackageCheck className="h-3.5 w-3.5 mr-1.5" />
+              {paidCount} aguardando entrega
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -286,6 +312,18 @@ export default function ApprovalsPage() {
                           Cancelar
                         </Button>
                       </>
+                    )}
+
+                    {order.status === "paid" && (
+                      <Button
+                        size="sm"
+                        onClick={e => { e.stopPropagation(); handleMarkDelivered(order.id); }}
+                        disabled={isProcessingThis}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      >
+                        <PackageCheck className="h-3.5 w-3.5" />
+                        Marcar como Entregue
+                      </Button>
                     )}
 
                     {!isPending && order.status !== "canceled" && (
