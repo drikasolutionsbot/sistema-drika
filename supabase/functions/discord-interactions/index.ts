@@ -2708,6 +2708,7 @@ async function processPurchase(
           components: [
             { type: 2, style: 3, label: "Ir para o Pagamento", emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
             { type: 2, style: 2, label: "Editar Quantidade", emoji: { name: "✏️" }, custom_id: `checkout_quantity:${order.id}` },
+            { type: 2, style: 1, label: "Confirmar manualmente", emoji: { name: "🛠️" }, custom_id: `approve_order:${order.id}` },
           ],
         },
         {

@@ -726,11 +726,17 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+
+  const canApprove = await canManuallyApproveOrder(interaction, tenant);
+  if (!canApprove) {
+    return interaction.followUp({ content: "❌ Você não tem permissão para confirmar manualmente este pedido.", ephemeral: true });
+  }
+
   const order = await getOrder(orderId);
   if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
-  await updateOrderStatus(orderId, "paid", { payment_provider: "static_pix" });
+  await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
   await deliverOrder(orderId, order.tenant_id);
 
   // Trigger automation
