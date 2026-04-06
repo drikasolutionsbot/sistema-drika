@@ -160,15 +160,27 @@ async function onMessage(client, message) {
     return;
   }
 
+  // Check if MessageContent intent is working
+  if (!message.content && message.content !== "") {
+    console.log(`[protection] ⚠️ message.content é null/undefined — Message Content Intent pode não estar habilitado no Discord Developer Portal`);
+  }
+
   const roleIds = getMemberRoleIds(message.member);
   const whitelisted = await isWhitelisted(tenant.id, message.author.id, roleIds);
   if (whitelisted) {
+    console.log(`[protection] ⏭️ Usuário whitelisted: ${message.author.username} (${message.author.id})`);
+    return;
+  }
+
+  // Check if user has ADMINISTRATOR permission — skip protection for admins
+  if (message.member?.permissions?.has?.("Administrator")) {
+    console.log(`[protection] ⏭️ Admin ignorado: ${message.author.username}`);
     return;
   }
 
   const settings = await getProtectionSettings(tenant.id);
   const enabledModules = settings.filter(s => s.enabled).map(s => s.module_key);
-  console.log(`[protection] 📋 ${message.guild.name} | Módulos ativos: [${enabledModules.join(', ')}] | Msg: "${message.content.slice(0, 60)}"`);
+  console.log(`[protection] 📋 ${message.guild.name} | Tenant: ${tenant.id} | Módulos ativos: [${enabledModules.join(', ')}] | Content(${message.content?.length || 0}): "${(message.content || '').slice(0, 80)}" | User: ${message.author.username}`);
 
   // ── Anti-Spam ──
   const antiSpam = settings.find(s => s.module_key === "anti_spam" && s.enabled);
