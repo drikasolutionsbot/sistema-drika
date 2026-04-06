@@ -227,27 +227,24 @@ async function startCheckout(interaction, tenant, productId) {
 
   const fields = await getProductFields(product.id, tenant.id);
 
-  // ── Check stock before proceeding ──
-  if (product.auto_delivery) {
-    if (fields.length > 0) {
-      // Check if ALL fields have 0 stock
-      let totalStock = 0;
-      for (const f of fields) {
-        const sc = await countStock(product.id, tenant.id, f.id);
-        totalStock += (sc || 0);
-      }
-      if (totalStock <= 0) {
-        return interaction.editReply({
-          content: `✅ Pronto, agora você será notificado quando \`${product.name}\` estiver com estoque disponível.`,
-        });
-      }
-    } else {
-      const sc = await countStock(product.id, tenant.id);
-      if (sc !== null && sc <= 0) {
-        return interaction.editReply({
-          content: `✅ Pronto, agora você será notificado quando \`${product.name}\` estiver com estoque disponível.`,
-        });
-      }
+  // ── Check stock before proceeding (block if stock is 0, regardless of auto_delivery) ──
+  if (fields.length > 0) {
+    let totalStock = 0;
+    for (const f of fields) {
+      const sc = await countStock(product.id, tenant.id, f.id);
+      totalStock += (sc || 0);
+    }
+    if (totalStock <= 0) {
+      return interaction.editReply({
+        content: "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.",
+      });
+    }
+  } else {
+    const sc = await countStock(product.id, tenant.id);
+    if (sc !== null && sc <= 0) {
+      return interaction.editReply({
+        content: "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.",
+      });
     }
   }
 
