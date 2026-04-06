@@ -155,16 +155,26 @@ async function onMessage(client, message) {
   if (message.author.bot || !message.guild) return;
 
   const tenant = await client.resolveTenant(message.guild.id);
-  if (!tenant) return;
+  if (!tenant) {
+    console.log(`[protection] ❌ Tenant não encontrado para guild ${message.guild.id} (${message.guild.name})`);
+    return;
+  }
 
   const roleIds = getMemberRoleIds(message.member);
-  if (await isWhitelisted(tenant.id, message.author.id, roleIds)) return;
+  const whitelisted = await isWhitelisted(tenant.id, message.author.id, roleIds);
+  if (whitelisted) {
+    console.log(`[protection] ⏭️ Usuário ${message.author.username} está na whitelist, ignorando`);
+    return;
+  }
 
   const settings = await getProtectionSettings(tenant.id);
+  console.log(`[protection] 📋 Módulos carregados para ${message.guild.name}: ${settings.map(s => `${s.module_key}(${s.enabled ? 'ON' : 'OFF'})`).join(', ') || 'NENHUM'}`);
+  console.log(`[protection] 📝 Mensagem de ${message.author.username}: "${message.content.slice(0, 100)}"`);
 
   // ── Anti-Spam ──
   const antiSpam = settings.find(s => s.module_key === "anti_spam" && s.enabled);
   if (antiSpam) {
+    console.log(`[protection] 🔍 Anti-Spam ativo, verificando...`);
     const config = antiSpam.config || {};
     const maxMsgs = config.msg_threshold || 5;
     const timeWindow = (config.msg_window || 5) * 1000;
@@ -187,13 +197,14 @@ async function onMessage(client, message) {
     }
 
     if (triggered) {
+      console.log(`[protection] 🚨 Anti-Spam TRIGGERED para ${message.author.username} (${msgs.length} msgs)`);
       try {
         if (deleteMessages) {
           try {
             const recent = await message.channel.messages.fetch({ limit: Math.min(msgs.length, 10) });
             const userMsgs = recent.filter(m => m.author.id === message.author.id);
-            if (userMsgs.size > 1) await message.channel.bulkDelete(userMsgs).catch(() => {});
-          } catch {}
+            if (userMsgs.size > 1) await message.channel.bulkDelete(userMsgs).catch(e => console.error("[anti_spam] bulkDelete error:", e.message));
+          } catch (e) { console.error("[anti_spam] Fetch/delete error:", e.message); }
         }
 
         await executeAction(action, message.member, "Anti-Spam", muteDuration);
@@ -205,7 +216,7 @@ async function onMessage(client, message) {
           messages_in_window: msgs.length, action,
         });
         spamTracker.delete(key);
-      } catch {}
+      } catch (e) { console.error("[anti_spam] Error:", e.message); }
     }
   }
 
