@@ -298,14 +298,12 @@ async function selectVariation(interaction, tenant, productId, fieldId) {
   const field = fields.find((f) => f.id === fieldId);
   if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
 
-  // Check stock for this specific field
-  if (product.auto_delivery) {
-    const sc = await countStock(product.id, tenant.id, fieldId);
-    if (sc !== null && sc <= 0) {
-      return interaction.editReply({
-        content: `✅ Pronto, agora você será notificado quando \`${product.name} - ${field.name}\` estiver com estoque disponível.`,
-      });
-    }
+  // Check stock for this specific field (block regardless of auto_delivery)
+  const sc = await countStock(product.id, tenant.id, fieldId);
+  if (sc !== null && sc <= 0) {
+    return interaction.editReply({
+      content: "❌ Esta variação está **sem estoque** no momento. Tente novamente mais tarde.",
+    });
   }
 
   await processPurchase(interaction, tenant, product, field.price_cents, field.id, field.name);
