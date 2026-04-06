@@ -109,19 +109,36 @@ serve(async (req) => {
             })
             .in("id", ids);
 
-          // Decrement product stock count
-          const { data: currentProduct } = await supabase
+          // Recalculate real stock count and sync Discord embed
+          const { count: realStock } = await supabase
+            .from("product_stock_items")
+            .select("id", { count: "exact", head: true })
+            .eq("product_id", order.product_id)
+            .eq("tenant_id", tenant_id)
+            .eq("delivered", false);
+
+          await supabase
             .from("products")
-            .select("stock")
+            .update({ stock: realStock ?? 0, updated_at: new Date().toISOString() })
             .eq("id", order.product_id)
-            .single();
-          if (currentProduct && currentProduct.stock !== null) {
-            const newStock = Math.max(0, currentProduct.stock - items.length);
-            await supabase
-              .from("products")
-              .update({ stock: newStock, updated_at: new Date().toISOString() })
-              .eq("id", order.product_id)
-              .eq("tenant_id", tenant_id);
+            .eq("tenant_id", tenant_id);
+
+          // Sync Discord embed (fire-and-forget)
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/send-webhook-message`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                action: "sync",
+                tenant_id,
+                product_id: order.product_id,
+              }),
+            });
+          } catch (e) {
+            console.error("Failed to sync product embed after delivery:", e);
           }
         }
       }
