@@ -213,6 +213,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
 });
 
 client.on(Events.MessageCreate, async (message) => {
+  // DEBUG: Log every message event to verify the event fires
+  console.log(`[DEBUG] MessageCreate: guild=${message.guild?.name || 'DM'} | author=${message.author.username} | bot=${message.author.bot} | content="${(message.content || '').slice(0, 80)}"`);
   try {
     await protectionHandler.onMessage(client, message);
   } catch (err) {
