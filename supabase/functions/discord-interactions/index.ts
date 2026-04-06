@@ -760,6 +760,44 @@ serve(async (req) => {
           .eq("tenant_id", tenantId)
           .order("sort_order", { ascending: true });
 
+        // ── Stock check: block purchase if stock is 0 ──
+        if (fields && fields.length > 0) {
+          const fieldIds = fields.map((f: any) => f.id);
+          const { count: totalFieldStock } = await supabase
+            .from("product_stock_items")
+            .select("id", { count: "exact", head: true })
+            .in("field_id", fieldIds)
+            .eq("tenant_id", tenantId)
+            .eq("delivered", false);
+
+          // Also check general stock (field_id IS NULL)
+          const { count: generalStock } = await supabase
+            .from("product_stock_items")
+            .select("id", { count: "exact", head: true })
+            .eq("product_id", product.id)
+            .eq("tenant_id", tenantId)
+            .is("field_id", null)
+            .eq("delivered", false);
+
+          const combinedStock = (totalFieldStock || 0) + (generalStock || 0);
+          if (combinedStock <= 0) {
+            await editFollowup(interaction, botToken, "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.");
+            return ok();
+          }
+        } else {
+          const { count: productStock } = await supabase
+            .from("product_stock_items")
+            .select("id", { count: "exact", head: true })
+            .eq("product_id", product.id)
+            .eq("tenant_id", tenantId)
+            .eq("delivered", false);
+
+          if (productStock !== null && productStock <= 0) {
+            await editFollowup(interaction, botToken, "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.");
+            return ok();
+          }
+        }
+
         if (fields && fields.length > 0) {
           // Fetch stock counts for each field
           const fieldIds = fields.map((f: any) => f.id);
@@ -840,6 +878,32 @@ serve(async (req) => {
 
         const { data: field } = await supabase.from("product_fields").select("*").eq("id", fieldId).single();
         if (!field) { await editFollowup(interaction, botToken, "❌ Variação não encontrada."); return ok(); }
+
+        // ── Stock check for this variation ──
+        const { count: fieldStock } = await supabase
+          .from("product_stock_items")
+          .select("id", { count: "exact", head: true })
+          .eq("field_id", fieldId)
+          .eq("tenant_id", product.tenant_id)
+          .eq("delivered", false);
+
+        // Fallback: check general stock (field_id IS NULL)
+        let totalStock = fieldStock || 0;
+        if (totalStock === 0) {
+          const { count: generalStock } = await supabase
+            .from("product_stock_items")
+            .select("id", { count: "exact", head: true })
+            .eq("product_id", product.id)
+            .eq("tenant_id", product.tenant_id)
+            .is("field_id", null)
+            .eq("delivered", false);
+          totalStock = generalStock || 0;
+        }
+
+        if (totalStock <= 0) {
+          await editFollowup(interaction, botToken, "❌ Esta variação está **sem estoque** no momento. Tente novamente mais tarde.");
+          return ok();
+        }
 
         await processPurchase(supabase, interaction, botToken, product, product.tenant_id, userId, username, field.price_cents, interaction.guild_id, interaction.channel_id, fieldId, field.name);
         return ok();
