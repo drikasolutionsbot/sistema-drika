@@ -137,21 +137,9 @@ serve(async (req) => {
     }
 
     if (action === "invite_url") {
-      const botUserRes = await fetchWithRetry("https://discord.com/api/v10/users/@me", {
-        headers: { Authorization: `Bot ${botToken}` },
-      });
-
-      if (!botUserRes.ok) {
-        const text = await botUserRes.text();
-        throw new Error(`Discord API error [${botUserRes.status}]: ${text}`);
-      }
-
-      const botUser = await botUserRes.json();
-      const clientId = botUser?.id;
-      if (!clientId) {
-        throw new Error("Não foi possível identificar o bot configurado");
-      }
-
+      const fallbackClientId = "1483943198882664579";
+      const configuredClientId = (Deno.env.get("DISCORD_BOT_CLIENT_ID") || fallbackClientId).trim();
+      const clientId = /^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId;
       const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
 
       return new Response(JSON.stringify({ invite_url: inviteUrl, client_id: clientId }), {
