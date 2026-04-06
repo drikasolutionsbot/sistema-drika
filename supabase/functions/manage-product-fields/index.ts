@@ -170,6 +170,8 @@ Deno.serve(async (req) => {
         .insert(rows)
         .select();
       if (error) throw error;
+      // Sync stock count and Discord embeds
+      await syncStockAndEmbed(supabase, product_id, tenant_id);
       return new Response(JSON.stringify({ count: data?.length || 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
