@@ -312,15 +312,24 @@ serve(async (req) => {
             description: `✅ **Entrega realizada!** Verifique seu privado, esse ticket será excluído **em 2 minutos**`,
             color: 0x2B2D31,
           }],
-          components: [{
-            type: 1,
-            components: [{
-              type: 2,
-              style: 5,
-              label: "Ir para o pedido entregue",
-              url: dmLink,
-            }],
-          }],
+          components: [
+            {
+              type: 1,
+              components: [{
+                type: 2,
+                style: 5,
+                label: "Ir para o pedido entregue",
+                url: dmLink,
+              }],
+            },
+            {
+              type: 1,
+              components: [
+                { type: 2, style: 3, label: "Confirmar Entrega", emoji: { name: "✅" }, custom_id: `mark_delivered_${order.id}` },
+                { type: 2, style: 4, label: "Cancelar Pedido", emoji: { name: "❌" }, custom_id: `cancel_manual_${order.id}` },
+              ],
+            },
+          ],
         }),
       });
 
