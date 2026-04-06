@@ -6,6 +6,46 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Helper: update products.stock column AND trigger Discord embed sync
+async function syncStockAndEmbed(supabase: any, productId: string, tenantId: string) {
+  // Count real stock from product_stock_items
+  const { count } = await supabase
+    .from("product_stock_items")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId)
+    .eq("tenant_id", tenantId)
+    .eq("delivered", false);
+
+  const realStock = count ?? 0;
+
+  // Update the products.stock column
+  await supabase
+    .from("products")
+    .update({ stock: realStock, updated_at: new Date().toISOString() })
+    .eq("id", productId)
+    .eq("tenant_id", tenantId);
+
+  // Trigger Discord embed sync (fire-and-forget)
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/send-webhook-message`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        action: "sync",
+        tenant_id: tenantId,
+        product_id: productId,
+      }),
+    });
+  } catch (e) {
+    console.error("Failed to sync product embed:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -130,6 +170,8 @@ Deno.serve(async (req) => {
         .insert(rows)
         .select();
       if (error) throw error;
+      // Sync stock count and Discord embeds
+      await syncStockAndEmbed(supabase, product_id, tenant_id);
       return new Response(JSON.stringify({ count: data?.length || 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -165,12 +207,25 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Get product_id from the stock item before deleting
+      const { data: stockItem } = await supabase
+        .from("product_stock_items")
+        .select("product_id")
+        .eq("id", stock_item_id)
+        .eq("tenant_id", tenant_id)
+        .single();
+      const deletedProductId = stockItem?.product_id;
+
       const { error } = await supabase
         .from("product_stock_items")
         .delete()
         .eq("id", stock_item_id)
         .eq("tenant_id", tenant_id);
       if (error) throw error;
+      // Sync stock count and Discord embeds
+      if (deletedProductId) {
+        await syncStockAndEmbed(supabase, deletedProductId, tenant_id);
+      }
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -191,6 +246,8 @@ Deno.serve(async (req) => {
         .eq("tenant_id", tenant_id)
         .eq("delivered", false);
       if (error) throw error;
+      // Sync stock count and Discord embeds
+      await syncStockAndEmbed(supabase, product_id, tenant_id);
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
