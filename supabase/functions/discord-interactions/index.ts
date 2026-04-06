@@ -990,13 +990,19 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+
+        const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
+        if (!isStaff) {
+          await editFollowup(interaction, botToken, "❌ Você não tem permissão para confirmar manualmente este pedido.");
+          return ok();
+        }
+
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
           return ok();
         }
 
-        // Mark as paid
-        await supabase.from("orders").update({ status: "paid", payment_provider: "static_pix" }).eq("id", orderId);
+        await supabase.from("orders").update({ status: "paid", payment_provider: "manual_confirmation" }).eq("id", orderId);
 
         // Try to deliver (invoke deliver-order)
         try {

@@ -37,7 +37,6 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       return;
     }
 
-    // Build embed as plain JSON (no Discord.js dependency for reliability)
     const embed = {
       title,
       description,
@@ -49,14 +48,10 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
 
     const body = { embeds: [embed] };
 
-    // Convert Discord.js components to JSON if needed
-    if (rawComponents) {
-      if (Array.isArray(rawComponents)) {
-        body.components = rawComponents.map(c => typeof c.toJSON === "function" ? c.toJSON() : c);
-      }
+    if (rawComponents && Array.isArray(rawComponents)) {
+      body.components = rawComponents.map(c => typeof c.toJSON === "function" ? c.toJSON() : c);
     }
 
-    // PRIMARY: Direct REST API call (proven reliable, same as expire-pending-orders cron)
     const res = await fetch(`https://discord.com/api/v10/channels/${storeConfig.logs_channel_id}/messages`, {
       method: "POST",
       headers: {
@@ -74,6 +69,41 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
     }
   } catch (err) {
     console.error(`Failed to send log [${title}]:`, err.message);
+  }
+}
+
+async function canManuallyApproveOrder(interaction, tenant) {
+  try {
+    let member = interaction.member;
+    if (!member?.permissions && interaction.guild) {
+      try {
+        member = await interaction.guild.members.fetch(interaction.user.id);
+      } catch {}
+    }
+
+    if (member?.permissions?.has?.(PermissionFlagsBits.Administrator)) return true;
+
+    const storeConfig = await getStoreConfig(tenant.id);
+    const staffRoleIdRaw = storeConfig?.ticket_staff_role_id;
+    if (!staffRoleIdRaw) {
+      return member?.permissions?.has?.(PermissionFlagsBits.ManageMessages) || false;
+    }
+
+    const staffRoleIds = staffRoleIdRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (staffRoleIds.length === 0) return false;
+
+    const memberRoles = member?.roles?.cache || member?._roles;
+    if (memberRoles?.has) {
+      return staffRoleIds.some((rid) => memberRoles.has(rid));
+    }
+    if (Array.isArray(memberRoles)) {
+      return staffRoleIds.some((rid) => memberRoles.includes(rid));
+    }
+
+    return false;
+  } catch (e) {
+    console.error("Manual approval permission check failed:", e.message);
+    return false;
   }
 }
 
