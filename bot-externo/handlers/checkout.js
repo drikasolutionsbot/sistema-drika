@@ -480,6 +480,18 @@ async function goToPayment(interaction, tenant, orderId) {
   if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
+  // ── Validate stock before generating PIX ──
+  if (order.product_id) {
+    const { data: prod } = await supabase.from("products").select("auto_delivery, stock").eq("id", order.product_id).single();
+    if (prod && prod.auto_delivery) {
+      const fieldId = order.field_id;
+      const sc = await countStock(order.product_id, order.tenant_id, fieldId || undefined);
+      if (sc !== null && sc <= 0) {
+        return interaction.followUp({ content: "❌ Este produto está **sem estoque** no momento. Não é possível gerar o pagamento.", ephemeral: true });
+      }
+    }
+  }
+
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
