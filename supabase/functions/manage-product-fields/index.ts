@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const resolvedFieldId = body.field_id || null;
+      const resolvedFieldId = field_id || null;
       const rows = items.map((content: string) => ({
         product_id,
         tenant_id,
