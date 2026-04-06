@@ -353,15 +353,21 @@ serve(async (req) => {
           });
         } catch {}
       }, 120000);
-    } else if (checkoutThreadId && !isAutoDelivery) {
-      // Manual delivery: keep thread open with staff notification
+    } else if (checkoutThreadId && (!isAutoDelivery || (isAutoDelivery && stockItems.length === 0))) {
+      // Manual delivery OR auto-delivery with no stock: keep thread open with staff notification
+      const isOutOfStock = isAutoDelivery && stockItems.length === 0;
+      const embedTitle = isOutOfStock ? "⚠️ Estoque Esgotado — Entrega Pendente" : "📋 Entrega Manual Pendente";
+      const embedDesc = isOutOfStock
+        ? `O pagamento foi aprovado, mas **não há estoque disponível** para entrega automática.\n\nPor favor, reponha o estoque ou realize a entrega manualmente e clique em **Marcar como Entregue**.`
+        : `Este pedido requer entrega manual.\n\nPor favor, realize a entrega do produto e clique em **Marcar como Entregue** quando finalizar.`;
+
       await fetch(`${DISCORD_API}/channels/${checkoutThreadId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: "📋 Entrega Manual Pendente",
-            description: `Este pedido requer entrega manual.\n\nPor favor, realize a entrega do produto e clique em **Marcar como Entregue** quando finalizar.`,
+            title: embedTitle,
+            description: embedDesc,
             color: 0xFEE75C,
             fields: [
               { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
