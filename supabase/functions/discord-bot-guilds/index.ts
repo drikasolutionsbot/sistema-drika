@@ -59,11 +59,44 @@ serve(async (req) => {
       // body opcional
     }
 
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+    const authHeader = req.headers.get("Authorization");
+
     const mapGuild = (g: any) => ({
       id: g.id,
       name: g.name,
       icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
     });
+
+    const resolveDiscordUserIdFromAuthHeader = async (header: string | null) => {
+      if (!header) return null;
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: header } },
+      });
+
+      const {
+        data: { user },
+        error: userError,
+      } = await userClient.auth.getUser();
+
+      if (userError || !user) return null;
+
+      const fromMetadata =
+        user.user_metadata?.provider_id ||
+        user.user_metadata?.sub ||
+        user.app_metadata?.provider_id ||
+        null;
+
+      if (fromMetadata) return String(fromMetadata);
+
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("discord_user_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      return profile?.discord_user_id || null;
+    };
 
     const fetchUserGuilds = async () => {
       if (!discordUserToken) return [] as Array<{ id: string; name: string; icon: string | null }>;
@@ -130,8 +163,7 @@ serve(async (req) => {
       const guildData = await guildRes.json();
 
       // Check if already claimed by another tenant
-      const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: claimedTenant } = await adminClient
+      const { data: claimedTenant } = await admin
         .from("tenants")
         .select("id")
         .eq("discord_guild_id", verifyGuildId)
@@ -155,52 +187,8 @@ serve(async (req) => {
       });
     }
 
-    if (action === "invite_url") {
-      const fallbackClientId = "1483943198882664579";
-      const configuredClientId = (Deno.env.get("DISCORD_BOT_CLIENT_ID") || fallbackClientId).trim();
-      const clientId = /^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId;
-      const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
-
-      return new Response(JSON.stringify({ invite_url: inviteUrl, client_id: clientId }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const admin = createClient(supabaseUrl, serviceRoleKey);
     let resolvedTenantId: string | null = null;
     let resolvedDiscordUserId: string | null = null;
-
-    const resolveDiscordUserIdFromAuthHeader = async (authHeader: string | null) => {
-      if (!authHeader) return null;
-      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-
-      const {
-        data: { user },
-        error: userError,
-      } = await userClient.auth.getUser();
-
-      if (userError || !user) {
-        return null;
-      }
-
-      const fromMetadata =
-        user.user_metadata?.provider_id ||
-        user.user_metadata?.sub ||
-        user.app_metadata?.provider_id ||
-        null;
-
-      if (fromMetadata) return String(fromMetadata);
-
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("discord_user_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      return profile?.discord_user_id || null;
-    };
 
     const getOwnedGuilds = async (
       candidates: Array<{ id: string; name: string; icon: string | null }>,
@@ -281,7 +269,6 @@ serve(async (req) => {
 
     // 2) Usuário autenticado via Supabase Auth + tenant_id informado
     if (!resolvedTenantId && tenantIdFromBody) {
-      const authHeader = req.headers.get("Authorization");
       if (!authHeader) {
         return new Response(JSON.stringify({ error: "Não autorizado" }), {
           status: 401,
@@ -322,6 +309,36 @@ serve(async (req) => {
 
       resolvedTenantId = tenantIdFromBody;
       resolvedDiscordUserId = await resolveDiscordUserIdFromAuthHeader(authHeader);
+    }
+
+    if (action === "invite_url") {
+      const fallbackClientId = "1483943198882664579";
+      const configuredClientId = (Deno.env.get("DISCORD_BOT_CLIENT_ID") || fallbackClientId).trim();
+      const clientId = /^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId;
+      const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
+
+      if (resolvedTenantId) {
+        await admin
+          .from("tenant_audit_logs")
+          .insert({
+            tenant_id: resolvedTenantId,
+            action: "pending_bot_invite",
+            entity_type: "servidor",
+            entity_name: null,
+            actor_discord_id: resolvedDiscordUserId,
+            actor_name: "Sistema",
+            details: {
+              source: "dashboard_invite",
+              expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            },
+          })
+          .then(() => undefined)
+          .catch(() => undefined);
+      }
+
+      return new Response(JSON.stringify({ invite_url: inviteUrl, client_id: clientId }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // 3) Onboarding sem tenant informado: tenta usar usuário autenticado para identificar ownership
