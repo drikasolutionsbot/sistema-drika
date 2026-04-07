@@ -36,6 +36,7 @@ serve(async (req) => {
 
     let tenantIdFromBody: string | null = null;
     let accessToken: string | null = null;
+    let discordUserToken: string | null = null;
     let action: string | null = null;
     let invitePermissions = "8";
     let guildIdFromBody: string | null = null;
@@ -45,6 +46,7 @@ serve(async (req) => {
       const body = await req.json();
       tenantIdFromBody = body?.tenant_id || null;
       accessToken = body?.token || null;
+      discordUserToken = typeof body?.discord_user_token === "string" ? body.discord_user_token : null;
       action = body?.action || null;
       guildIdFromBody = body?.guild_id || null;
       baselineGuildIds = Array.isArray(body?.baseline_guild_ids)
@@ -57,6 +59,36 @@ serve(async (req) => {
       // body opcional
     }
 
+    const mapGuild = (g: any) => ({
+      id: g.id,
+      name: g.name,
+      icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
+    });
+
+    const fetchUserGuilds = async () => {
+      if (!discordUserToken) return [] as Array<{ id: string; name: string; icon: string | null }>;
+      const userGuildsRes = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds", {
+        headers: { Authorization: `Bearer ${discordUserToken}` },
+      });
+      if (!userGuildsRes.ok) return [] as Array<{ id: string; name: string; icon: string | null }>;
+      const userGuilds = await userGuildsRes.json();
+      return Array.isArray(userGuilds) ? userGuilds.map(mapGuild) : [];
+    };
+
+    const filterGuildsWithBotPresent = async (guilds: Array<{ id: string; name: string; icon: string | null }>) => {
+      const checks = await Promise.all(guilds.map(async (guild) => {
+        try {
+          const res = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guild.id}`, {
+            headers: { Authorization: `Bot ${botToken}` },
+          });
+          return res.ok ? guild : null;
+        } catch {
+          return null;
+        }
+      }));
+      return checks.filter(Boolean) as Array<{ id: string; name: string; icon: string | null }>;
+    };
+
     // Sempre usar o bot externo 24h (token único para todos os tenants)
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
@@ -67,21 +99,8 @@ serve(async (req) => {
     }
 
     if (action === "list_all") {
-      // Returns ALL guilds the bot is in (just IDs) for diff comparison
-      const discordRes = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds", {
-        headers: { Authorization: `Bot ${botToken}` },
-      });
-      if (!discordRes.ok) {
-        return new Response(JSON.stringify({ guilds: [] }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const allGuilds = await discordRes.json();
-      const guildList = allGuilds.map((g: any) => ({
-        id: g.id,
-        name: g.name,
-        icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-      }));
+      const userGuilds = await fetchUserGuilds();
+      const guildList = await filterGuildsWithBotPresent(userGuilds);
       return new Response(JSON.stringify({ guilds: guildList }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -311,22 +330,8 @@ serve(async (req) => {
       resolvedDiscordUserId = await resolveDiscordUserIdFromAuthHeader(authHeader);
     }
 
-    // Busca guilds atuais do bot no Discord
-    const discordResponse = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds", {
-      headers: { Authorization: `Bot ${botToken}` },
-    });
-
-    if (!discordResponse.ok) {
-      const text = await discordResponse.text();
-      throw new Error(`Discord API error [${discordResponse.status}]: ${text}`);
-    }
-
-    const guilds = await discordResponse.json();
-    const mapped = guilds.map((g: any) => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-    }));
+    const userGuilds = await fetchUserGuilds();
+    const mapped = await filterGuildsWithBotPresent(userGuilds);
 
     // Busca servidores já vinculados a qualquer tenant
     const { data: claimedRows } = await admin

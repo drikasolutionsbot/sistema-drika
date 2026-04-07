@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -30,6 +31,7 @@ const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
 
 const DashboardPage = () => {
   const { tenant, tenantId, loading: tenantLoading, refetch } = useTenant();
+  const { providerToken } = useAuth();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"membros" | "cargos">("membros");
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
@@ -45,8 +47,6 @@ const DashboardPage = () => {
   const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
   const [manualGuildId, setManualGuildId] = useState("");
-  const [manualConnectId, setManualConnectId] = useState("");
-  const [manualConnecting, setManualConnecting] = useState(false);
 
   // Members state
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -277,6 +277,9 @@ const DashboardPage = () => {
   const getDiscordRequestBody = useCallback(() => {
     const body: Record<string, unknown> = { tenant_id: tenantId };
     const tokenSession = sessionStorage.getItem("token_session");
+    if (providerToken) {
+      body.discord_user_token = providerToken;
+    }
     if (!tokenSession) return body;
 
     try {
@@ -287,7 +290,7 @@ const DashboardPage = () => {
     }
 
     return body;
-  }, [tenantId]);
+  }, [tenantId, providerToken]);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -677,56 +680,14 @@ const DashboardPage = () => {
                       {t.dashboard.waitingConnection}
                     </div>
                   </div>
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                    <p className="text-xs text-muted-foreground">Ou conecte manualmente pelo ID do servidor:</p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="ID do servidor"
-                        value={manualConnectId}
-                        onChange={(e) => setManualConnectId(e.target.value)}
-                        className="font-mono text-xs h-8"
-                        maxLength={20}
-                      />
-                      <Button
-                        size="sm"
-                        className="h-8 shrink-0"
-                        disabled={!manualConnectId.trim() || manualConnecting}
-                        onClick={handleManualConnect}
-                      >
-                        {manualConnecting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Conectar"}
-                      </Button>
-                    </div>
-                  </div>
                   <Button variant="outline" size="sm" className="w-full" onClick={handleCancelBotPolling}>
                     {t.common.cancel}
                   </Button>
                 </div>
               ) : (
-                <div className="w-full max-w-sm space-y-2">
-                  <Button variant="outline" className="gap-2 text-sm w-full" onClick={handleAddBot}>
-                    <ExternalLink className="h-3.5 w-3.5" /> {t.dashboard.addBot}
-                  </Button>
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                    <p className="text-xs text-muted-foreground">Já adicionou o bot? Conecte pelo ID:</p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="ID do servidor"
-                        value={manualConnectId}
-                        onChange={(e) => setManualConnectId(e.target.value)}
-                        className="font-mono text-xs h-8"
-                        maxLength={20}
-                      />
-                      <Button
-                        size="sm"
-                        className="h-8 shrink-0"
-                        disabled={!manualConnectId.trim() || manualConnecting}
-                        onClick={handleManualConnect}
-                      >
-                        {manualConnecting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Conectar"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <Button variant="outline" className="gap-2 text-sm" onClick={handleAddBot}>
+                  <ExternalLink className="h-3.5 w-3.5" /> {t.dashboard.addBot}
+                </Button>
               )}
             </div>
           )}
