@@ -478,6 +478,36 @@ const DashboardPage = () => {
     setWaitingForBot(false);
   };
 
+  const handleManualConnect = async () => {
+    const trimmedId = manualConnectId.trim();
+    if (!trimmedId || !tenantId) return;
+    if (!/^\d{17,20}$/.test(trimmedId)) {
+      toast.error("ID inválido. O ID do servidor deve conter 17-20 dígitos.");
+      return;
+    }
+    setManualConnecting(true);
+    try {
+      // First verify the bot is in the guild
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("discord-bot-guilds", {
+        body: { ...getDiscordRequestBody(), action: "verify_guild", guild_id: trimmedId },
+      });
+      if (verifyError || verifyData?.error || !verifyData?.guild) {
+        toast.error(verifyData?.error || "O bot não foi encontrado neste servidor. Adicione o bot primeiro.");
+        return;
+      }
+      // Link the guild
+      const linked = await autoLinkGuild(verifyData.guild);
+      if (!linked) {
+        toast.error("Erro ao vincular o servidor. Tente novamente.");
+      }
+    } catch {
+      toast.error("Erro ao conectar servidor.");
+    } finally {
+      setManualConnecting(false);
+      setManualConnectId("");
+    }
+  };
+
   const handleDisconnectServer = async () => {
     if (!tenantId || !tenant?.discord_guild_id) return;
     if (!confirm(t.dashboard.disconnectServerConfirm)) return;
