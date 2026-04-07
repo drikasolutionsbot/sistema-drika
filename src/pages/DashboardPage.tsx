@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -30,6 +31,7 @@ const BOT_PERMISSIONS = "536870920"; // Administrator + MANAGE_WEBHOOKS
 
 const DashboardPage = () => {
   const { tenant, tenantId, loading: tenantLoading, refetch } = useTenant();
+  const { providerToken } = useAuth();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"membros" | "cargos">("membros");
   const [memberSearchOpen, setMemberSearchOpen] = useState(false);
@@ -45,8 +47,6 @@ const DashboardPage = () => {
   const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
   const [manualGuildId, setManualGuildId] = useState("");
-  const [manualConnectId, setManualConnectId] = useState("");
-  const [manualConnecting, setManualConnecting] = useState(false);
 
   // Members state
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
