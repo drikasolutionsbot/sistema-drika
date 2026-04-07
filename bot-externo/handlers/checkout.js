@@ -378,15 +378,15 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .replace(/^-|-$/g, "")
     .slice(0, 40) || "cliente";
 
-  const checkoutThread = await interaction.guild.channels.create({
+  const checkoutThread = await channel.threads.create({
     name: `carrinho-${safeUsername}-${order.order_number}`,
-    type: ChannelType.GuildText,
-    permissionOverwrites: [
-      { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-    ],
+    type: ChannelType.PrivateThread,
+    invitable: false,
     reason: `Checkout #${order.order_number}`,
   });
+
+  // Add the buyer to the private thread
+  await checkoutThread.members.add(userId).catch(() => {});
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
 
