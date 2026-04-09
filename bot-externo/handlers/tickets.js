@@ -726,18 +726,33 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
   }
 
   // Count unique participants
-  const participants = new Set(msgs.map((m) => m.author?.id).filter(Boolean));
+  const participantIds = new Set(msgs.map((m) => m.author?.id).filter(Boolean));
+  const participantMentions = [...participantIds].map((id) => {
+    const msg = msgs.find((m) => m.author?.id === id);
+    const tag = msg?.author?.tag || msg?.author?.username || id;
+    return `<@${id}> (${tag})`;
+  });
 
   const closedAtStr = closedAt.toLocaleDateString("pt-BR") + " " + closedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
+  // Build ticket name from thread/channel
+  const ticketName = ticket.discord_channel_id
+    ? `ticket-${ticket.discord_username || "unknown"}`
+    : `ticket-${ticket.id.slice(0, 8)}`;
+
   const logEmbed = new EmbedBuilder()
-    .setTitle(`Ticket - ${statusLabel}`)
+    .setTitle(`${statusEmoji} Ticket - ${statusLabel}`)
     .setColor(embedColor)
     .addFields(
-      { name: "👤 Moderador", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: false },
+      { name: "Ticket Owner", value: `<@${ticket.discord_user_id}>\n@${ticket.discord_username || "unknown"}`, inline: true },
+      { name: "Ticket Name", value: ticketName, inline: true },
+      { name: "Closed By", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: true },
+      { name: "📊 Mensagens", value: `${msgs.length}`, inline: true },
+      { name: "⏱️ Duração", value: durationStr, inline: true },
+      { name: "👥 Participantes", value: `${participantIds.size}`, inline: true },
     )
     .setTimestamp()
-    .setFooter({ text: `${closedAtStr}` });
+    .setFooter({ text: `${closedAtStr} • ${tenant.name || "Servidor"}` });
 
   // Build transcript and upload
   let components = [];
