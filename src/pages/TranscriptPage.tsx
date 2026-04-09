@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
-import { FileText, Loader2, AlertCircle, MessageSquare, Clock, Shield } from "lucide-react";
+import { FileText, Loader2, AlertCircle, MessageSquare, Lock, Eye } from "lucide-react";
 
 const TranscriptPage = () => {
   const [searchParams] = useSearchParams();
@@ -9,7 +9,6 @@ const TranscriptPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Support both /transcript/:channelId and /transcript?tenant_id=...&ticket_id=...
   const tenantId = searchParams.get("tenant_id");
   const ticketId = searchParams.get("ticket_id");
 
@@ -31,15 +30,11 @@ const TranscriptPage = () => {
         setLoading(false);
         return;
       }
-
       try {
         setLoading(true);
         setError(null);
         const response = await fetch(transcriptUrl);
-        if (!response.ok) {
-          throw new Error("Não foi possível carregar o transcript.");
-        }
-
+        if (!response.ok) throw new Error("Não foi possível carregar o transcript.");
         const content = await response.text();
         setHtml(content);
         document.title = "Transcript — DrikaHub";
@@ -49,7 +44,6 @@ const TranscriptPage = () => {
         setLoading(false);
       }
     };
-
     loadTranscript();
   }, [transcriptUrl]);
 
@@ -57,16 +51,14 @@ const TranscriptPage = () => {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center" style={{ background: "linear-gradient(135deg, #0f0f14 0%, #1a1a2e 50%, #16213e 100%)" }}>
-        <div className="flex flex-col items-center gap-6 text-center">
-          <div className="relative flex h-20 w-20 items-center justify-center">
-            <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-violet-500" style={{ animationDuration: "1.5s" }} />
-            <div className="absolute inset-2 animate-spin rounded-full border-2 border-transparent border-t-cyan-400" style={{ animationDuration: "2s", animationDirection: "reverse" }} />
-            <MessageSquare className="h-7 w-7 text-white/80" />
+      <main className="flex min-h-screen items-center justify-center" style={{ background: "#1a1a1a" }}>
+        <div className="flex flex-col items-center gap-5 text-center">
+          <div className="relative flex h-16 w-16 items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin" style={{ color: "#ff69b4" }} />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-white">Carregando transcript</h1>
-            <p className="mt-1 text-sm text-white/50">Preparando a visualização do histórico…</p>
+            <h1 className="text-lg font-bold" style={{ color: "#f5f5f5" }}>Carregando transcript</h1>
+            <p className="mt-1 text-sm" style={{ color: "#888" }}>Aguarde um momento…</p>
           </div>
         </div>
       </main>
@@ -75,15 +67,15 @@ const TranscriptPage = () => {
 
   if (error || !html) {
     return (
-      <main className="flex min-h-screen items-center justify-center" style={{ background: "linear-gradient(135deg, #0f0f14 0%, #1a1a2e 50%, #16213e 100%)" }}>
-        <div className="mx-4 flex max-w-sm flex-col items-center gap-5 rounded-2xl border border-white/10 bg-white/5 px-8 py-10 text-center backdrop-blur-xl">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15">
-            <AlertCircle className="h-7 w-7 text-red-400" />
+      <main className="flex min-h-screen items-center justify-center" style={{ background: "#1a1a1a" }}>
+        <div className="mx-4 flex max-w-sm flex-col items-center gap-4 rounded-xl px-8 py-10 text-center" style={{ background: "#242424", border: "1px solid #333" }}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "rgba(255,80,80,0.12)" }}>
+            <AlertCircle className="h-6 w-6" style={{ color: "#ff5050" }} />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">Transcript indisponível</h1>
-            <p className="mt-2 text-sm leading-relaxed text-white/50">
-              {error || "Não foi possível encontrar este transcript. Verifique o link e tente novamente."}
+            <h1 className="text-lg font-bold" style={{ color: "#f5f5f5" }}>Transcript indisponível</h1>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "#777" }}>
+              {error || "Não foi possível encontrar este transcript."}
             </p>
           </div>
         </div>
@@ -92,52 +84,62 @@ const TranscriptPage = () => {
   }
 
   return (
-    <main className="min-h-screen" style={{ background: "linear-gradient(135deg, #0f0f14 0%, #1a1a2e 50%, #16213e 100%)" }}>
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-black/30 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+    <main className="min-h-screen" style={{ background: "#1a1a1a" }}>
+      {/* Header */}
+      <header className="sticky top-0 z-20" style={{ background: "#222", borderBottom: "2px solid #ff69b4" }}>
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-2.5 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400">
-              <FileText className="h-5 w-5 text-white" />
+            {/* Logo icon */}
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-lg"
+              style={{ background: "linear-gradient(135deg, #ff69b4, #da3a8a)" }}
+            >
+              <FileText className="h-4.5 w-4.5 text-white" style={{ width: 18, height: 18 }} />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-white">Transcript</h1>
+              <h1 className="text-sm font-bold tracking-wide" style={{ color: "#f5f5f5", letterSpacing: "0.04em" }}>
+                TRANSCRIPT
+              </h1>
               {displayId && (
-                <p className="flex items-center gap-1.5 text-xs text-white/40">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  ID: {displayId}
+                <p className="flex items-center gap-1.5 text-xs" style={{ color: "#ff69b4" }}>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#4ade80" }} />
+                  {displayId}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="hidden items-center gap-4 sm:flex">
-            <div className="flex items-center gap-1.5 text-xs text-white/40">
-              <Shield className="h-3.5 w-3.5" />
-              <span>Criptografado</span>
+          <div className="hidden items-center gap-5 sm:flex">
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: "#999" }}>
+              <Lock style={{ width: 13, height: 13 }} />
+              <span>Protegido</span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-white/40">
-              <Clock className="h-3.5 w-3.5" />
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: "#999" }}>
+              <Eye style={{ width: 13, height: 13 }} />
               <span>Somente leitura</span>
             </div>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-5xl px-0 sm:px-6 sm:py-5">
-        <div className="overflow-hidden border-white/10 sm:rounded-2xl sm:border">
+      {/* Content */}
+      <section className="mx-auto max-w-5xl px-0 sm:px-5 sm:py-4">
+        <div className="overflow-hidden sm:rounded-xl" style={{ border: "1px solid #333" }}>
           <iframe
             title="Transcript do ticket"
             srcDoc={html}
             sandbox="allow-popups allow-popups-to-escape-sandbox"
-            className="h-[calc(100vh-65px)] w-full border-0"
-            style={{ background: "#36393f" }}
+            className="h-[calc(100vh-52px)] w-full border-0"
+            style={{ background: "#2f3136" }}
           />
         </div>
       </section>
 
-      <div className="py-4 text-center">
-        <p className="text-xs text-white/20">
-          Powered by <span className="font-medium text-white/30">DrikaHub</span>
+      {/* Footer */}
+      <div className="py-3 text-center">
+        <p className="text-xs" style={{ color: "#444" }}>
+          Powered by{" "}
+          <span className="font-semibold" style={{ color: "#ff69b4" }}>DrikaHub</span>
         </p>
       </div>
     </main>
