@@ -498,13 +498,36 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   }, timeout);
 }
 
+// ── Lock to prevent duplicate PIX generation ──
+const paymentLocks = new Set();
+
 // ── Go to Payment (generate PIX) ──
 async function goToPayment(interaction, tenant, orderId) {
   await interaction.deferUpdate();
 
+  // Prevent multiple clicks from generating multiple PIX
+  if (paymentLocks.has(orderId)) {
+    return interaction.followUp({ content: "⏳ O pagamento já está sendo gerado, aguarde...", ephemeral: true });
+  }
+  paymentLocks.add(orderId);
+
+  try {
+    return await _goToPaymentInternal(interaction, tenant, orderId);
+  } finally {
+    // Release lock after 10s to allow retries if something truly failed
+    setTimeout(() => paymentLocks.delete(orderId), 10000);
+  }
+}
+
+async function _goToPaymentInternal(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
   if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
+
+  // Block if payment was already generated for this order
+  if (order.payment_id) {
+    return interaction.followUp({ content: "ℹ️ O pagamento PIX já foi gerado para este pedido. Verifique acima.", ephemeral: true });
+  }
 
   // ── Validate stock before generating PIX ──
   if (order.product_id) {
