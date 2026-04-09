@@ -979,6 +979,12 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 // ── Mark Delivered ──
 async function markDelivered(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+
+  const canApprove = await canManuallyApproveOrder(interaction, tenant);
+  if (!canApprove) {
+    return interaction.followUp({ content: "❌ Você não tem permissão para marcar este pedido como entregue.", ephemeral: true });
+  }
+
   const order = await getOrder(orderId);
   if (!order) return;
 
@@ -1009,6 +1015,12 @@ async function markDelivered(interaction, tenant, orderId) {
 // ── Cancel Manual ──
 async function cancelManual(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+
+  const canApprove = await canManuallyApproveOrder(interaction, tenant);
+  if (!canApprove) {
+    return interaction.followUp({ content: "❌ Você não tem permissão para cancelar este pedido.", ephemeral: true });
+  }
+
   const order = await getOrder(orderId);
   if (!order) return;
 
