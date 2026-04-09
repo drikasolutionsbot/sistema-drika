@@ -56,6 +56,7 @@ import EmbedsPage from "./pages/EmbedsPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminBotConfigPage from "./pages/admin/AdminBotConfigPage";
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
+import TranscriptPage from "./pages/TranscriptPage";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const AppRoutes = () => (
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
     <Route path="/" element={<LandingPage />} />
+    <Route path="/transcript" element={<TranscriptPage />} />
 
     {/* Admin routes - completely separate */}
     <Route element={<ProtectedRoute><AdminProvider><AdminLayout /></AdminProvider></ProtectedRoute>}>

@@ -773,9 +773,8 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
           console.error(`[sendTicketLog] Storage upload error: ${uploadErr.message}`);
         } else {
           console.log(`[sendTicketLog] Transcript uploaded: ${fileName}`);
-          // Use Edge Function URL to serve HTML rendered (not raw storage)
-          const supabaseUrl = process.env.SUPABASE_URL || "https://krudxivcuygykoswjbbx.supabase.co";
-          transcriptUrl = `${supabaseUrl}/functions/v1/serve-transcript?tenant_id=${ticket.tenant_id}&ticket_id=${ticket.id}`;
+          const panelUrl = process.env.PANEL_URL || "https://drikabotteste.lovable.app";
+          transcriptUrl = `${panelUrl}/transcript?tenant_id=${ticket.tenant_id}&ticket_id=${ticket.id}`;
         }
       } catch (storageErr) {
         console.error(`[sendTicketLog] Storage error: ${storageErr.message}`);
@@ -792,8 +791,8 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
   try {
     const sendPayload = { embeds: [logEmbed], components };
 
-    // Sempre anexar o HTML quando existir, mesmo com botão ativo
-    if (transcriptFallbackBuffer) {
+    // Não anexar o HTML bruto no Discord para evitar preview com código fonte
+    if (transcriptFallbackBuffer && components.length === 0) {
       const { AttachmentBuilder } = require("discord.js");
       sendPayload.files = [new AttachmentBuilder(transcriptFallbackBuffer, { name: `transcript-${ticket.id.slice(0, 8)}.html` })];
     }
