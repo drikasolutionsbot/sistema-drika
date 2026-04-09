@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -16,9 +16,9 @@ Deno.serve(async (req) => {
     const ticketId = url.searchParams.get("ticket_id");
 
     if (!tenantId || !ticketId) {
-      return new Response("<h1>Transcript não encontrado</h1>", {
+      return new Response("Link do transcript inválido.", {
         status: 400,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" },
       });
     }
 
@@ -34,16 +34,10 @@ Deno.serve(async (req) => {
       .download(filePath);
 
     if (error || !data) {
-      return new Response(
-        `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Transcript</title>
-        <style>body{background:#313338;color:#dbdee1;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-        .box{text-align:center;padding:40px;background:#2b2d31;border-radius:12px}h1{font-size:1.2rem}p{color:#949ba4;margin-top:8px}</style></head>
-        <body><div class="box"><h1>📜 Transcript não encontrado</h1><p>Este transcript pode ter expirado ou sido removido.</p></div></body></html>`,
-        {
-          status: 404,
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        }
-      );
+      return new Response("Transcript não encontrado.", {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" },
+      });
     }
 
     const html = await data.text();
@@ -51,14 +45,16 @@ Deno.serve(async (req) => {
     return new Response(html, {
       status: 200,
       headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=86400",
+        ...corsHeaders,
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
       },
     });
   } catch (err) {
-    return new Response(`<h1>Erro interno</h1><p>${err.message}</p>`, {
+    const message = err instanceof Error ? err.message : "Erro interno.";
+    return new Response(message, {
       status: 500,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
+      headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" },
     });
   }
 });
