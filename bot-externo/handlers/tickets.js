@@ -788,7 +788,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
           console.error(`[sendTicketLog] Storage upload error: ${uploadErr.message}`);
         } else {
           console.log(`[sendTicketLog] Transcript uploaded: ${fileName}`);
-          const panelUrl = process.env.PANEL_URL || "https://drikahub.com";
+          const panelUrl = process.env.PANEL_URL || "https://www.drikahub.com";
           transcriptUrl = `${panelUrl}/transcript/${ticket.discord_channel_id}`;
         }
       } catch (storageErr) {
