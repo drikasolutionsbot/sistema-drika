@@ -773,12 +773,9 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
           console.error(`[sendTicketLog] Storage upload error: ${uploadErr.message}`);
         } else {
           console.log(`[sendTicketLog] Transcript uploaded: ${fileName}`);
-          // Use public URL since bucket is public
-          const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
-          if (urlData?.publicUrl) {
-            // Add cache-busting param
-            transcriptUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-          }
+          // Use Edge Function URL to serve HTML rendered (not raw storage)
+          const supabaseUrl = process.env.SUPABASE_URL || "https://krudxivcuygykoswjbbx.supabase.co";
+          transcriptUrl = `${supabaseUrl}/functions/v1/serve-transcript?tenant_id=${ticket.tenant_id}&ticket_id=${ticket.id}`;
         }
       } catch (storageErr) {
         console.error(`[sendTicketLog] Storage error: ${storageErr.message}`);
