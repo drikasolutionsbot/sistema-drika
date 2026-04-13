@@ -184,3 +184,6 @@ verify_jwt = false
 
 [functions.clone-tenant]
 verify_jwt = false
+
+[functions.query-tenant-data]
+verify_jwt = false
