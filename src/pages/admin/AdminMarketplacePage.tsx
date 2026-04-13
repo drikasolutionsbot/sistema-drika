@@ -613,7 +613,7 @@ const AdminMarketplacePage = () => {
                       <Button
                         size="sm"
                         className="text-xs shrink-0"
-                        onClick={() => setImportItem({ item, resalePrice: "" })}
+                        onClick={() => setImportItem({ item, resalePrice: "", stock: "1" })}
                       >
                         Importar
                       </Button>
@@ -667,7 +667,7 @@ const AdminMarketplacePage = () => {
                   </div>
                   <Button
                     className="w-full gradient-pink text-primary-foreground border-none"
-                    onClick={() => setImportItem({ item: urlItem, resalePrice: "" })}
+                    onClick={() => setImportItem({ item: urlItem, resalePrice: "", stock: "1" })}
                   >
                     Importar este item
                   </Button>
