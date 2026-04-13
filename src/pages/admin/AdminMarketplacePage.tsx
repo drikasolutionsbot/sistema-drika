@@ -40,6 +40,7 @@ interface MarketplaceItem {
   delivered_at: string | null;
   delivery_content: string | null;
   buyer_name?: string;
+  stock: number;
 }
 
 const LZT_CATEGORIES = [
@@ -78,7 +79,7 @@ const AdminMarketplacePage = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const deliveryFileRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState<MarketplaceItem | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", description: "", category: "", resale_price: "" });
+  const [editForm, setEditForm] = useState({ title: "", description: "", category: "", resale_price: "", stock: "1" });
   const [editing, setEditing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MarketplaceItem | null>(null);
   const [soldFilter, setSoldFilter] = useState<"all" | "pending" | "delivered">("all");
@@ -184,7 +185,7 @@ const AdminMarketplacePage = () => {
     }
   };
 
-  const [importItem, setImportItem] = useState<{ item: LztItem; resalePrice: string } | null>(null);
+  const [importItem, setImportItem] = useState<{ item: LztItem; resalePrice: string; stock: string } | null>(null);
   const [importing, setImporting] = useState(false);
 
   const getItemDisplayTitle = (item: LztItem) =>
@@ -212,6 +213,7 @@ const AdminMarketplacePage = () => {
             resale_price_cents: priceCents,
             image_url: importItem.item.extracted_image_url || null,
             lzt_data: importItem.item,
+            stock: Math.max(1, parseInt(importItem.stock) || 1),
           },
         },
       });
@@ -309,6 +311,7 @@ const AdminMarketplacePage = () => {
       description: item.description || "",
       category: item.category || "",
       resale_price: (item.resale_price_cents / 100).toFixed(2),
+      stock: String(item.stock ?? 1),
     });
     setEditOpen(item);
   };
@@ -331,6 +334,7 @@ const AdminMarketplacePage = () => {
             description: editForm.description.trim() || null,
             category: editForm.category.trim() || null,
             resale_price_cents: priceCents,
+            stock: Math.max(0, parseInt(editForm.stock) || 0),
           },
         },
       });
@@ -443,6 +447,7 @@ const AdminMarketplacePage = () => {
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span>Custo: {formatReais(item.cost_cents)}</span>
                           <span className="font-semibold text-foreground">Revenda: {formatBRL(item.resale_price_cents)}</span>
+                          <span>Estoque: <span className={`font-semibold ${item.stock <= 0 ? "text-destructive" : "text-foreground"}`}>{item.stock}</span></span>
                           <span>LZT #{item.lzt_item_id}</span>
                         </div>
                       </div>
@@ -656,7 +661,7 @@ const AdminMarketplacePage = () => {
                       <Button
                         size="sm"
                         className="text-xs shrink-0"
-                        onClick={() => setImportItem({ item, resalePrice: "" })}
+                        onClick={() => setImportItem({ item, resalePrice: "", stock: "1" })}
                       >
                         Importar
                       </Button>
@@ -710,7 +715,7 @@ const AdminMarketplacePage = () => {
                   </div>
                   <Button
                     className="w-full gradient-pink text-primary-foreground border-none"
-                    onClick={() => setImportItem({ item: urlItem, resalePrice: "" })}
+                    onClick={() => setImportItem({ item: urlItem, resalePrice: "", stock: "1" })}
                   >
                     Importar este item
                   </Button>
@@ -745,6 +750,18 @@ const AdminMarketplacePage = () => {
                 onChange={(e) => setImportItem((s) => s ? { ...s, resalePrice: e.target.value } : null)}
                 className="bg-muted border-border"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Estoque</Label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="1"
+                value={importItem?.stock || "1"}
+                onChange={(e) => setImportItem((s) => s ? { ...s, stock: e.target.value } : null)}
+                className="bg-muted border-border"
+              />
+              <p className="text-xs text-muted-foreground">Quantidade disponível para venda</p>
             </div>
           </div>
           <DialogFooter>
@@ -882,6 +899,16 @@ const AdminMarketplacePage = () => {
                   step="0.01"
                   value={editForm.resale_price}
                   onChange={(e) => setEditForm((f) => ({ ...f, resale_price: e.target.value }))}
+                  className="bg-muted border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Estoque</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={editForm.stock}
+                  onChange={(e) => setEditForm((f) => ({ ...f, stock: e.target.value }))}
                   className="bg-muted border-border"
                 />
               </div>

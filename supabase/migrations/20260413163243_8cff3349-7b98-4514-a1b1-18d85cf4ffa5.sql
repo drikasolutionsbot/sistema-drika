@@ -1,0 +1,1 @@
+ALTER TABLE public.marketplace_items ADD COLUMN stock integer NOT NULL DEFAULT 1;

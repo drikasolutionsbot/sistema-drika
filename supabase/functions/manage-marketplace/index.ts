@@ -33,6 +33,7 @@ serve(async (req) => {
           resale_price_cents: item.resale_price_cents || 0,
           lzt_data: item.lzt_data || {},
           image_url: item.image_url || null,
+          stock: item.stock ?? 1,
           status: "available",
         })
         .select()
@@ -53,6 +54,7 @@ serve(async (req) => {
       if (item?.resale_price_cents !== undefined) updates.resale_price_cents = item.resale_price_cents;
       if (item?.status !== undefined) updates.status = item.status;
       if (item?.image_url !== undefined) updates.image_url = item.image_url;
+      if (item?.stock !== undefined) updates.stock = item.stock;
       updates.updated_at = new Date().toISOString();
 
       const { data, error } = await supabase
@@ -171,7 +173,7 @@ serve(async (req) => {
     if (action === "purchase") {
       if (!item_id || !tenant_id) throw new Error("Missing item_id or tenant_id");
       
-      // Check item is available
+      // Check item is available and has stock
       const { data: existing, error: fetchErr } = await supabase
         .from("marketplace_items")
         .select("*")
@@ -179,15 +181,28 @@ serve(async (req) => {
         .eq("status", "available")
         .single();
       if (fetchErr || !existing) throw new Error("Item não disponível");
+      if ((existing as Record<string, unknown>).stock !== undefined && (existing as Record<string, unknown>).stock <= 0) {
+        throw new Error("Estoque esgotado");
+      }
+
+      const currentStock = ((existing as Record<string, unknown>).stock as number) ?? 1;
+      const newStock = currentStock - 1;
+
+      const updateData: Record<string, unknown> = {
+        bought_by_tenant_id: tenant_id,
+        bought_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        stock: newStock,
+      };
+
+      // Only mark as sold if stock reaches 0
+      if (newStock <= 0) {
+        updateData.status = "sold";
+      }
 
       const { data, error } = await supabase
         .from("marketplace_items")
-        .update({
-          status: "sold",
-          bought_by_tenant_id: tenant_id,
-          bought_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", item_id)
         .eq("status", "available")
         .select()

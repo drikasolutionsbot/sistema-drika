@@ -841,6 +841,7 @@ export type Database = {
           payment_id: string | null
           resale_price_cents: number
           status: string
+          stock: number
           title: string
           updated_at: string
         }
@@ -861,6 +862,7 @@ export type Database = {
           payment_id?: string | null
           resale_price_cents?: number
           status?: string
+          stock?: number
           title: string
           updated_at?: string
         }
@@ -881,6 +883,7 @@ export type Database = {
           payment_id?: string | null
           resale_price_cents?: number
           status?: string
+          stock?: number
           title?: string
           updated_at?: string
         }

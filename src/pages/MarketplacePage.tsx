@@ -37,6 +37,7 @@ interface MarketplaceItem {
   delivered: boolean;
   delivered_at: string | null;
   delivery_content: string | null;
+  stock: number;
 }
 
 const MarketplacePage = () => {
@@ -277,9 +278,16 @@ const MarketplacePage = () => {
                               <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{item.description}</p>
                             )}
                             <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
-                              <span className="text-lg font-bold text-primary">
-                                {formatBRL(item.resale_price_cents)}
-                              </span>
+                              <div>
+                                <span className="text-lg font-bold text-primary">
+                                  {formatBRL(item.resale_price_cents)}
+                                </span>
+                                {item.stock > 0 ? (
+                                  <p className="text-[10px] text-muted-foreground">{item.stock} em estoque</p>
+                                ) : (
+                                  <p className="text-[10px] text-destructive font-medium">Esgotado</p>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1.5">
                                 <Button
                                   size="sm"
@@ -293,6 +301,7 @@ const MarketplacePage = () => {
                                   size="sm"
                                   className="text-xs gradient-pink text-primary-foreground border-none hover:opacity-90"
                                   onClick={(e) => { e.stopPropagation(); handleBuy(item); }}
+                                  disabled={item.stock <= 0}
                                 >
                                   {item.resale_price_cents === 0 ? (
                                     <><Package className="h-3 w-3 mr-1" />Resgatar</>
