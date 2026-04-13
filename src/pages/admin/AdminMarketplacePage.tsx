@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, Eye, EyeOff, Package, Search, Link, Send, CheckCircle2, Pencil, MoreVertical, XCircle, Clock, ShoppingBag, Filter, Upload, FileText, Image, X, Loader2, Paperclip } from "lucide-react";
@@ -91,6 +91,23 @@ const AdminMarketplacePage = () => {
   const [urlLoading, setUrlLoading] = useState(false);
   const [urlItem, setUrlItem] = useState<LztItem | null>(null);
 
+  // Blip sound for new purchases
+  const playBlip = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    } catch {}
+  }, []);
+
   // Marketplace items from DB
   const { data: items = [], isLoading } = useQuery<MarketplaceItem[]>({
     queryKey: ["admin-marketplace-items"],
@@ -102,6 +119,30 @@ const AdminMarketplacePage = () => {
       return data ?? [];
     },
   });
+
+  // Realtime subscription for new purchases
+  useEffect(() => {
+    const channel = supabase
+      .channel("marketplace-purchases")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "marketplace_items", filter: "status=eq.sold" },
+        (payload) => {
+          const item = payload.new as MarketplaceItem;
+          playBlip();
+          toast({
+            title: "🛒 Nova compra no Marketplace!",
+            description: `"${item.title}" foi comprado${item.buyer_name ? ` por ${item.buyer_name}` : ""}`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["admin-marketplace-items"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, playBlip]);
 
   // LZT search (only when import dialog open and browse mode)
   const { data: lztData, isLoading: lztLoading, refetch: lztRefetch } = useQuery({
