@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Eye, EyeOff, Package, Search, Link, Send, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Package, Search, Link, Send, CheckCircle2, Pencil, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -71,6 +72,10 @@ const AdminMarketplacePage = () => {
   const [deliverOpen, setDeliverOpen] = useState<MarketplaceItem | null>(null);
   const [deliveryContent, setDeliveryContent] = useState("");
   const [delivering, setDelivering] = useState(false);
+  const [editOpen, setEditOpen] = useState<MarketplaceItem | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", description: "", category: "", resale_price: "" });
+  const [editing, setEditing] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MarketplaceItem | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [lztCategory, setLztCategory] = useState("");
   const [lztPage, setLztPage] = useState(1);
@@ -220,6 +225,48 @@ const AdminMarketplacePage = () => {
     }
   };
 
+  const openEdit = (item: MarketplaceItem) => {
+    setEditForm({
+      title: item.title,
+      description: item.description || "",
+      category: item.category || "",
+      resale_price: (item.resale_price_cents / 100).toFixed(2),
+    });
+    setEditOpen(item);
+  };
+
+  const handleEdit = async () => {
+    if (!editOpen) return;
+    const priceCents = Math.round(Number(editForm.resale_price) * 100);
+    if (isNaN(priceCents) || priceCents <= 0) {
+      toast({ title: "Preço inválido", variant: "destructive" });
+      return;
+    }
+    setEditing(true);
+    try {
+      const { error } = await supabase.functions.invoke("manage-marketplace", {
+        body: {
+          action: "update",
+          item_id: editOpen.id,
+          item: {
+            title: editForm.title.trim(),
+            description: editForm.description.trim() || null,
+            category: editForm.category.trim() || null,
+            resale_price_cents: priceCents,
+          },
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Item atualizado!" });
+      setEditOpen(null);
+      queryClient.invalidateQueries({ queryKey: ["admin-marketplace-items"] });
+    } catch (err) {
+      toast({ title: "Erro ao atualizar", description: err instanceof Error ? err.message : "Erro", variant: "destructive" });
+    } finally {
+      setEditing(false);
+    }
+  };
+
   const available = items.filter((i) => i.status === "available");
   const sold = items.filter((i) => i.status === "sold");
   const hidden = items.filter((i) => i.status === "hidden");
@@ -295,53 +342,56 @@ const AdminMarketplacePage = () => {
                           <span>LZT #{item.lzt_item_id}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {tab !== "sold" && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleVisibility(item)}>
-                            {item.status === "available" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                        )}
-                        {tab !== "sold" && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-card border-border">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir item</AlertDialogTitle>
-                                <AlertDialogDescription>Tem certeza? Esta ação não pode ser desfeita.</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-destructive text-destructive-foreground">Excluir</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+                      <div className="flex items-center gap-2 shrink-0">
                         {tab === "sold" && (
-                          <div className="flex items-center gap-2">
-                            {item.delivered ? (
-                              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Entregue
-                              </Badge>
-                            ) : (
-                              <>
-                                <Badge variant="outline" className="text-yellow-500 border-yellow-500/20">Pendente</Badge>
-                                <Button
-                                  size="sm"
-                                  className="text-xs gradient-pink text-primary-foreground border-none h-7"
-                                  onClick={() => { setDeliverOpen(item); setDeliveryContent(""); }}
-                                >
-                                  <Send className="h-3 w-3 mr-1" />
-                                  Entregar
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                          item.delivered ? (
+                            <Badge className="bg-green-500/10 text-green-500 border-green-500/20 gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Entregue
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-yellow-500 border-yellow-500/20">Pendente</Badge>
+                          )
                         )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-card border-border">
+                            <DropdownMenuItem onClick={() => openEdit(item)} className="gap-2">
+                              <Pencil className="h-3.5 w-3.5" />
+                              Editar
+                            </DropdownMenuItem>
+                            {tab === "sold" && !item.delivered && (
+                              <DropdownMenuItem onClick={() => { setDeliverOpen(item); setDeliveryContent(""); }} className="gap-2">
+                                <Send className="h-3.5 w-3.5" />
+                                Entregar
+                              </DropdownMenuItem>
+                            )}
+                            {item.status === "available" && (
+                              <DropdownMenuItem onClick={() => handleToggleVisibility(item)} className="gap-2">
+                                <EyeOff className="h-3.5 w-3.5" />
+                                Ocultar
+                              </DropdownMenuItem>
+                            )}
+                            {item.status === "hidden" && (
+                              <DropdownMenuItem onClick={() => handleToggleVisibility(item)} className="gap-2">
+                                <Eye className="h-3.5 w-3.5" />
+                                Tornar visível
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteTarget(item)}
+                              className="gap-2 text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))}
@@ -555,6 +605,82 @@ const AdminMarketplacePage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editOpen} onOpenChange={(open) => { if (!open) setEditOpen(null); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Editar item</DialogTitle>
+            <DialogDescription>Altere as informações do produto no marketplace</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input
+                value={editForm.title}
+                onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                className="bg-muted border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                className="bg-muted border-border min-h-[80px]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Input
+                  value={editForm.category}
+                  onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
+                  className="bg-muted border-border"
+                  placeholder="Ex: steam"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Preço de revenda (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.resale_price}
+                  onChange={(e) => setEditForm((f) => ({ ...f, resale_price: e.target.value }))}
+                  className="bg-muted border-border"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(null)}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={editing || !editForm.title.trim()} className="gradient-pink text-primary-foreground border-none">
+              {editing ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleteTarget?.title}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (deleteTarget) { handleDelete(deleteTarget.id); setDeleteTarget(null); } }}
+              className="bg-destructive text-destructive-foreground"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
