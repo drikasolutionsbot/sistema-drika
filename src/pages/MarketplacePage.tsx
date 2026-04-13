@@ -251,7 +251,7 @@ const MarketplacePage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="purchases" className="mt-4">
+        <TabsContent value="purchases" className="mt-4 space-y-4">
           {purchasesLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
@@ -262,47 +262,120 @@ const MarketplacePage = () => {
               <p className="text-lg font-medium text-muted-foreground">Nenhuma compra ainda</p>
               <p className="text-sm text-muted-foreground mt-1">Explore o catálogo e compre sua primeira conta!</p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {purchases.map((item) => (
-                <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                  <div className="p-4 flex items-center gap-4">
-                    {item.image_url && (
-                      <img src={item.image_url} alt={item.title} className="h-10 w-10 rounded-lg object-cover shrink-0 border border-border" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold truncate">{item.title}</h3>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                        {item.category && <Badge variant="outline" className="text-[10px]">{item.category}</Badge>}
-                        <span>{formatBRL(item.resale_price_cents)}</span>
-                        {item.bought_at && (
-                          <span>Comprado em {new Date(item.bought_at).toLocaleDateString("pt-BR")}</span>
-                        )}
-                      </div>
-                    </div>
-                    {item.delivered ? (
-                      <Badge className="bg-green-500/10 text-green-500 border-green-500/20 gap-1 shrink-0">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Entregue
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-yellow-500 border-yellow-500/20 shrink-0">
-                        Aguardando entrega
-                      </Badge>
-                    )}
-                  </div>
-                  {item.delivered && item.delivery_content && (
-                    <div className="border-t border-border bg-muted/30 p-4">
-                      <p className="text-xs text-muted-foreground mb-2 font-medium">📦 Conteúdo da entrega:</p>
-                      <pre className="text-sm font-mono bg-background rounded-lg p-3 border border-border whitespace-pre-wrap break-all select-all">
-                        {item.delivery_content}
-                      </pre>
-                    </div>
-                  )}
+          ) : (() => {
+            const delivered = purchases.filter(p => p.delivered);
+            const pending = purchases.filter(p => !p.delivered && p.status === "sold");
+            const cancelled = purchases.filter(p => p.status === "cancelled");
+            const filtered = purchaseFilter === "all" ? purchases
+              : purchaseFilter === "delivered" ? delivered
+              : purchaseFilter === "pending" ? pending
+              : cancelled;
+
+            return (
+              <div className="space-y-4">
+                {/* Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <button onClick={() => setPurchaseFilter("all")} className={`rounded-xl border p-3 text-left transition-colors ${purchaseFilter === "all" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/30"}`}>
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className="text-xl font-bold">{purchases.length}</p>
+                  </button>
+                  <button onClick={() => setPurchaseFilter("pending")} className={`rounded-xl border p-3 text-left transition-colors ${purchaseFilter === "pending" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/30"}`}>
+                    <p className="text-xs text-muted-foreground">Aguardando</p>
+                    <p className="text-xl font-bold text-yellow-500">{pending.length}</p>
+                  </button>
+                  <button onClick={() => setPurchaseFilter("delivered")} className={`rounded-xl border p-3 text-left transition-colors ${purchaseFilter === "delivered" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/30"}`}>
+                    <p className="text-xs text-muted-foreground">Entregues</p>
+                    <p className="text-xl font-bold text-green-500">{delivered.length}</p>
+                  </button>
+                  <button onClick={() => setPurchaseFilter("cancelled")} className={`rounded-xl border p-3 text-left transition-colors ${purchaseFilter === "cancelled" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/30"}`}>
+                    <p className="text-xs text-muted-foreground">Cancelados</p>
+                    <p className="text-xl font-bold text-destructive">{cancelled.length}</p>
+                  </button>
                 </div>
-              ))}
-            </div>
-          )}
+
+                {filtered.length === 0 ? (
+                  <div className="rounded-xl border border-border bg-card p-8 text-center">
+                    <Filter className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-20" />
+                    <p className="text-sm text-muted-foreground">Nenhum pedido nesta categoria</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filtered.map((item) => {
+                      const isCancelled = item.status === "cancelled";
+                      return (
+                        <div key={item.id} className={`rounded-xl border bg-card overflow-hidden ${isCancelled ? "border-destructive/20 opacity-70" : "border-border"}`}>
+                          <div className="p-4 flex items-center gap-4">
+                            {item.image_url && (
+                              <img src={item.image_url} alt={item.title} className="h-10 w-10 rounded-lg object-cover shrink-0 border border-border" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold truncate">{item.title}</h3>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                                {item.category && <Badge variant="outline" className="text-[10px]">{item.category}</Badge>}
+                                <span>{formatBRL(item.resale_price_cents)}</span>
+                                {item.bought_at && (
+                                  <span>{new Date(item.bought_at).toLocaleDateString("pt-BR")}</span>
+                                )}
+                              </div>
+                            </div>
+                            {isCancelled ? (
+                              <Badge variant="destructive" className="gap-1 shrink-0">
+                                <XCircle className="h-3 w-3" />
+                                Cancelado
+                              </Badge>
+                            ) : item.delivered ? (
+                              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 gap-1 shrink-0">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Entregue
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-yellow-500 border-yellow-500/20 gap-1 shrink-0">
+                                <Clock className="h-3 w-3" />
+                                Aguardando
+                              </Badge>
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {item.delivered && item.delivery_content && (
+                                  <DropdownMenuItem onClick={() => {
+                                    navigator.clipboard.writeText(item.delivery_content!);
+                                    toast({ title: "Copiado!", description: "Conteúdo copiado para a área de transferência." });
+                                  }}>
+                                    <Package className="h-4 w-4 mr-2" />
+                                    Copiar conteúdo
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => setDeleteTarget(item)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir pedido
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          {item.delivered && item.delivery_content && !isCancelled && (
+                            <div className="border-t border-border bg-muted/30 p-4">
+                              <p className="text-xs text-muted-foreground mb-2 font-medium">📦 Conteúdo da entrega:</p>
+                              <pre className="text-sm font-mono bg-background rounded-lg p-3 border border-border whitespace-pre-wrap break-all select-all">
+                                {item.delivery_content}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
 
