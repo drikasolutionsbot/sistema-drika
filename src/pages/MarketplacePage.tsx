@@ -473,45 +473,97 @@ const MarketplacePage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Buy confirmation dialog */}
-      <Dialog open={!!selectedItem && !pixOpen} onOpenChange={(open) => !open && setSelectedItem(null)}>
-        <DialogContent className="bg-card border-border">
+      {/* Buy / PIX dialog */}
+      <Dialog open={!!selectedItem} onOpenChange={(open) => { if (!open) closeDialog(); }}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{selectedItem?.resale_price_cents === 0 ? "Resgatar item" : "Confirmar compra"}</DialogTitle>
+            <DialogTitle>
+              {pixPaid ? "Pagamento confirmado!" : pixData ? "Pague via PIX" : selectedItem?.resale_price_cents === 0 ? "Resgatar item" : "Confirmar compra"}
+            </DialogTitle>
             <DialogDescription>
-              {selectedItem?.resale_price_cents === 0
-                ? <>Você está prestes a resgatar <strong>{selectedItem?.title}</strong> gratuitamente</>
-                : <>Você está prestes a comprar <strong>{selectedItem?.title}</strong></>
+              {pixPaid
+                ? "Seu pagamento foi processado com sucesso!"
+                : pixData
+                ? <span>Escaneie o QR Code ou copie o código para pagar</span>
+                : selectedItem?.resale_price_cents === 0
+                ? <>Resgatar <strong>{selectedItem?.title}</strong> gratuitamente</>
+                : <>Comprar <strong>{selectedItem?.title}</strong></>
               }
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-lg bg-muted p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Valor</p>
-              <p className="text-2xl font-bold text-primary">
-                {selectedItem && formatBRL(selectedItem.resale_price_cents)}
-              </p>
+
+          {pixPaid ? (
+            <div className="text-center py-6 space-y-3">
+              <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="h-8 w-8 text-green-500" />
+              </div>
+              <p className="font-semibold">Compra realizada!</p>
+              <p className="text-sm text-muted-foreground">O item foi adicionado às suas compras. A entrega será feita manualmente.</p>
+              <Button onClick={closeDialog} className="w-full">Fechar</Button>
             </div>
-            {selectedItem?.resale_price_cents === 0 ? (
-              <p className="text-xs text-muted-foreground text-center">
-                Este item é gratuito. Clique para resgatar e ele será adicionado às suas compras.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground text-center">
-                Após o pagamento via PIX, a conta será entregue automaticamente.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setSelectedItem(null)}>Cancelar</Button>
-            <Button onClick={handleConfirmPurchase} disabled={claiming} className="gradient-pink text-primary-foreground border-none">
-              {selectedItem?.resale_price_cents === 0 ? (
-                <><Package className="h-4 w-4 mr-2" />{claiming ? "Resgatando..." : "Resgatar Grátis"}</>
-              ) : (
-                <><CreditCard className="h-4 w-4 mr-2" />Pagar via PIX</>
-              )}
-            </Button>
-          </DialogFooter>
+          ) : pixData ? (
+            <div className="space-y-4">
+              <PixQRCode
+                brcode={pixData.brcode}
+                amount={pixData.amount}
+                size={200}
+                method="dynamic"
+                provider={null}
+                qrCodeBase64={pixData.qr_code_base64}
+                expiresAt={null}
+              />
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-muted p-2 rounded border border-border truncate">{pixData.brcode}</code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(pixData.brcode);
+                    toast({ title: "Copiado!" });
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Aguardando pagamento...
+              </div>
+              <Button variant="ghost" className="w-full" onClick={closeDialog}>Cancelar</Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                <div className="rounded-lg bg-muted p-4 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {selectedItem && formatBRL(selectedItem.resale_price_cents)}
+                  </p>
+                </div>
+                {selectedItem?.resale_price_cents === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Este item é gratuito. Clique para resgatar.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Um QR Code PIX será gerado para pagamento.
+                  </p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={closeDialog}>Cancelar</Button>
+                <Button onClick={handleConfirmPurchase} disabled={claiming || pixLoading} className="gradient-pink text-primary-foreground border-none">
+                  {pixLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando PIX...</>
+                  ) : selectedItem?.resale_price_cents === 0 ? (
+                    <><Package className="h-4 w-4 mr-2" />{claiming ? "Resgatando..." : "Resgatar Grátis"}</>
+                  ) : (
+                    <><CreditCard className="h-4 w-4 mr-2" />Pagar via PIX</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
