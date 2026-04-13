@@ -16,8 +16,7 @@ import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  BarChart, Bar,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import { format, parseISO, subDays, startOfDay, eachDayOfInterval } from "date-fns";
 import { ptBR as ptBRLocale } from "date-fns/locale";
