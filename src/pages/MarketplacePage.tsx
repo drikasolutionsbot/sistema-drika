@@ -37,6 +37,7 @@ interface MarketplaceItem {
   delivered: boolean;
   delivered_at: string | null;
   delivery_content: string | null;
+  stock: number;
 }
 
 const MarketplacePage = () => {
