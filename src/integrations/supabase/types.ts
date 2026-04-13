@@ -830,6 +830,9 @@ export type Database = {
           category: string | null
           cost_cents: number
           created_at: string
+          delivered: boolean
+          delivered_at: string | null
+          delivery_content: string | null
           description: string | null
           id: string
           image_url: string | null
@@ -847,6 +850,9 @@ export type Database = {
           category?: string | null
           cost_cents?: number
           created_at?: string
+          delivered?: boolean
+          delivered_at?: string | null
+          delivery_content?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
@@ -864,6 +870,9 @@ export type Database = {
           category?: string | null
           cost_cents?: number
           created_at?: string
+          delivered?: boolean
+          delivered_at?: string | null
+          delivery_content?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
