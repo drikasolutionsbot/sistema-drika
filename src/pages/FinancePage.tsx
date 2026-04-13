@@ -404,7 +404,7 @@ const FinancePage = () => {
 
       {/* Charts row */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Revenue chart */}
+        {/* Revenue chart - Bar chart like reference */}
         <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -415,22 +415,23 @@ const FinancePage = () => {
           </div>
           {revenueChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={revenueChartData}>
+              <BarChart data={revenueChartData} barCategoryGap="20%">
                 <defs>
-                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(330 100% 71%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(330 100% 71%)" stopOpacity={0} />
+                  <linearGradient id="revenueBarGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(330 100% 71%)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="hsl(280 80% 55%)" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225 15% 18%)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} tickFormatter={(v) => `R$${v}`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225 15% 18%)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} tickFormatter={(v) => `R$${v}`} axisLine={false} tickLine={false} />
                 <RechartsTooltip
+                  cursor={{ fill: "hsl(225 15% 18%)", opacity: 0.4 }}
                   contentStyle={{ backgroundColor: "hsl(225 25% 11%)", border: "1px solid hsl(225 15% 18%)", borderRadius: "12px", fontSize: 12 }}
                   formatter={(value: number) => [`R$ ${value.toFixed(2)}`, "Receita"]}
                 />
-                <Area type="monotone" dataKey="value" stroke="hsl(330 100% 71%)" strokeWidth={2} fill="url(#revenueGrad)" />
-              </AreaChart>
+                <Bar dataKey="value" fill="url(#revenueBarGrad)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[260px] text-muted-foreground text-sm">
@@ -439,7 +440,7 @@ const FinancePage = () => {
           )}
         </div>
 
-        {/* Status distribution */}
+        {/* Status distribution - Donut with center label */}
         <div className="rounded-2xl border border-border/50 bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -448,33 +449,42 @@ const FinancePage = () => {
             </div>
           </div>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={3}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {pieData.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Legend
-                  verticalAlign="bottom"
-                  iconType="circle"
-                  iconSize={8}
-                  formatter={(val) => <span className="text-xs text-muted-foreground ml-1">{val}</span>}
-                />
-                <RechartsTooltip
-                  contentStyle={{ backgroundColor: "hsl(225 25% 11%)", border: "1px solid hsl(225 15% 18%)", borderRadius: "12px", fontSize: 12 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="relative">
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    dataKey="value"
+                    strokeWidth={0}
+                  >
+                    {pieData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(val) => <span className="text-xs text-muted-foreground ml-1">{val}</span>}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{ backgroundColor: "hsl(225 25% 11%)", border: "1px solid hsl(225 15% 18%)", borderRadius: "12px", fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Center label */}
+              <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: "none", paddingBottom: "40px" }}>
+                <div className="text-center">
+                  <p className="text-2xl font-bold font-display">{totalOrders}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center justify-center h-[260px] text-muted-foreground text-sm">
               Sem dados
