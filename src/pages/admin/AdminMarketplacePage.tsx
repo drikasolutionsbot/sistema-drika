@@ -68,6 +68,9 @@ interface LztItem {
 
 const AdminMarketplacePage = () => {
   const queryClient = useQueryClient();
+  const [deliverOpen, setDeliverOpen] = useState<MarketplaceItem | null>(null);
+  const [deliveryContent, setDeliveryContent] = useState("");
+  const [delivering, setDelivering] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [lztCategory, setLztCategory] = useState("");
   const [lztPage, setLztPage] = useState(1);
@@ -197,6 +200,25 @@ const AdminMarketplacePage = () => {
 
   const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
   const formatReais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
+
+  const handleDeliver = async () => {
+    if (!deliverOpen || !deliveryContent.trim()) return;
+    setDelivering(true);
+    try {
+      const { error } = await supabase.functions.invoke("manage-marketplace", {
+        body: { action: "deliver", item_id: deliverOpen.id, item: { delivery_content: deliveryContent.trim() } },
+      });
+      if (error) throw error;
+      toast({ title: "Item entregue com sucesso!" });
+      setDeliverOpen(null);
+      setDeliveryContent("");
+      queryClient.invalidateQueries({ queryKey: ["admin-marketplace-items"] });
+    } catch (err) {
+      toast({ title: "Erro ao entregar", description: err instanceof Error ? err.message : "Erro", variant: "destructive" });
+    } finally {
+      setDelivering(false);
+    }
+  };
 
   const available = items.filter((i) => i.status === "available");
   const sold = items.filter((i) => i.status === "sold");
