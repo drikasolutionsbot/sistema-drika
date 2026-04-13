@@ -212,6 +212,38 @@ serve(async (req) => {
       });
     }
 
+    // Tenant: delete own purchase record (hide from their list)
+    if (action === "delete_purchase") {
+      if (!item_id || !tenant_id) throw new Error("Missing item_id or tenant_id");
+      // Only allow deleting own purchases
+      const { data: existing } = await supabase
+        .from("marketplace_items")
+        .select("id, bought_by_tenant_id")
+        .eq("id", item_id)
+        .eq("bought_by_tenant_id", tenant_id)
+        .single();
+      if (!existing) throw new Error("Item não encontrado ou não pertence a este tenant");
+
+      // Reset the item back to available (admin can re-sell)
+      const { error } = await supabase
+        .from("marketplace_items")
+        .update({
+          status: "available",
+          bought_by_tenant_id: null,
+          bought_at: null,
+          delivered: false,
+          delivered_at: null,
+          delivery_content: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item_id)
+        .eq("bought_by_tenant_id", tenant_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     throw new Error("Invalid action");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
