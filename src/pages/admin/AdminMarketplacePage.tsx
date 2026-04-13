@@ -270,9 +270,25 @@ const AdminMarketplacePage = () => {
     }
   };
 
+  const handleCancelPurchase = async (item: MarketplaceItem) => {
+    try {
+      const { error } = await supabase.functions.invoke("manage-marketplace", {
+        body: { action: "cancel_purchase", item_id: item.id },
+      });
+      if (error) throw error;
+      toast({ title: "Compra cancelada! Item voltou para disponíveis." });
+      queryClient.invalidateQueries({ queryKey: ["admin-marketplace-items"] });
+    } catch (err) {
+      toast({ title: "Erro ao cancelar", description: err instanceof Error ? err.message : "Erro", variant: "destructive" });
+    }
+  };
+
   const available = items.filter((i) => i.status === "available");
   const sold = items.filter((i) => i.status === "sold");
   const hidden = items.filter((i) => i.status === "hidden");
+  const soldPending = sold.filter((i) => !i.delivered);
+  const soldDelivered = sold.filter((i) => i.delivered);
+  const filteredSold = soldFilter === "pending" ? soldPending : soldFilter === "delivered" ? soldDelivered : sold;
 
   return (
     <div className="space-y-6 animate-fade-in">
