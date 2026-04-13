@@ -38,6 +38,7 @@ interface MarketplaceItem {
   delivered: boolean;
   delivered_at: string | null;
   delivery_content: string | null;
+  buyer_name?: string;
 }
 
 const LZT_CATEGORIES = [
