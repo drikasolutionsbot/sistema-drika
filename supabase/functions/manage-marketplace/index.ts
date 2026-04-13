@@ -33,6 +33,7 @@ serve(async (req) => {
           resale_price_cents: item.resale_price_cents || 0,
           lzt_data: item.lzt_data || {},
           image_url: item.image_url || null,
+          stock: item.stock ?? 1,
           status: "available",
         })
         .select()
@@ -53,6 +54,7 @@ serve(async (req) => {
       if (item?.resale_price_cents !== undefined) updates.resale_price_cents = item.resale_price_cents;
       if (item?.status !== undefined) updates.status = item.status;
       if (item?.image_url !== undefined) updates.image_url = item.image_url;
+      if (item?.stock !== undefined) updates.stock = item.stock;
       updates.updated_at = new Date().toISOString();
 
       const { data, error } = await supabase
