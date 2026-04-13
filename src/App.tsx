@@ -92,6 +92,7 @@ const AppRoutes = () => (
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
     <Route path="/" element={<LandingPage />} />
+    <Route path="/preview" element={<PreviewPage />} />
     <Route path="/transcript/:channelId" element={<TranscriptPage />} />
     <Route path="/transcript" element={<TranscriptPage />} />
 
