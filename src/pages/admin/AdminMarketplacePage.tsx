@@ -760,9 +760,9 @@ const AdminMarketplacePage = () => {
       <Dialog open={!!deliverOpen} onOpenChange={(open) => { if (!open) { setDeliverOpen(null); setDeliveryContent(""); setDeliveryFiles([]); } }}>
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
-            <DialogTitle>Entregar item</DialogTitle>
+            <DialogTitle>{deliverOpen?.delivered ? "Editar entrega" : "Entregar item"}</DialogTitle>
             <DialogDescription>
-              Insira o conteúdo de entrega para <strong>{deliverOpen?.title}</strong>
+              {deliverOpen?.delivered ? "Edite o conteúdo de entrega de" : "Insira o conteúdo de entrega para"} <strong>{deliverOpen?.title}</strong>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

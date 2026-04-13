@@ -82,7 +82,7 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", item_id)
-        .eq("status", "sold")
+        .in("status", ["sold"])
         .select()
         .single();
       if (error) throw error;
