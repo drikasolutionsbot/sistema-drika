@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Eye, EyeOff, Package, Search, Link, Send, CheckCircle2, Pencil, MoreVertical, XCircle, Clock, ShoppingBag, Filter } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Package, Search, Link, Send, CheckCircle2, Pencil, MoreVertical, XCircle, Clock, ShoppingBag, Filter, Upload, FileText, Image, X, Loader2, Paperclip } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,9 @@ const AdminMarketplacePage = () => {
   const [deliverOpen, setDeliverOpen] = useState<MarketplaceItem | null>(null);
   const [deliveryContent, setDeliveryContent] = useState("");
   const [delivering, setDelivering] = useState(false);
+  const [deliveryFiles, setDeliveryFiles] = useState<{ name: string; url: string; type: string }[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const deliveryFileRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState<MarketplaceItem | null>(null);
   const [editForm, setEditForm] = useState({ title: "", description: "", category: "", resale_price: "" });
   const [editing, setEditing] = useState(false);
@@ -209,17 +212,48 @@ const AdminMarketplacePage = () => {
   const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
   const formatReais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
+  const handleDeliveryFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 25MB", variant: "destructive" });
+      return;
+    }
+    setUploadingFile(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `marketplace/deliveries/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("tenant-assets").getPublicUrl(path);
+      setDeliveryFiles(prev => [...prev, { name: file.name, url: pub.publicUrl, type: file.type }]);
+      toast({ title: "Arquivo enviado!" });
+    } catch (err) {
+      toast({ title: "Erro no upload", description: err instanceof Error ? err.message : "Erro", variant: "destructive" });
+    } finally {
+      setUploadingFile(false);
+      if (deliveryFileRef.current) deliveryFileRef.current.value = "";
+    }
+  };
+
   const handleDeliver = async () => {
-    if (!deliverOpen || !deliveryContent.trim()) return;
+    if (!deliverOpen || (!deliveryContent.trim() && deliveryFiles.length === 0)) return;
     setDelivering(true);
     try {
+      // Build delivery content: text + file links
+      let fullContent = deliveryContent.trim();
+      if (deliveryFiles.length > 0) {
+        const fileSection = deliveryFiles.map(f => `📎 ${f.name}\n${f.url}`).join("\n\n");
+        fullContent = fullContent ? `${fullContent}\n\n--- Arquivos ---\n${fileSection}` : fileSection;
+      }
       const { error } = await supabase.functions.invoke("manage-marketplace", {
-        body: { action: "deliver", item_id: deliverOpen.id, item: { delivery_content: deliveryContent.trim() } },
+        body: { action: "deliver", item_id: deliverOpen.id, item: { delivery_content: fullContent } },
       });
       if (error) throw error;
       toast({ title: "Item entregue com sucesso!" });
       setDeliverOpen(null);
       setDeliveryContent("");
+      setDeliveryFiles([]);
       queryClient.invalidateQueries({ queryKey: ["admin-marketplace-items"] });
     } catch (err) {
       toast({ title: "Erro ao entregar", description: err instanceof Error ? err.message : "Erro", variant: "destructive" });
@@ -676,8 +710,8 @@ const AdminMarketplacePage = () => {
       </Dialog>
 
       {/* Deliver dialog */}
-      <Dialog open={!!deliverOpen} onOpenChange={(open) => { if (!open) { setDeliverOpen(null); setDeliveryContent(""); } }}>
-        <DialogContent className="bg-card border-border">
+      <Dialog open={!!deliverOpen} onOpenChange={(open) => { if (!open) { setDeliverOpen(null); setDeliveryContent(""); setDeliveryFiles([]); } }}>
+        <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
             <DialogTitle>Entregar item</DialogTitle>
             <DialogDescription>
@@ -686,23 +720,72 @@ const AdminMarketplacePage = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Conteúdo da entrega</Label>
+              <Label>Conteúdo da entrega (texto)</Label>
               <Textarea
                 placeholder="Ex: Login: user@email.com&#10;Senha: 123456&#10;Link: https://..."
                 value={deliveryContent}
                 onChange={(e) => setDeliveryContent(e.target.value)}
-                className="bg-muted border-border min-h-[120px] font-mono text-sm"
+                className="bg-muted border-border min-h-[100px] font-mono text-sm"
+              />
+            </div>
+
+            {/* File upload section */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Paperclip className="h-3.5 w-3.5" />
+                Arquivos (PDF, TXT, Imagens, etc.)
+              </Label>
+              
+              {deliveryFiles.length > 0 && (
+                <div className="space-y-1.5">
+                  {deliveryFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 text-sm">
+                      {f.type.startsWith("image/") ? (
+                        <Image className="h-4 w-4 text-blue-400 shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-orange-400 shrink-0" />
+                      )}
+                      <span className="truncate flex-1 text-foreground">{f.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => setDeliveryFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => deliveryFileRef.current?.click()}
+                disabled={uploadingFile}
+              >
+                {uploadingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {uploadingFile ? "Enviando..." : "Enviar arquivo"}
+              </Button>
+              <input
+                ref={deliveryFileRef}
+                type="file"
+                accept="image/*,.pdf,.txt,.doc,.docx,.xlsx,.csv,.zip,.rar,.json"
+                className="hidden"
+                onChange={handleDeliveryFileUpload}
               />
               <p className="text-xs text-muted-foreground">
-                Este conteúdo será visível para o lojista na aba "Minhas Compras"
+                Máx. 25MB por arquivo. O conteúdo será visível para o lojista.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setDeliverOpen(null); setDeliveryContent(""); }}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => { setDeliverOpen(null); setDeliveryContent(""); setDeliveryFiles([]); }}>Cancelar</Button>
             <Button
               onClick={handleDeliver}
-              disabled={delivering || !deliveryContent.trim()}
+              disabled={delivering || (!deliveryContent.trim() && deliveryFiles.length === 0)}
               className="gradient-pink text-primary-foreground border-none"
             >
               {delivering ? "Entregando..." : "Confirmar Entrega"}

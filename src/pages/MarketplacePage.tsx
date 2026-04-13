@@ -425,9 +425,25 @@ const MarketplacePage = () => {
                           {item.delivered && item.delivery_content && !isCancelled && (
                             <div className="border-t border-border bg-muted/30 p-4">
                               <p className="text-xs text-muted-foreground mb-2 font-medium">📦 Conteúdo da entrega:</p>
-                              <pre className="text-sm font-mono bg-background rounded-lg p-3 border border-border whitespace-pre-wrap break-all select-all">
-                                {item.delivery_content}
-                              </pre>
+                              <div className="text-sm font-mono bg-background rounded-lg p-3 border border-border whitespace-pre-wrap break-all select-all space-y-1">
+                                {item.delivery_content.split("\n").map((line, idx) => {
+                                  const urlMatch = line.match(/^(https?:\/\/\S+)$/);
+                                  if (urlMatch) {
+                                    const isImage = /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(urlMatch[1]);
+                                    return (
+                                      <div key={idx}>
+                                        <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                                          {urlMatch[1]}
+                                        </a>
+                                        {isImage && (
+                                          <img src={urlMatch[1]} alt="Entrega" className="mt-1 max-h-40 rounded border border-border" onError={e => (e.currentTarget.style.display = "none")} />
+                                        )}
+                                      </div>
+                                    );
+                                  }
+                                  return <div key={idx}>{line}</div>;
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
