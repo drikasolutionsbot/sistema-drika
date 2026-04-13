@@ -40,6 +40,7 @@ interface MarketplaceItem {
   delivered_at: string | null;
   delivery_content: string | null;
   buyer_name?: string;
+  stock: number;
 }
 
 const LZT_CATEGORIES = [
@@ -78,7 +79,7 @@ const AdminMarketplacePage = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const deliveryFileRef = useRef<HTMLInputElement>(null);
   const [editOpen, setEditOpen] = useState<MarketplaceItem | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", description: "", category: "", resale_price: "" });
+  const [editForm, setEditForm] = useState({ title: "", description: "", category: "", resale_price: "", stock: "1" });
   const [editing, setEditing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MarketplaceItem | null>(null);
   const [soldFilter, setSoldFilter] = useState<"all" | "pending" | "delivered">("all");
@@ -143,7 +144,7 @@ const AdminMarketplacePage = () => {
     }
   };
 
-  const [importItem, setImportItem] = useState<{ item: LztItem; resalePrice: string } | null>(null);
+  const [importItem, setImportItem] = useState<{ item: LztItem; resalePrice: string; stock: string } | null>(null);
   const [importing, setImporting] = useState(false);
 
   const getItemDisplayTitle = (item: LztItem) =>
@@ -171,6 +172,7 @@ const AdminMarketplacePage = () => {
             resale_price_cents: priceCents,
             image_url: importItem.item.extracted_image_url || null,
             lzt_data: importItem.item,
+            stock: Math.max(1, parseInt(importItem.stock) || 1),
           },
         },
       });
@@ -268,6 +270,7 @@ const AdminMarketplacePage = () => {
       description: item.description || "",
       category: item.category || "",
       resale_price: (item.resale_price_cents / 100).toFixed(2),
+      stock: String(item.stock ?? 1),
     });
     setEditOpen(item);
   };
@@ -290,6 +293,7 @@ const AdminMarketplacePage = () => {
             description: editForm.description.trim() || null,
             category: editForm.category.trim() || null,
             resale_price_cents: priceCents,
+            stock: Math.max(0, parseInt(editForm.stock) || 0),
           },
         },
       });
