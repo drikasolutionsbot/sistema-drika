@@ -10,36 +10,61 @@ import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import previewFinance from "@/assets/preview-real-finance.jpg";
 
 /* ──────────────── Mock Dashboard Component ──────────────── */
-const MockDashboard = () => (
-  <div className="flex h-[540px] bg-[#0c0c0e] text-white text-[11px] overflow-hidden select-none">
-    {/* Sidebar */}
-    <div className="w-[180px] bg-[#0a0a0c] border-r border-white/5 flex flex-col p-3 gap-1 shrink-0">
+/* ──────────────── Shared Sidebar Component ──────────────── */
+const MockSidebar = ({ activeItem }: { activeItem: string }) => {
+  const groups = [
+    {
+      label: "PRINCIPAL",
+      items: ["Visão Geral", "Gerador IA"],
+    },
+    {
+      label: "GERENCIAMENTO",
+      items: ["Finanças", "Aprovações", "Afiliados"],
+    },
+    {
+      label: "BOT",
+      items: ["Servidor", "Recursos", "Personalização"],
+    },
+    {
+      label: "CONFIGURAÇÕES",
+      items: ["Canais", "Cargos", "Verificação", "Loja", "Proteção", "Tickets", "Sorteios"],
+    },
+  ];
+
+  return (
+    <div className="w-[180px] shrink-0 flex flex-col p-3 gap-0.5" style={{ background: "hsl(0 0% 4%)", borderRight: "1px solid hsl(0 0% 14%)" }}>
       <div className="flex items-center gap-2 px-2 py-3 mb-2">
         <img src={drikaLogo} className="h-5 w-5" alt="" />
-        <span className="font-bold text-xs text-pink-400">DRIKA HUB</span>
+        <span className="font-bold text-xs" style={{ color: "hsl(330 100% 50%)" }}>DRIKA HUB</span>
       </div>
-      <p className="text-[9px] text-white/30 font-semibold uppercase tracking-wider px-2 mb-1">Principal</p>
-      {[
-        { label: "Visão Geral", active: true },
-        { label: "Gerador IA", active: false },
-      ].map((item) => (
-        <div key={item.label} className={`px-2 py-1.5 rounded-lg text-[10px] ${item.active ? "bg-pink-500/15 text-pink-400 font-semibold" : "text-white/40"}`}>
-          {item.label}
+      {groups.map((group) => (
+        <div key={group.label}>
+          <p className="text-[9px] font-semibold uppercase tracking-wider px-2 mt-2.5 mb-1" style={{ color: "hsl(330 100% 50%)", opacity: 0.7 }}>
+            {group.label}
+          </p>
+          {group.items.map((item) => (
+            <div
+              key={item}
+              className="px-2 py-1.5 rounded-lg text-[10px]"
+              style={
+                item === activeItem
+                  ? { background: "hsl(330 100% 50% / 0.12)", color: "hsl(330 100% 50%)", fontWeight: 600 }
+                  : { color: "hsl(0 0% 70%)" }
+              }
+            >
+              {item}
+            </div>
+          ))}
         </div>
       ))}
-      <p className="text-[9px] text-white/30 font-semibold uppercase tracking-wider px-2 mt-3 mb-1">Gerenciamento</p>
-      {["Finanças", "Aprovações", "Afiliados"].map((label) => (
-        <div key={label} className="px-2 py-1.5 rounded-lg text-[10px] text-white/40">{label}</div>
-      ))}
-      <p className="text-[9px] text-white/30 font-semibold uppercase tracking-wider px-2 mt-3 mb-1">Bot</p>
-      {["Servidor", "Recursos", "Personalização"].map((label) => (
-        <div key={label} className="px-2 py-1.5 rounded-lg text-[10px] text-white/40">{label}</div>
-      ))}
-      <p className="text-[9px] text-white/30 font-semibold uppercase tracking-wider px-2 mt-3 mb-1">Configurações</p>
-      {["Canais", "Cargos", "Verificação", "Loja", "Proteção", "Tickets", "Sorteios"].map((label) => (
-        <div key={label} className="px-2 py-1.5 rounded-lg text-[10px] text-white/40">{label}</div>
-      ))}
     </div>
+  );
+};
+
+const MockDashboard = () => (
+  <div className="flex h-[540px] text-white text-[11px] overflow-hidden select-none" style={{ background: "hsl(0 0% 5%)" }}>
+    {/* Sidebar */}
+    <MockSidebar activeItem="Visão Geral" />
 
     {/* Main */}
     <div className="flex-1 p-4 overflow-hidden">
