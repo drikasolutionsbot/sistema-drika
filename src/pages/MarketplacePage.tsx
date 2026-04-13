@@ -34,6 +34,7 @@ interface MarketplaceItem {
 
 const MarketplacePage = () => {
   const { tenantId, tenant } = useTenant();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
   const [detailItem, setDetailItem] = useState<MarketplaceItem | null>(null);
