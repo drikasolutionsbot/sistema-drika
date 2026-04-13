@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Eye, EyeOff, Package, Search, Link } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Package, Search, Link, Send, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -33,6 +34,9 @@ interface MarketplaceItem {
   bought_at: string | null;
   created_at: string;
   image_url: string | null;
+  delivered: boolean;
+  delivered_at: string | null;
+  delivery_content: string | null;
 }
 
 const LZT_CATEGORIES = [
@@ -64,6 +68,9 @@ interface LztItem {
 
 const AdminMarketplacePage = () => {
   const queryClient = useQueryClient();
+  const [deliverOpen, setDeliverOpen] = useState<MarketplaceItem | null>(null);
+  const [deliveryContent, setDeliveryContent] = useState("");
+  const [delivering, setDelivering] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [lztCategory, setLztCategory] = useState("");
   const [lztPage, setLztPage] = useState(1);
@@ -194,6 +201,25 @@ const AdminMarketplacePage = () => {
   const formatBRL = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
   const formatReais = (cents: number) => `R$ ${(cents / 100).toFixed(2).replace('.', ',')}`;
 
+  const handleDeliver = async () => {
+    if (!deliverOpen || !deliveryContent.trim()) return;
+    setDelivering(true);
+    try {
+      const { error } = await supabase.functions.invoke("manage-marketplace", {
+        body: { action: "deliver", item_id: deliverOpen.id, item: { delivery_content: deliveryContent.trim() } },
+      });
+      if (error) throw error;
+      toast({ title: "Item entregue com sucesso!" });
+      setDeliverOpen(null);
+      setDeliveryContent("");
+      queryClient.invalidateQueries({ queryKey: ["admin-marketplace-items"] });
+    } catch (err) {
+      toast({ title: "Erro ao entregar", description: err instanceof Error ? err.message : "Erro", variant: "destructive" });
+    } finally {
+      setDelivering(false);
+    }
+  };
+
   const available = items.filter((i) => i.status === "available");
   const sold = items.filter((i) => i.status === "sold");
   const hidden = items.filter((i) => i.status === "hidden");
@@ -295,7 +321,26 @@ const AdminMarketplacePage = () => {
                           </AlertDialog>
                         )}
                         {tab === "sold" && (
-                          <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Vendido</Badge>
+                          <div className="flex items-center gap-2">
+                            {item.delivered ? (
+                              <Badge className="bg-green-500/10 text-green-500 border-green-500/20 gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Entregue
+                              </Badge>
+                            ) : (
+                              <>
+                                <Badge variant="outline" className="text-yellow-500 border-yellow-500/20">Pendente</Badge>
+                                <Button
+                                  size="sm"
+                                  className="text-xs gradient-pink text-primary-foreground border-none h-7"
+                                  onClick={() => { setDeliverOpen(item); setDeliveryContent(""); }}
+                                >
+                                  <Send className="h-3 w-3 mr-1" />
+                                  Entregar
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -470,6 +515,42 @@ const AdminMarketplacePage = () => {
             <Button variant="ghost" onClick={() => setImportItem(null)}>Cancelar</Button>
             <Button onClick={handleImport} disabled={importing} className="gradient-pink text-primary-foreground border-none">
               {importing ? "Importando..." : "Adicionar ao Catálogo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deliver dialog */}
+      <Dialog open={!!deliverOpen} onOpenChange={(open) => { if (!open) { setDeliverOpen(null); setDeliveryContent(""); } }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Entregar item</DialogTitle>
+            <DialogDescription>
+              Insira o conteúdo de entrega para <strong>{deliverOpen?.title}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Conteúdo da entrega</Label>
+              <Textarea
+                placeholder="Ex: Login: user@email.com&#10;Senha: 123456&#10;Link: https://..."
+                value={deliveryContent}
+                onChange={(e) => setDeliveryContent(e.target.value)}
+                className="bg-muted border-border min-h-[120px] font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Este conteúdo será visível para o lojista na aba "Minhas Compras"
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setDeliverOpen(null); setDeliveryContent(""); }}>Cancelar</Button>
+            <Button
+              onClick={handleDeliver}
+              disabled={delivering || !deliveryContent.trim()}
+              className="gradient-pink text-primary-foreground border-none"
+            >
+              {delivering ? "Entregando..." : "Confirmar Entrega"}
             </Button>
           </DialogFooter>
         </DialogContent>

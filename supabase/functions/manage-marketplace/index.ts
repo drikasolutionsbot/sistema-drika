@@ -67,6 +67,31 @@ serve(async (req) => {
       });
     }
 
+    // Admin: deliver item (manual delivery)
+    if (action === "deliver") {
+      if (!item_id) throw new Error("Missing item_id");
+      const delivery_content = item?.delivery_content;
+      if (!delivery_content) throw new Error("Missing delivery_content");
+
+      const { data, error } = await supabase
+        .from("marketplace_items")
+        .update({
+          delivery_content,
+          delivered: true,
+          delivered_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item_id)
+        .eq("status", "sold")
+        .select()
+        .single();
+      if (error) throw error;
+      if (!data) throw new Error("Item não encontrado ou não está vendido");
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Admin: delete item
     if (action === "delete") {
       if (!item_id) throw new Error("Missing item_id");

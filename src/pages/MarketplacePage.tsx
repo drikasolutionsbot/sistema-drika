@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { ShoppingCart, Tag, CreditCard, Package, History, Eye, Lock, Crown } from "lucide-react";
+import { ShoppingCart, Tag, CreditCard, Package, History, Eye, Lock, Crown, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -27,6 +27,9 @@ interface MarketplaceItem {
   created_at: string;
   image_url: string | null;
   lzt_data: Record<string, unknown> | null;
+  delivered: boolean;
+  delivered_at: string | null;
+  delivery_content: string | null;
 }
 
 const MarketplacePage = () => {
@@ -225,20 +228,42 @@ const MarketplacePage = () => {
               <p className="text-sm text-muted-foreground mt-1">Explore o catálogo e compre sua primeira conta!</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {purchases.map((item) => (
-                <div key={item.id} className="rounded-lg border border-border bg-card p-4 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold truncate">{item.title}</h3>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                      {item.category && <Badge variant="outline" className="text-[10px]">{item.category}</Badge>}
-                      <span>{formatBRL(item.resale_price_cents)}</span>
-                      {item.bought_at && (
-                        <span>Comprado em {new Date(item.bought_at).toLocaleDateString("pt-BR")}</span>
-                      )}
+                <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden">
+                  <div className="p-4 flex items-center gap-4">
+                    {item.image_url && (
+                      <img src={item.image_url} alt={item.title} className="h-10 w-10 rounded-lg object-cover shrink-0 border border-border" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold truncate">{item.title}</h3>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                        {item.category && <Badge variant="outline" className="text-[10px]">{item.category}</Badge>}
+                        <span>{formatBRL(item.resale_price_cents)}</span>
+                        {item.bought_at && (
+                          <span>Comprado em {new Date(item.bought_at).toLocaleDateString("pt-BR")}</span>
+                        )}
+                      </div>
                     </div>
+                    {item.delivered ? (
+                      <Badge className="bg-green-500/10 text-green-500 border-green-500/20 gap-1 shrink-0">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Entregue
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-yellow-500 border-yellow-500/20 shrink-0">
+                        Aguardando entrega
+                      </Badge>
+                    )}
                   </div>
-                  <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Adquirido</Badge>
+                  {item.delivered && item.delivery_content && (
+                    <div className="border-t border-border bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground mb-2 font-medium">📦 Conteúdo da entrega:</p>
+                      <pre className="text-sm font-mono bg-background rounded-lg p-3 border border-border whitespace-pre-wrap break-all select-all">
+                        {item.delivery_content}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
