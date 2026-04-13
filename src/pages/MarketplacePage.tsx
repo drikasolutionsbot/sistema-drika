@@ -46,6 +46,8 @@ const MarketplacePage = () => {
   const [selectedItem, setSelectedItem] = useState<MarketplaceItem | null>(null);
   const [detailItem, setDetailItem] = useState<MarketplaceItem | null>(null);
   const [pixOpen, setPixOpen] = useState(false);
+  const [purchaseFilter, setPurchaseFilter] = useState<"all" | "pending" | "delivered" | "cancelled">("all");
+  const [deleteTarget, setDeleteTarget] = useState<MarketplaceItem | null>(null);
 
   const isPro = tenant?.plan === "pro" || tenant?.plan === "business";
 
