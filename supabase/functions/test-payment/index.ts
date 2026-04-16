@@ -80,15 +80,23 @@ async function testEfi(
   }
 }
 
-async function testMisticPay(apiKey: string): Promise<{ success: boolean; message: string }> {
-  const res = await fetch("https://api.misticpay.com/v1/account", {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (res.ok) return { success: true, message: "Token Mistic Pay validado!" };
-  if (res.status === 401 || res.status === 403) {
-    return { success: false, message: "Token Mistic Pay inválido" };
+async function testMisticPay(clientId: string, clientSecret: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch("https://api.misticpay.com/api/users/info", {
+      headers: {
+        "ci": clientId,
+        "cs": clientSecret,
+        "Content-Type": "application/json",
+      },
+    });
+    if (res.ok) return { success: true, message: "Credenciais MisticPay validadas!" };
+    if (res.status === 401 || res.status === 400) {
+      return { success: false, message: "Client ID ou Client Secret MisticPay inválido" };
+    }
+    return { success: true, message: "Credenciais registradas (API indisponível para validação)" };
+  } catch (err) {
+    return { success: true, message: "Credenciais registradas (não foi possível validar agora)" };
   }
-  return { success: true, message: "Token registrado (API indisponível para validação)" };
 }
 
 serve(async (req) => {
@@ -115,7 +123,7 @@ serve(async (req) => {
         result = await testEfi(api_key, secret_key || "", cert_pem, key_pem);
         break;
       case "misticpay":
-        result = await testMisticPay(api_key);
+        result = await testMisticPay(api_key, secret_key || "");
         break;
       default:
         result = { success: false, message: `Provedor desconhecido: ${provider_key}` };
