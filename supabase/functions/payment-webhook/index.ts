@@ -232,7 +232,32 @@ serve(async (req) => {
       throw new Error("Missing provider or tenant_id in URL path.");
     }
 
-    const body = await req.json();
+    // Parse body: aceita JSON ou form-urlencoded (PushinPay envia form-urlencoded)
+    const contentType = req.headers.get("content-type") || "";
+    const rawBody = await req.text();
+    let body: any = {};
+    try {
+      if (contentType.includes("application/json")) {
+        body = JSON.parse(rawBody);
+      } else if (contentType.includes("application/x-www-form-urlencoded") || rawBody.includes("=")) {
+        const params = new URLSearchParams(rawBody);
+        body = Object.fromEntries(params.entries());
+        // PushinPay envia ID em maiúsculo (A18F2001...) — converter para o formato salvo (lowercase com hífens)
+        if (body.id && typeof body.id === "string") {
+          body.id = body.id.toLowerCase();
+          // Se vier sem hífens, reformatar UUID
+          if (body.id.length === 32 && !body.id.includes("-")) {
+            body.id = `${body.id.slice(0,8)}-${body.id.slice(8,12)}-${body.id.slice(12,16)}-${body.id.slice(16,20)}-${body.id.slice(20)}`;
+          }
+        }
+      } else {
+        try { body = JSON.parse(rawBody); } catch { body = {}; }
+      }
+    } catch (e) {
+      console.error("Failed to parse webhook body:", e, "raw:", rawBody.slice(0, 200));
+    }
+    console.log(`payment-webhook received: provider=${pathParts[pathParts.length-2]}, content-type=${contentType}, parsed=`, JSON.stringify(body).slice(0, 500));
+
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Verify tenant exists
