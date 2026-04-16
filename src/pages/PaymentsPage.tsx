@@ -66,6 +66,17 @@ const providers = [
     instructions: "No painel Efí, acesse API > Aplicações > Credenciais de Produção e copie Client ID e Client Secret.",
     requiresCert: true,
   },
+  {
+    key: "misticpay",
+    name: "MisticPay",
+    color: "bg-purple-500/10 text-purple-400",
+    docsUrl: "https://docs.misticpay.com",
+    fields: [
+      { key: "api_key", label: "Client ID", placeholder: "seu_client_id" },
+      { key: "secret_key", label: "Client Secret", placeholder: "seu_client_secret" },
+    ],
+    instructions: "No painel MisticPay, acesse Configurações > API e copie o Client ID e Client Secret.",
+  },
 ];
 
 interface PaymentProvider {
@@ -172,7 +183,7 @@ const PaymentsPage = () => {
                 return (
                   <TabsTrigger key={p.key} value={p.key} className="gap-2 text-xs sm:text-sm">
                     <span className="hidden sm:inline">{p.name}</span>
-                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : "Efí"}</span>
+                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : "Efí"}</span>
                     {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
                   </TabsTrigger>
                 );

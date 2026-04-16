@@ -225,37 +225,43 @@ async function generateViaEfi(
   };
 }
 
-// ─── Gateway: Mistic Pay ──────────────────────────────────────────
+// ─── Gateway: MisticPay ───────────────────────────────────────────
 async function generateViaMisticPay(
-  apiKey: string,
-  amountCents: number,
+  clientId: string,
+  clientSecret: string,
+  amountBRL: number,
   externalRef: string,
   webhookUrl: string
 ): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string }> {
-  const res = await fetch("https://api.misticpay.com/v1/pix/charge", {
+  const res = await fetch("https://api.misticpay.com/api/transactions/create", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "ci": clientId,
+      "cs": clientSecret,
     },
     body: JSON.stringify({
-      amount: amountCents,
-      external_reference: externalRef,
-      webhook_url: webhookUrl,
+      amount: amountBRL,
+      payerName: "Cliente",
+      payerDocument: "00000000000",
+      transactionId: externalRef,
+      description: "Pagamento PIX",
+      projectWebhook: webhookUrl,
     }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.error || `Mistic Pay error: ${res.status}`);
+    throw new Error(err.message || err.error || `MisticPay error: ${res.status}`);
   }
 
-  const data = await res.json();
+  const json = await res.json();
+  const data = json.data || json;
 
   return {
-    brcode: data.qr_code || data.brcode || data.pix_code || "",
-    qr_code_base64: data.qr_code_base64 || data.qr_code_image || undefined,
-    payment_id: data.id || data.charge_id || externalRef,
+    brcode: data.copyPaste || data.qrCode || "",
+    qr_code_base64: data.qrCodeBase64 || undefined,
+    payment_id: String(data.transactionId || externalRef),
   };
 }
 
@@ -306,7 +312,7 @@ serve(async (req) => {
           result = await generateViaEfi(apiKey, secretKey, amount, externalRef, webhookUrl, activeProvider.efi_cert_pem, activeProvider.efi_key_pem, activeProvider.efi_pix_key);
           break;
         case "misticpay":
-          result = await generateViaMisticPay(apiKey, amount_cents, externalRef, webhookUrl);
+          result = await generateViaMisticPay(apiKey, secretKey, amount, externalRef, webhookUrl);
           break;
         default:
           throw new Error(`Provider ${providerKey} não suporta PIX dinâmico`);
