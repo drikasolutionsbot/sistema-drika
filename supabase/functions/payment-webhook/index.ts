@@ -171,20 +171,47 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
 }
 
 async function handleMisticPay(body: any, tenantId: string, supabase: any) {
-  const paymentId = body?.id || body?.payment_id;
+  // MisticPay webhook: { transactionId, status, value, transactionType, ... }
+  const transactionId = body?.transactionId;
   const status = body?.status;
-  const orderId = body?.reference || body?.external_reference;
+  const transactionType = body?.transactionType;
 
-  if (paymentId && orderId && (status === "paid" || status === "approved")) {
-    const cleanOrderId = orderId.replace(/^order_/, "");
-    await supabase
-      .from("orders")
-      .update({ status: "paid", payment_id: String(paymentId), payment_provider: "misticpay" })
-      .eq("id", cleanOrderId)
-      .eq("tenant_id", tenantId);
-    return { handled: true, order_status: "paid", payment_id: paymentId, order_id: cleanOrderId };
+  console.log(`MisticPay webhook: txId=${transactionId}, status=${status}, type=${transactionType}, body=${JSON.stringify(body)}`);
+
+  if (!transactionId) return { handled: false, reason: "No transactionId in webhook" };
+  
+  // Only process deposit (cashin) webhooks
+  if (transactionType && transactionType !== "DEPOSITO") {
+    return { handled: false, reason: `Not a deposit: ${transactionType}` };
   }
-  return { handled: false, reason: "Missing data or not paid" };
+
+  // Only process completed payments
+  if (status !== "COMPLETO") return { handled: false, reason: `Status not COMPLETO: ${status}` };
+
+  // Look up order by payment_id (transactionId stored during PIX generation)
+  const { data: order, error: orderErr } = await supabase
+    .from("orders")
+    .select("id, status")
+    .eq("payment_id", String(transactionId))
+    .eq("tenant_id", tenantId)
+    .single();
+
+  if (orderErr || !order) {
+    console.error(`MisticPay: No order found for transactionId=${transactionId} in tenant=${tenantId}`);
+    return { handled: false, reason: "Order not found by payment_id" };
+  }
+
+  if (order.status === "paid" || order.status === "delivered") {
+    return { handled: false, reason: "Order already processed" };
+  }
+
+  await supabase
+    .from("orders")
+    .update({ status: "paid", payment_provider: "misticpay" })
+    .eq("id", order.id)
+    .eq("tenant_id", tenantId);
+
+  return { handled: true, order_status: "paid", payment_id: transactionId, order_id: order.id };
 }
 
 // ─── Main handler ──────────────────────────────────────────────────

@@ -312,7 +312,7 @@ serve(async (req) => {
           result = await generateViaEfi(apiKey, secretKey, amount, externalRef, webhookUrl, activeProvider.efi_cert_pem, activeProvider.efi_key_pem, activeProvider.efi_pix_key);
           break;
         case "misticpay":
-          result = await generateViaMisticPay(apiKey, amount_cents, externalRef, webhookUrl);
+          result = await generateViaMisticPay(apiKey, secretKey, amount, externalRef, webhookUrl);
           break;
         default:
           throw new Error(`Provider ${providerKey} não suporta PIX dinâmico`);
