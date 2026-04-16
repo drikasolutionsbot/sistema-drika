@@ -221,7 +221,26 @@ async function generatePushinPayPix(apiKey, amountCents, webhook) {
   return { brcode: data.qr_code || "", payment_id: data.id };
 }
 
-// ── Start Checkout (from buy_product button) ──
+// ── MisticPay PIX ──
+async function generateMisticPayPix(clientId, clientSecret, amountBRL, externalRef, webhookUrl) {
+  const res = await fetch("https://api.misticpay.com/api/transactions/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "ci": clientId, "cs": clientSecret },
+    body: JSON.stringify({
+      amount: amountBRL,
+      payerName: "Cliente",
+      payerDocument: "00000000000",
+      transactionId: externalRef,
+      description: "Pagamento PIX",
+      projectWebhook: webhookUrl,
+    }),
+  });
+  if (!res.ok) throw new Error(`MisticPay error: ${res.status}`);
+  const json = await res.json();
+  const data = json.data || json;
+  return { brcode: data.copyPaste || data.qrCode || "", payment_id: String(data.transactionId || externalRef) };
+}
+
 async function startCheckout(interaction, tenant, productId) {
   await interaction.deferReply({ ephemeral: true });
 
