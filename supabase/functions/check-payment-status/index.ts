@@ -144,6 +144,29 @@ serve(async (req) => {
       }
     }
 
+    // ── MisticPay: Check payment status via transactions/check ──
+    if (provider === "misticpay" && paymentId) {
+      try {
+        const res = await fetch("https://api.misticpay.com/api/transactions/check", {
+          method: "POST",
+          headers: {
+            "ci": providerConfig.api_key_encrypted || "",
+            "cs": providerConfig.secret_key_encrypted || "",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ transactionId: paymentId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const txState = data?.transaction?.transactionState;
+          console.log(`MisticPay check for ${paymentId}: ${txState}`);
+          if (txState === "COMPLETO") isPaid = true;
+        }
+      } catch (e) {
+        console.error("MisticPay polling error:", e);
+      }
+    }
+
     // If paid, update order and trigger delivery
     if (isPaid) {
       await supabase
