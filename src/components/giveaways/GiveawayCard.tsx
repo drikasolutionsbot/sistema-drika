@@ -30,6 +30,7 @@ function useCountdown(endsAt: string) {
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
     const update = () => {
       const now = Date.now();
       const end = new Date(endsAt).getTime();
@@ -37,7 +38,7 @@ function useCountdown(endsAt: string) {
       if (diff <= 0) {
         setTimeLeft("Sorteando ganhador...");
         setIsExpired(true);
-        clearInterval(interval);
+        if (interval) clearInterval(interval);
         return;
       }
       const d = Math.floor(diff / 86400000);
@@ -49,8 +50,8 @@ function useCountdown(endsAt: string) {
       );
     };
     update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
+    interval = setInterval(update, 1000);
+    return () => { if (interval) clearInterval(interval); };
   }, [endsAt]);
 
   return { timeLeft, isExpired };
