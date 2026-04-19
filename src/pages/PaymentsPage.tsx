@@ -3,6 +3,7 @@ import * as forge from "node-forge";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import misticPayIcon from "@/assets/misticpay-icon.png";
 import efiIcon from "@/assets/efi-icon.png";
+import mercadoPagoIcon from "@/assets/mercadopago-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,7 @@ const providers = [
     key: "mercadopago",
     name: "Mercado Pago",
     color: "bg-blue-500/10 text-blue-400",
+    iconUrl: mercadoPagoIcon,
     docsUrl: "https://www.mercadopago.com.br/developers/pt/docs",
     fields: [
       { key: "api_key", label: "Access Token", placeholder: "APP_USR-..." },
