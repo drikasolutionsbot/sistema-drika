@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plug, Zap, Leaf } from "lucide-react";
+import { CreditCard, Plug, Zap } from "lucide-react";
+import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import SubscriptionPaymentsTab from "@/components/admin/SubscriptionPaymentsTab";
 import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
 import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
@@ -29,7 +30,7 @@ const AdminPaymentsPage = () => {
               PushinPay
             </TabsTrigger>
             <TabsTrigger value="abacatepay" className="gap-2">
-              <Leaf className="h-4 w-4" />
+              <img src={abacatePayIcon} alt="AbacatePay" className="h-4 w-4 object-contain" />
               AbacatePay
             </TabsTrigger>
           </TabsList>

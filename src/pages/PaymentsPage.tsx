@@ -1,5 +1,6 @@
 import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key } from "lucide-react";
 import * as forge from "node-forge";
+import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +82,7 @@ const providers = [
     key: "abacatepay",
     name: "AbacatePay",
     color: "bg-lime-500/10 text-lime-400",
+    iconUrl: abacatePayIcon,
     docsUrl: "https://docs.abacatepay.com/pages/v1/introduction",
     fields: [
       { key: "api_key", label: "API Key", placeholder: "abc_dev_... ou abc_live_..." },
@@ -387,8 +389,12 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start sm:items-center gap-3">
-          <div className={`rounded-lg p-2.5 shrink-0 ${provider.color}`}>
-            <CreditCard className="h-5 w-5" />
+          <div className={`rounded-lg p-2.5 shrink-0 flex items-center justify-center ${provider.color}`}>
+            {(provider as any).iconUrl ? (
+              <img src={(provider as any).iconUrl} alt={provider.name} className="h-5 w-5 object-contain" />
+            ) : (
+              <CreditCard className="h-5 w-5" />
+            )}
           </div>
           <div className="min-w-0">
             <h3 className="font-semibold">{provider.name}</h3>
