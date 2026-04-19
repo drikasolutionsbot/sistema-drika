@@ -1,6 +1,7 @@
 import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key } from "lucide-react";
 import * as forge from "node-forge";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
+import misticPayIcon from "@/assets/misticpay-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +72,7 @@ const providers = [
     key: "misticpay",
     name: "MisticPay",
     color: "bg-purple-500/10 text-purple-400",
+    iconUrl: misticPayIcon,
     docsUrl: "https://docs.misticpay.com",
     fields: [
       { key: "api_key", label: "Client ID", placeholder: "seu_client_id" },
