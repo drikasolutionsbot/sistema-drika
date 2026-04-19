@@ -4,6 +4,7 @@ import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import misticPayIcon from "@/assets/misticpay-icon.png";
 import efiIcon from "@/assets/efi-icon.png";
 import mercadoPagoIcon from "@/assets/mercadopago-icon.png";
+import pushinPayIcon from "@/assets/pushinpay-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,7 @@ const providers = [
     key: "pushinpay",
     name: "PushinPay",
     color: "bg-orange-500/10 text-orange-400",
+    iconUrl: pushinPayIcon,
     docsUrl: "https://pushinpay.com.br",
     fields: [
       { key: "api_key", label: "API Token", placeholder: "pk_live_..." },
