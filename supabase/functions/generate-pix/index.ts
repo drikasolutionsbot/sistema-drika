@@ -249,21 +249,37 @@ async function generateViaAbacatePay(
     }),
   });
 
+  const rawText = await res.text();
+  console.log("[AbacatePay] status:", res.status, "body:", rawText.slice(0, 1000));
+
   if (!res.ok) {
-    const errText = await res.text();
-    console.error("AbacatePay error:", res.status, errText);
-    throw new Error(`AbacatePay error: ${res.status} ${errText.slice(0, 200)}`);
+    throw new Error(`AbacatePay error: ${res.status} ${rawText.slice(0, 200)}`);
   }
 
-  const json = await res.json();
-  // Resposta: { data: { id, brCode, brCodeBase64, amount, expiresAt, status, ... } }
+  let json: any = {};
+  try { json = JSON.parse(rawText); } catch { /* ignore */ }
+
+  // Resposta documentada: { data: { id, brCode, brCodeBase64, amount, expiresAt, status, ... } }
+  // Mas também aceita variações (brcode, qrCode, pixCopyPaste, etc) para resiliência
   const data = json?.data || json;
 
+  let base64 = data.brCodeBase64 || data.brcodeBase64 || data.qrCodeBase64 || data.qrcodeBase64 || undefined;
+  // Garantir prefixo data:image
+  if (base64 && !base64.startsWith("data:")) {
+    base64 = `data:image/png;base64,${base64}`;
+  }
+
+  const brcode =
+    data.brCode || data.brcode || data.qrCode || data.qrcode ||
+    data.pixCopyPaste || data.pixCopiaECola || data.copyPaste || "";
+
+  console.log("[AbacatePay] parsed → brcode length:", brcode.length, "has base64:", !!base64, "id:", data.id);
+
   return {
-    brcode: data.brCode || data.qrCode || "",
-    qr_code_base64: data.brCodeBase64 || undefined,
-    payment_id: String(data.id),
-    expires_at: data.expiresAt || undefined,
+    brcode,
+    qr_code_base64: base64,
+    payment_id: String(data.id || data.transactionId || ""),
+    expires_at: data.expiresAt || data.expires_at || undefined,
   };
 }
 

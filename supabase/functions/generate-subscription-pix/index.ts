@@ -247,17 +247,27 @@ async function generateViaAbacatePay(config: any, tenant_id: string, email: stri
     }),
   });
 
+  const rawText = await res.text();
+  console.log("[AbacatePay-Sub] status:", res.status, "body:", rawText.slice(0, 1000));
+
   if (!res.ok) {
-    const errText = await res.text();
-    console.error("AbacatePay error:", errText);
-    throw new Error(`Erro AbacatePay: ${res.status}`);
+    throw new Error(`Erro AbacatePay: ${res.status} ${rawText.slice(0, 200)}`);
   }
 
-  const json = await res.json();
+  let json: any = {};
+  try { json = JSON.parse(rawText); } catch { /* ignore */ }
   const data = json?.data || json;
-  const brcode = data.brCode || data.qrCode || "";
-  const qrCodeBase64 = data.brCodeBase64 || null;
-  const paymentId = String(data.id || crypto.randomUUID());
+
+  const brcode =
+    data.brCode || data.brcode || data.qrCode || data.qrcode ||
+    data.pixCopyPaste || data.pixCopiaECola || data.copyPaste || "";
+
+  let qrCodeBase64 = data.brCodeBase64 || data.brcodeBase64 || data.qrCodeBase64 || data.qrcodeBase64 || null;
+  if (qrCodeBase64 && !qrCodeBase64.startsWith("data:")) {
+    qrCodeBase64 = `data:image/png;base64,${qrCodeBase64}`;
+  }
+
+  const paymentId = String(data.id || data.transactionId || crypto.randomUUID());
 
   const { data: inserted } = await supabase.from("subscription_payments").insert({
     tenant_id,
