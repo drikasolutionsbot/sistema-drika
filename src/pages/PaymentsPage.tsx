@@ -2,6 +2,7 @@ import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, E
 import * as forge from "node-forge";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import misticPayIcon from "@/assets/misticpay-icon.png";
+import efiIcon from "@/assets/efi-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +61,7 @@ const providers = [
     key: "efi",
     name: "Efí (Gerencianet)",
     color: "bg-emerald-500/10 text-emerald-400",
+    iconUrl: efiIcon,
     docsUrl: "https://dev.efipay.com.br",
     fields: [
       { key: "api_key", label: "Client ID", placeholder: "Client_Id_..." },
