@@ -405,12 +405,7 @@ const TicketEmbedConfig = () => {
                 />
               </div>
             </div>
-            <ImageUploadField
-              label="Imagem do Embed"
-              value={data.ticket_embed_image_url}
-              onChange={(url) => update("ticket_embed_image_url", url)}
-              folder="ticket-embeds"
-            />
+            {/* Capa do embed (image_url) é fixa no padrão Drika — removida do editor */}
             <ImageUploadField
               label="Thumbnail do Embed"
               value={data.ticket_embed_thumbnail_url}

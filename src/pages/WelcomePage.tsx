@@ -336,9 +336,8 @@ const WelcomePage = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div>
           <ImageUploadField label="Thumbnail" value={embed.thumbnail_url} onChange={(v) => updateEmbed(embedKey, "thumbnail_url", v)} folder="welcome/thumbnails" />
-          <ImageUploadField label="Imagem" value={embed.image_url} onChange={(v) => updateEmbed(embedKey, "image_url", v)} folder="welcome/images" />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

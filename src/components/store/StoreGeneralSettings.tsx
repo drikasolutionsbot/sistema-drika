@@ -314,9 +314,8 @@ const StoreGeneralSettings = () => {
                 className="mt-1"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div>
               <ImageUploadField label="Thumbnail" value={config.purchase_embed_thumbnail_url} onChange={(v) => update("purchase_embed_thumbnail_url", v)} folder="store/purchase-thumb" />
-              <ImageUploadField label="Imagem" value={config.purchase_embed_image_url} onChange={(v) => update("purchase_embed_image_url", v)} folder="store/purchase-img" />
             </div>
 
             <Separator />

@@ -462,68 +462,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
                   />
                 </div>
               </div>
-              <div>
-                <Label>Imagem do Embed (opcional)</Label>
-                <div className="mt-2 space-y-3">
-                  {config.verify_image_url && (
-                    <div className="relative group rounded-lg overflow-hidden border border-border/50">
-                      <img src={config.verify_image_url} alt="Preview" className="w-full max-h-40 object-cover" />
-                      <button
-                        onClick={() => update("verify_image_url", "")}
-                        className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-3 w-3 text-white" />
-                      </button>
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file || !tenantId) return;
-                        setUploading(true);
-                        try {
-                          const ext = file.name.split(".").pop() || "png";
-                          const path = `${tenantId}/verify-embed-${Date.now()}.${ext}`;
-                          const { error: upErr } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true });
-                          if (upErr) throw upErr;
-                          const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-                          update("verify_image_url", urlData.publicUrl);
-                          toast({ title: "Imagem enviada! ✅" });
-                        } catch (err: any) {
-                          toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
-                        } finally {
-                          setUploading(false);
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                    >
-                      {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                      {uploading ? "Enviando..." : "Enviar Imagem"}
-                    </Button>
-                    <span className="text-[10px] text-muted-foreground self-center">ou</span>
-                    <Input
-                      value={config.verify_image_url}
-                      onChange={(e) => update("verify_image_url", e.target.value)}
-                      placeholder="https://..."
-                      className="flex-1 text-xs"
-                    />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Envie uma imagem ou cole uma URL.</p>
-                </div>
-              </div>
+              {/* Capa do embed (image_url) é fixa no padrão Drika — removida do editor */}
             </CardContent>
           </Card>
         </div>
