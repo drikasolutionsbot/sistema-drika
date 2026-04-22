@@ -101,6 +101,45 @@ async function getOrCreateWebhook(channelId: string, botToken: string, botUserId
   }
 }
 
+async function sendBotMessage(channelId: string, botToken: string, payload: Record<string, any>): Promise<string> {
+  const sendRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!sendRes.ok) {
+    const errText = await sendRes.text();
+    throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
+  }
+
+  const message = await sendRes.json();
+  return message.id;
+}
+
+async function deleteTrackedProductMessage(msg: any, botToken: string) {
+  try {
+    if (msg.webhook_id && msg.webhook_token) {
+      await fetch(`${DISCORD_API}/webhooks/${msg.webhook_id}/${msg.webhook_token}/messages/${msg.message_id}`, {
+        method: "DELETE",
+      });
+      return;
+    }
+
+    await fetch(`${DISCORD_API}/channels/${msg.channel_id}/messages/${msg.message_id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+      },
+    });
+  } catch (err) {
+    console.error(`Failed to delete old product message ${msg.message_id}:`, err);
+  }
+}
+
 // ── Build product embed payload (shared between post & sync) ──
 async function buildProductPayload(
   supabase: any,
@@ -276,36 +315,43 @@ async function syncProductMessages(
     return { synced: 0, total: 0, message: "Nenhuma mensagem encontrada para sincronizar." };
   }
 
-  const botUserId = await getBotUserId(botToken);
-  const customBotName = tenant?.bot_name || tenant?.name || undefined;
-  const customAvatarUrl = tenant?.bot_avatar_url || undefined;
-
   let synced = 0;
   let failed = 0;
   const toDelete: string[] = [];
 
   for (const msg of messages) {
     try {
+      if (msg.webhook_id && msg.webhook_token) {
+        const newMessageId = await sendBotMessage(msg.channel_id, botToken, payload);
+
+        const { error: updateError } = await supabase
+          .from("product_messages")
+          .update({
+            message_id: newMessageId,
+            webhook_id: null,
+            webhook_token: null,
+          })
+          .eq("id", msg.id);
+
+        if (updateError) {
+          throw new Error(`Erro ao atualizar rastreamento da mensagem: ${updateError.message}`);
+        }
+
+        await deleteTrackedProductMessage(msg, botToken);
+        synced++;
+        continue;
+      }
+
       let editUrl: string;
       let headers: Record<string, string>;
       let body: Record<string, any>;
 
-      if (msg.webhook_id && msg.webhook_token) {
-        // Edit via webhook
-        editUrl = `${DISCORD_API}/webhooks/${msg.webhook_id}/${msg.webhook_token}/messages/${msg.message_id}`;
-        headers = { "Content-Type": "application/json" };
-        body = { ...payload };
-        if (customBotName) body.username = customBotName;
-        if (customAvatarUrl) body.avatar_url = customAvatarUrl;
-      } else {
-        // Edit via Bot API
-        editUrl = `${DISCORD_API}/channels/${msg.channel_id}/messages/${msg.message_id}`;
-        headers = {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        };
-        body = payload;
-      }
+      editUrl = `${DISCORD_API}/channels/${msg.channel_id}/messages/${msg.message_id}`;
+      headers = {
+        Authorization: `Bot ${botToken}`,
+        "Content-Type": "application/json",
+      };
+      body = payload;
 
       const res = await fetch(editUrl, {
         method: "PATCH",
@@ -536,12 +582,16 @@ serve(async (req) => {
       payload.components = components;
     }
 
-    let messageId: string;
+    let messageId: string | null = null;
     let usedWebhookId: string | null = null;
     let usedWebhookToken: string | null = null;
 
+    if (product_id) {
+      messageId = await sendBotMessage(channel_id, botToken, payload);
+    } else
+
     // Try webhook first for custom branding
-    if (customBotName || customAvatarUrl) {
+    if (!product_id && (customBotName || customAvatarUrl)) {
       const webhook = await getOrCreateWebhook(channel_id, botToken, botUserId);
       if (webhook) {
         usedWebhookId = webhook.id;
@@ -595,21 +645,12 @@ serve(async (req) => {
         const message = await sendRes.json();
         messageId = message.id;
       }
-    } else {
-      const sendRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!sendRes.ok) {
-        const errText = await sendRes.text();
-        throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
-      }
-      const message = await sendRes.json();
-      messageId = message.id;
+    } else if (!product_id) {
+      messageId = await sendBotMessage(channel_id, botToken, payload);
+    }
+
+    if (!messageId) {
+      throw new Error("Falha ao enviar mensagem para o Discord");
     }
 
     // Track the posted message for sync functionality
