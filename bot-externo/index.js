@@ -150,9 +150,9 @@ client.on(Events.ClientReady, async () => {
     }
   }
 
-  // Sync status immediately and then every 15 seconds
-  await syncBotStatus();
-  setInterval(syncBotStatus, 15_000);
+  // Sync identidade global imediatamente e depois a cada 15 segundos
+  await syncBotIdentity();
+  setInterval(syncBotIdentity, 15_000);
 });
 // ── Ao entrar em um novo servidor, registrar os comandos ──
 client.on(Events.GuildCreate, async (guild) => {
