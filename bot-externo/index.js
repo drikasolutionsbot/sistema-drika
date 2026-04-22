@@ -95,16 +95,21 @@ async function syncBotIdentity() {
     }
 
     if (bannerUrl !== lastAppliedBannerUrl) {
-      if (bannerUrl) {
-        const bannerBuffer = await fetchImageBuffer(bannerUrl);
-        await client.user.setBanner(bannerBuffer);
-        console.log("🖼️ Banner global do bot atualizado.");
-      } else if (lastAppliedBannerUrl) {
-        await client.user.edit({ banner: null });
-        console.log("🖼️ Banner global do bot removido.");
+      try {
+        if (bannerUrl) {
+          const bannerBuffer = await fetchImageBuffer(bannerUrl);
+          // discord.js v14: banner é definido via client.user.edit({ banner })
+          await client.user.edit({ banner: bannerBuffer });
+          console.log("🖼️ Banner global do bot atualizado:", bannerUrl);
+        } else if (lastAppliedBannerUrl) {
+          await client.user.edit({ banner: null });
+          console.log("🖼️ Banner global do bot removido.");
+        }
+        lastAppliedBannerUrl = bannerUrl;
+      } catch (bannerErr) {
+        console.error("❌ Falha ao aplicar banner do bot:", bannerErr?.message || bannerErr);
+        console.error("   Detalhes:", bannerErr?.code, bannerErr?.rawError);
       }
-
-      lastAppliedBannerUrl = bannerUrl;
     }
   } catch (err) {
     console.error("Erro ao sincronizar identidade do bot:", err.message);
