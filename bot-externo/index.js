@@ -53,9 +53,10 @@ const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
 const verificationHandler = require("./handlers/verification");
 
-// ── Status + banner polling ──
+// ── Status + identidade global polling ──
 let lastAppliedStatus = null;
-let lastAppliedBannerUrl = undefined;
+let lastAppliedUserBannerUrl = undefined;
+let lastAppliedApplicationCoverUrl = undefined;
 
 function normalizeStatus(rawStatus) {
   const fallback = "/panel";
@@ -94,21 +95,47 @@ async function syncBotIdentity() {
       console.log(`🔄 Status atualizado: "${status}"`);
     }
 
-    if (bannerUrl !== lastAppliedBannerUrl) {
-      try {
-        if (bannerUrl) {
-          const bannerBuffer = await fetchImageBuffer(bannerUrl);
-          // discord.js v14: banner é definido via client.user.edit({ banner })
+    const shouldUpdateUserBanner = bannerUrl !== lastAppliedUserBannerUrl;
+    const shouldUpdateApplicationCover = bannerUrl !== lastAppliedApplicationCoverUrl;
+
+    if (shouldUpdateUserBanner || shouldUpdateApplicationCover) {
+      const bannerBuffer = bannerUrl ? await fetchImageBuffer(bannerUrl) : null;
+
+      if (shouldUpdateUserBanner) {
+        try {
           await client.user.edit({ banner: bannerBuffer });
-          console.log("🖼️ Banner global do bot atualizado:", bannerUrl);
-        } else if (lastAppliedBannerUrl) {
-          await client.user.edit({ banner: null });
-          console.log("🖼️ Banner global do bot removido.");
+          lastAppliedUserBannerUrl = bannerUrl;
+          console.log(
+            bannerUrl
+              ? "🖼️ Banner do usuário do bot atualizado:"
+              : "🖼️ Banner do usuário do bot removido.",
+            bannerUrl || ""
+          );
+        } catch (bannerErr) {
+          console.error("❌ Falha ao aplicar banner do usuário do bot:", bannerErr?.message || bannerErr);
+          console.error("   Detalhes:", bannerErr?.code, bannerErr?.rawError);
         }
-        lastAppliedBannerUrl = bannerUrl;
-      } catch (bannerErr) {
-        console.error("❌ Falha ao aplicar banner do bot:", bannerErr?.message || bannerErr);
-        console.error("   Detalhes:", bannerErr?.code, bannerErr?.rawError);
+      }
+
+      if (shouldUpdateApplicationCover) {
+        try {
+          const application = await client.application?.fetch();
+          if (!application?.edit) {
+            throw new Error("Aplicação do bot não disponível para edição");
+          }
+
+          await application.edit({ coverImage: bannerBuffer });
+          lastAppliedApplicationCoverUrl = bannerUrl;
+          console.log(
+            bannerUrl
+              ? "🖼️ Capa do aplicativo do bot atualizada:"
+              : "🖼️ Capa do aplicativo do bot removida.",
+            bannerUrl || ""
+          );
+        } catch (coverErr) {
+          console.error("❌ Falha ao aplicar capa do aplicativo do bot:", coverErr?.message || coverErr);
+          console.error("   Detalhes:", coverErr?.code, coverErr?.rawError);
+        }
       }
     }
   } catch (err) {
