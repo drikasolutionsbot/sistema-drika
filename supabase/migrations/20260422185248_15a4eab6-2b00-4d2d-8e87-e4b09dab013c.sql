@@ -1,0 +1,1 @@
+UPDATE public.landing_config SET global_bot_banner_url = 'https://krudxivcuygykoswjbbx.supabase.co/storage/v1/object/public/tenant-assets/global/bot-banner/c89dc086-ba40-45ba-8891-4d42398aa54a.png';
