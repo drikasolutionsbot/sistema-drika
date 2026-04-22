@@ -299,24 +299,11 @@ const StoreGeneralSettings = () => {
                 />
               </div>
             </div>
-            <div>
-              <Label>Título</Label>
-              <Input
-                value={config.purchase_embed_title}
-                onChange={(e) => update("purchase_embed_title", e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Descrição</Label>
-              <Textarea
-                value={config.purchase_embed_description}
-                onChange={(e) => update("purchase_embed_description", e.target.value)}
-                rows={3}
-                className="mt-1"
-                placeholder="Use {user}, {product}, {price}..."
-              />
-            </div>
+            <DrikaLockedFields
+              title={config.purchase_embed_title}
+              description={config.purchase_embed_description}
+              rows={3}
+            />
             <div>
               <Label>Footer</Label>
               <Input
