@@ -17,10 +17,10 @@ async function execute(interaction, tenant) {
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    const title = tenant.verify_title || "👑 Verificação";
-    const description = tenant.verify_description || "Clique no botão abaixo para se verificar em nosso servidor.\nA verificação é necessária para liberar acesso aos canais.";
+    const { DRIKA_TEMPLATES, DRIKA_COVER_URL } = require("../drikaTemplate");
+    const title = DRIKA_TEMPLATES.verify.title;
+    const description = DRIKA_TEMPLATES.verify.description;
     const color = parseInt((tenant.verify_embed_color || "#5865F2").replace("#", ""), 16);
-    const imageUrl = tenant.verify_image_url || null;
     const buttonLabel = tenant.verify_button_label || "Verificar";
     const buttonStyleRaw = tenant.verify_button_style || "primary";
 
@@ -45,15 +45,12 @@ async function execute(interaction, tenant) {
       ? `https://www.drikahub.com/verify/${tenant.verify_slug}`
       : `https://www.drikahub.com/verify/${tenant.id}`;
 
-    // Build embed
+    // Build embed (capa fixa Drika)
     const embed = new EmbedBuilder()
       .setTitle(title)
       .setDescription(description)
-      .setColor(color);
-
-    if (imageUrl) {
-      embed.setImage(imageUrl);
-    }
+      .setColor(color)
+      .setImage(DRIKA_COVER_URL);
 
     // Build button (Link style = 5)
     const button = new ButtonBuilder()

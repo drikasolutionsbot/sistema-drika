@@ -10,6 +10,7 @@ const {
   getActivePaymentProvider, triggerAutomation, deliverOrder, supabase,
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
+const { DRIKA_COVER_URL } = require("../drikaTemplate");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
@@ -342,7 +343,7 @@ async function startCheckout(interaction, tenant, productId) {
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
       .setColor(embedColor);
-    if (product.banner_url) embed.setImage(product.banner_url);
+    embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
     if (product.icon_url) embed.setThumbnail(product.icon_url);
 
     const row = new ActionRowBuilder().addComponents(
@@ -515,7 +516,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .setTimestamp();
 
   if (descLines.length) reviewEmbed.setDescription(descLines.join("\n\n"));
-  if (product.banner_url) reviewEmbed.setImage(product.banner_url);
+  reviewEmbed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
   if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
 
   const row1 = new ActionRowBuilder().addComponents(
@@ -1205,7 +1206,7 @@ async function viewDetails(interaction, tenant, productId) {
   if (fields.length > 0) {
     embed.addFields({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
   }
-  if (product.banner_url) embed.setImage(product.banner_url);
+  embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
   if (product.icon_url) embed.setThumbnail(product.icon_url);
 
   return interaction.reply({ embeds: [embed], ephemeral: true });

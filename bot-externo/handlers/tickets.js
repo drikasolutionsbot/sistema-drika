@@ -139,13 +139,15 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   const btnStyle = styleMap[storeConfig?.ticket_embed_button_style || "glass"] || ButtonStyle.Secondary;
 
   const welcomeEmbed = new EmbedBuilder()
-    .setTitle(storeConfig?.ticket_embed_title || "🎫 Ticket de Suporte")
-    .setDescription((storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8)))
+    .setTitle("🎫 Ticket de Suporte")
+    .setDescription("Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.".replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8)))
     .setColor(embedColor);
 
   if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
-  if (storeConfig?.ticket_embed_image_url) welcomeEmbed.setImage(storeConfig.ticket_embed_image_url);
   if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
+  // Capa fixa Drika (override)
+  const { applyDrikaCover } = require("../drikaTemplate");
+  applyDrikaCover(welcomeEmbed);
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle),
