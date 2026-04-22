@@ -304,29 +304,36 @@ const WelcomePage = () => {
 
         <Separator />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Cor do Embed</Label>
-            <div className="flex gap-2 mt-1">
-              <input type="color" value={embed.color} onChange={(e) => updateEmbed(embedKey, "color", e.target.value)} className="h-10 w-14 rounded border border-input cursor-pointer" />
-              <Input value={embed.color} onChange={(e) => updateEmbed(embedKey, "color", e.target.value)} className="font-mono" />
-            </div>
-          </div>
-          <div>
-            <Label>Título</Label>
-            <Input value={embed.title} onChange={(e) => updateEmbed(embedKey, "title", e.target.value)} className="mt-1" placeholder="Título do embed" />
+        <div>
+          <Label>Cor do Embed</Label>
+          <div className="flex gap-2 mt-1">
+            <input type="color" value={embed.color} onChange={(e) => updateEmbed(embedKey, "color", e.target.value)} className="h-10 w-14 rounded border border-input cursor-pointer" />
+            <Input value={embed.color} onChange={(e) => updateEmbed(embedKey, "color", e.target.value)} className="font-mono" />
           </div>
         </div>
 
-        <div>
-          <Label>Descrição</Label>
-          <Textarea
-            value={embed.description}
-            onChange={(e) => updateEmbed(embedKey, "description", e.target.value)}
-            rows={4}
-            className="mt-1"
-            placeholder="Descrição do embed... Suporta **negrito**, *itálico*"
-          />
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-primary uppercase tracking-wide">Capa & Descrição (template Drika)</span>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Título</Label>
+            <Input value={embed.title} disabled readOnly className="mt-1 opacity-70 cursor-not-allowed" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Descrição</Label>
+            <Textarea
+              value={embed.description}
+              disabled
+              readOnly
+              rows={4}
+              className="mt-1 opacity-70 cursor-not-allowed resize-none"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground italic">
+            🔒 Capa e descrição são fixas no padrão Drika. Você pode personalizar cor, imagens, footer e o conteúdo acima do embed.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
