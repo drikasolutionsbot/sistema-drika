@@ -10,7 +10,7 @@ const {
   getActivePaymentProvider, triggerAutomation, deliverOrder, supabase,
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
-const { DRIKA_COVER_URL } = require("../drikaTemplate");
+const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
@@ -42,6 +42,7 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       title,
       description,
       color: embedColor,
+      image: { url: DRIKA_COVER_URL },
       footer: { text: `${storeName} | ${date}, ${time}`, icon_url: storeLogo || undefined },
       timestamp: new Date().toISOString(),
     };
@@ -628,7 +629,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
+  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor))] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
@@ -689,7 +690,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   } else {
     // Static PIX
     if (!tenant.pix_key) {
-      return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
+      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245))] });
     }
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
@@ -866,7 +867,9 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
+    const dmApprovedEmbed = new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp();
+    applyDrikaCover(dmApprovedEmbed);
+    await user.send({ embeds: [dmApprovedEmbed] });
   } catch {}
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
@@ -881,6 +884,7 @@ async function approveOrder(interaction, tenant, orderId) {
       { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
     )
     .setTimestamp();
+  applyDrikaCover(approvedEmbed);
 
   await interaction.editReply({ embeds: [approvedEmbed], components: [] });
 
