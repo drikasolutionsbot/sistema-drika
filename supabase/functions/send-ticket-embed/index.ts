@@ -64,15 +64,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Template Drika fixo: título + descrição + capa
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
+    const DRIKA_COVER_URL = Deno.env.get("DRIKA_COVER_URL") || "https://i.imgur.com/8QZQZ8Q.png";
 
     const embed: any = {
-      title: title || "🎫 Ticket de Suporte",
-      description: description || "Clique no botão abaixo para abrir um ticket.",
+      title: "🎫 Ticket de Suporte",
+      description: "Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.",
       color: colorInt,
+      image: { url: DRIKA_COVER_URL },
     };
 
-    if (image_url) embed.image = { url: image_url };
     if (thumbnail_url) embed.thumbnail = { url: thumbnail_url };
     if (footer) embed.footer = { text: footer };
 
