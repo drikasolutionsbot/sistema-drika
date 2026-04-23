@@ -407,8 +407,9 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
   }
 
-  // ── Create private thread for checkout ──
+  // ── Create checkout thread ──
   const channel = interaction.channel;
+  const threadParent = channel?.isThread?.() ? channel.parent : channel;
   const threadName = `🛒 • ${username} • ${order.order_number}`.substring(0, 100);
 
   const safeUsername = String(username || "cliente")
@@ -420,14 +421,37 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .replace(/^-|-$/g, "")
     .slice(0, 40) || "cliente";
 
-  const checkoutThread = await channel.threads.create({
-    name: `carrinho-${safeUsername}-${order.order_number}`,
-    type: ChannelType.PrivateThread,
-    invitable: false,
-    reason: `Checkout #${order.order_number}`,
-  });
+  if (!threadParent?.threads?.create) {
+    return interaction.editReply({ content: "❌ Não foi possível abrir o carrinho neste canal." });
+  }
 
-  // Add the buyer to the private thread
+  try {
+    await threadParent.permissionOverwrites?.edit?.(userId, {
+      SendMessagesInThreads: true,
+    }, { reason: "Checkout: permitir usuário enviar mensagens na thread" });
+  } catch (permErr) {
+    console.error("[CHECKOUT] permission overwrite error:", permErr.message);
+  }
+
+  let checkoutThread;
+  try {
+    checkoutThread = await threadParent.threads.create({
+      name: `carrinho-${safeUsername}-${order.order_number}`,
+      type: ChannelType.PrivateThread,
+      invitable: false,
+      autoArchiveDuration: 10080,
+      reason: `Checkout #${order.order_number}`,
+    });
+  } catch (privateThreadError) {
+    console.error("[CHECKOUT] private thread creation failed:", privateThreadError.message);
+    checkoutThread = await threadParent.threads.create({
+      name: `carrinho-${safeUsername}-${order.order_number}`,
+      type: ChannelType.PublicThread,
+      autoArchiveDuration: 10080,
+      reason: `Checkout #${order.order_number}`,
+    });
+  }
+
   await checkoutThread.members.add(userId).catch(() => {});
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
