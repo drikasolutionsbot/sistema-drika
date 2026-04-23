@@ -57,6 +57,7 @@ const verificationHandler = require("./handlers/verification");
 let lastAppliedStatus = null;
 let lastAppliedUserBannerUrl = undefined;
 let lastAppliedApplicationCoverUrl = undefined;
+let lastAppliedGuildProfileBannerUrl = undefined;
 
 function normalizeStatus(rawStatus) {
   const fallback = "/panel";
@@ -96,7 +97,40 @@ async function updateBotUserBanner(imageAsset) {
   });
 }
 
-async function syncBotIdentity() {
+async function updateBotGuildProfileBanner(guildId, imageAsset) {
+  const banner = imageAsset ? toBase64DataUri(imageAsset) : null;
+  const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ banner }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`${response.status} ${errorText}`);
+  }
+}
+
+async function syncGuildProfileBannerForAllGuilds(imageAsset) {
+  const guilds = [...client.guilds.cache.values()];
+  let syncedCount = 0;
+
+  for (const guild of guilds) {
+    try {
+      await updateBotGuildProfileBanner(guild.id, imageAsset);
+      syncedCount += 1;
+    } catch (guildErr) {
+      console.error(`❌ Falha ao aplicar banner do perfil do bot no servidor ${guild.name} (${guild.id}):`, guildErr?.message || guildErr);
+    }
+  }
+
+  return syncedCount;
+}
+
+async function syncBotIdentity(forceGuildProfileBanner = false) {
   try {
     const config = await getGlobalBotConfig();
     const status = normalizeStatus(config?.global_bot_status);
@@ -113,8 +147,9 @@ async function syncBotIdentity() {
 
     const shouldUpdateUserBanner = bannerUrl !== lastAppliedUserBannerUrl;
     const shouldUpdateApplicationCover = bannerUrl !== lastAppliedApplicationCoverUrl;
+    const shouldUpdateGuildProfileBanner = forceGuildProfileBanner || bannerUrl !== lastAppliedGuildProfileBannerUrl;
 
-    if (shouldUpdateUserBanner || shouldUpdateApplicationCover) {
+    if (shouldUpdateUserBanner || shouldUpdateApplicationCover || shouldUpdateGuildProfileBanner) {
       const bannerAsset = bannerUrl ? await fetchImageBuffer(bannerUrl) : null;
 
       if (shouldUpdateUserBanner) {
@@ -152,6 +187,16 @@ async function syncBotIdentity() {
           console.error("❌ Falha ao aplicar capa do aplicativo do bot:", coverErr?.message || coverErr);
           console.error("   Detalhes:", coverErr?.code, coverErr?.rawError);
         }
+      }
+
+      if (shouldUpdateGuildProfileBanner) {
+        const syncedCount = await syncGuildProfileBannerForAllGuilds(bannerAsset);
+        lastAppliedGuildProfileBannerUrl = bannerUrl;
+        console.log(
+          bannerUrl
+            ? `🖼️ Banner do perfil do bot aplicado em ${syncedCount} servidor(es).`
+            : `🖼️ Banner do perfil do bot removido em ${syncedCount} servidor(es).`
+        );
       }
     }
   } catch (err) {
@@ -199,7 +244,7 @@ client.on(Events.ClientReady, async () => {
   }
 
   // Sync identidade global imediatamente e depois a cada 15 segundos
-  await syncBotIdentity();
+  await syncBotIdentity(true);
   setInterval(syncBotIdentity, 15_000);
 });
 // ── Ao entrar em um novo servidor, registrar os comandos ──
