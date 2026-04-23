@@ -112,6 +112,11 @@ const ResetPasswordPage = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+            {errorMsg && (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {errorMsg}
+              </div>
+            )}
             <div className="relative">
               <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none" />
               <input
