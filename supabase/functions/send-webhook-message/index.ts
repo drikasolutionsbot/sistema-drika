@@ -235,9 +235,9 @@ async function buildProductPayload(
   if (!isDefaultColor) {
     embed.color = parseInt(finalColor.replace("#", ""), 16);
   }
-  // Capa fixa Drika (override de product.banner_url)
-  const DRIKA_COVER_URL = Deno.env.get("DRIKA_COVER_URL") || "https://i.imgur.com/8QZQZ8Q.png";
-  embed.image = { url: DRIKA_COVER_URL };
+  if (product.banner_url) {
+    embed.image = { url: product.banner_url };
+  }
   if (product.icon_url) embed.thumbnail = { url: product.icon_url };
 
   // Button

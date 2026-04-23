@@ -64,18 +64,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Template Drika fixo: título + descrição + capa
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    const DRIKA_COVER_URL = Deno.env.get("DRIKA_COVER_URL") || "https://i.imgur.com/8QZQZ8Q.png";
+    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? image_url.trim() : null;
+    const safeThumbnailUrl = typeof thumbnail_url === "string" && thumbnail_url.trim() ? thumbnail_url.trim() : null;
 
     const embed: any = {
-      title: "🎫 Ticket de Suporte",
-      description: "Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.",
+      title: title || "🎫 Ticket de Suporte",
+      description: description || "Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.",
       color: colorInt,
-      image: { url: DRIKA_COVER_URL },
     };
 
-    if (thumbnail_url) embed.thumbnail = { url: thumbnail_url };
+    if (safeImageUrl) embed.image = { url: safeImageUrl };
+    if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
     if (footer) embed.footer = { text: footer };
 
     const styleMap: Record<string, number> = {
