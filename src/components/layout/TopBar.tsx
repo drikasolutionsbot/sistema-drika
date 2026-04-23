@@ -13,6 +13,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { getPlanInfo, isPaidPlan } from "@/lib/plans";
 import { useLanguage, languageLabels, languageFlags, type Language } from "@/i18n/LanguageContext";
 
 interface TopBarProps {
@@ -47,8 +48,9 @@ function timeAgo(dateStr: string, t: any): string {
 
 const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string | null; plan_started_at: string | null } }) => {
   const { t } = useLanguage();
-  const isPro = tenant.plan === "pro";
-  const planLabel = isPro ? t.plan.pro : t.plan.free;
+  const planInfo = getPlanInfo(tenant.plan);
+  const isPaid = isPaidPlan(tenant.plan);
+  const planLabel = tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
   
   let timeLeft = "";
   let expiresLabel = "";
@@ -89,14 +91,14 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
         <button className={`flex items-center gap-1.5 sm:gap-2 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border transition-colors cursor-pointer outline-none ${
           isExpired
             ? "bg-destructive/15 border-destructive/30 text-destructive animate-pulse"
-            : isPro
-              ? "bg-primary/10 border-primary/20 text-primary"
+            : isPaid
+              ? planInfo.color
               : isExpiring
                 ? "bg-destructive/10 border-destructive/20 text-destructive"
                 : "bg-muted border-border text-muted-foreground"
         }`}>
-          <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : isPro ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
-          <span className="font-semibold">{isPro ? "Pro" : "Free"}</span>
+          <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : isPaid ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
+          <span className="font-semibold">{tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free"}</span>
           {timeLeft && (
             <>
               <span className="text-muted-foreground/50 hidden sm:inline">•</span>
@@ -111,7 +113,7 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
       <PopoverContent align="end" className="w-72 p-0 bg-card border-border">
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Crown className={`h-5 w-5 ${isPro ? "text-primary" : "text-muted-foreground"}`} />
+            <Crown className={`h-5 w-5 ${isPaid ? "text-primary" : "text-muted-foreground"}`} />
             <h4 className="text-sm font-bold">{t.plan.plan} {planLabel}</h4>
           </div>
           
@@ -162,7 +164,7 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
             )}
           </div>
 
-          {(!isPro || isExpired) && (
+          {(!isPaid || isExpired) && (
             <Button
               size="sm"
               className="w-full gradient-pink text-primary-foreground border-none gap-2 mt-1"
