@@ -53,16 +53,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build embed (template Drika fixo: título + descrição + capa)
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    const DRIKA_COVER_URL = Deno.env.get("DRIKA_COVER_URL") || "https://i.imgur.com/8QZQZ8Q.png";
+    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? image_url.trim() : null;
 
     const embed: any = {
-      title: "👑 Verificação",
-      description: "Clique no botão abaixo para se verificar em nosso servidor.\nA verificação é necessária para liberar acesso aos canais.",
+      title: title || "👑 Verificação",
+      description: description || "Clique no botão abaixo para se verificar em nosso servidor.\nA verificação é necessária para liberar acesso aos canais.",
       color: colorInt,
-      image: { url: DRIKA_COVER_URL },
     };
+
+    if (safeImageUrl) embed.image = { url: safeImageUrl };
 
     const rawLabel = button_label || "Verificar";
     const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(rawLabel);

@@ -6,8 +6,7 @@
  * Para trocar a imagem oficial, edite apenas a constante DRIKA_COVER_URL abaixo.
  */
 
-const DRIKA_COVER_URL = process.env.DRIKA_COVER_URL
-  || "https://i.imgur.com/8QZQZ8Q.png"; // ← TROQUE pela URL oficial da capa Drika
+const DRIKA_COVER_URL = process.env.DRIKA_COVER_URL || null;
 
 const DRIKA_TEMPLATES = {
   purchase: {
@@ -33,7 +32,7 @@ const DRIKA_TEMPLATES = {
  * Chamar SEMPRE depois das outras configurações para garantir override.
  */
 function applyDrikaCover(embed) {
-  if (embed && typeof embed.setImage === "function") {
+  if (DRIKA_COVER_URL && embed && typeof embed.setImage === "function") {
     embed.setImage(DRIKA_COVER_URL);
   }
   return embed;
@@ -47,7 +46,7 @@ function applyDrikaTemplate(embed, type) {
   if (!tpl || !embed) return embed;
   if (typeof embed.setTitle === "function") embed.setTitle(tpl.title);
   if (typeof embed.setDescription === "function") embed.setDescription(tpl.description);
-  if (typeof embed.setImage === "function") embed.setImage(DRIKA_COVER_URL);
+  if (DRIKA_COVER_URL && typeof embed.setImage === "function") embed.setImage(DRIKA_COVER_URL);
   return embed;
 }
 

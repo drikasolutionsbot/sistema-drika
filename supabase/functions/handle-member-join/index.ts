@@ -188,16 +188,13 @@ function json(data: any) {
 function buildEmbed(embedData: any, replaceVars: (t: string) => string, tenant: any): any {
   if (!embedData) return {};
 
-  const DRIKA_COVER_URL = Deno.env.get("DRIKA_COVER_URL") || "https://i.imgur.com/8QZQZ8Q.png";
-
   const embed: any = {
     color: parseInt((embedData.color || "#2B2D31").replace("#", ""), 16),
-    // Template Drika fixo: título + descrição + capa
     title: "👋 Bem-vindo(a)!",
     description: replaceVars("Olá **{username}**, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**. Aproveite sua estadia!"),
-    image: { url: DRIKA_COVER_URL },
   };
 
+  if (embedData.image_url) embed.image = { url: replaceVars(embedData.image_url) };
   if (embedData.thumbnail_url) embed.thumbnail = { url: replaceVars(embedData.thumbnail_url) };
   if (embedData.footer_text) {
     embed.footer = { text: replaceVars(embedData.footer_text) };
