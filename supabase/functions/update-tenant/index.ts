@@ -67,6 +67,7 @@ serve(async (req) => {
     }
 
     // Master-only enforcement: bloquear bot_banner_url para tenants não-Master
+    let blockedMasterOnly = false;
     if ("bot_banner_url" in safeUpdates) {
       const { data: tenantPlan } = await supabase
         .from("tenants")
@@ -75,11 +76,15 @@ serve(async (req) => {
         .single();
       if (tenantPlan?.plan !== "master") {
         delete safeUpdates.bot_banner_url;
+        blockedMasterOnly = true;
         console.warn(`Tenant ${tenant_id} (plano ${tenantPlan?.plan || "?"}) tentou salvar bot_banner_url — bloqueado (Master only).`);
       }
     }
 
     if (Object.keys(safeUpdates).length === 0) {
+      if (blockedMasterOnly) {
+        throw new Error("A capa personalizada do bot é exclusiva do plano Master. Esta loja está em outro plano.");
+      }
       throw new Error("No valid fields to update");
     }
 
