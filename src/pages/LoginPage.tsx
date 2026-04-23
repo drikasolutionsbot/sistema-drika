@@ -57,6 +57,52 @@ const LoginPage = () => {
     }
   };
 
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      toast({ title: "Preencha email e senha", variant: "destructive" });
+      return;
+    }
+    setValidating(true);
+    try {
+      if (user) await signOut();
+      sessionStorage.removeItem("token_session");
+
+      const { data, error } = await supabase.functions.invoke("login-with-email", {
+        body: { email: email.trim(), password },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      if (error || data?.error) {
+        toast({
+          title: "Falha no login",
+          description: data?.error || error?.message,
+          variant: "destructive",
+        });
+        setValidating(false);
+        return;
+      }
+
+      sessionStorage.setItem(
+        "token_session",
+        JSON.stringify({
+          tenant_id: data.tenant_id,
+          tenant_name: data.tenant_name,
+          token: data.token,
+        })
+      );
+      toast({
+        title: `👋 ${t.login.welcome}, ${data.tenant_name}!`,
+        description: t.login.panelLoaded,
+        variant: "success" as any,
+      });
+      navigate("/dashboard", { replace: true });
+    } catch (e: any) {
+      toast({ title: t.login.error, description: e.message, variant: "destructive" });
+      setValidating(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center relative overflow-hidden login-pattern-bg">
       {/* Language switcher */}
