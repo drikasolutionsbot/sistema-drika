@@ -406,6 +406,7 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [videoOpen, setVideoOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentPlan, setPaymentPlan] = useState<"pro" | "master">("pro");
   const [landingConfig, setLandingConfig] = useState<{
     stat_servers: number; stat_servers_label: string;
     stat_sales: number; stat_sales_label: string;
@@ -413,6 +414,9 @@ const LandingPage = () => {
     video_url: string | null;
     pushinpay_active: boolean;
     pro_price_cents: number;
+    master_price_cents: number;
+    pro_plan_name: string;
+    master_plan_name: string;
   } | null>(null);
 
   useEffect(() => {
@@ -421,6 +425,11 @@ const LandingPage = () => {
     });
   }, []);
   const handleProClick = () => {
+    setPaymentPlan("pro");
+    setPaymentOpen(true);
+  };
+  const handleMasterClick = () => {
+    setPaymentPlan("master");
     setPaymentOpen(true);
   };
 
