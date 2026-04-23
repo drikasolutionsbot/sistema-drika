@@ -349,7 +349,7 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                     <Check className="h-8 w-8 text-emerald-400" />
                   </div>
                   <p className="text-sm text-white/70">
-                    Pagamento confirmado! Seu plano Pro de 30 dias está ativo.
+                    Pagamento confirmado! Seu plano {planLabel} de 30 dias está ativo.
                   </p>
                   {tenantName && (
                     <p className="text-xs text-white/40 mt-1">Loja: <span className="text-white/70 font-medium">{tenantName}</span></p>
