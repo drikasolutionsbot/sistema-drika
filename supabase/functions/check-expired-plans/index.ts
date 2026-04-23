@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     console.log(`check-expired-plans: suspended=${suspended} bannersCleared=${bannersCleared}`);
 
     return new Response(
-      JSON.stringify({ success: true, suspended }),
+      JSON.stringify({ success: true, suspended, bannersCleared }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
