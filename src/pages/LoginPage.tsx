@@ -257,6 +257,22 @@ const LoginPage = () => {
                 </span>
               </button>
 
+              {/* Esqueci minha senha */}
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email);
+                  setForgotOpen(true);
+                }}
+                className="w-full text-center text-sm text-white/70 hover:text-primary transition-colors bg-transparent border-none cursor-pointer py-1"
+              >
+                {language === "pt-BR"
+                  ? "Esqueci minha senha"
+                  : language === "de"
+                  ? "Passwort vergessen?"
+                  : "Forgot my password"}
+              </button>
+
               {/* Voltar para token */}
               <button
                 type="button"
@@ -271,6 +287,59 @@ const LoginPage = () => {
                     : "← Back to token"}
                 </span>
               </button>
+            </div>
+          )}
+
+          {/* Modal Esqueci Senha */}
+          {forgotOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => !forgotSending && setForgotOpen(false)}>
+              <div className="w-full max-w-md bg-[#141414] border border-white/10 rounded-2xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    {language === "pt-BR" ? "Recuperar senha" : language === "de" ? "Passwort zurücksetzen" : "Reset password"}
+                  </h3>
+                  <p className="text-sm text-white/60 mt-1">
+                    {language === "pt-BR"
+                      ? "Digite seu email cadastrado e enviaremos um link para redefinir sua senha."
+                      : language === "de"
+                      ? "Geben Sie Ihre E-Mail-Adresse ein, und wir senden Ihnen einen Link."
+                      : "Enter your email and we'll send you a reset link."}
+                  </p>
+                </div>
+                <form onSubmit={handleForgotPassword} className="space-y-3">
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none" />
+                    <input
+                      type="email"
+                      autoFocus
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder={language === "pt-BR" ? "seu@email.com" : "your@email.com"}
+                      className="w-full text-base pl-12 pr-4 py-3 bg-white/5 border-2 border-white/20 rounded-[16px] outline-none text-white placeholder:text-white/40 focus:border-primary"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForgotOpen(false)}
+                      disabled={forgotSending}
+                      className="flex-1 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white/80 text-sm border border-white/10 cursor-pointer disabled:opacity-50"
+                    >
+                      {language === "pt-BR" ? "Cancelar" : language === "de" ? "Abbrechen" : "Cancel"}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={forgotSending || !forgotEmail.trim()}
+                      className="flex-1 py-2.5 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-sm border-none cursor-pointer disabled:opacity-50"
+                    >
+                      {forgotSending
+                        ? (language === "pt-BR" ? "Enviando..." : "Sending...")
+                        : (language === "pt-BR" ? "Enviar link" : language === "de" ? "Link senden" : "Send link")}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
 
