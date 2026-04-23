@@ -392,6 +392,8 @@ const DashboardPage = () => {
       }
 
       try {
+        await refetch();
+
         const currentGuilds = await fetchAllBotGuilds();
 
         if (currentGuilds) {
@@ -421,13 +423,14 @@ const DashboardPage = () => {
         // keep polling
       }
     }, 5000);
-  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink]);
+  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch]);
 
   useEffect(() => {
     if (!waitingForBot) return;
 
     const triggerBackgroundCheck = () => {
       if (document.visibilityState === "hidden") return;
+      void refetch();
       void tryBackendAutoLink();
     };
 
@@ -438,7 +441,7 @@ const DashboardPage = () => {
       window.removeEventListener("focus", triggerBackgroundCheck);
       document.removeEventListener("visibilitychange", triggerBackgroundCheck);
     };
-  }, [waitingForBot, tryBackendAutoLink]);
+  }, [waitingForBot, tryBackendAutoLink, refetch]);
 
   useEffect(() => {
     if (!waitingForBot || !tenant?.discord_guild_id) return;
