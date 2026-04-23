@@ -93,8 +93,18 @@ const BotCustomizationPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       await refetch();
+      // Mantém preview até a próxima imagem do tenant carregar; depois libera
+      setBannerPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       toast({ title: "Capa aplicada! ✅" });
     } catch (err: any) {
+      // Em caso de erro, descarta o preview para não enganar o usuário
+      setBannerPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       toast({ title: "Erro ao enviar capa", description: err.message, variant: "destructive" });
     } finally {
       setUploadingBanner(false);
