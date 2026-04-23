@@ -31,10 +31,10 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Find all tenants with expired plans that are still set to pro or free
+    // Find all tenants with expired plans that are still set to pro/master/free
     const { data: expired, error } = await supabase
       .from("tenants")
-      .select("id, name, plan, plan_expires_at")
+      .select("id, name, plan, plan_expires_at, bot_banner_url")
       .not("plan_expires_at", "is", null)
       .lte("plan_expires_at", now)
       .not("plan", "eq", "expired");
@@ -42,17 +42,28 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     let suspended = 0;
+    let bannersCleared = 0;
 
     for (const tenant of expired || []) {
-      await supabase
-        .from("tenants")
-        .update({ plan: "expired", updated_at: now })
-        .eq("id", tenant.id);
+      const updates: Record<string, any> = { plan: "expired", updated_at: now };
+
+      // Master perk: custom bot banner. When plan expires, revoke it so the
+      // bot falls back to the global banner automatically (bot externo já
+      // trata bot_banner_url null usando o global_bot_banner_url).
+      if (tenant.plan === "master" && tenant.bot_banner_url) {
+        updates.bot_banner_url = null;
+        bannersCleared++;
+      }
+
+      await supabase.from("tenants").update(updates).eq("id", tenant.id);
       suspended++;
-      console.log(`Suspended tenant ${tenant.id} (${tenant.name}) - plan was ${tenant.plan}, expired at ${tenant.plan_expires_at}`);
+      console.log(
+        `Suspended tenant ${tenant.id} (${tenant.name}) - plan was ${tenant.plan}, expired at ${tenant.plan_expires_at}` +
+          (updates.bot_banner_url === null && tenant.bot_banner_url ? " [banner cleared]" : "")
+      );
     }
 
-    console.log(`check-expired-plans: suspended=${suspended} tenants`);
+    console.log(`check-expired-plans: suspended=${suspended} bannersCleared=${bannersCleared}`);
 
     return new Response(
       JSON.stringify({ success: true, suspended }),
