@@ -12,8 +12,34 @@ async function getTenantByGuild(guildId) {
   return data;
 }
 
+async function findUniquePendingTenantWithoutOwner() {
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data: pendingLogs } = await supabase
+    .from("tenant_audit_logs")
+    .select("tenant_id, created_at")
+    .eq("action", "pending_bot_invite")
+    .is("actor_discord_id", null)
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const pendingTenantIds = [...new Set((pendingLogs || []).map((row) => row.tenant_id).filter(Boolean))];
+  if (pendingTenantIds.length !== 1) return null;
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("id, name, discord_guild_id")
+    .eq("id", pendingTenantIds[0])
+    .is("discord_guild_id", null)
+    .maybeSingle();
+
+  return tenant || null;
+}
+
 async function findPendingTenantForOwner(ownerDiscordId) {
-  if (!ownerDiscordId) return null;
+  if (!ownerDiscordId) {
+    return await findUniquePendingTenantWithoutOwner();
+  }
 
   const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   const { data: pendingLogs } = await supabase
@@ -49,7 +75,9 @@ async function findPendingTenantForOwner(ownerDiscordId) {
     .limit(1)
     .maybeSingle();
 
-  return directOwnerTenant || null;
+  if (directOwnerTenant) return directOwnerTenant;
+
+  return await findUniquePendingTenantWithoutOwner();
 }
 
 async function autoLinkGuildToPendingTenant({ guildId, guildName, ownerDiscordId }) {
