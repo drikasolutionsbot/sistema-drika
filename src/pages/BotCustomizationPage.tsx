@@ -5,6 +5,7 @@ import { Bot, Pencil, ImageIcon, Lock, Crown, Loader2, Upload } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import EditBotProfileModal from "@/components/settings/EditBotProfileModal";
+import { openUpgradeModal } from "@/components/ProUpgradeModal";
 import { isMaster } from "@/lib/plans";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
