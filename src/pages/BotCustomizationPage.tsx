@@ -5,6 +5,7 @@ import { Bot, Pencil, ImageIcon, Lock, Crown, Loader2, Upload } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import EditBotProfileModal from "@/components/settings/EditBotProfileModal";
+import BannerCropModal from "@/components/customization/BannerCropModal";
 import { openUpgradeModal } from "@/components/ProUpgradeModal";
 import { isMaster } from "@/lib/plans";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,8 @@ const BotCustomizationPage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   // Cleanup do object URL quando o preview muda/desmonta
@@ -331,7 +334,7 @@ const BotCustomizationPage = () => {
           </Button>
         </div>
 
-        {/* Hidden file input */}
+        {/* Hidden file input — abre o modal de crop */}
         <input
           ref={bannerInputRef}
           type="file"
@@ -339,7 +342,20 @@ const BotCustomizationPage = () => {
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleBannerUpload(file);
+            if (file) {
+              // Validações rápidas antes de abrir o crop
+              const sizeMb = file.size / (1024 * 1024);
+              if (sizeMb > MAX_BANNER_MB) {
+                toast({
+                  title: "Imagem muito grande",
+                  description: `A capa deve ter no máximo ${MAX_BANNER_MB}MB (atual: ${sizeMb.toFixed(1)}MB).`,
+                  variant: "destructive",
+                });
+              } else {
+                setCropFile(file);
+                setCropOpen(true);
+              }
+            }
             if (bannerInputRef.current) bannerInputRef.current.value = "";
           }}
         />
@@ -374,6 +390,21 @@ const BotCustomizationPage = () => {
         tenant={tenant}
         tenantId={tenantId}
         refetchTenant={refetch}
+      />
+
+      {/* Banner Crop Modal */}
+      <BannerCropModal
+        open={cropOpen}
+        onOpenChange={(o) => {
+          setCropOpen(o);
+          if (!o) setCropFile(null);
+        }}
+        file={cropFile}
+        botName={botName}
+        botAvatarUrl={botAvatar}
+        onConfirm={async (croppedFile) => {
+          await handleBannerUpload(croppedFile);
+        }}
       />
     </div>
   );
