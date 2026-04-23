@@ -21,6 +21,34 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [validating, setValidating] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSending, setForgotSending] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotSending(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-password-reset", {
+        body: {
+          email: forgotEmail.trim(),
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
+      });
+      if (error) throw error;
+      toast({
+        title: "📧 Email enviado!",
+        description: "Se o email existir, você receberá as instruções em instantes.",
+        variant: "success" as any,
+      });
+      setForgotOpen(false);
+      setForgotEmail("");
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+    setForgotSending(false);
+  };
 
   const handleTokenLogin = async () => {
     if (!token.trim()) return;

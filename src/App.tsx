@@ -10,6 +10,7 @@ import { TenantProvider } from "@/contexts/TenantContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import LoginPage from "./pages/LoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SignupPage from "./pages/SignupPage";
 import AdminLoginPage from "./pages/admin/AdminLoginPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -86,6 +87,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/signup" element={<SignupPage />} />
     <Route path="/termos" element={<TermsPage />} />
     <Route path="/verify/result" element={<VerifyResultPage />} />
