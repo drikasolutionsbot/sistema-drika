@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Find all tenants with expired plans that are still set to pro/master/free
     const { data: expired, error } = await supabase
       .from("tenants")
-      .select("id, name, plan, plan_expires_at, bot_banner_url")
+      .select("id, name, plan, plan_expires_at, bot_banner_url, discord_guild_id")
       .not("plan_expires_at", "is", null)
       .lte("plan_expires_at", now)
       .not("plan", "eq", "expired");
