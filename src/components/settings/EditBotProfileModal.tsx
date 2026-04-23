@@ -36,6 +36,15 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
 
   const userIsMaster = isMaster(tenant?.plan);
 
+  // Re-sincroniza com o tenant sempre que o modal abre ou o tenant muda externamente
+  useEffect(() => {
+    if (open) {
+      setBotName(tenant?.bot_name || "");
+      setBotAvatarUrl(tenant?.bot_avatar_url || "");
+      setBotBannerUrl(tenant?.bot_banner_url || "");
+    }
+  }, [open, tenant?.bot_name, tenant?.bot_avatar_url, tenant?.bot_banner_url]);
+
   const handleUpload = async (file: File, kind: "avatar" | "banner") => {
     if (!tenantId) return;
     const setUploading = kind === "avatar" ? setUploadingAvatar : setUploadingBanner;
