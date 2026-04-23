@@ -119,6 +119,7 @@ const BotCustomizationPage = () => {
       // Tratar rate-limit do Discord (429) — edge function ainda salvou a URL no DB
       if (error) {
         let bannerRateLimited = false;
+        let retryAfterSec: number | null = null;
         let friendlyMsg = error.message || "erro desconhecido";
         try {
           const ctx: any = (error as any).context;
@@ -127,14 +128,26 @@ const BotCustomizationPage = () => {
             if (body?.error === "BANNER_RATE_LIMIT") {
               bannerRateLimited = true;
               friendlyMsg = body.message || friendlyMsg;
+              if (typeof body.retry_after === "number") retryAfterSec = body.retry_after;
             }
           }
         } catch (_) { /* ignore */ }
 
         if (bannerRateLimited) {
-          throw new Error(
-            "O Discord limita a frequência com que a capa do bot pode ser trocada. Aguarde alguns minutos e tente novamente — a nova imagem já foi salva e será aplicada na próxima sincronização."
-          );
+          const waitTxt =
+            retryAfterSec && retryAfterSec > 0
+              ? retryAfterSec >= 60
+                ? `cerca de ${Math.ceil(retryAfterSec / 60)} min`
+                : `cerca de ${Math.ceil(retryAfterSec)}s`
+              : "alguns minutos";
+          toast({
+            title: "⏳ Aguarde para trocar a capa novamente",
+            description: `O Discord limita quantas vezes a capa do bot pode ser alterada em sequência. Sua nova imagem já foi salva ✅ — ela será aplicada automaticamente em ${waitTxt}. Não precisa reenviar.`,
+          });
+          // Mantém o preview como confirmação visual e encerra sem lançar erro
+          setUploadingBanner(false);
+          if (bannerInputRef.current) bannerInputRef.current.value = "";
+          return;
         }
         throw new Error(`Não foi possível salvar a capa no servidor: ${friendlyMsg}.`);
       }
