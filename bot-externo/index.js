@@ -77,7 +77,23 @@ async function fetchImageBuffer(url) {
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  return {
+    buffer: Buffer.from(arrayBuffer),
+    contentType: response.headers.get("content-type") || "image/png",
+  };
+}
+
+function toBase64DataUri(imageAsset) {
+  if (!imageAsset?.buffer) return null;
+  return `data:${imageAsset.contentType || "image/png"};base64,${imageAsset.buffer.toString("base64")}`;
+}
+
+async function updateBotUserBanner(imageAsset) {
+  const banner = imageAsset ? toBase64DataUri(imageAsset) : null;
+
+  await rest.patch(Routes.user(), {
+    body: { banner },
+  });
 }
 
 async function syncBotIdentity() {
@@ -99,11 +115,11 @@ async function syncBotIdentity() {
     const shouldUpdateApplicationCover = bannerUrl !== lastAppliedApplicationCoverUrl;
 
     if (shouldUpdateUserBanner || shouldUpdateApplicationCover) {
-      const bannerBuffer = bannerUrl ? await fetchImageBuffer(bannerUrl) : null;
+      const bannerAsset = bannerUrl ? await fetchImageBuffer(bannerUrl) : null;
 
       if (shouldUpdateUserBanner) {
         try {
-          await client.user.edit({ banner: bannerBuffer });
+          await updateBotUserBanner(bannerAsset);
           lastAppliedUserBannerUrl = bannerUrl;
           console.log(
             bannerUrl
@@ -124,7 +140,7 @@ async function syncBotIdentity() {
             throw new Error("Aplicação do bot não disponível para edição");
           }
 
-          await application.edit({ coverImage: bannerBuffer });
+          await application.edit({ coverImage: bannerAsset?.buffer || null });
           lastAppliedApplicationCoverUrl = bannerUrl;
           console.log(
             bannerUrl
