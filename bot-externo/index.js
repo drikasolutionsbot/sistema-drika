@@ -9,7 +9,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-const { getTenantByGuild, getGlobalBotConfig, autoLinkGuildToPendingTenant } = require("./supabase");
+const { getTenantByGuild, getGlobalBotConfig, getMasterTenantBanners, autoLinkGuildToPendingTenant } = require("./supabase");
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 
@@ -120,15 +120,38 @@ async function updateBotGuildProfileBanner(guildId, imageAsset) {
   return { persistedBanner, hadInput: !!banner };
 }
 
-async function syncGuildProfileBannerForAllGuilds(imageAsset) {
+// Cache simples de assets baixados (evita refetch a cada poll)
+const bannerAssetCache = new Map();
+async function getBannerAsset(url) {
+  if (!url) return null;
+  if (bannerAssetCache.has(url)) return bannerAssetCache.get(url);
+  const asset = await fetchImageBuffer(url);
+  bannerAssetCache.set(url, asset);
+  return asset;
+}
+
+async function syncGuildProfileBannerForAllGuilds(globalAsset, masterBannersByGuild = {}) {
   const guilds = [...client.guilds.cache.values()];
   let syncedCount = 0;
+  let masterOverrides = 0;
   let persistedCount = 0;
   let ignoredByDiscord = 0;
 
   for (const guild of guilds) {
     try {
-      const { persistedBanner, hadInput } = await updateBotGuildProfileBanner(guild.id, imageAsset);
+      // Master tenants têm banner exclusivo por guild — sobrepõe o global
+      const masterUrl = masterBannersByGuild[guild.id];
+      let assetToApply = globalAsset;
+      if (masterUrl) {
+        try {
+          assetToApply = await getBannerAsset(masterUrl);
+          masterOverrides += 1;
+        } catch (mErr) {
+          console.error(`⚠️ Falha ao baixar banner Master da guild ${guild.id}:`, mErr.message);
+        }
+      }
+
+      const { persistedBanner, hadInput } = await updateBotGuildProfileBanner(guild.id, assetToApply);
       syncedCount += 1;
       if (hadInput) {
         if (persistedBanner) persistedCount += 1;
@@ -139,10 +162,13 @@ async function syncGuildProfileBannerForAllGuilds(imageAsset) {
     }
   }
 
-  if (imageAsset && ignoredByDiscord > 0) {
+  if (masterOverrides > 0) {
+    console.log(`👑 ${masterOverrides} servidor(es) Master receberam banner exclusivo do tenant.`);
+  }
+
+  if (globalAsset && ignoredByDiscord > 0) {
     console.warn(
       `⚠️ Discord aceitou o PATCH mas NÃO persistiu o banner em ${ignoredByDiscord}/${syncedCount} servidor(es). ` +
-      `Isso confirma que a API atualmente bloqueia banner por guild para bots (mesmo retornando 200 OK). ` +
       `Persistidos com sucesso: ${persistedCount}.`
     );
   }
