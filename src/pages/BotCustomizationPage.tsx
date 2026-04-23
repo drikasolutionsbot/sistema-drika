@@ -61,18 +61,75 @@ const BotCustomizationPage = () => {
       </div>
 
       {/* Hero Card */}
-      <div className="relative rounded-2xl overflow-hidden border border-border bg-card">
-        <div className="flex flex-col items-center py-8 gap-3">
+      <div className="relative rounded-2xl overflow-hidden border border-border bg-card min-h-[280px]">
+        {/* Banner background */}
+        {botBanner ? (
+          <div className="absolute inset-0">
+            <img
+              src={botBanner}
+              alt="Capa do bot"
+              className={`w-full h-full object-cover ${!userIsMaster ? "blur-md scale-110" : ""}`}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/40" />
+          </div>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-muted/40 to-card" />
+        )}
+
+        {/* Master lock overlay for non-master users with banner */}
+        {botBanner && !userIsMaster && (
+          <div className="absolute top-3 left-3 z-10">
+            <Badge variant="outline" className="gap-1 bg-background/80 backdrop-blur-sm border-primary/40 text-primary">
+              <Lock className="h-3 w-3" />
+              <Crown className="h-3 w-3" />
+              Master
+            </Badge>
+          </div>
+        )}
+
+        {/* Banner edit button (top-right) */}
+        <div className="absolute top-3 right-3 z-10">
+          {userIsMaster ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-background"
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={uploadingBanner}
+            >
+              {uploadingBanner ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : botBanner ? (
+                <Pencil className="h-3.5 w-3.5" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+              {botBanner ? "Trocar Capa" : "Adicionar Capa"}
+            </Button>
+          ) : (
+            <Badge
+              variant="outline"
+              className="gap-1 bg-background/80 backdrop-blur-sm border-primary/40 text-primary cursor-help"
+              title="Disponível apenas no plano Master"
+            >
+              <Crown className="h-3 w-3" />
+              Capa Master
+            </Badge>
+          )}
+        </div>
+
+        {/* Foreground content */}
+        <div className="relative flex flex-col items-center pt-16 pb-8 gap-3">
           {/* Avatar */}
           <div className="relative">
             {botAvatar ? (
               <img
                 src={botAvatar}
                 alt="Bot avatar"
-                className="h-24 w-24 rounded-full object-cover border-4 border-border shadow-lg"
+                className="h-24 w-24 rounded-full object-cover border-4 border-card shadow-xl"
               />
             ) : (
-              <div className="h-24 w-24 rounded-full bg-muted border-4 border-border shadow-lg flex items-center justify-center">
+              <div className="h-24 w-24 rounded-full bg-muted border-4 border-card shadow-xl flex items-center justify-center">
                 <Bot className="h-10 w-10 text-muted-foreground" />
               </div>
             )}
@@ -80,19 +137,32 @@ const BotCustomizationPage = () => {
           </div>
 
           {/* Name */}
-          <h2 className="text-xl font-bold text-foreground">{botName}</h2>
+          <h2 className="text-xl font-bold text-foreground drop-shadow-lg">{botName}</h2>
 
           {/* Edit Button */}
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 mt-1"
+            className="gap-2 mt-1 bg-background/60 backdrop-blur-sm"
             onClick={() => setEditOpen(true)}
           >
             <Pencil className="h-3.5 w-3.5" />
             Editar Perfil
           </Button>
         </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleBannerUpload(file);
+            if (bannerInputRef.current) bannerInputRef.current.value = "";
+          }}
+        />
       </div>
 
       {/* Informações Card */}
