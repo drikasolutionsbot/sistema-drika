@@ -218,6 +218,28 @@ serve(async (req) => {
           );
           const patchBody = await patchRes.text();
           console.log("Discord bot member patch response:", patchRes.status, patchBody);
+
+          // Detect Discord banner rate limit and surface a friendly error
+          if (!patchRes.ok && "bot_banner_url" in safeUpdates) {
+            let isBannerRateLimit = false;
+            try {
+              const parsed = JSON.parse(patchBody);
+              if (parsed?.errors?.banner?._errors?.some((e: any) => e?.code === "BANNER_RATE_LIMIT")) {
+                isBannerRateLimit = true;
+              }
+            } catch (_) { /* ignore */ }
+
+            if (isBannerRateLimit) {
+              return new Response(
+                JSON.stringify({
+                  error: "BANNER_RATE_LIMIT",
+                  message: "O Discord limita a troca da capa do bot. Aguarde alguns minutos antes de trocar novamente.",
+                  tenant: data,
+                }),
+                { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
         }
       } catch (err) {
         console.error("Discord bot member sync error:", err);
