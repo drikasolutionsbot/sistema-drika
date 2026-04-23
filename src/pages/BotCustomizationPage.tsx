@@ -13,7 +13,15 @@ const BotCustomizationPage = () => {
   const { tenant, tenantId, refetch } = useTenant();
   const [editOpen, setEditOpen] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  // Cleanup do object URL quando o preview muda/desmonta
+  useEffect(() => {
+    return () => {
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    };
+  }, [bannerPreview]);
 
   if (!tenant) return <Skeleton className="h-64" />;
 
