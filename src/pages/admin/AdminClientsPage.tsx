@@ -19,10 +19,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const PLANS = [
-  { value: "free", label: "Drika Solutions Free", color: "text-muted-foreground bg-muted/50 border-border" },
-  { value: "pro", label: "Drika Solutions Pro", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500" },
-];
+import { PLANS } from "@/lib/plans";
 
 const getPlanBadgeClass = (plan: string) => {
   return PLANS.find((p) => p.value === plan)?.color || PLANS[0].color;
@@ -125,9 +122,9 @@ const AdminClientsPage = () => {
     try {
       const now = new Date();
       const updateData: any = { plan: newPlan };
-      
-      if (newPlan === "pro") {
-        // Activate pro: set start to now, expires in 30 days
+
+      if (newPlan === "pro" || newPlan === "master") {
+        // Activate paid plan: set start to now, expires in 30 days
         updateData.plan_started_at = now.toISOString();
         updateData.plan_expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
       } else {

@@ -381,6 +381,9 @@ export default function AIAssistantPage() {
   useEffect(() => { scrollToBottom(); }, [messages.length, messages[messages.length - 1]?.content]);
 
   const consumeCredits = useCallback(async (amount: number) => {
+    // Plano Master: créditos IA ilimitados — não deduz
+    if (tenant?.plan === "master") return;
+
     setCredits(prev => ({ ...prev, remaining: Math.max(0, prev.remaining - amount) }));
     if (tenantId) {
       try {
@@ -398,11 +401,13 @@ export default function AIAssistantPage() {
         console.error("Error updating credits:", e);
       }
     }
-  }, [tenantId]);
+  }, [tenantId, tenant?.plan]);
 
   const canAfford = useCallback((cost: number) => {
+    // Master tem créditos ilimitados
+    if (tenant?.plan === "master") return true;
     return credits.remaining >= cost;
-  }, [credits]);
+  }, [credits, tenant?.plan]);
 
   const createNewSession = (toolId: string, firstMessage?: string) => {
     const id = crypto.randomUUID();
