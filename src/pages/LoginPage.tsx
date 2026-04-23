@@ -30,15 +30,12 @@ const LoginPage = () => {
     if (!forgotEmail.trim()) return;
     setForgotSending(true);
     try {
-      // Se o usuário estiver em localhost (dev), força URL de produção pra evitar link quebrado no email
-      const origin = window.location.origin;
-      const safeOrigin = origin.includes("localhost") || origin.includes("127.0.0.1")
-        ? "https://drikabotteste.lovable.app"
-        : origin;
+      // Sempre usa o domínio de produção pra evitar links quebrados (localhost/preview) no email
+      const PROD_URL = "https://www.drikahub.com";
       const { error } = await supabase.functions.invoke("send-password-reset", {
         body: {
           email: forgotEmail.trim(),
-          redirectTo: `${safeOrigin}/reset-password`,
+          redirectTo: `${PROD_URL}/reset-password`,
         },
       });
       if (error) throw error;
