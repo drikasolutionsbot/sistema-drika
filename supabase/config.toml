@@ -187,3 +187,5 @@ verify_jwt = false
 
 [functions.query-tenant-data]
 verify_jwt = false
+[functions.clear-bot-banner]
+verify_jwt = false

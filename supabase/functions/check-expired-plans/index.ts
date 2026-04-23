@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Find all tenants with expired plans that are still set to pro/master/free
     const { data: expired, error } = await supabase
       .from("tenants")
-      .select("id, name, plan, plan_expires_at, bot_banner_url")
+      .select("id, name, plan, plan_expires_at, bot_banner_url, discord_guild_id")
       .not("plan_expires_at", "is", null)
       .lte("plan_expires_at", now)
       .not("plan", "eq", "expired");
@@ -43,23 +43,55 @@ Deno.serve(async (req) => {
 
     let suspended = 0;
     let bannersCleared = 0;
+    const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+
+    // Helper: remove banner customizado do bot na guild
+    const clearDiscordBanner = async (guildId: string) => {
+      if (!guildId || !botToken) return;
+      try {
+        const res = await fetch(
+          `https://discord.com/api/v10/guilds/${guildId}/members/@me`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bot ${botToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ banner: null }),
+          }
+        );
+        if (!res.ok) {
+          const body = await res.text();
+          console.error(`[check-expired-plans] discord clear banner failed for guild ${guildId}:`, res.status, body);
+        }
+      } catch (e) {
+        console.error(`[check-expired-plans] discord clear banner error for guild ${guildId}:`, e);
+      }
+    };
 
     for (const tenant of expired || []) {
       const updates: Record<string, any> = { plan: "expired", updated_at: now };
+      let mustClearDiscord = false;
 
       // Master perk: custom bot banner. When plan expires, revoke it so the
-      // bot falls back to the global banner automatically (bot externo já
-      // trata bot_banner_url null usando o global_bot_banner_url).
+      // bot volte ao banner global automaticamente.
       if (tenant.plan === "master" && tenant.bot_banner_url) {
         updates.bot_banner_url = null;
         bannersCleared++;
+        mustClearDiscord = true;
       }
 
       await supabase.from("tenants").update(updates).eq("id", tenant.id);
+
+      // Remove a capa efetivamente no Discord (sem isso o bot continua mostrando a antiga)
+      if (mustClearDiscord && (tenant as any).discord_guild_id) {
+        await clearDiscordBanner((tenant as any).discord_guild_id);
+      }
+
       suspended++;
       console.log(
         `Suspended tenant ${tenant.id} (${tenant.name}) - plan was ${tenant.plan}, expired at ${tenant.plan_expires_at}` +
-          (updates.bot_banner_url === null && tenant.bot_banner_url ? " [banner cleared]" : "")
+          (mustClearDiscord ? " [banner cleared + discord reset]" : "")
       );
     }
 
