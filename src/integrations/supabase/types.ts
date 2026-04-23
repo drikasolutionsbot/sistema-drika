@@ -753,7 +753,9 @@ export type Database = {
           global_bot_banner_url: string | null
           global_bot_status: string
           id: string
+          master_plan_name: string
           master_price_cents: number
+          pro_plan_name: string
           pro_price_cents: number
           pushinpay_active: boolean
           pushinpay_api_key: string | null
@@ -786,7 +788,9 @@ export type Database = {
           global_bot_banner_url?: string | null
           global_bot_status?: string
           id?: string
+          master_plan_name?: string
           master_price_cents?: number
+          pro_plan_name?: string
           pro_price_cents?: number
           pushinpay_active?: boolean
           pushinpay_api_key?: string | null
@@ -819,7 +823,9 @@ export type Database = {
           global_bot_banner_url?: string | null
           global_bot_status?: string
           id?: string
+          master_plan_name?: string
           master_price_cents?: number
+          pro_plan_name?: string
           pro_price_cents?: number
           pushinpay_active?: boolean
           pushinpay_api_key?: string | null
