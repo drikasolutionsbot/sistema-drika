@@ -243,7 +243,55 @@ const AdminBotConfigPage = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {/* Descrição (Bio) — global da aplicação Discord */}
+      <div className="wallet-section space-y-4">
+        <div className="wallet-section-header">
+          <div className="wallet-section-icon">
+            <FileText className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-foreground font-display font-semibold text-sm">Descrição / Bio do Bot</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Texto exibido em "Sobre Mim" no perfil do bot no Discord
+            </p>
+          </div>
+        </div>
+
+        {loadingDesc ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando descrição atual...
+          </div>
+        ) : (
+          <>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value.slice(0, 400))}
+              rows={5}
+              className="resize-none text-sm"
+              placeholder="DRIKA HUB - O melhor bot de vendas automáticas para Discord..."
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">
+                Aplicada via API do Discord — atualiza em todos os servidores instantaneamente.
+              </p>
+              <span className={`text-[11px] tabular-nums ${description.length > 380 ? "text-destructive" : "text-muted-foreground"}`}>
+                {description.length}/400
+              </span>
+            </div>
+            <Button
+              onClick={handleSaveDescription}
+              disabled={savingDesc}
+              size="sm"
+              className="gradient-pink text-primary-foreground border-none hover:opacity-90"
+            >
+              {savingDesc ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Check className="h-3.5 w-3.5 mr-2" />}
+              Salvar descrição no Discord
+            </Button>
+          </>
+        )}
+      </div>
+
+
         <Button
           onClick={handleSave}
           disabled={saving}
