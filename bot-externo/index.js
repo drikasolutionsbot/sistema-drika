@@ -178,9 +178,9 @@ async function syncBotIdentity(forceGuildProfileBanner = false) {
       console.log(`🔄 Status atualizado: "${status}"`);
     }
 
-    const shouldUpdateUserBanner = bannerUrl !== lastAppliedUserBannerUrl;
-    const shouldUpdateApplicationCover = bannerUrl !== lastAppliedApplicationCoverUrl;
-    const shouldUpdateGuildProfileBanner = forceGuildProfileBanner || bannerUrl !== lastAppliedGuildProfileBannerUrl;
+    const shouldUpdateUserBanner = forceAll || bannerUrl !== lastAppliedUserBannerUrl;
+    const shouldUpdateApplicationCover = forceAll || bannerUrl !== lastAppliedApplicationCoverUrl;
+    const shouldUpdateGuildProfileBanner = forceAll || bannerUrl !== lastAppliedGuildProfileBannerUrl;
 
     if (shouldUpdateUserBanner || shouldUpdateApplicationCover || shouldUpdateGuildProfileBanner) {
       const bannerAsset = bannerUrl ? await fetchImageBuffer(bannerUrl) : null;
