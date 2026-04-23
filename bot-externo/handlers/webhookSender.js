@@ -1,15 +1,17 @@
 const { WebhookClient } = require("discord.js");
 
-// Cache de webhooks por canal
+// Cache de webhooks por canal-base (canal pai quando for tópico)
 const webhookCache = new Map();
 
-async function resolveChannelWebhooks(channel) {
-  if (typeof channel?.fetchWebhooks === "function") {
-    return channel.fetchWebhooks();
-  }
+function resolveWebhookChannel(channel) {
+  return channel?.isThread?.() ? channel.parent : channel;
+}
 
-  if (typeof channel?.parent?.fetchWebhooks === "function") {
-    return channel.parent.fetchWebhooks();
+async function resolveChannelWebhooks(channel) {
+  const webhookChannel = resolveWebhookChannel(channel);
+
+  if (typeof webhookChannel?.fetchWebhooks === "function") {
+    return webhookChannel.fetchWebhooks();
   }
 
   return null;
@@ -22,9 +24,12 @@ async function resolveChannelWebhooks(channel) {
 async function sendWithIdentity(channel, tenant, options) {
   const botName = tenant?.bot_name || tenant?.name || "Drika Bot";
   const botAvatar = tenant?.bot_avatar_url || null;
+  const webhookChannel = resolveWebhookChannel(channel);
+  const isThreadTarget = channel?.isThread?.();
+  const cacheKey = webhookChannel?.id || channel?.id;
 
   try {
-    let webhook = webhookCache.get(channel.id);
+    let webhook = webhookCache.get(cacheKey);
 
     if (!webhook) {
       const webhooks = await resolveChannelWebhooks(channel).catch(() => null);
@@ -36,20 +41,21 @@ async function sendWithIdentity(channel, tenant, options) {
       if (existing) {
         webhook = new WebhookClient({ id: existing.id, token: existing.token });
       } else {
-        const created = await channel.createWebhook({ name: "Drika Webhook" });
+        const created = await webhookChannel.createWebhook({ name: "Drika Webhook" });
         webhook = new WebhookClient({ id: created.id, token: created.token });
       }
 
-      webhookCache.set(channel.id, webhook);
+      webhookCache.set(cacheKey, webhook);
     }
 
     return await webhook.send({
       ...options,
       username: botName,
       avatarURL: botAvatar,
+      ...(isThreadTarget ? { threadId: channel.id } : {}),
     });
   } catch (err) {
-    webhookCache.delete(channel.id);
+    webhookCache.delete(cacheKey);
     console.error("Webhook send failed, falling back to channel.send:", err.message);
     return channel.send(options);
   }
