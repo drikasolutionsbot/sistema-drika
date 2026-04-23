@@ -114,8 +114,28 @@ const BotCustomizationPage = () => {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
         body: { tenant_id: tenantId, updates: { bot_banner_url: pub.publicUrl } },
       });
+
+      // Tratar rate-limit do Discord (429) — edge function ainda salvou a URL no DB
       if (error) {
-        throw new Error(`Não foi possível salvar a capa no servidor: ${error.message || "erro desconhecido"}.`);
+        let bannerRateLimited = false;
+        let friendlyMsg = error.message || "erro desconhecido";
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx?.json) {
+            const body = await ctx.json();
+            if (body?.error === "BANNER_RATE_LIMIT") {
+              bannerRateLimited = true;
+              friendlyMsg = body.message || friendlyMsg;
+            }
+          }
+        } catch (_) { /* ignore */ }
+
+        if (bannerRateLimited) {
+          throw new Error(
+            "O Discord limita a frequência com que a capa do bot pode ser trocada. Aguarde alguns minutos e tente novamente — a nova imagem já foi salva e será aplicada na próxima sincronização."
+          );
+        }
+        throw new Error(`Não foi possível salvar a capa no servidor: ${friendlyMsg}.`);
       }
       if (data?.error) {
         throw new Error(`Servidor recusou a atualização: ${data.error}`);
