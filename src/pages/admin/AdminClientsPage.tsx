@@ -121,6 +121,7 @@ const AdminClientsPage = () => {
     setSavingPlan(true);
     try {
       const now = new Date();
+      const oldPlan = tenants.find(t => t.id === tenantId)?.plan || "free";
       const updateData: any = { plan: newPlan };
 
       if (newPlan === "pro" || newPlan === "master") {
@@ -128,9 +129,15 @@ const AdminClientsPage = () => {
         updateData.plan_started_at = now.toISOString();
         updateData.plan_expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
       } else {
-        // Downgrade to free: clear dates
+        // Downgrade to free/expired: clear dates
         updateData.plan_started_at = null;
         updateData.plan_expires_at = null;
+      }
+
+      // Se está saindo do Master para qualquer outro plano, revogar a capa personalizada
+      const losingMasterPerks = oldPlan === "master" && newPlan !== "master";
+      if (losingMasterPerks) {
+        updateData.bot_banner_url = null;
       }
 
       const { error } = await supabase
@@ -138,8 +145,17 @@ const AdminClientsPage = () => {
         .update(updateData)
         .eq("id", tenantId);
       if (error) throw error;
+
+      // Limpa a capa efetivamente no Discord (perfil do bot na guild)
+      if (losingMasterPerks) {
+        try {
+          await supabase.functions.invoke("clear-bot-banner", { body: { tenant_id: tenantId } });
+        } catch (e) {
+          console.error("clear-bot-banner failed:", e);
+        }
+      }
+
       const tenantName = tenants.find(t => t.id === tenantId)?.name || tenantId;
-      const oldPlan = tenants.find(t => t.id === tenantId)?.plan || "free";
       await logAudit("plan_changed", "tenant", tenantId, tenantName, { from: oldPlan, to: newPlan });
       setTenants((prev) =>
         prev.map((t) => (t.id === tenantId ? { ...t, ...updateData } : t))
