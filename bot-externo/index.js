@@ -211,21 +211,39 @@ client.on(Events.GuildCreate, async (guild) => {
   ];
 
   try {
-    let ownerDiscordId = guild.ownerId || null;
-    if (!ownerDiscordId) {
+    const resolveOwnerDiscordId = async () => {
+      if (guild.ownerId) return guild.ownerId;
+
       try {
         const owner = await guild.fetchOwner();
-        ownerDiscordId = owner?.id || null;
+        if (owner?.id) return owner.id;
       } catch (ownerError) {
         console.error(`Erro ao resolver owner do servidor ${guild.name}:`, ownerError.message);
       }
-    }
 
-    const linkedTenant = await autoLinkGuildToPendingTenant({
+      try {
+        await guild.fetch();
+        if (guild.ownerId) return guild.ownerId;
+      } catch (guildError) {
+        console.error(`Erro ao atualizar dados do servidor ${guild.name}:`, guildError.message);
+      }
+
+      return null;
+    };
+
+    let linkedTenant = await autoLinkGuildToPendingTenant({
       guildId: guild.id,
       guildName: guild.name,
-      ownerDiscordId,
+      ownerDiscordId: await resolveOwnerDiscordId(),
     });
+
+    if (!linkedTenant) {
+      linkedTenant = await autoLinkGuildToPendingTenant({
+        guildId: guild.id,
+        guildName: guild.name,
+        ownerDiscordId: null,
+      });
+    }
 
     if (linkedTenant) {
       console.log(`🔗 Servidor ${guild.name} vinculado automaticamente ao tenant ${linkedTenant.name}`);

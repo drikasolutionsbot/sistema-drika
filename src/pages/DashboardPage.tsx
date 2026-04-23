@@ -333,6 +333,15 @@ const DashboardPage = () => {
   }, [tenantId, refetch, clearPreferredReconnectGuildId, stopPolling]);
 
   const tryBackendAutoLink = useCallback(async () => {
+    await refetch();
+
+    if (tenant?.discord_guild_id) {
+      stopPolling();
+      setWaitingForBot(false);
+      clearPreferredReconnectGuildId();
+      return true;
+    }
+
     const preferredGuildId = getPreferredReconnectGuildId();
     if (preferredGuildId) {
       const { data: verifyData, error: verifyError } = await supabase.functions.invoke("discord-bot-guilds", {
@@ -372,7 +381,7 @@ const DashboardPage = () => {
     }
 
     return false;
-  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch]);
+  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch, tenant?.discord_guild_id]);
 
   const startPollingForGuildConnection = useCallback(() => {
     if (!tenantId) return;
@@ -393,6 +402,13 @@ const DashboardPage = () => {
 
       try {
         await refetch();
+
+        if (tenant?.discord_guild_id) {
+          stopPolling();
+          setWaitingForBot(false);
+          clearPreferredReconnectGuildId();
+          return;
+        }
 
         const currentGuilds = await fetchAllBotGuilds();
 
@@ -423,7 +439,7 @@ const DashboardPage = () => {
         // keep polling
       }
     }, 5000);
-  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch]);
+  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch, tenant?.discord_guild_id, clearPreferredReconnectGuildId]);
 
   useEffect(() => {
     if (!waitingForBot) return;
