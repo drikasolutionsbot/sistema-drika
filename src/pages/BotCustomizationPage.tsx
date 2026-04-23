@@ -67,6 +67,13 @@ const BotCustomizationPage = () => {
       return;
     }
 
+    // Preview imediato
+    const localUrl = URL.createObjectURL(file);
+    setBannerPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return localUrl;
+    });
+
     setUploadingBanner(true);
     try {
       const safeExt = extOk ? ext : "png";
