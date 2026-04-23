@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Loader2, Bot, Upload, Lock, Crown, ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Loader2, Bot, Upload, Lock, Crown, ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,15 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
   const bannerRef = useRef<HTMLInputElement>(null);
 
   const userIsMaster = isMaster(tenant?.plan);
+
+  // Re-sincroniza com o tenant sempre que o modal abre ou o tenant muda externamente
+  useEffect(() => {
+    if (open) {
+      setBotName(tenant?.bot_name || "");
+      setBotAvatarUrl(tenant?.bot_avatar_url || "");
+      setBotBannerUrl(tenant?.bot_banner_url || "");
+    }
+  }, [open, tenant?.bot_name, tenant?.bot_avatar_url, tenant?.bot_banner_url]);
 
   const handleUpload = async (file: File, kind: "avatar" | "banner") => {
     if (!tenantId) return;
@@ -154,9 +163,21 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
 
             <div className={`relative ${!userIsMaster ? "opacity-60 pointer-events-none select-none" : ""}`}>
               <div className="flex items-center gap-4">
-                <div className="shrink-0">
+                <div className="shrink-0 relative">
                   {botBannerUrl ? (
-                    <img src={botBannerUrl} alt="Capa" className="h-16 w-28 rounded-md object-cover border-2 border-border" />
+                    <>
+                      <img src={botBannerUrl} alt="Capa" className="h-16 w-28 rounded-md object-cover border-2 border-border" />
+                      <button
+                        type="button"
+                        onClick={() => setBotBannerUrl("")}
+                        disabled={!userIsMaster}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                        aria-label="Remover capa"
+                        title="Remover capa"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </>
                   ) : (
                     <div className="h-16 w-28 rounded-md bg-muted flex items-center justify-center border-2 border-border">
                       <ImageIcon className="h-5 w-5 text-muted-foreground" />
@@ -170,7 +191,7 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
                   disabled={uploadingBanner || !userIsMaster}
                 >
                   {uploadingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Escolher Capa
+                  {botBannerUrl ? "Trocar Capa" : "Escolher Capa"}
                 </Button>
               </div>
             </div>
@@ -181,7 +202,10 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
                 Disponível apenas no plano <strong className="text-primary">Master</strong>.
               </p>
             ) : (
-              <p className="text-[11px] text-muted-foreground">PNG, JPG até 10MB. Recomendado 960×540px.</p>
+              <p className="text-[11px] text-muted-foreground">
+                PNG, JPG até 10MB. Recomendado 960×540px.
+                {botBannerUrl && " Clique no X para remover."}
+              </p>
             )}
           </div>
         </div>
