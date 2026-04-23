@@ -318,6 +318,18 @@ serve(async (req) => {
       const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
 
       if (resolvedTenantId) {
+        let auditDiscordUserId = resolvedDiscordUserId;
+
+        if (!auditDiscordUserId) {
+          const { data: tenantOwner } = await admin
+            .from("tenants")
+            .select("owner_discord_id")
+            .eq("id", resolvedTenantId)
+            .maybeSingle();
+
+          auditDiscordUserId = tenantOwner?.owner_discord_id || null;
+        }
+
         await admin
           .from("tenant_audit_logs")
           .insert({
@@ -325,7 +337,7 @@ serve(async (req) => {
             action: "pending_bot_invite",
             entity_type: "servidor",
             entity_name: null,
-            actor_discord_id: resolvedDiscordUserId,
+            actor_discord_id: auditDiscordUserId,
             actor_name: "Sistema",
             details: {
               source: "dashboard_invite",
