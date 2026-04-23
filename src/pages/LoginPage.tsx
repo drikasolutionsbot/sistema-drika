@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { LogIn } from "lucide-react";
+import { LogIn, Mail, KeyRound, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WifiLoader from "@/components/ui/wifi-loader";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
@@ -14,7 +14,11 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { t, language, setLanguage } = useLanguage();
+  const [mode, setMode] = useState<"token" | "email">("token");
   const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [validating, setValidating] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
 
@@ -47,6 +51,52 @@ const LoginPage = () => {
         toast({ title: `👋 ${t.login.welcome}, ${data.tenant_name}!`, description: t.login.panelLoaded, variant: "success" as any });
         navigate("/dashboard", { replace: true });
       }
+    } catch (e: any) {
+      toast({ title: t.login.error, description: e.message, variant: "destructive" });
+      setValidating(false);
+    }
+  };
+
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      toast({ title: "Preencha email e senha", variant: "destructive" });
+      return;
+    }
+    setValidating(true);
+    try {
+      if (user) await signOut();
+      sessionStorage.removeItem("token_session");
+
+      const { data, error } = await supabase.functions.invoke("login-with-email", {
+        body: { email: email.trim(), password },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      if (error || data?.error) {
+        toast({
+          title: "Falha no login",
+          description: data?.error || error?.message,
+          variant: "destructive",
+        });
+        setValidating(false);
+        return;
+      }
+
+      sessionStorage.setItem(
+        "token_session",
+        JSON.stringify({
+          tenant_id: data.tenant_id,
+          tenant_name: data.tenant_name,
+          token: data.token,
+        })
+      );
+      toast({
+        title: `👋 ${t.login.welcome}, ${data.tenant_name}!`,
+        description: t.login.panelLoaded,
+        variant: "success" as any,
+      });
+      navigate("/dashboard", { replace: true });
     } catch (e: any) {
       toast({ title: t.login.error, description: e.message, variant: "destructive" });
       setValidating(false);
@@ -89,30 +139,112 @@ const LoginPage = () => {
 
         {/* Login form */}
         <div className="space-y-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          <div className="space-y-3">
-            <div className="relative login-floating-input">
-              <input
-                type="text"
-                required
-                autoComplete="off"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleTokenLogin()}
-                className="w-full text-base px-4 py-3 bg-white/10 border-2 border-white/30 rounded-[20px] outline-none text-white transition-colors focus:border-primary"
-              />
-              <label className="absolute left-0 px-4 py-3 ml-2 pointer-events-none text-white/70 font-semibold text-base tracking-wide transition-all duration-300">
-                {t.login.tokenPlaceholder}
-              </label>
+          {mode === "token" ? (
+            <div className="space-y-3">
+              <div className="relative login-floating-input">
+                <input
+                  type="text"
+                  required
+                  autoComplete="off"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleTokenLogin()}
+                  className="w-full text-base px-4 py-3 bg-white/10 border-2 border-white/30 rounded-[20px] outline-none text-white transition-colors focus:border-primary"
+                />
+                <label className="absolute left-0 px-4 py-3 ml-2 pointer-events-none text-white/70 font-semibold text-base tracking-wide transition-all duration-300">
+                  {t.login.tokenPlaceholder}
+                </label>
+              </div>
+              <button
+                onClick={handleTokenLogin}
+                disabled={validating || !token.trim()}
+                className="w-full h-10 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors group"
+              >
+                <LogIn className="h-5 w-5 group-hover:animate-[flickering_2s_linear_infinite]" />
+                <span>{t.login.tokenLogin}</span>
+              </button>
+
+              {/* Toggle para email */}
+              <button
+                type="button"
+                onClick={() => setMode("email")}
+                className="w-full flex items-center justify-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-2 bg-transparent border border-white/20 rounded-full hover:bg-white/5"
+              >
+                <Mail className="h-4 w-4" />
+                <span>
+                  {language === "pt-BR"
+                    ? "Logar por email"
+                    : language === "de"
+                    ? "Mit E-Mail anmelden"
+                    : "Sign in with email"}
+                </span>
+              </button>
             </div>
-            <button
-              onClick={handleTokenLogin}
-              disabled={validating || !token.trim()}
-              className="w-full h-10 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors group"
-            >
-              <LogIn className="h-5 w-5 group-hover:animate-[flickering_2s_linear_infinite]" />
-              <span>{t.login.tokenLogin}</span>
-            </button>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none" />
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEmailLogin()}
+                  placeholder={
+                    language === "pt-BR" ? "seu@email.com" : language === "de" ? "deine@email.com" : "your@email.com"
+                  }
+                  className="w-full text-base pl-12 pr-4 py-3 bg-white/10 border-2 border-white/30 rounded-[20px] outline-none text-white placeholder:text-white/40 transition-colors focus:border-primary"
+                />
+              </div>
+              <div className="relative">
+                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50 pointer-events-none" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEmailLogin()}
+                  placeholder={
+                    language === "pt-BR" ? "Senha" : language === "de" ? "Passwort" : "Password"
+                  }
+                  className="w-full text-base pl-12 pr-12 py-3 bg-white/10 border-2 border-white/30 rounded-[20px] outline-none text-white placeholder:text-white/40 transition-colors focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center text-white/60 hover:text-white bg-transparent border-none"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <button
+                onClick={handleEmailLogin}
+                disabled={validating || !email.trim() || !password.trim()}
+                className="w-full h-10 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors group"
+              >
+                <LogIn className="h-5 w-5 group-hover:animate-[flickering_2s_linear_infinite]" />
+                <span>
+                  {language === "pt-BR" ? "Entrar" : language === "de" ? "Anmelden" : "Sign in"}
+                </span>
+              </button>
+
+              {/* Voltar para token */}
+              <button
+                type="button"
+                onClick={() => setMode("token")}
+                className="w-full flex items-center justify-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-2 bg-transparent border border-white/20 rounded-full hover:bg-white/5"
+              >
+                <span>
+                  {language === "pt-BR"
+                    ? "← Voltar para token"
+                    : language === "de"
+                    ? "← Zurück zum Token"
+                    : "← Back to token"}
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* Terms */}
           <div className="text-center space-y-2">
