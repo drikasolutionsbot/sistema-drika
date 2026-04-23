@@ -24,15 +24,51 @@ const BotCustomizationPage = () => {
 
   const botId = (tenant as any).discord_bot_id || tenant.id;
 
+  const ALLOWED_BANNER_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+  const ALLOWED_BANNER_EXTS = ["jpg", "jpeg", "png", "webp"];
+  const MAX_BANNER_MB = 8;
+
   const handleBannerUpload = async (file: File) => {
     if (!tenantId || !userIsMaster) return;
+
+    // Validação de tipo (MIME + extensão como fallback)
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const mimeOk = (ALLOWED_BANNER_TYPES as readonly string[]).includes(file.type);
+    const extOk = ALLOWED_BANNER_EXTS.includes(ext);
+    if (!mimeOk && !extOk) {
+      toast({
+        title: "Formato inválido",
+        description: "Envie uma imagem JPG, PNG ou WebP.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validação de tamanho
+    const sizeMb = file.size / (1024 * 1024);
+    if (sizeMb > MAX_BANNER_MB) {
+      toast({
+        title: "Imagem muito grande",
+        description: `A capa deve ter no máximo ${MAX_BANNER_MB}MB (atual: ${sizeMb.toFixed(1)}MB).`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (file.size === 0) {
+      toast({ title: "Arquivo vazio", description: "Selecione uma imagem válida.", variant: "destructive" });
+      return;
+    }
+
     setUploadingBanner(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `${tenantId}/bot-banner/${crypto.randomUUID()}.${ext}`;
+      const safeExt = extOk ? ext : "png";
+      const path = `${tenantId}/bot-banner/${crypto.randomUUID()}.${safeExt}`;
       const { error: upErr } = await supabase.storage
         .from("tenant-assets")
-        .upload(path, file, { upsert: true });
+        .upload(path, file, {
+          upsert: true,
+          contentType: mimeOk ? file.type : `image/${safeExt === "jpg" ? "jpeg" : safeExt}`,
+        });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("tenant-assets").getPublicUrl(path);
 
