@@ -18,28 +18,54 @@ interface PixResult {
   payment_id: string | null;
 }
 
+type PlanKey = "pro" | "master";
+
+/**
+ * Helper público para abrir o modal de upgrade.
+ * Aceita "pro" (default) ou "master".
+ *
+ *   import { openUpgradeModal } from "@/components/ProUpgradeModal";
+ *   openUpgradeModal("master");
+ */
+export function openUpgradeModal(plan: PlanKey = "pro") {
+  sessionStorage.setItem("pending_pro_upgrade", "true");
+  sessionStorage.setItem("pending_pro_upgrade_plan", plan);
+  window.dispatchEvent(new Event("pending_pro_upgrade"));
+}
+
 const ProUpgradeModal = () => {
   const [open, setOpen] = useState(false);
   const { tenantId } = useTenant();
   const [loading, setLoading] = useState(false);
   const [pixResult, setPixResult] = useState<PixResult | null>(null);
   const [proPriceCents, setProPriceCents] = useState(2690);
+  const [masterPriceCents, setMasterPriceCents] = useState(3090);
+  const [planKey, setPlanKey] = useState<PlanKey>("pro");
   const [confirmed, setConfirmed] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    supabase.from("landing_config").select("pro_price_cents").limit(1).single().then(({ data }) => {
-      if (data?.pro_price_cents) setProPriceCents(data.pro_price_cents);
-    });
+    supabase
+      .from("landing_config")
+      .select("pro_price_cents, master_price_cents")
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data?.pro_price_cents) setProPriceCents(data.pro_price_cents);
+        if (data?.master_price_cents) setMasterPriceCents(data.master_price_cents);
+      });
   }, []);
 
   useEffect(() => {
     const checkPending = () => {
       const pending = sessionStorage.getItem("pending_pro_upgrade");
       if (pending === "true" && tenantId) {
+        const requested = (sessionStorage.getItem("pending_pro_upgrade_plan") as PlanKey) || "pro";
         sessionStorage.removeItem("pending_pro_upgrade");
+        sessionStorage.removeItem("pending_pro_upgrade_plan");
+        setPlanKey(requested);
         setOpen(true);
-        generatePix();
+        generatePix(requested);
       }
     };
     checkPending();
@@ -61,7 +87,10 @@ const ProUpgradeModal = () => {
         if (data?.status === "paid") {
           if (pollRef.current) clearInterval(pollRef.current);
           setConfirmed(true);
-          toast({ title: "Pagamento confirmado!", description: "Seu plano Pro foi ativado." });
+          toast({
+            title: "Pagamento confirmado!",
+            description: `Seu plano ${planKey === "master" ? "Master" : "Pro"} foi ativado.`,
+          });
           // Reload after a moment to refresh plan status
           setTimeout(() => window.location.reload(), 3000);
         }
@@ -69,23 +98,25 @@ const ProUpgradeModal = () => {
     }, 4000);
   };
 
-  const generatePix = async () => {
+  const generatePix = async (planOverride?: PlanKey) => {
     if (!tenantId) return;
+    const plan = planOverride || planKey;
     setLoading(true);
     setPixResult(null);
     setConfirmed(false);
     if (pollRef.current) clearInterval(pollRef.current);
     try {
       const { data, error } = await supabase.functions.invoke("generate-subscription-pix", {
-        body: { tenant_id: tenantId, ref_code: null },
+        body: { tenant_id: tenantId, ref_code: null, plan },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      
+
       const paymentId = data.payment_id || null;
+      const fallbackPrice = plan === "master" ? masterPriceCents : proPriceCents;
       setPixResult({
         brcode: data.brcode || data.pix_code || "",
-        amount: data.amount || (proPriceCents / 100).toFixed(2),
+        amount: data.amount || (fallbackPrice / 100).toFixed(2),
         method: data.method || "dynamic",
         provider: data.provider || null,
         qr_code_base64: data.qr_code_base64 || null,
@@ -95,10 +126,10 @@ const ProUpgradeModal = () => {
       if (paymentId) startPolling(paymentId);
     } catch (err: any) {
       console.error("Error generating PIX:", err);
-      toast({ 
-        title: "Erro ao gerar PIX", 
+      toast({
+        title: "Erro ao gerar PIX",
         description: err.message || "Tente novamente",
-        variant: "destructive" 
+        variant: "destructive",
       });
     }
     setLoading(false);
@@ -113,23 +144,27 @@ const ProUpgradeModal = () => {
     }
   };
 
+  const isMaster = planKey === "master";
+  const priceCents = isMaster ? masterPriceCents : proPriceCents;
+  const planLabel = isMaster ? "Master" : "Pro";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="bg-card/95 backdrop-blur-xl border-primary/20 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-foreground flex flex-col items-center gap-3">
             <img src={drikaLogo} alt="Drika" className="h-16 w-auto" />
-            <span className="text-xl font-bold">Ativar Drika Hub Pro</span>
+            <span className="text-xl font-bold">Ativar Drika Hub {planLabel}</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mb-3">
-              <Crown className="h-4 w-4" /> Plano Mensal
+              <Crown className="h-4 w-4" /> Plano {planLabel} Mensal
             </div>
             <p className="text-3xl font-extrabold text-foreground">
-              R$ {(proPriceCents / 100).toFixed(2).replace(".", ",")}
+              R$ {(priceCents / 100).toFixed(2).replace(".", ",")}
               <span className="text-sm font-normal text-muted-foreground">/mês</span>
             </p>
           </div>
@@ -178,10 +213,10 @@ const ProUpgradeModal = () => {
           ) : (
             <div className="space-y-3 text-center">
               <p className="text-sm text-muted-foreground">
-                Clique abaixo para gerar o código PIX e ativar seu plano Pro.
+                Clique abaixo para gerar o código PIX e ativar seu plano {planLabel}.
               </p>
               <Button
-                onClick={generatePix}
+                onClick={() => generatePix()}
                 className="w-full bg-primary hover:bg-primary/90"
                 disabled={loading}
               >
