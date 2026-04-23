@@ -5,6 +5,7 @@ import { Bot, Pencil, ImageIcon, Lock, Crown, Loader2, Upload } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import EditBotProfileModal from "@/components/settings/EditBotProfileModal";
+import BannerCropModal from "@/components/customization/BannerCropModal";
 import { openUpgradeModal } from "@/components/ProUpgradeModal";
 import { isMaster } from "@/lib/plans";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,8 @@ const BotCustomizationPage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
   // Cleanup do object URL quando o preview muda/desmonta
