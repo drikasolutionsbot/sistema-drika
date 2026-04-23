@@ -391,6 +391,21 @@ const BotCustomizationPage = () => {
         tenantId={tenantId}
         refetchTenant={refetch}
       />
+
+      {/* Banner Crop Modal */}
+      <BannerCropModal
+        open={cropOpen}
+        onOpenChange={(o) => {
+          setCropOpen(o);
+          if (!o) setCropFile(null);
+        }}
+        file={cropFile}
+        botName={botName}
+        botAvatarUrl={botAvatar}
+        onConfirm={async (croppedFile) => {
+          await handleBannerUpload(croppedFile);
+        }}
+      />
     </div>
   );
 };
