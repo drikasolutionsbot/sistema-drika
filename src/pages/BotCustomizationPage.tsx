@@ -285,8 +285,8 @@ const BotCustomizationPage = () => {
           )}
         </div>
 
-        {/* Foreground content */}
-        <div className="relative flex flex-col items-center pt-16 pb-8 gap-3">
+        {/* Foreground content - aligned right like Discord embed */}
+        <div className="relative flex flex-col items-end pt-16 pb-8 pr-6 sm:pr-10 gap-3 text-right">
           {/* Avatar */}
           <div className="relative">
             {botAvatar ? (
