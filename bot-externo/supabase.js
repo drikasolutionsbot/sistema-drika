@@ -398,6 +398,31 @@ async function getGlobalBotConfig() {
   return data;
 }
 
+// ── Master tenants com banner customizado por guild ──
+// Retorna mapa { guildId: bannerUrl } apenas para tenants no plano Master que
+// configuraram bot_banner_url. Usado para sobrepor o banner global na guild.
+async function getMasterTenantBanners() {
+  const { data, error } = await supabase
+    .from("tenants")
+    .select("discord_guild_id, bot_banner_url, plan")
+    .eq("plan", "master")
+    .not("discord_guild_id", "is", null)
+    .not("bot_banner_url", "is", null);
+
+  if (error) {
+    console.error("[getMasterTenantBanners] erro:", error.message);
+    return {};
+  }
+
+  const map = {};
+  for (const row of data || []) {
+    if (row.discord_guild_id && row.bot_banner_url) {
+      map[row.discord_guild_id] = row.bot_banner_url;
+    }
+  }
+  return map;
+}
+
 module.exports = {
   supabase,
   getTenantByGuild,
@@ -427,4 +452,5 @@ module.exports = {
   triggerAutomation,
   deliverOrder,
   getGlobalBotConfig,
+  getMasterTenantBanners,
 };
