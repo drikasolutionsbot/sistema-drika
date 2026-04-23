@@ -246,7 +246,7 @@ const NeuralLines = () => (
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function AIAssistantPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, tenant } = useTenant();
   const { user } = useAuth();
   const { t } = useLanguage();
 
