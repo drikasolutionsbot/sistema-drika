@@ -244,7 +244,7 @@ client.on(Events.ClientReady, async () => {
   }
 
   // Sync identidade global imediatamente e depois a cada 15 segundos
-  await syncBotIdentity();
+  await syncBotIdentity(true);
   setInterval(syncBotIdentity, 15_000);
 });
 // ── Ao entrar em um novo servidor, registrar os comandos ──
