@@ -51,7 +51,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const actionLink = linkData.properties.action_link;
+    const rawActionLink = linkData.properties.action_link;
+    const actionUrl = new URL(rawActionLink);
+    actionUrl.searchParams.set("redirect_to", resetRedirectUrl);
+    const actionLink = actionUrl.toString();
 
     // Monta email HTML branded DRIKA HUB
     const html = `<!DOCTYPE html>
