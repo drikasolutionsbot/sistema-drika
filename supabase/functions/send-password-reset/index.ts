@@ -51,10 +51,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const rawActionLink = linkData.properties.action_link;
-    const actionUrl = new URL(rawActionLink);
-    actionUrl.searchParams.set("redirect_to", resetRedirectUrl);
-    const actionLink = actionUrl.toString();
+    const hashedToken = linkData.properties.hashed_token;
+    if (!hashedToken) {
+      return new Response(JSON.stringify({ error: "Token de recuperação não gerado" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const actionLink = `${resetRedirectUrl}?token_hash=${encodeURIComponent(hashedToken)}&type=recovery`;
 
     // Monta email HTML branded DRIKA HUB
     const html = `<!DOCTYPE html>
