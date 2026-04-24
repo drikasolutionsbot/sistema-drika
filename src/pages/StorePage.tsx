@@ -176,22 +176,25 @@ const StorePage = () => {
 
         <TabsContent value="products" className="mt-4">
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] min-h-[400px] lg:min-h-[600px]">
-              <ProductList
-                products={products}
-                isLoading={isLoading}
-                search={search}
-                onSearchChange={setSearch}
-                selectedId={selectedProduct?.id ?? null}
-                onSelect={setSelectedProduct}
-                onNewProduct={handleNewProduct}
-                categories={categories}
-                selectedCategoryId={selectedCategoryId}
-                onCategoryChange={setSelectedCategoryId}
-                fieldCounts={fieldCounts}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] min-h-[400px] lg:min-h-[600px]">
+              {/* Em mobile, esconde a lista quando um produto está selecionado */}
+              <div className={selectedProduct ? "hidden lg:block" : "block"}>
+                <ProductList
+                  products={products}
+                  isLoading={isLoading}
+                  search={search}
+                  onSearchChange={setSearch}
+                  selectedId={selectedProduct?.id ?? null}
+                  onSelect={setSelectedProduct}
+                  onNewProduct={handleNewProduct}
+                  categories={categories}
+                  selectedCategoryId={selectedCategoryId}
+                  onCategoryChange={setSelectedCategoryId}
+                  fieldCounts={fieldCounts}
+                />
+              </div>
 
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {selectedProduct ? (
                   <ProductDetail
                     key={selectedProduct.id}
@@ -202,7 +205,7 @@ const StorePage = () => {
                     categories={categories}
                   />
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-12">
+                  <div className="hidden lg:flex flex-col items-center justify-center h-full text-muted-foreground p-12">
                     <Package className="h-16 w-16 mb-4 opacity-20" />
                     <p className="text-lg font-medium">Selecione um produto</p>
                     <p className="text-sm mt-1">Escolha um produto da lista para editar</p>
