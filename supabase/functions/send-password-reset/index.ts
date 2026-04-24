@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { email, redirectTo } = await req.json();
+    const { email } = await req.json();
     if (!email || typeof email !== "string") {
       return new Response(JSON.stringify({ error: "Email é obrigatório" }), {
         status: 400,
@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY")!;
+    const resetRedirectUrl = "https://www.drikahub.com/reset-password";
     if (!resendKey) {
       return new Response(JSON.stringify({ error: "RESEND_API_KEY não configurada" }), {
         status: 500,
@@ -33,12 +34,12 @@ Deno.serve(async (req) => {
     // Não revelar se o email existe ou não - sempre responde sucesso
     const cleanEmail = email.trim().toLowerCase();
 
-    // Gera link de recuperação via Supabase Admin API
+    // Gera link de recuperação via Supabase Admin API sempre com domínio oficial
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: cleanEmail,
       options: {
-        redirectTo: redirectTo || `${new URL(req.url).origin.replace("supabase.co", "lovable.app")}/reset-password`,
+        redirectTo: resetRedirectUrl,
       },
     });
 
