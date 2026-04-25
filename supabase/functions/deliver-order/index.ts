@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { tr, trf, normLang } from "../_shared/i18n.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,9 +40,10 @@ serve(async (req) => {
     // 2. Get tenant + external bot token
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("name, logo_url, discord_guild_id, bot_name, bot_avatar_url")
+      .select("name, logo_url, discord_guild_id, bot_name, bot_avatar_url, language")
       .eq("id", tenant_id)
       .single();
+    const lang = normLang((tenant as any)?.language);
 
     // Identidade da loja para embeds em DM (DM usa perfil global do bot;
     // por isso aplicamos a marca no embed via author + footer)
@@ -182,8 +184,8 @@ serve(async (req) => {
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: "🟢 Pedido aprovado",
-            description: `Seu pagamento foi aprovado, e o processo de entrega já foi iniciado.`,
+            title: tr(lang, "order_approved_title"),
+            description: tr(lang, "order_approved_desc"),
             color: purchaseEmbedColor,
             fields: [
               { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
@@ -232,8 +234,8 @@ serve(async (req) => {
         body: JSON.stringify({
           embeds: [{
             author: storeBrand,
-            title: "🟢 Pagamento confirmado",
-            description: `Seu pagamento de **${formatBRL(order.total_cents)}** foi confirmado.`,
+            title: tr(lang, "payment_confirmed_title"),
+            description: trf(lang, "payment_confirmed_desc", { total: formatBRL(order.total_cents) }),
             color: purchaseEmbedColor,
             fields: [
               { name: "**Detalhes**", value: `1x ${order.product_name}`, inline: false },
@@ -277,7 +279,7 @@ serve(async (req) => {
       // 6c. Send "Entrega Realizada" embed with action buttons
       const deliveryEmbed: any = {
         author: storeBrand,
-        title: `Pedido #${order.id}`,
+        title: `${tr(lang, "order_label")} #${order.id}`,
         description: isAutoDelivery && stockItems.length > 0
           ? "**Entrega Realizada**\nSeu produto foi anexado a essa mensagem"
           : isAutoDelivery
@@ -320,7 +322,7 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: `Avalie o serviço de ${buyerMention} sobre este produto.\n-# Sua avaliação é muito importante para reputação dessa loja.`,
+          content: trf(lang, "review_prompt", { buyer: buyerMention }),
           components: [{
             type: 1,
             components: [
@@ -346,7 +348,7 @@ serve(async (req) => {
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            description: `✅ **Entrega realizada!** Verifique seu privado, esse ticket será excluído **em 2 minutos**`,
+            description: tr(lang, "delivery_done"),
             color: 0x2B2D31,
           }],
           components: [
@@ -355,7 +357,7 @@ serve(async (req) => {
               components: [{
                 type: 2,
                 style: 5,
-                label: "Ir para o pedido entregue",
+                label: tr(lang, "go_to_order"),
                 url: dmLink,
               }],
             },
@@ -585,7 +587,7 @@ serve(async (req) => {
       embeds: [salesEmbed],
       components: [{
         type: 1,
-        components: [{ type: 2, style: 5, label: "Comprar", url: `https://discord.com/channels/${guildId}` }],
+        components: [{ type: 2, style: 5, label: tr(lang, "buy"), url: `https://discord.com/channels/${guildId}` }],
       }],
     };
 
