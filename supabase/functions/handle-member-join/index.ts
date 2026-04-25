@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
       // 2. Welcome message in channel
       if (config.enabled && config.channel_enabled && config.channel_id) {
         try {
-          const embed = buildEmbed(config.embed_data, replaceVars, tenant);
+          const embed = buildEmbed(config.embed_data, replaceVars, tenant, lang);
           const payload: any = { embeds: [embed] };
           if (config.content) payload.content = replaceVars(config.content);
 
