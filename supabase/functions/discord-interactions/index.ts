@@ -2315,16 +2315,58 @@ serve(async (req) => {
         return ok();
       }
 
-    } catch (err) {
-      console.error("Interaction error:", err);
-      try {
-        await editFollowup(interaction, botToken, `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
-      } catch {
-        // If deferred response wasn't sent, try immediate
+      // ─── FEEDBACK BUTTON: opens rating modal ──────────────
+      if (customId.startsWith("feedback_order:")) {
+        const orderId = customId.replace("feedback_order:", "");
+
+        const { data: existingFb } = await supabase
+          .from("order_feedbacks")
+          .select("id")
+          .eq("order_id", orderId)
+          .eq("discord_user_id", userId)
+          .maybeSingle();
+
+        if (existingFb) {
+          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+        }
+
+        return new Response(JSON.stringify({
+          type: 9,
+          data: {
+            custom_id: `feedback_modal:${orderId}`,
+            title: "Avaliar sua compra",
+            components: [
+              {
+                type: 1,
+                components: [{
+                  type: 4,
+                  custom_id: "rating",
+                  label: "Nota de 1 a 5 (estrelas)",
+                  style: 1,
+                  min_length: 1,
+                  max_length: 1,
+                  placeholder: "5",
+                  required: true,
+                }],
+              },
+              {
+                type: 1,
+                components: [{
+                  type: 4,
+                  custom_id: "comment",
+                  label: "Comentário (opcional)",
+                  style: 2,
+                  max_length: 500,
+                  placeholder: "Conte como foi sua experiência...",
+                  required: false,
+                }],
+              },
+            ],
+          },
+        }), { headers: { "Content-Type": "application/json" } });
       }
-      return ok();
-    }
-  }
+
+
 
   // Type 5: MODAL_SUBMIT
   if (interaction.type === 5) {
