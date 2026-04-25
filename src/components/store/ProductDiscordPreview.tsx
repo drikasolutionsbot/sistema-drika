@@ -12,6 +12,21 @@ const DISCORD_LABELS: Record<string, Record<string, string>> = {
   de: { buy: "🛒 Kaufen", buy_plain: "kaufen", price: "Preis", stock: "Verfügbar", auto: "⚡ Sofortige Lieferung!", manual: "📦 Manuelle Lieferung", available: "✅ Verfügbar • Jetzt kaufen!", unavailable: "❌ Nicht verfügbar" },
 };
 
+const DEFAULT_DISCORD_TEXTS = new Set([
+  "comprar", "🛒 comprar", "buy", "🛒 buy", "kaufen", "🛒 kaufen",
+  "valor à vista", "valor a vista", "price", "preis",
+  "restam", "in stock", "verfügbar",
+  "⚡ entrega automática!", "⚡ entrega automatica!", "⚡ instant delivery!", "⚡ sofortige lieferung!",
+  "📦 entrega manual", "🛠️ entrega manual", "📦 manual delivery", "🛠️ manual delivery", "📦 manuelle lieferung", "🛠️ manuelle lieferung",
+  "✅ disponível • compre agora!", "✅ disponivel • compre agora!", "✅ available • buy now!", "✅ verfügbar • jetzt kaufen!",
+  "❌ indisponível", "❌ indisponivel", "❌ unavailable", "❌ nicht verfügbar",
+]);
+
+const localizedOrCustom = (value: string | undefined, fallback: string) => {
+  const normalized = value?.trim().toLowerCase();
+  return !normalized || DEFAULT_DISCORD_TEXTS.has(normalized) ? fallback : value!;
+};
+
 interface Product {
   id: string;
   name: string;
@@ -146,9 +161,9 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             {/* Delivery badge */}
             {cfg.show_delivery_badge !== false && (
               product.auto_delivery ? (
-                <p className="text-[#57F287] text-xs font-semibold">{cfg.delivery_auto_text || L.auto}</p>
+                <p className="text-[#57F287] text-xs font-semibold">{localizedOrCustom(cfg.delivery_auto_text, L.auto)}</p>
               ) : (
-                <p className="text-[#FEE75C] text-xs font-semibold">{cfg.delivery_manual_text || L.manual}</p>
+                <p className="text-[#FEE75C] text-xs font-semibold">{localizedOrCustom(cfg.delivery_manual_text, L.manual)}</p>
               )
             )}
 
@@ -163,13 +178,13 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
               {cfg.show_price !== false && (
                 <div>
-                  <p className="text-[#dcddde] text-[10px] font-semibold">**{cfg.price_label || L.price}**</p>
+                  <p className="text-[#dcddde] text-[10px] font-semibold">**{localizedOrCustom(cfg.price_label, L.price)}**</p>
                   <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
                 </div>
               )}
               {cfg.show_stock_field !== false && (
                 <div>
-                  <p className="text-[#dcddde] text-[10px] font-semibold">{cfg.stock_label || L.stock}</p>
+                  <p className="text-[#dcddde] text-[10px] font-semibold">{localizedOrCustom(cfg.stock_label, L.stock)}</p>
                   <p className="text-[#dcddde] text-xs">{realStockCount}</p>
                 </div>
               )}
@@ -189,8 +204,8 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
               <div className="flex items-center gap-1 mt-2 pt-1 border-t border-[#3f4147]">
                 <p className="text-[#72767d] text-[10px]">
                   {product.active
-                    ? (cfg.footer_available_text || L.available)
-                    : (cfg.footer_unavailable_text || L.unavailable)}
+                    ? localizedOrCustom(cfg.footer_available_text, L.available)
+                    : localizedOrCustom(cfg.footer_unavailable_text, L.unavailable)}
                 </p>
               </div>
             )}
