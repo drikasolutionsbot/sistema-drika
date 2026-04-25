@@ -1,5 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import type { EmbedData } from "./types";
+import { useTenant } from "@/contexts/TenantContext";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 /** Minimal markdown: bold, italic, underline, links */
 const renderMarkdown = (text: string) => {
