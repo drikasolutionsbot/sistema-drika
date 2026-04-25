@@ -1396,6 +1396,7 @@ export type Database = {
           enable_instructions: boolean
           icon_url: string | null
           id: string
+          language: string | null
           name: string
           payment_provider_key: string | null
           price_cents: number
@@ -1421,6 +1422,7 @@ export type Database = {
           enable_instructions?: boolean
           icon_url?: string | null
           id?: string
+          language?: string | null
           name: string
           payment_provider_key?: string | null
           price_cents?: number
@@ -1446,6 +1448,7 @@ export type Database = {
           enable_instructions?: boolean
           icon_url?: string | null
           id?: string
+          language?: string | null
           name?: string
           payment_provider_key?: string | null
           price_cents?: number
