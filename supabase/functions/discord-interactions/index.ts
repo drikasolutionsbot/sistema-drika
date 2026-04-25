@@ -2315,7 +2315,50 @@ serve(async (req) => {
         return ok();
       }
 
-      // ─── FEEDBACK BUTTON: opens rating modal ──────────────
+      // ─── FEEDBACK INLINE BUTTONS (Ruim/Mediano/Muito Bom) ─
+      if (customId.startsWith("feedback_rate:")) {
+        const [, orderId, ratingStr] = customId.split(":");
+        const rating = parseInt(ratingStr);
+
+        if (isNaN(rating) || rating < 1 || rating > 5) {
+          return respondImmediate(interaction, "❌ Nota inválida.");
+        }
+
+        const { data: existingFb } = await supabase
+          .from("order_feedbacks")
+          .select("id")
+          .eq("order_id", orderId)
+          .eq("discord_user_id", userId)
+          .maybeSingle();
+
+        if (existingFb) {
+          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+        }
+
+        const ratingLabel = rating <= 1 ? "Ruim" : rating <= 3 ? "Mediano" : "Muito Bom";
+
+        return new Response(JSON.stringify({
+          type: 9,
+          data: {
+            custom_id: `feedback_modal:${orderId}:${rating}`,
+            title: `Avaliação: ${ratingLabel}`,
+            components: [{
+              type: 1,
+              components: [{
+                type: 4,
+                custom_id: "comment",
+                label: "Deixe seu comentário (opcional)",
+                style: 2,
+                max_length: 500,
+                placeholder: "Conte como foi sua experiência...",
+                required: false,
+              }],
+            }],
+          },
+        }), { headers: { "Content-Type": "application/json" } });
+      }
+
+      // ─── FEEDBACK BUTTON (legacy): opens rating modal ──────
       if (customId.startsWith("feedback_order:")) {
         const orderId = customId.replace("feedback_order:", "");
 
