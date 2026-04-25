@@ -339,13 +339,6 @@ serve(async (req) => {
                 url: dmLink,
               }],
             },
-            {
-              type: 1,
-              components: [
-                { type: 2, style: 3, label: "Confirmar Entrega", emoji: { name: "✅" }, custom_id: `mark_delivered_${order.id}` },
-                { type: 2, style: 4, label: "Cancelar Pedido", emoji: { name: "❌" }, custom_id: `cancel_manual_${order.id}` },
-              ],
-            },
           ],
         }),
       });
