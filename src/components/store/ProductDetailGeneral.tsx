@@ -215,6 +215,40 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
         </Select>
       </section>
 
+      {/* Section: Gateway de Pagamento */}
+      <section className="space-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-foreground" />
+            <p className="text-sm font-bold">Gateway de Pagamento</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Escolha por qual gateway este produto será cobrado. Deixe em "Padrão" para usar o gateway principal da loja.
+          </p>
+        </div>
+        <Select
+          value={product.payment_provider_key || "default"}
+          onValueChange={(val) => onChange({ payment_provider_key: val === "default" ? null : val })}
+        >
+          <SelectTrigger className="bg-muted border-border w-full max-w-sm">
+            <SelectValue placeholder="Padrão da loja" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Padrão da loja</SelectItem>
+            {activeProviders.map((key) => (
+              <SelectItem key={key} value={key}>
+                {PROVIDER_LABELS[key] || key}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {activeProviders.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">
+            Nenhum gateway ativo. Configure em Pagamentos.
+          </p>
+        )}
+      </section>
+
       {/* Section: Imagens */}
       <section className="space-y-5">
         <h3 className="text-base font-bold text-foreground">Imagens</h3>
