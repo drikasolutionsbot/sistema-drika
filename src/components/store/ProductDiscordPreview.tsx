@@ -2,8 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 import { type EmbedConfig, DEFAULT_EMBED } from "./ProductDetailEmbed";
+
+const DISCORD_LABELS: Record<string, Record<string, string>> = {
+  "pt-BR": { buy: "🛒 Comprar", buy_plain: "comprar", price: "Valor à vista", stock: "Restam", auto: "⚡ Entrega Automática!", manual: "📦 Entrega Manual", available: "✅ Disponível • Compre agora!", unavailable: "❌ Indisponível" },
+  en: { buy: "🛒 Buy", buy_plain: "buy", price: "Price", stock: "In stock", auto: "⚡ Instant Delivery!", manual: "📦 Manual Delivery", available: "✅ Available • Buy now!", unavailable: "❌ Unavailable" },
+  de: { buy: "🛒 Kaufen", buy_plain: "kaufen", price: "Preis", stock: "Verfügbar", auto: "⚡ Sofortige Lieferung!", manual: "📦 Manuelle Lieferung", available: "✅ Verfügbar • Jetzt kaufen!", unavailable: "❌ Nicht verfügbar" },
+};
 
 interface Product {
   id: string;
