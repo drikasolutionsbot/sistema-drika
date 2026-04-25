@@ -234,8 +234,8 @@ serve(async (req) => {
         body: JSON.stringify({
           embeds: [{
             author: storeBrand,
-            title: "🟢 Pagamento confirmado",
-            description: `Seu pagamento de **${formatBRL(order.total_cents)}** foi confirmado.`,
+            title: tr(lang, "payment_confirmed_title"),
+            description: trf(lang, "payment_confirmed_desc", { total: formatBRL(order.total_cents) }),
             color: purchaseEmbedColor,
             fields: [
               { name: "**Detalhes**", value: `1x ${order.product_name}`, inline: false },
