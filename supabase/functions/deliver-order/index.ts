@@ -231,6 +231,7 @@ serve(async (req) => {
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
+            author: storeBrand,
             title: "🟢 Pagamento confirmado",
             description: `Seu pagamento de **${formatBRL(order.total_cents)}** foi confirmado.`,
             color: purchaseEmbedColor,
@@ -240,8 +241,8 @@ serve(async (req) => {
               { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-              icon_url: tenant?.logo_url || undefined,
+              text: `${storeBrand.name} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              icon_url: storeBrand.icon_url,
             },
           }],
         }),
