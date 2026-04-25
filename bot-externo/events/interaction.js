@@ -13,20 +13,25 @@ const feedbackHandler = require("../handlers/feedback");
 
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
-  if (!guildId && !interaction.isButton() && !interaction.isModalSubmit()) return;
 
-  const tenant = guildId ? await client.resolveTenant(guildId) : null;
-
-  // For DM interactions (buttons), resolve tenant from order
-  if (!tenant && !guildId) {
+  // ── DM interactions: handle feedback buttons/modals (no guild needed) ──
+  if (!guildId) {
     if (interaction.isButton()) {
-      const customId = interaction.customId;
-      if (customId.startsWith("cancel_order:") || customId.startsWith("copy_delivered:")) {
-        // These can work without tenant context
+      const cid = interaction.customId;
+      if (cid.startsWith("feedback_open:")) return feedbackHandler.openFeedback(interaction, cid.replace("feedback_open:", ""));
+      if (cid.startsWith("feedback_rate:")) {
+        const [, orderId, rating] = cid.split(":");
+        return feedbackHandler.rateFeedback(interaction, orderId, rating);
       }
+    }
+    if (interaction.isModalSubmit() && interaction.customId.startsWith("feedback_modal:")) {
+      const [, orderId, rating] = interaction.customId.split(":");
+      return feedbackHandler.submitFeedback(interaction, orderId, rating);
     }
     return;
   }
+
+  const tenant = await client.resolveTenant(guildId);
 
   if (!tenant) {
     if (interaction.isCommand()) {
