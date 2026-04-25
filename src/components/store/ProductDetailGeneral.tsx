@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ProductImageUpload } from "./ProductImageUpload";
 import { useTenant } from "@/contexts/TenantContext";
-import { List, Zap, Shield, Wallet } from "lucide-react";
+import { List, Zap, Shield, Wallet, Languages } from "lucide-react";
 import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +42,7 @@ interface Product {
   role_id?: string | null;
   payment_provider_key?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
+  language?: string | null;
 }
 
 interface ProductDetailGeneralProps {
@@ -254,6 +255,33 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             Nenhum gateway ativo. Configure em Pagamentos.
           </p>
         )}
+      </section>
+
+      {/* Section: Idioma do Produto */}
+      <section className="space-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Languages className="h-4 w-4 text-foreground" />
+            <p className="text-sm font-bold">Idioma do Produto</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Define o idioma de TODAS as mensagens enviadas ao cliente deste produto (embed na loja, DMs de pagamento, entrega, feedback). Deixe em "Padrão da loja" para usar o idioma global.
+          </p>
+        </div>
+        <Select
+          value={product.language || "default"}
+          onValueChange={(val) => onChange({ language: val === "default" ? null : val })}
+        >
+          <SelectTrigger className="bg-muted border-border w-full max-w-sm">
+            <SelectValue placeholder="Padrão da loja" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">🌐 Padrão da loja</SelectItem>
+            <SelectItem value="pt-BR">🇧🇷 Português (Brasil)</SelectItem>
+            <SelectItem value="en">🇺🇸 English (US)</SelectItem>
+            <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
+          </SelectContent>
+        </Select>
       </section>
 
       {/* Section: Imagens */}
