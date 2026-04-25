@@ -2925,23 +2925,26 @@ async function processPurchase(
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       embeds: [reviewEmbed],
-      components: [
-        {
-          type: 1,
-          components: [
-            { type: 2, style: 3, label: "Ir para o Pagamento", emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
-            { type: 2, style: 2, label: "Editar Quantidade", emoji: { name: "✏️" }, custom_id: `checkout_quantity:${order.id}` },
-            { type: 2, style: 1, label: "Confirmar manualmente", emoji: { name: "🛠️" }, custom_id: `approve_order:${order.id}` },
-          ],
-        },
-        {
-          type: 1,
-          components: [
-            { type: 2, style: 2, label: "Usar Cupom", emoji: { name: "🏷️" }, custom_id: `checkout_coupon:${order.id}` },
-            { type: 2, style: 4, label: "Cancelar", emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
-          ],
-        },
-      ],
+      components: (() => {
+        const L = normLang((tenant as any)?.language);
+        return [
+          {
+            type: 1,
+            components: [
+              { type: 2, style: 3, label: tr(L, "payment"), emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
+              { type: 2, style: 2, label: tr(L, "edit_quantity"), emoji: { name: "✏️" }, custom_id: `checkout_quantity:${order.id}` },
+              { type: 2, style: 1, label: tr(L, "confirm"), emoji: { name: "🛠️" }, custom_id: `approve_order:${order.id}` },
+            ],
+          },
+          {
+            type: 1,
+            components: [
+              { type: 2, style: 2, label: tr(L, "coupon"), emoji: { name: "🏷️" }, custom_id: `checkout_coupon:${order.id}` },
+              { type: 2, style: 4, label: tr(L, "cancel"), emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
+            ],
+          },
+        ];
+      })(),
       allowed_mentions: { parse: [] },
     }),
   });
