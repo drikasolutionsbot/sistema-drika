@@ -107,7 +107,19 @@ async function submitFeedback(interaction, orderId, rating) {
       .eq("tenant_id", order.tenant_id)
       .maybeSingle();
 
-    const targetChannel = sc?.feedback_channel_id || sc?.logs_channel_id;
+    // Fallback para channel_configs (chave logs_feedback) se não houver no store_configs
+    let fallbackFeedback = null;
+    if (!sc?.feedback_channel_id) {
+      const { data: cc } = await supabase
+        .from("channel_configs")
+        .select("discord_channel_id")
+        .eq("tenant_id", order.tenant_id)
+        .eq("channel_key", "logs_feedback")
+        .maybeSingle();
+      fallbackFeedback = cc?.discord_channel_id || null;
+    }
+
+    const targetChannel = sc?.feedback_channel_id || fallbackFeedback || sc?.logs_channel_id;
     if (targetChannel) {
       const stars = "⭐".repeat(r) + "☆".repeat(5 - r);
       const color = r >= 4 ? 0x57F287 : r === 3 ? 0xFEE75C : 0xED4245;
