@@ -573,6 +573,36 @@ export type Database = {
           },
         ]
       }
+      dm_templates: {
+        Row: {
+          created_at: string
+          embed_data: Json
+          enabled: boolean
+          id: string
+          template_key: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          embed_data?: Json
+          enabled?: boolean
+          id?: string
+          template_key: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          embed_data?: Json
+          enabled?: boolean
+          id?: string
+          template_key?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ecloud_backups: {
         Row: {
           backup_type: string
