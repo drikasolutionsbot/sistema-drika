@@ -344,8 +344,7 @@ serve(async (req) => {
               expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
             },
           })
-          .then(() => undefined)
-          .catch(() => undefined);
+          .then(() => undefined, () => undefined);
       }
 
       return new Response(JSON.stringify({ invite_url: inviteUrl, client_id: clientId }), {
@@ -479,7 +478,7 @@ serve(async (req) => {
 
     const claimedIds = new Set((claimedRows || []).map((row: any) => row.discord_guild_id).filter(Boolean));
     const unclaimed = mapped.filter((g: any) => !claimedIds.has(g.id));
-    const ownedUnclaimed = await getOwnedGuilds(unclaimed, resolvedDiscordUserId);
+    const ownedUnclaimed = await getOwnedGuilds(unclaimed, [resolvedDiscordUserId]);
 
     return new Response(JSON.stringify(ownedUnclaimed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

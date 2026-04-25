@@ -52,7 +52,7 @@ async function generateImage(apiKey: string, replicateToken: string | undefined,
       console.log(`Gateway image error ${resp.status}: ${body}, trying Replicate fallback...`);
     }
   } catch (e) {
-    console.log("Gateway image error:", e.message);
+    console.log("Gateway image error:", (e as Error).message);
   }
 
   // Fallback: Replicate SDXL Lightning
@@ -85,7 +85,7 @@ async function generateImage(apiKey: string, replicateToken: string | undefined,
         }
       }
     } catch (e) {
-      console.log("Replicate error:", e.message);
+      console.log("Replicate error:", (e as Error).message);
     }
   }
 
@@ -722,7 +722,7 @@ REGRAS:
     });
   } catch (e) {
     console.error("AI Assistant error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Erro interno" }), {
+    return new Response(JSON.stringify({ error: (e as Error).message || "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -17,13 +17,13 @@ async function verifyDiscordSignature(
 
     const key = await crypto.subtle.importKey(
       "raw",
-      publicKeyBytes,
-      { name: "Ed25519", namedCurve: "Ed25519" },
+      publicKeyBytes as any,
+      { name: "Ed25519", namedCurve: "Ed25519" } as any,
       false,
       ["verify"]
     );
 
-    return await crypto.subtle.verify("Ed25519", key, signatureBytes, messageBytes);
+    return await crypto.subtle.verify("Ed25519", key, signatureBytes as any, messageBytes as any);
   } catch (e) {
     console.error("Signature verification error:", e);
     return false;
@@ -934,7 +934,7 @@ serve(async (req) => {
           return `${emoji} **${f.name}** — ${priceStr}${desc}`;
         });
 
-        const varEmbedColor = await resolveProductEmbedColor(fullProduct || product, product.tenant_id);
+        const varEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
         const embed = {
           title: `📋 Variações de ${product.name}`,
           description: fieldLines.join("\n"),
@@ -1433,7 +1433,7 @@ serve(async (req) => {
         }
 
         // Determine parent channel for thread creation
-        let parentChannelId = targetChannelId || storeConfig?.ticket_channel_id || channelId;
+        let parentChannelId = targetChannelId || storeConfig?.ticket_channel_id || interaction.channel_id;
 
         // If it's a category, find first text channel
         if (parentChannelId) {
