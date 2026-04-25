@@ -146,9 +146,9 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             {/* Delivery badge */}
             {cfg.show_delivery_badge !== false && (
               product.auto_delivery ? (
-                <p className="text-[#57F287] text-xs font-semibold">{cfg.delivery_auto_text || "⚡ Entrega Automática!"}</p>
+                <p className="text-[#57F287] text-xs font-semibold">{cfg.delivery_auto_text || L.auto}</p>
               ) : (
-                <p className="text-[#FEE75C] text-xs font-semibold">{cfg.delivery_manual_text || "📦 Entrega Manual"}</p>
+                <p className="text-[#FEE75C] text-xs font-semibold">{cfg.delivery_manual_text || L.manual}</p>
               )
             )}
 
