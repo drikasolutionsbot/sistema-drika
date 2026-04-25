@@ -173,8 +173,8 @@ serve(async (req) => {
               headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
               body: JSON.stringify({
                 embeds: [{
-                  title: "⏰ Pedido Expirado",
-                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) expirou por falta de pagamento.\nCaso deseje, faça uma nova compra.`,
+                  title: tr(normLang(tenantMap[order.tenant_id]?.language), "order_expired_title2"),
+                  description: trf(normLang(tenantMap[order.tenant_id]?.language), "order_expired_desc2", { order_number: order.order_number, product: order.product_name }),
                   color: 0xED4245,
                   timestamp: new Date().toISOString(),
                 }],
