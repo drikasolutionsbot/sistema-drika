@@ -1349,7 +1349,8 @@ serve(async (req) => {
       if (customId.startsWith("copy_delivered:")) {
         const orderId = customId.replace("copy_delivered:", "");
         const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id, discord_user_id, order_number").eq("id", orderId).single();
-        if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        if (!order) return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        const L = await resolveOrderLang(supabase, order);
 
         // Get delivered stock items for this order
         const { data: items } = await supabase
@@ -1363,11 +1364,11 @@ serve(async (req) => {
           .limit(10);
 
         if (!items || items.length === 0) {
-          return respondImmediate(interaction, "❌ Nenhum conteúdo entregue encontrado para este pedido.");
+          return respondImmediate(interaction, tr(L, "delivered_not_found"));
         }
 
         const content = items.map((i: any) => i.content).join("\n");
-        return respondImmediate(interaction, `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\``);
+        return respondImmediate(interaction, trf(L, "delivered_copy_response", { content }));
       }
 
       // ─── BUY AGAIN (link to server) ───────────────────────
