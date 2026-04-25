@@ -197,9 +197,9 @@ async function buildProductPayload(
   let deliveryLine = "";
   if (showDeliveryBadge) {
     if (product.auto_delivery) {
-      deliveryLine = (embedConfig.delivery_auto_text || tr(lang, "delivery_auto")) + "\n\n";
+      deliveryLine = localizedOrCustom(embedConfig.delivery_auto_text, lang, "delivery_auto") + "\n\n";
     } else {
-      deliveryLine = (embedConfig.delivery_manual_text || tr(lang, "delivery_manual")) + "\n\n";
+      deliveryLine = localizedOrCustom(embedConfig.delivery_manual_text, lang, "delivery_manual") + "\n\n";
     }
   }
 
@@ -211,7 +211,7 @@ async function buildProductPayload(
 
   // Price field
   if (embedConfig.show_price !== false) {
-    const priceLabel = embedConfig.price_label || tr(lang, "price_label");
+    const priceLabel = localizedOrCustom(embedConfig.price_label, lang, "price_label");
     embed.fields.push({
       name: `**${priceLabel}**`,
       value: `\`R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}\``,
@@ -229,7 +229,7 @@ async function buildProductPayload(
 
   // Stock field
   if (embedConfig.show_stock_field !== false) {
-    const stockLabel = embedConfig.stock_label || tr(lang, "stock_label");
+    const stockLabel = localizedOrCustom(embedConfig.stock_label, lang, "stock_label");
     embed.fields.push({
       name: stockLabel,
       value: `\`${realStockCount ?? 0}\``,
@@ -243,20 +243,20 @@ async function buildProductPayload(
     const localeMap: Record<Lang, string> = { "pt-BR": "pt-BR", en: "en-US", de: "de-DE" };
     const dateStr = new Date().toLocaleString(localeMap[lang]);
     let footerText: string;
-    if (stock > 0 && embedConfig.footer_available_text) {
-      footerText = embedConfig.footer_available_text
-        .replace(/\{loja\}/gi, tenant?.name || "Loja")
+    if (stock > 0) {
+      footerText = localizedOrCustom(embedConfig.footer_available_text, lang, "footer_available")
+        .replace(/\{loja\}/gi, tenant?.name || tr(lang, "store_default"))
         .replace(/\{data\}/gi, dateStr);
-    } else if (stock <= 0 && embedConfig.footer_unavailable_text) {
-      footerText = embedConfig.footer_unavailable_text
-        .replace(/\{loja\}/gi, tenant?.name || "Loja")
+    } else if (stock <= 0) {
+      footerText = localizedOrCustom(embedConfig.footer_unavailable_text, lang, "footer_unavailable")
+        .replace(/\{loja\}/gi, tenant?.name || tr(lang, "store_default"))
         .replace(/\{data\}/gi, dateStr);
     } else if (embedConfig.footer_text) {
       footerText = embedConfig.footer_text
-        .replace(/\{loja\}/gi, tenant?.name || "Loja")
+        .replace(/\{loja\}/gi, tenant?.name || tr(lang, "store_default"))
         .replace(/\{data\}/gi, dateStr);
     } else {
-      footerText = `${tenant?.name || "Loja"} • ${dateStr}`;
+      footerText = `${tenant?.name || tr(lang, "store_default")} • ${dateStr}`;
     }
     embed.footer = { text: footerText };
   }
