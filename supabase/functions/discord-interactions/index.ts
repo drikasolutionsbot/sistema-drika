@@ -2402,7 +2402,7 @@ serve(async (req) => {
         await supabase.from("coupons").update({ used_count: coupon.used_count + 1 }).eq("id", coupon.id);
 
         const channelId = interaction.channel_id;
-        const couponColor = await resolveOrderEmbedColor(order) || 0x57F287;
+        const couponColor = 0x57F287;
         // Send updated review in the thread
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
@@ -2465,7 +2465,7 @@ serve(async (req) => {
         await supabase.from("orders").update({ total_cents: newTotal }).eq("id", orderId);
 
         const channelId = interaction.channel_id;
-        const qtyColor = await resolveOrderEmbedColor(order) || 0x2B2D31;
+        const qtyColor = 0x2B2D31;
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },

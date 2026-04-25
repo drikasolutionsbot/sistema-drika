@@ -104,7 +104,7 @@ async function syncEntriesFromDiscord(
     );
 
     const changedEntries = participantRows.filter((p: any) => {
-      const prev = existingById.get(p.discord_user_id);
+      const prev = existingById.get(p.discord_user_id) as any;
       return (
         prev &&
         (prev.discord_username !== p.discord_username ||

@@ -25,7 +25,7 @@ serve(async (req) => {
     if (token) {
       const { data: tokenRecord, error: tokenError } = await supabase
         .from("access_tokens")
-        .select("tenant_id")
+        .select("tenant_id, expires_at")
         .eq("token", token)
         .eq("revoked", false)
         .single();
