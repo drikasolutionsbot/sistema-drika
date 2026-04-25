@@ -40,6 +40,7 @@ interface Product {
   payment_provider_key?: string | null;
   button_style?: DiscordButtonStyle;
   embed_config?: EmbedConfig;
+  language?: string | null;
 }
 
 interface ProductDetailProps {
