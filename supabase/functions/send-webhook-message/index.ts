@@ -469,15 +469,16 @@ serve(async (req) => {
       }
 
       const pEmbedConfig = product?.embed_config && typeof product.embed_config === "object" ? product.embed_config : {};
+      const lang2: Lang = normLang(tenant?.language);
 
       if (embeds && embeds.length > 0) {
         embeds[0].fields = embeds[0].fields || [];
 
         // Update or add price field using custom label
         if (pEmbedConfig.show_price !== false) {
-          const priceLabel = pEmbedConfig.price_label || "Valor à vista";
+          const priceLabel = pEmbedConfig.price_label || tr(lang2, "price_label");
           const existingPriceIdx = embeds[0].fields.findIndex(
-            (f: any) => typeof f?.name === "string" && (f.name.toLowerCase().includes("valor") || f.name.toLowerCase().includes("preço"))
+            (f: any) => typeof f?.name === "string" && (f.name.toLowerCase().includes("valor") || f.name.toLowerCase().includes("preço") || f.name.toLowerCase().includes("price") || f.name.toLowerCase().includes("preis"))
           );
           const priceField = {
             name: `**${priceLabel}**`,
@@ -491,14 +492,14 @@ serve(async (req) => {
 
         // Update or add stock field using custom label
         if (pEmbedConfig.show_stock_field !== false) {
-          const stockLabel = pEmbedConfig.stock_label || "Restam";
+          const stockLabel = pEmbedConfig.stock_label || tr(lang2, "stock_label");
           const stockField = {
             name: stockLabel,
             value: `\`${realStockCount ?? 0}\``,
             inline: true,
           };
           const existingStockIdx = embeds[0].fields.findIndex(
-            (field: any) => typeof field?.name === "string" && (field.name.toLowerCase() === "restam" || field.name.toLowerCase().includes("estoque"))
+            (field: any) => typeof field?.name === "string" && (field.name.toLowerCase() === "restam" || field.name.toLowerCase().includes("estoque") || field.name.toLowerCase().includes("stock") || field.name.toLowerCase().includes("verfügbar"))
           );
           if (existingStockIdx >= 0) {
             embeds[0].fields[existingStockIdx] = stockField;
@@ -512,11 +513,12 @@ serve(async (req) => {
       if (embeds && embeds.length > 0) {
         const showBadge = pEmbedConfig.show_delivery_badge !== false;
         const currentDesc = embeds[0].description || "";
-        if (showBadge && product?.auto_delivery && !currentDesc.includes("Entrega")) {
-          const badgeText = pEmbedConfig.delivery_auto_text || "⚡ Entrega Automática!";
+        const hasBadge = /Entrega|Delivery|Lieferung/i.test(currentDesc);
+        if (showBadge && product?.auto_delivery && !hasBadge) {
+          const badgeText = pEmbedConfig.delivery_auto_text || tr(lang2, "delivery_auto");
           embeds[0].description = `${badgeText}\n\n${currentDesc}`;
-        } else if (showBadge && !product?.auto_delivery && !currentDesc.includes("Entrega")) {
-          const badgeText = pEmbedConfig.delivery_manual_text || "📦 Entrega Manual";
+        } else if (showBadge && !product?.auto_delivery && !hasBadge) {
+          const badgeText = pEmbedConfig.delivery_manual_text || tr(lang2, "delivery_manual");
           embeds[0].description = `${badgeText}\n\n${currentDesc}`;
         }
       }
@@ -535,14 +537,15 @@ serve(async (req) => {
       const discordBuyStyle = styleMap[product?.button_style || "success"] || 3;
 
       const rawBuyLabel = (product?.embed_config as any)?.buy_button_label || "";
-      const normalizedBuyLabel = rawBuyLabel.trim();
-      const finalBuyLabel = !normalizedBuyLabel || normalizedBuyLabel.toLowerCase() === "comprar" ? "🛒 Comprar" : rawBuyLabel;
+      const normalizedBuyLabel = rawBuyLabel.trim().toLowerCase();
+      const isDefaultLabel = !normalizedBuyLabel || normalizedBuyLabel === "comprar" || normalizedBuyLabel === "buy" || normalizedBuyLabel === "kaufen";
+      const finalBuyLabel = isDefaultLabel ? tr(lang2, "buy_emoji") : rawBuyLabel;
       const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(finalBuyLabel);
 
       const buyButton: any = {
         type: 2,
         style: discordBuyStyle,
-        label: btnLabel || "Comprar",
+        label: btnLabel || tr(lang2, "buy"),
         custom_id: `buy_product:${product_id}`,
       };
 
