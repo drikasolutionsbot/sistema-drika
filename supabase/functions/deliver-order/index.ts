@@ -39,9 +39,16 @@ serve(async (req) => {
     // 2. Get tenant + external bot token
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("name, logo_url, discord_guild_id")
+      .select("name, logo_url, discord_guild_id, bot_name, bot_avatar_url")
       .eq("id", tenant_id)
       .single();
+
+    // Identidade da loja para embeds em DM (DM usa perfil global do bot;
+    // por isso aplicamos a marca no embed via author + footer)
+    const storeBrand = {
+      name: tenant?.bot_name || tenant?.name || "Loja",
+      icon_url: tenant?.bot_avatar_url || tenant?.logo_url || undefined,
+    };
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
     if (!botToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN)");
@@ -224,6 +231,7 @@ serve(async (req) => {
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
+            author: storeBrand,
             title: "🟢 Pagamento confirmado",
             description: `Seu pagamento de **${formatBRL(order.total_cents)}** foi confirmado.`,
             color: purchaseEmbedColor,
@@ -233,8 +241,8 @@ serve(async (req) => {
               { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-              icon_url: tenant?.logo_url || undefined,
+              text: `${storeBrand.name} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              icon_url: storeBrand.icon_url,
             },
           }],
         }),
@@ -268,6 +276,7 @@ serve(async (req) => {
 
       // 6c. Send "Entrega Realizada" embed with action buttons
       const deliveryEmbed: any = {
+        author: storeBrand,
         title: `Pedido #${order.id}`,
         description: isAutoDelivery && stockItems.length > 0
           ? "**Entrega Realizada**\nSeu produto foi anexado a essa mensagem"
@@ -279,8 +288,8 @@ serve(async (req) => {
           { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
         ],
         footer: {
-          text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-          icon_url: tenant?.logo_url || undefined,
+          text: `${storeBrand.name} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+          icon_url: storeBrand.icon_url,
         },
       };
 
