@@ -918,6 +918,54 @@ export type Database = {
           },
         ]
       }
+      order_feedbacks: {
+        Row: {
+          comment: string | null
+          created_at: string
+          discord_user_id: string
+          discord_username: string | null
+          id: string
+          order_id: string
+          rating: number
+          tenant_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          discord_user_id: string
+          discord_username?: string | null
+          id?: string
+          order_id: string
+          rating: number
+          tenant_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          discord_user_id?: string
+          discord_username?: string | null
+          id?: string
+          order_id?: string
+          rating?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_feedbacks_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_feedbacks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           affiliate_id: string | null
