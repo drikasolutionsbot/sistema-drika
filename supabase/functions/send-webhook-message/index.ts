@@ -164,15 +164,16 @@ async function buildProductPayload(
   const storeColor = storeConfig?.embed_color;
   const finalColor = productColor || storeColor || "#2B2D31";
   const isDefaultColor = !finalColor || finalColor === "#2B2D31";
+  const lang: Lang = normLang(tenant?.language);
 
   // Delivery badge
   const showDeliveryBadge = embedConfig.show_delivery_badge !== false;
   let deliveryLine = "";
   if (showDeliveryBadge) {
     if (product.auto_delivery) {
-      deliveryLine = (embedConfig.delivery_auto_text || "⚡ Entrega Automática!") + "\n\n";
+      deliveryLine = (embedConfig.delivery_auto_text || tr(lang, "delivery_auto")) + "\n\n";
     } else {
-      deliveryLine = (embedConfig.delivery_manual_text || "📦 Entrega Manual") + "\n\n";
+      deliveryLine = (embedConfig.delivery_manual_text || tr(lang, "delivery_manual")) + "\n\n";
     }
   }
 
@@ -184,7 +185,7 @@ async function buildProductPayload(
 
   // Price field
   if (embedConfig.show_price !== false) {
-    const priceLabel = embedConfig.price_label || "Valor à vista";
+    const priceLabel = embedConfig.price_label || tr(lang, "price_label");
     embed.fields.push({
       name: `**${priceLabel}**`,
       value: `\`R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}\``,
@@ -202,7 +203,7 @@ async function buildProductPayload(
 
   // Stock field
   if (embedConfig.show_stock_field !== false) {
-    const stockLabel = embedConfig.stock_label || "Restam";
+    const stockLabel = embedConfig.stock_label || tr(lang, "stock_label");
     embed.fields.push({
       name: stockLabel,
       value: `\`${realStockCount ?? 0}\``,
@@ -213,7 +214,8 @@ async function buildProductPayload(
   // Footer
   if (embedConfig.show_footer !== false) {
     const stock = realStockCount ?? 0;
-    const dateStr = new Date().toLocaleString("pt-BR");
+    const localeMap: Record<Lang, string> = { "pt-BR": "pt-BR", en: "en-US", de: "de-DE" };
+    const dateStr = new Date().toLocaleString(localeMap[lang]);
     let footerText: string;
     if (stock > 0 && embedConfig.footer_available_text) {
       footerText = embedConfig.footer_available_text
@@ -228,7 +230,7 @@ async function buildProductPayload(
         .replace(/\{loja\}/gi, tenant?.name || "Loja")
         .replace(/\{data\}/gi, dateStr);
     } else {
-      footerText = `Servidor de ${tenant?.name} • ${dateStr}`;
+      footerText = `${tenant?.name || "Loja"} • ${dateStr}`;
     }
     embed.footer = { text: footerText };
   }
@@ -248,13 +250,15 @@ async function buildProductPayload(
   const discordBuyStyle = styleMap[product.button_style || "success"] || 3;
   const rawBuyLabel = embedConfig.buy_button_label || "";
   const normalizedBuyLabel = rawBuyLabel.trim();
-  const finalBuyLabel = !normalizedBuyLabel || normalizedBuyLabel.toLowerCase() === "comprar" ? "🛒 Comprar" : rawBuyLabel;
+  const defaultBuyEmoji = tr(lang, "buy_emoji");
+  const defaultBuyText = tr(lang, "buy");
+  const finalBuyLabel = !normalizedBuyLabel || normalizedBuyLabel.toLowerCase() === "comprar" || normalizedBuyLabel.toLowerCase() === "buy" || normalizedBuyLabel.toLowerCase() === "kaufen" ? defaultBuyEmoji : rawBuyLabel;
   const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(finalBuyLabel);
 
   const buyButton: any = {
     type: 2,
     style: discordBuyStyle,
-    label: btnLabel || "Comprar",
+    label: btnLabel || defaultBuyText,
     custom_id: `buy_product:${product_id}`,
   };
 
