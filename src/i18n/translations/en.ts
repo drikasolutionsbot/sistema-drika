@@ -25,6 +25,7 @@ export const en: TranslationKeys = {
     giveaways: "Giveaways",
     ecloud: "eCloud",
     embeds: "Embeds",
+    dmTemplates: "Customize DMs",
     tutorials: "Tutorials",
     support: "Support",
     settings: "Settings",

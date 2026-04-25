@@ -24,6 +24,7 @@ export const ptBR = {
     giveaways: "Sorteios",
     ecloud: "eCloud",
     embeds: "Embeds",
+    dmTemplates: "Personalizar DMs",
     tutorials: "Tutoriais",
     support: "Suporte",
     settings: "Configurações",
