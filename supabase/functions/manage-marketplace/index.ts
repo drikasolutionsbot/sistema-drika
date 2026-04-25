@@ -181,11 +181,12 @@ serve(async (req) => {
         .eq("status", "available")
         .single();
       if (fetchErr || !existing) throw new Error("Item não disponível");
-      if ((existing as Record<string, unknown>).stock !== undefined && (existing as Record<string, unknown>).stock <= 0) {
+      const existingAny = existing as any;
+      if (existingAny.stock !== undefined && existingAny.stock <= 0) {
         throw new Error("Estoque esgotado");
       }
 
-      const currentStock = ((existing as Record<string, unknown>).stock as number) ?? 1;
+      const currentStock = (existingAny.stock as number) ?? 1;
       const newStock = currentStock - 1;
 
       const updateData: Record<string, unknown> = {
