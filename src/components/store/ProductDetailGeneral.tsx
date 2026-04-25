@@ -40,6 +40,7 @@ interface Product {
   show_sold?: boolean;
   enable_instructions?: boolean;
   role_id?: string | null;
+  payment_provider_key?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
 }
 
@@ -52,8 +53,22 @@ interface ProductDetailGeneralProps {
 export const ProductDetailGeneral = ({ product, onChange, categories = [] }: ProductDetailGeneralProps) => {
   const { tenantId } = useTenant();
   const { roles, loading: rolesLoading } = useDiscordRoles();
+  const [activeProviders, setActiveProviders] = useState<string[]>([]);
   const nameMaxLen = 256;
   const descMaxLen = 4096;
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase
+      .from("payment_providers")
+      .select("provider_key")
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .not("api_key_encrypted", "is", null)
+      .then(({ data }) => {
+        setActiveProviders((data || []).map((p: any) => p.provider_key));
+      });
+  }, [tenantId]);
 
   return (
     <div className="space-y-8">
