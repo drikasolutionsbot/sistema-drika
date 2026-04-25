@@ -276,6 +276,7 @@ serve(async (req) => {
 
       // 6c. Send "Entrega Realizada" embed with action buttons
       const deliveryEmbed: any = {
+        author: storeBrand,
         title: `Pedido #${order.id}`,
         description: isAutoDelivery && stockItems.length > 0
           ? "**Entrega Realizada**\nSeu produto foi anexado a essa mensagem"
@@ -287,8 +288,8 @@ serve(async (req) => {
           { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
         ],
         footer: {
-          text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-          icon_url: tenant?.logo_url || undefined,
+          text: `${storeBrand.name} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+          icon_url: storeBrand.icon_url,
         },
       };
 
