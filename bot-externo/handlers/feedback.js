@@ -49,28 +49,32 @@ async function openFeedback(interaction, orderId) {
 
 // Clique em Ruim/Mediano/Muito Bom → abre modal de comentário
 async function rateFeedback(interaction, orderId, rating) {
+  const order = await getOrderById(orderId);
+  if (!order) return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
+  const L = await resolveOrderLang(supabase, order);
+
   if (await alreadyRated(orderId, interaction.user.id)) {
-    return interaction.reply({ content: "⭐ Você já avaliou esta compra. Obrigado!", ephemeral: true });
+    return interaction.reply({ content: tr(L, "feedback_already_rated"), ephemeral: true });
   }
 
   const r = parseInt(rating);
   if (isNaN(r) || r < 1 || r > 5) {
-    return interaction.reply({ content: "❌ Nota inválida.", ephemeral: true });
+    return interaction.reply({ content: tr(L, "feedback_invalid_rating"), ephemeral: true });
   }
 
-  const ratingLabel = r <= 1 ? "Ruim" : r <= 3 ? "Mediano" : "Muito Bom";
+  const ratingLabel = r <= 1 ? tr(L, "feedback_bad") : r <= 3 ? tr(L, "feedback_average") : tr(L, "feedback_good");
 
   const modal = new ModalBuilder()
     .setCustomId(`feedback_modal:${orderId}:${r}`)
-    .setTitle(`Avaliação: ${ratingLabel}`)
+    .setTitle(trf(L, "feedback_modal_title", { rating: ratingLabel }))
     .addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("comment")
-          .setLabel("Deixe seu comentário (opcional)")
+          .setLabel(tr(L, "feedback_comment_label"))
           .setStyle(TextInputStyle.Paragraph)
           .setMaxLength(500)
-          .setPlaceholder("Conte como foi sua experiência...")
+          .setPlaceholder(tr(L, "feedback_comment_placeholder"))
           .setRequired(false),
       ),
     );
