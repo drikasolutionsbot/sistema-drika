@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
     if (!botToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN)");
     const guildId = tenant.discord_guild_id;
+    const lang = await getTenantLang(supabase, tenant_id);
 
     // Get welcome config
     const { data: config } = await supabase
