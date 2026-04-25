@@ -1970,6 +1970,16 @@ serve(async (req) => {
       // ─── MARK DELIVERED (manual delivery button) ─────────
       if (customId.startsWith("mark_delivered_")) {
         const orderId = customId.replace("mark_delivered_", "");
+
+        // 🔒 Bloqueia clientes: somente staff (ADMINISTRATOR ou MANAGE_GUILD) pode confirmar
+        const memberPerms = BigInt(interaction.member?.permissions || "0");
+        const ADMIN = BigInt(0x8);
+        const MANAGE_GUILD = BigInt(0x20);
+        const isStaff = (memberPerms & ADMIN) === ADMIN || (memberPerms & MANAGE_GUILD) === MANAGE_GUILD;
+        if (!isStaff) {
+          return respondImmediateEphemeral(interaction, "🔒 Apenas a equipe da loja pode confirmar a entrega deste pedido.");
+        }
+
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
@@ -2027,6 +2037,16 @@ serve(async (req) => {
       // ─── CANCEL MANUAL ORDER (button in delivery thread) ──
       if (customId.startsWith("cancel_manual_")) {
         const orderId = customId.replace("cancel_manual_", "");
+
+        // 🔒 Bloqueia clientes: somente staff pode cancelar
+        const memberPerms2 = BigInt(interaction.member?.permissions || "0");
+        const ADMIN2 = BigInt(0x8);
+        const MANAGE_GUILD2 = BigInt(0x20);
+        const isStaff2 = (memberPerms2 & ADMIN2) === ADMIN2 || (memberPerms2 & MANAGE_GUILD2) === MANAGE_GUILD2;
+        if (!isStaff2) {
+          return respondImmediateEphemeral(interaction, "🔒 Apenas a equipe da loja pode cancelar este pedido.");
+        }
+
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
