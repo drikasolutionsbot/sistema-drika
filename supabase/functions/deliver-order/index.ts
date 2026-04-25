@@ -184,8 +184,8 @@ serve(async (req) => {
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: "🟢 Pedido aprovado",
-            description: `Seu pagamento foi aprovado, e o processo de entrega já foi iniciado.`,
+            title: tr(lang, "order_approved_title"),
+            description: tr(lang, "order_approved_desc"),
             color: purchaseEmbedColor,
             fields: [
               { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
