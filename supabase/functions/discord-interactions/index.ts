@@ -2324,6 +2324,9 @@ serve(async (req) => {
       // ─── FEEDBACK OPEN: substitui o botão único pelos 3 de avaliação ─
       if (customId.startsWith("feedback_open:")) {
         const orderId = customId.replace("feedback_open:", "");
+        const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id").eq("id", orderId).maybeSingle();
+        if (!order) return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        const L = await resolveOrderLang(supabase, order);
 
         const { data: existingFb } = await supabase
           .from("order_feedbacks")
@@ -2333,19 +2336,19 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingFb) {
-          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+          return respondImmediate(interaction, tr(L, "feedback_already_rated"));
         }
 
         return new Response(JSON.stringify({
           type: 7, // UPDATE_MESSAGE
           data: {
-            content: interaction.message?.content || "Como foi sua experiência?",
+            content: interaction.message?.content || tr(L, "feedback_experience_prompt"),
             components: [{
               type: 1,
               components: [
-                { type: 2, style: 4, label: "Ruim :(", custom_id: `feedback_rate:${orderId}:1` },
-                { type: 2, style: 2, label: "Mediano", custom_id: `feedback_rate:${orderId}:3` },
-                { type: 2, style: 1, label: "Muito Bom!", custom_id: `feedback_rate:${orderId}:5` },
+                { type: 2, style: 4, label: tr(L, "feedback_bad"), custom_id: `feedback_rate:${orderId}:1` },
+                { type: 2, style: 2, label: tr(L, "feedback_average"), custom_id: `feedback_rate:${orderId}:3` },
+                { type: 2, style: 1, label: tr(L, "feedback_good"), custom_id: `feedback_rate:${orderId}:5` },
               ],
             }],
             allowed_mentions: { parse: [] },
