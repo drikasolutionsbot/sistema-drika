@@ -321,14 +321,14 @@ const DmTemplatesPage = () => {
     if (!tenantId) return;
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         tenant_id: tenantId,
         template_key: activeKey,
         enabled: current.enabled,
-        embed_data: current.embed_data,
+        embed_data: current.embed_data as any,
       };
-      const { error } = await supabase
-        .from("dm_templates")
+      const { error } = await (supabase
+        .from("dm_templates") as any)
         .upsert(payload, { onConflict: "tenant_id,template_key" });
       if (error) throw error;
       toast({ title: "Template salvo!", description: activeMeta.label });
