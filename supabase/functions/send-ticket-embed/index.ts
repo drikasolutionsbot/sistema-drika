@@ -69,9 +69,11 @@ Deno.serve(async (req) => {
     const safeImageUrl = typeof image_url === "string" && image_url.trim() ? image_url.trim() : null;
     const safeThumbnailUrl = typeof thumbnail_url === "string" && thumbnail_url.trim() ? thumbnail_url.trim() : null;
 
+    const lang = await getTenantLang(supabase, tenant_id);
+
     const embed: any = {
-      title: title || "🎫 Ticket de Suporte",
-      description: description || "Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.",
+      title: title || tr(lang, "ticket_default_title"),
+      description: description || tr(lang, "ticket_default_desc"),
       color: colorInt,
     };
 
