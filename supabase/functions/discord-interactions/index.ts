@@ -2366,6 +2366,16 @@ serve(async (req) => {
         }), { headers: { "Content-Type": "application/json" } });
       }
 
+    } catch (err) {
+      console.error("Interaction error:", err);
+      try {
+        await editFollowup(interaction, botToken, `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+      } catch {
+        // If deferred response wasn't sent, try immediate
+      }
+      return ok();
+    }
+  }
 
 
   // Type 5: MODAL_SUBMIT
