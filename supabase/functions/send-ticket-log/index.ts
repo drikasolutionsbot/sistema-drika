@@ -461,7 +461,7 @@ Deno.serve(async (req) => {
 
       // Attach HTML file if available
       if (htmlBuffer) {
-        const blob = new Blob([htmlBuffer], { type: "text/html; charset=utf-8" });
+        const blob = new Blob([htmlBuffer as BlobPart], { type: "text/html; charset=utf-8" });
         formData.append("files[0]", blob, `transcript-${ticketName}.html`);
         formData.append("payload_json", JSON.stringify(payload));
 

@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     }
 
     // Build query
-    let query = admin
+    let query: any = admin
       .from(table)
       .select(select || "*")
       .eq("tenant_id", tenant_id);
