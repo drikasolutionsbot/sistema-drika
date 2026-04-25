@@ -2615,7 +2615,8 @@ serve(async (req) => {
 
         return respondImmediate(interaction, `✅ Obrigado pela sua avaliação de ${stars}!`);
       }
-
+    } catch (err) {
+      console.error("Modal interaction error:", err);
       try {
         await editFollowup(interaction, botToken, `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
       } catch {}
