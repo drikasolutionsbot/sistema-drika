@@ -1,0 +1,1 @@
+ALTER TABLE public.store_configs ADD COLUMN IF NOT EXISTS feedback_channel_id text;

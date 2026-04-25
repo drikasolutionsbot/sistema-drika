@@ -1659,6 +1659,7 @@ export type Database = {
           customer_role_id: string | null
           delivery_instructions: string | null
           embed_color: string
+          feedback_channel_id: string | null
           id: string
           logs_channel_id: string | null
           payment_timeout_minutes: number
@@ -1694,6 +1695,7 @@ export type Database = {
           customer_role_id?: string | null
           delivery_instructions?: string | null
           embed_color?: string
+          feedback_channel_id?: string | null
           id?: string
           logs_channel_id?: string | null
           payment_timeout_minutes?: number
@@ -1729,6 +1731,7 @@ export type Database = {
           customer_role_id?: string | null
           delivery_instructions?: string | null
           embed_color?: string
+          feedback_channel_id?: string | null
           id?: string
           logs_channel_id?: string | null
           payment_timeout_minutes?: number
