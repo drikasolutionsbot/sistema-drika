@@ -189,8 +189,8 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
               <div className="flex items-center gap-1 mt-2 pt-1 border-t border-[#3f4147]">
                 <p className="text-[#72767d] text-[10px]">
                   {product.active
-                    ? (cfg.footer_available_text || "✅ Disponível • Compre agora!")
-                    : (cfg.footer_unavailable_text || "❌ Indisponível")}
+                    ? (cfg.footer_available_text || L.available)
+                    : (cfg.footer_unavailable_text || L.unavailable)}
                 </p>
               </div>
             )}
