@@ -206,6 +206,20 @@ const StoreGeneralSettings = () => {
               />
               <p className="text-[11px] text-muted-foreground mt-1">Logs detalhados de transações</p>
             </div>
+            <div>
+              <Label>Canal de Feedbacks ⭐</Label>
+              <ChannelSelectWithCreate
+                value={config.feedback_channel_id}
+                onChange={(v) => update("feedback_channel_id", v)}
+                channels={channels}
+                categories={categories}
+                onChannelCreated={fetchChannels}
+                tenantId={tenantId}
+                placeholder="Selecione o canal de feedbacks"
+                defaultNewName="feedbacks"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Avaliações dos clientes serão postadas aqui. Se vazio, usa o canal de logs.</p>
+            </div>
           </CardContent>
         </Card>
 
