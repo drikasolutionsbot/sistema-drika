@@ -1,4 +1,5 @@
 const { supabase } = require("../supabase");
+const { tr, trf, resolveOrderLang } = require("../i18n");
 const {
   ActionRowBuilder,
   ButtonBuilder,
@@ -26,46 +27,54 @@ async function alreadyRated(orderId, userId) {
 
 // "Deixe seu feedback" → edita a mensagem mostrando os 3 botões
 async function openFeedback(interaction, orderId) {
+  const order = await getOrderById(orderId);
+  if (!order) return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
+  const L = await resolveOrderLang(supabase, order);
+
   if (await alreadyRated(orderId, interaction.user.id)) {
-    return interaction.reply({ content: "⭐ Você já avaliou esta compra. Obrigado!", ephemeral: true });
+    return interaction.reply({ content: tr(L, "feedback_already_rated"), ephemeral: true });
   }
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`feedback_rate:${orderId}:1`).setLabel("Ruim :(").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`feedback_rate:${orderId}:3`).setLabel("Mediano").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`feedback_rate:${orderId}:5`).setLabel("Muito Bom!").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`feedback_rate:${orderId}:1`).setLabel(tr(L, "feedback_bad")).setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`feedback_rate:${orderId}:3`).setLabel(tr(L, "feedback_average")).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`feedback_rate:${orderId}:5`).setLabel(tr(L, "feedback_good")).setStyle(ButtonStyle.Primary),
   );
 
   await interaction.update({
-    content: interaction.message?.content || "Como foi sua experiência?",
+    content: interaction.message?.content || tr(L, "feedback_experience_prompt"),
     components: [row],
   });
 }
 
 // Clique em Ruim/Mediano/Muito Bom → abre modal de comentário
 async function rateFeedback(interaction, orderId, rating) {
+  const order = await getOrderById(orderId);
+  if (!order) return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
+  const L = await resolveOrderLang(supabase, order);
+
   if (await alreadyRated(orderId, interaction.user.id)) {
-    return interaction.reply({ content: "⭐ Você já avaliou esta compra. Obrigado!", ephemeral: true });
+    return interaction.reply({ content: tr(L, "feedback_already_rated"), ephemeral: true });
   }
 
   const r = parseInt(rating);
   if (isNaN(r) || r < 1 || r > 5) {
-    return interaction.reply({ content: "❌ Nota inválida.", ephemeral: true });
+    return interaction.reply({ content: tr(L, "feedback_invalid_rating"), ephemeral: true });
   }
 
-  const ratingLabel = r <= 1 ? "Ruim" : r <= 3 ? "Mediano" : "Muito Bom";
+  const ratingLabel = r <= 1 ? tr(L, "feedback_bad") : r <= 3 ? tr(L, "feedback_average") : tr(L, "feedback_good");
 
   const modal = new ModalBuilder()
     .setCustomId(`feedback_modal:${orderId}:${r}`)
-    .setTitle(`Avaliação: ${ratingLabel}`)
+    .setTitle(trf(L, "feedback_modal_title", { rating: ratingLabel }))
     .addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("comment")
-          .setLabel("Deixe seu comentário (opcional)")
+          .setLabel(tr(L, "feedback_comment_label"))
           .setStyle(TextInputStyle.Paragraph)
           .setMaxLength(500)
-          .setPlaceholder("Conte como foi sua experiência...")
+          .setPlaceholder(tr(L, "feedback_comment_placeholder"))
           .setRequired(false),
       ),
     );
@@ -80,8 +89,9 @@ async function submitFeedback(interaction, orderId, rating) {
 
   const order = await getOrderById(orderId);
   if (!order) {
-    return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
+    return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
   }
+  const L = await resolveOrderLang(supabase, order);
 
   const { error: insertErr } = await supabase.from("order_feedbacks").insert({
     tenant_id: order.tenant_id,
@@ -94,9 +104,9 @@ async function submitFeedback(interaction, orderId, rating) {
 
   if (insertErr) {
     if (insertErr.code === "23505") {
-      return interaction.reply({ content: "⭐ Você já avaliou esta compra. Obrigado!", ephemeral: true });
+      return interaction.reply({ content: tr(L, "feedback_already_rated"), ephemeral: true });
     }
-    return interaction.reply({ content: `❌ Erro ao salvar avaliação: ${insertErr.message}`, ephemeral: true });
+    return interaction.reply({ content: trf(L, "feedback_save_error", { error: insertErr.message }), ephemeral: true });
   }
 
   // Posta no canal de feedbacks (ou logs como fallback)
@@ -125,17 +135,17 @@ async function submitFeedback(interaction, orderId, rating) {
       const color = r >= 4 ? 0x57F287 : r === 3 ? 0xFEE75C : 0xED4245;
 
       const embed = new EmbedBuilder()
-        .setTitle("⭐ Nova avaliação recebida")
-        .setDescription(`<@${interaction.user.id}> avaliou o pedido **#${order.order_number}**.`)
+        .setTitle(tr(L, "feedback_log_title"))
+        .setDescription(trf(L, "feedback_log_desc", { user_id: interaction.user.id, order_number: order.order_number }))
         .setColor(color)
         .addFields(
-          { name: "**Nota**", value: `${stars} (${r}/5)`, inline: true },
-          { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-          { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+          { name: `**${tr(L, "rating_label")}**`, value: `${stars} (${r}/5)`, inline: true },
+          { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+          { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
         )
         .setTimestamp(new Date());
 
-      if (comment) embed.addFields({ name: "**Comentário**", value: comment, inline: false });
+      if (comment) embed.addFields({ name: `**${tr(L, "comment_label")}**`, value: comment, inline: false });
 
       const channel = await interaction.client.channels.fetch(targetChannel).catch(() => null);
       if (channel) await channel.send({ embeds: [embed] });
@@ -145,7 +155,7 @@ async function submitFeedback(interaction, orderId, rating) {
   }
 
   const stars = "⭐".repeat(r);
-  return interaction.reply({ content: `✅ Obrigado pela sua avaliação de ${stars}!`, ephemeral: true });
+  return interaction.reply({ content: trf(L, "feedback_thanks", { stars }), ephemeral: true });
 }
 
 module.exports = { openFeedback, rateFeedback, submitFeedback };

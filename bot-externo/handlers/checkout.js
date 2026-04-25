@@ -11,6 +11,7 @@ const {
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
+const { tr, trf, resolveOrderLang } = require("../i18n");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
@@ -891,7 +892,12 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    const dmApprovedEmbed = new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp();
+    const L = await resolveOrderLang(supabase, order);
+    const dmApprovedEmbed = new EmbedBuilder()
+      .setTitle(tr(L, "payment_confirmed_title"))
+      .setDescription(trf(L, "payment_confirmed_desc", { order_number: order.order_number, product: order.product_name }))
+      .setColor(dmEmbedColor)
+      .setTimestamp();
     applyDrikaCover(dmApprovedEmbed);
     await user.send({ embeds: [dmApprovedEmbed] });
   } catch {}
@@ -936,7 +942,12 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    const dmRejectedEmbed = new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0xED4245).setTimestamp();
+    const L = await resolveOrderLang(supabase, order);
+    const dmRejectedEmbed = new EmbedBuilder()
+      .setTitle(tr(L, "order_rejected_title"))
+      .setDescription(trf(L, "order_rejected_desc", { order_number: order.order_number, product: order.product_name }))
+      .setColor(0xED4245)
+      .setTimestamp();
     applyDrikaCover(dmRejectedEmbed);
     await user.send({ embeds: [dmRejectedEmbed] });
   } catch {}
@@ -1152,7 +1163,11 @@ async function cancelManual(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`).setColor(0xED4245)] });
+    const L = await resolveOrderLang(supabase, order);
+    await user.send({ embeds: [new EmbedBuilder()
+      .setTitle(tr(L, "order_canceled_title"))
+      .setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name }))
+      .setColor(0xED4245)] });
   } catch {}
 
   await interaction.editReply({
@@ -1176,16 +1191,17 @@ async function cancelManual(interaction, tenant, orderId) {
 // ── Copy Delivered ──
 async function copyDelivered(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
+  const L = await resolveOrderLang(supabase, order);
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
     .eq("delivered_to", order.discord_user_id).eq("delivered", true)
     .order("delivered_at", { ascending: false }).limit(10);
 
-  if (!items?.length) return interaction.reply({ content: "❌ Nenhum conteúdo entregue encontrado.", ephemeral: true });
+  if (!items?.length) return interaction.reply({ content: tr(L, "delivered_not_found"), ephemeral: true });
   const content = items.map((i) => i.content).join("\n");
-  return interaction.reply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\``, ephemeral: true });
+  return interaction.reply({ content: trf(L, "delivered_copy_response", { content }), ephemeral: true });
 }
 
 // ── View Variations ──

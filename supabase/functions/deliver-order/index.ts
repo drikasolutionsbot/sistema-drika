@@ -192,12 +192,12 @@ serve(async (req) => {
             description: tr(lang, "order_approved_desc"),
             color: purchaseEmbedColor,
             fields: [
-              { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
-              { name: "**Gateway de Pagamento**", value: providerLabel, inline: true },
-              { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: true },
+              { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+              { name: `**${tr(lang, "payment_gateway_label")}**`, value: providerLabel, inline: true },
+              { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${tenant?.name || "Loja"} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              text: `${tenant?.name || tr(lang, "store_default")} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
               icon_url: tenant?.logo_url || undefined,
             },
           }],
@@ -242,12 +242,12 @@ serve(async (req) => {
             description: trf(lang, "payment_confirmed_desc", { total: formatBRL(order.total_cents) }),
             color: purchaseEmbedColor,
             fields: [
-              { name: "**Detalhes**", value: `1x ${order.product_name}`, inline: false },
-              { name: "**Gateway de Pagamento**", value: providerLabel, inline: true },
-              { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: true },
+              { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name}`, inline: false },
+              { name: `**${tr(lang, "payment_gateway_label")}**`, value: providerLabel, inline: true },
+              { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${storeBrand.name} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
               icon_url: storeBrand.icon_url,
             },
           }],
@@ -270,7 +270,7 @@ serve(async (req) => {
         const formData = new FormData();
         formData.append("files[0]", blob, `${order.id}.txt`);
         formData.append("payload_json", JSON.stringify({
-          attachments: [{ id: 0, filename: `${order.id}.txt`, description: "Produto entregue" }],
+          attachments: [{ id: 0, filename: `${order.id}.txt`, description: tr(lang, "delivered_attachment_description") }],
         }));
 
         await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
@@ -285,16 +285,16 @@ serve(async (req) => {
         author: storeBrand,
         title: `${tr(lang, "order_label")} #${order.id}`,
         description: isAutoDelivery && stockItems.length > 0
-          ? "**Entrega Realizada**\nSeu produto foi anexado a essa mensagem"
+          ? `**${tr(lang, "delivered_heading")}**\n${tr(lang, "delivered_attachment_desc")}`
           : isAutoDelivery
-          ? "**Estoque Esgotado**\n⚠️ Não há estoque disponível. Nossa equipe entrará em contato."
-          : "**Entrega Manual**\nSua compra foi registrada! Aguarde a entrega pela equipe.",
+          ? `**${tr(lang, "out_of_stock_heading")}**\n${tr(lang, "out_of_stock_customer_desc")}`
+          : `**${tr(lang, "manual_delivery_heading")}**\n${tr(lang, "manual_delivery_customer_desc")}`,
         color: embedColor,
         fields: [
-          { name: "**Detalhes**", value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+          { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
         ],
         footer: {
-          text: `${storeBrand.name} • Hoje às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+          text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
           icon_url: storeBrand.icon_url,
         },
       };
@@ -305,7 +305,7 @@ serve(async (req) => {
         dmButtons.push({
           type: 1,
           components: [
-            { type: 2, style: 3, label: "Copiar produto entregue", emoji: { name: "📋" }, custom_id: `copy_delivered:${order.id}` },
+            { type: 2, style: 3, label: tr(lang, "copy_delivered_button"), emoji: { name: "📋" }, custom_id: `copy_delivered:${order.id}` },
           ],
         });
       }
@@ -330,7 +330,7 @@ serve(async (req) => {
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 1, label: "Deixe seu feedback", emoji: { name: "⭐" }, custom_id: `feedback_open:${order.id}` },
+              { type: 2, style: 1, label: tr(lang, "feedback_button"), emoji: { name: "⭐" }, custom_id: `feedback_open:${order.id}` },
             ],
           }],
           allowed_mentions: { parse: [] },

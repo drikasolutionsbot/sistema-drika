@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { tr, normLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
+import { tr, trf, normLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -70,6 +70,20 @@ function resolveHexColor(value: unknown, fallback = "#5865F2") {
   const raw = typeof value === "string" ? value.trim() : "";
   const normalized = raw ? (raw.startsWith("#") ? raw : `#${raw}`) : fallback;
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
+}
+
+async function resolveOrderLang(supabase: any, order: any): Promise<Lang> {
+  let lang = await getTenantLang(supabase, order?.tenant_id);
+  if (order?.product_id) {
+    const { data: product } = await supabase
+      .from("products")
+      .select("language")
+      .eq("id", order.product_id)
+      .eq("tenant_id", order.tenant_id)
+      .maybeSingle();
+    if (product?.language) lang = normLang(product.language);
+  }
+  return lang;
 }
 
 // ─── PIX generation helpers (same as generate-pix) ──────────
@@ -1335,7 +1349,8 @@ serve(async (req) => {
       if (customId.startsWith("copy_delivered:")) {
         const orderId = customId.replace("copy_delivered:", "");
         const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id, discord_user_id, order_number").eq("id", orderId).single();
-        if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        if (!order) return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        const L = await resolveOrderLang(supabase, order);
 
         // Get delivered stock items for this order
         const { data: items } = await supabase
@@ -1349,11 +1364,11 @@ serve(async (req) => {
           .limit(10);
 
         if (!items || items.length === 0) {
-          return respondImmediate(interaction, "❌ Nenhum conteúdo entregue encontrado para este pedido.");
+          return respondImmediate(interaction, tr(L, "delivered_not_found"));
         }
 
         const content = items.map((i: any) => i.content).join("\n");
-        return respondImmediate(interaction, `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\``);
+        return respondImmediate(interaction, trf(L, "delivered_copy_response", { content }));
       }
 
       // ─── BUY AGAIN (link to server) ───────────────────────
@@ -2309,6 +2324,9 @@ serve(async (req) => {
       // ─── FEEDBACK OPEN: substitui o botão único pelos 3 de avaliação ─
       if (customId.startsWith("feedback_open:")) {
         const orderId = customId.replace("feedback_open:", "");
+        const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id").eq("id", orderId).maybeSingle();
+        if (!order) return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        const L = await resolveOrderLang(supabase, order);
 
         const { data: existingFb } = await supabase
           .from("order_feedbacks")
@@ -2318,19 +2336,19 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingFb) {
-          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+          return respondImmediate(interaction, tr(L, "feedback_already_rated"));
         }
 
         return new Response(JSON.stringify({
           type: 7, // UPDATE_MESSAGE
           data: {
-            content: interaction.message?.content || "Como foi sua experiência?",
+            content: interaction.message?.content || tr(L, "feedback_experience_prompt"),
             components: [{
               type: 1,
               components: [
-                { type: 2, style: 4, label: "Ruim :(", custom_id: `feedback_rate:${orderId}:1` },
-                { type: 2, style: 2, label: "Mediano", custom_id: `feedback_rate:${orderId}:3` },
-                { type: 2, style: 1, label: "Muito Bom!", custom_id: `feedback_rate:${orderId}:5` },
+                { type: 2, style: 4, label: tr(L, "feedback_bad"), custom_id: `feedback_rate:${orderId}:1` },
+                { type: 2, style: 2, label: tr(L, "feedback_average"), custom_id: `feedback_rate:${orderId}:3` },
+                { type: 2, style: 1, label: tr(L, "feedback_good"), custom_id: `feedback_rate:${orderId}:5` },
               ],
             }],
             allowed_mentions: { parse: [] },
@@ -2342,9 +2360,12 @@ serve(async (req) => {
       if (customId.startsWith("feedback_rate:")) {
         const [, orderId, ratingStr] = customId.split(":");
         const rating = parseInt(ratingStr);
+        const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id").eq("id", orderId).maybeSingle();
+        if (!order) return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        const L = await resolveOrderLang(supabase, order);
 
         if (isNaN(rating) || rating < 1 || rating > 5) {
-          return respondImmediate(interaction, "❌ Nota inválida.");
+          return respondImmediate(interaction, tr(L, "feedback_invalid_rating"));
         }
 
         const { data: existingFb } = await supabase
@@ -2355,25 +2376,25 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingFb) {
-          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+          return respondImmediate(interaction, tr(L, "feedback_already_rated"));
         }
 
-        const ratingLabel = rating <= 1 ? "Ruim" : rating <= 3 ? "Mediano" : "Muito Bom";
+        const ratingLabel = rating <= 1 ? tr(L, "feedback_bad") : rating <= 3 ? tr(L, "feedback_average") : tr(L, "feedback_good");
 
         return new Response(JSON.stringify({
           type: 9,
           data: {
             custom_id: `feedback_modal:${orderId}:${rating}`,
-            title: `Avaliação: ${ratingLabel}`,
+            title: trf(L, "feedback_modal_title", { rating: ratingLabel }),
             components: [{
               type: 1,
               components: [{
                 type: 4,
                 custom_id: "comment",
-                label: "Deixe seu comentário (opcional)",
+                label: tr(L, "feedback_comment_label"),
                 style: 2,
                 max_length: 500,
-                placeholder: "Conte como foi sua experiência...",
+                placeholder: tr(L, "feedback_comment_placeholder"),
                 required: false,
               }],
             }],
@@ -2652,13 +2673,14 @@ serve(async (req) => {
           rating = parseInt(ratingRaw);
         }
 
-        if (isNaN(rating) || rating < 1 || rating > 5) {
-          return respondImmediate(interaction, "❌ Nota inválida. Use um número de 1 a 5.");
-        }
-
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) {
-          return respondImmediate(interaction, "❌ Pedido não encontrado.");
+          return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        }
+        const L = await resolveOrderLang(supabase, order);
+
+        if (isNaN(rating) || rating < 1 || rating > 5) {
+          return respondImmediate(interaction, tr(L, "feedback_invalid_rating"));
         }
 
         const { error: insertErr } = await supabase.from("order_feedbacks").insert({
@@ -2672,23 +2694,23 @@ serve(async (req) => {
 
         if (insertErr) {
           if (insertErr.code === "23505") {
-            return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+            return respondImmediate(interaction, tr(L, "feedback_already_rated"));
           }
-          return respondImmediate(interaction, `❌ Erro ao salvar avaliação: ${insertErr.message}`);
+          return respondImmediate(interaction, trf(L, "feedback_save_error", { error: insertErr.message }));
         }
 
         // Envia para o canal de feedbacks (ou logs como fallback)
         const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
         const embedColor = rating >= 4 ? 0x57F287 : rating === 3 ? 0xFEE75C : 0xED4245;
         const feedbackEmbed = {
-          title: "⭐ Nova avaliação recebida",
-          description: `<@${userId}> avaliou o pedido **#${order.order_number}**.`,
+          title: tr(L, "feedback_log_title"),
+          description: trf(L, "feedback_log_desc", { user_id: userId, order_number: order.order_number }),
           color: embedColor,
           fields: [
-            { name: "**Nota**", value: `${stars} (${rating}/5)`, inline: true },
-            { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            ...(comment ? [{ name: "**Comentário**", value: comment, inline: false }] : []),
+            { name: `**${tr(L, "rating_label")}**`, value: `${stars} (${rating}/5)`, inline: true },
+            { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            ...(comment ? [{ name: `**${tr(L, "comment_label")}**`, value: comment, inline: false }] : []),
           ],
           timestamp: new Date().toISOString(),
         };
@@ -2715,7 +2737,7 @@ serve(async (req) => {
           }
         }
 
-        return respondImmediate(interaction, `✅ Obrigado pela sua avaliação de ${stars}!`);
+        return respondImmediate(interaction, trf(L, "feedback_thanks", { stars }));
       }
     } catch (err) {
       console.error("Modal interaction error:", err);
