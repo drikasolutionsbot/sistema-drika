@@ -59,15 +59,22 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
 
   useEffect(() => {
     if (!tenantId) return;
-    supabase
-      .from("payment_providers")
-      .select("provider_key")
-      .eq("tenant_id", tenantId)
-      .eq("active", true)
-      .not("api_key_encrypted", "is", null)
-      .then(({ data }) => {
-        setActiveProviders((data || []).map((p: any) => p.provider_key));
-      });
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
+          body: { action: "list", tenant_id: tenantId },
+        });
+        if (error) throw error;
+        const list = Array.isArray(data) ? data : (data?.providers || data?.data || []);
+        const active = (list || [])
+          .filter((p: any) => p.active && (p.has_credentials ?? p.api_key_encrypted ?? true))
+          .map((p: any) => p.provider_key);
+        setActiveProviders(active);
+      } catch (e) {
+        console.error("[ProductDetailGeneral] failed to load providers", e);
+        setActiveProviders([]);
+      }
+    })();
   }, [tenantId]);
 
   return (
