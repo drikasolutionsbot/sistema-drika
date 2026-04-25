@@ -223,6 +223,15 @@ export function tr(lang: string | null | undefined, key: string): string {
   return I18N[L][key] ?? I18N["pt-BR"][key] ?? key;
 }
 
+/** Translate + replace {placeholders}. */
+export function trf(lang: string | null | undefined, key: string, vars: Record<string, string | number> = {}): string {
+  let s = tr(lang, key);
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.split(`{${k}}`).join(String(v));
+  }
+  return s;
+}
+
 /** Helper: fetch tenant.language with fallback. Pass an already-built supabase client. */
 export async function getTenantLang(supabase: any, tenantId: string): Promise<Lang> {
   try {
