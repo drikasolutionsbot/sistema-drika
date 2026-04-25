@@ -2925,8 +2925,8 @@ async function processPurchase(
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       embeds: [reviewEmbed],
-      components: (() => {
-        const L = normLang((tenant as any)?.language);
+      components: await (async () => {
+        const L = await getTenantLang(supabase, tenantId);
         return [
           {
             type: 1,
