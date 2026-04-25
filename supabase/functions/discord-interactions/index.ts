@@ -2673,13 +2673,14 @@ serve(async (req) => {
           rating = parseInt(ratingRaw);
         }
 
-        if (isNaN(rating) || rating < 1 || rating > 5) {
-          return respondImmediate(interaction, "❌ Nota inválida. Use um número de 1 a 5.");
-        }
-
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) {
-          return respondImmediate(interaction, "❌ Pedido não encontrado.");
+          return respondImmediate(interaction, tr("pt-BR", "order_not_found"));
+        }
+        const L = await resolveOrderLang(supabase, order);
+
+        if (isNaN(rating) || rating < 1 || rating > 5) {
+          return respondImmediate(interaction, tr(L, "feedback_invalid_rating"));
         }
 
         const { error: insertErr } = await supabase.from("order_feedbacks").insert({
@@ -2693,23 +2694,23 @@ serve(async (req) => {
 
         if (insertErr) {
           if (insertErr.code === "23505") {
-            return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+            return respondImmediate(interaction, tr(L, "feedback_already_rated"));
           }
-          return respondImmediate(interaction, `❌ Erro ao salvar avaliação: ${insertErr.message}`);
+          return respondImmediate(interaction, trf(L, "feedback_save_error", { error: insertErr.message }));
         }
 
         // Envia para o canal de feedbacks (ou logs como fallback)
         const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
         const embedColor = rating >= 4 ? 0x57F287 : rating === 3 ? 0xFEE75C : 0xED4245;
         const feedbackEmbed = {
-          title: "⭐ Nova avaliação recebida",
-          description: `<@${userId}> avaliou o pedido **#${order.order_number}**.`,
+          title: tr(L, "feedback_log_title"),
+          description: trf(L, "feedback_log_desc", { user_id: userId, order_number: order.order_number }),
           color: embedColor,
           fields: [
-            { name: "**Nota**", value: `${stars} (${rating}/5)`, inline: true },
-            { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            ...(comment ? [{ name: "**Comentário**", value: comment, inline: false }] : []),
+            { name: `**${tr(L, "rating_label")}**`, value: `${stars} (${rating}/5)`, inline: true },
+            { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            ...(comment ? [{ name: `**${tr(L, "comment_label")}**`, value: comment, inline: false }] : []),
           ],
           timestamp: new Date().toISOString(),
         };
@@ -2736,7 +2737,7 @@ serve(async (req) => {
           }
         }
 
-        return respondImmediate(interaction, `✅ Obrigado pela sua avaliação de ${stars}!`);
+        return respondImmediate(interaction, trf(L, "feedback_thanks", { stars }));
       }
     } catch (err) {
       console.error("Modal interaction error:", err);
