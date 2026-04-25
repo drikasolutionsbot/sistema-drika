@@ -323,7 +323,9 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                   setLanguage(lang);
                   if (tenantId) {
                     try {
-                      await supabase.from("tenants").update({ language: lang } as any).eq("id", tenantId);
+                      await supabase.functions.invoke("update-tenant", {
+                        body: { tenant_id: tenantId, updates: { language: lang } },
+                      });
                     } catch (e) { console.error("Failed to sync language to tenant", e); }
                   }
                 }}
