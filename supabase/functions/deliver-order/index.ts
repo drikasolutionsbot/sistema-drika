@@ -43,7 +43,7 @@ serve(async (req) => {
       .select("name, logo_url, discord_guild_id, bot_name, bot_avatar_url, language")
       .eq("id", tenant_id)
       .single();
-    const lang = normLang((tenant as any)?.language);
+    let lang = normLang((tenant as any)?.language);
 
     // Identidade da loja para embeds em DM (DM usa perfil global do bot;
     // por isso aplicamos a marca no embed via author + footer)
@@ -74,6 +74,10 @@ serve(async (req) => {
 
       product = productData;
       isAutoDelivery = !!product?.auto_delivery;
+      // Sobrescreve idioma quando o produto define um idioma específico
+      if (product?.language) {
+        lang = normLang(product.language);
+      }
 
       if (isAutoDelivery) {
         let deliveryQty = 1;
