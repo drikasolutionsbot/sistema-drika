@@ -2,8 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useLanguage } from "@/i18n/LanguageContext";
 import { type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 import { type EmbedConfig, DEFAULT_EMBED } from "./ProductDetailEmbed";
+
+const DISCORD_LABELS: Record<string, Record<string, string>> = {
+  "pt-BR": { buy: "🛒 Comprar", buy_plain: "comprar", price: "Valor à vista", stock: "Restam", auto: "⚡ Entrega Automática!", manual: "📦 Entrega Manual", available: "✅ Disponível • Compre agora!", unavailable: "❌ Indisponível" },
+  en: { buy: "🛒 Buy", buy_plain: "buy", price: "Price", stock: "In stock", auto: "⚡ Instant Delivery!", manual: "📦 Manual Delivery", available: "✅ Available • Buy now!", unavailable: "❌ Unavailable" },
+  de: { buy: "🛒 Kaufen", buy_plain: "kaufen", price: "Preis", stock: "Verfügbar", auto: "⚡ Sofortige Lieferung!", manual: "📦 Manuelle Lieferung", available: "✅ Verfügbar • Jetzt kaufen!", unavailable: "❌ Nicht verfügbar" },
+};
 
 interface Product {
   id: string;
@@ -48,6 +55,8 @@ const typeLabels: Record<string, string> = {
 
 export const ProductDiscordPreview = ({ product, storeName, fields = [], embedColor, embedConfig }: ProductDiscordPreviewProps) => {
   const { tenant, tenantId } = useTenant();
+  const { language } = useLanguage();
+  const L = DISCORD_LABELS[language] || DISCORD_LABELS["pt-BR"];
   const botName = storeName || tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
   const cfg: EmbedConfig = { ...DEFAULT_EMBED, ...embedConfig };
@@ -137,9 +146,9 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             {/* Delivery badge */}
             {cfg.show_delivery_badge !== false && (
               product.auto_delivery ? (
-                <p className="text-[#57F287] text-xs font-semibold">{cfg.delivery_auto_text || "⚡ Entrega Automática!"}</p>
+                <p className="text-[#57F287] text-xs font-semibold">{cfg.delivery_auto_text || L.auto}</p>
               ) : (
-                <p className="text-[#FEE75C] text-xs font-semibold">{cfg.delivery_manual_text || "📦 Entrega Manual"}</p>
+                <p className="text-[#FEE75C] text-xs font-semibold">{cfg.delivery_manual_text || L.manual}</p>
               )
             )}
 
@@ -154,13 +163,13 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
               {cfg.show_price !== false && (
                 <div>
-                  <p className="text-[#dcddde] text-[10px] font-semibold">**{cfg.price_label || "Valor à vista"}**</p>
+                  <p className="text-[#dcddde] text-[10px] font-semibold">**{cfg.price_label || L.price}**</p>
                   <p className="text-[#dcddde] text-xs">{formatPrice(product.price_cents)}</p>
                 </div>
               )}
               {cfg.show_stock_field !== false && (
                 <div>
-                  <p className="text-[#dcddde] text-[10px] font-semibold">{cfg.stock_label || "Restam"}</p>
+                  <p className="text-[#dcddde] text-[10px] font-semibold">{cfg.stock_label || L.stock}</p>
                   <p className="text-[#dcddde] text-xs">{realStockCount}</p>
                 </div>
               )}
@@ -180,8 +189,8 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
               <div className="flex items-center gap-1 mt-2 pt-1 border-t border-[#3f4147]">
                 <p className="text-[#72767d] text-[10px]">
                   {product.active
-                    ? (cfg.footer_available_text || "✅ Disponível • Compre agora!")
-                    : (cfg.footer_unavailable_text || "❌ Indisponível")}
+                    ? (cfg.footer_available_text || L.available)
+                    : (cfg.footer_unavailable_text || L.unavailable)}
                 </p>
               </div>
             )}
@@ -251,7 +260,7 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
                 >
                   {(() => {
                     const label = embedConfig?.buy_button_label?.trim();
-                    return !label || label.toLowerCase() === "comprar" ? "🛒 Comprar" : label;
+                    return !label || label.toLowerCase() === L.buy_plain || label.toLowerCase() === "comprar" ? L.buy : label;
                   })()}
                 </button>
               </>
