@@ -1040,26 +1040,23 @@ serve(async (req) => {
 
         // Notify buyer via DM
         try {
-          const dmCh = await fetch(`${DISCORD_API}/users/@me/channels`, {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-dm-template`, {
             method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ recipient_id: order.discord_user_id }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+            body: JSON.stringify({
+              tenant_id: order.tenant_id,
+              template_key: "payment_approved",
+              recipient_id: order.discord_user_id,
+              vars: {
+                customer: order.discord_username || `<@${order.discord_user_id}>`,
+                order_id: order.id,
+                order_number: order.order_number,
+                product: order.product_name,
+                total: formatBRL(order.total_cents),
+                quantity: 1,
+              },
+            }),
           });
-          if (dmCh.ok) {
-            const ch = await dmCh.json();
-            await fetch(`${DISCORD_API}/channels/${ch.id}/messages`, {
-              method: "POST",
-              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                embeds: [{
-                  title: "✅ Pagamento Confirmado!",
-                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`,
-                  color: 0x2B2D31,
-                  timestamp: new Date().toISOString(),
-                }],
-              }),
-            });
-          }
         } catch (e) { console.error("DM notify error:", e); }
 
         await editFollowup(interaction, botToken, {
@@ -1107,26 +1104,22 @@ serve(async (req) => {
 
         // Notify buyer
         try {
-          const dmCh = await fetch(`${DISCORD_API}/users/@me/channels`, {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-dm-template`, {
             method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ recipient_id: order.discord_user_id }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+            body: JSON.stringify({
+              tenant_id: order.tenant_id,
+              template_key: "order_rejected",
+              recipient_id: order.discord_user_id,
+              vars: {
+                customer: order.discord_username || `<@${order.discord_user_id}>`,
+                order_id: order.id,
+                order_number: order.order_number,
+                product: order.product_name,
+                total: formatBRL(order.total_cents),
+              },
+            }),
           });
-          if (dmCh.ok) {
-            const ch = await dmCh.json();
-            await fetch(`${DISCORD_API}/channels/${ch.id}/messages`, {
-              method: "POST",
-              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                embeds: [{
-                  title: "❌ Pedido Recusado",
-                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado pelo administrador.`,
-                  color: 0x2B2D31,
-                  timestamp: new Date().toISOString(),
-                }],
-              }),
-            });
-          }
         } catch (e) { console.error("DM notify error:", e); }
 
         await editFollowup(interaction, botToken, {
@@ -2060,25 +2053,22 @@ serve(async (req) => {
 
         // Notify buyer via DM
         try {
-          const dmChRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-dm-template`, {
             method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ recipient_id: order.discord_user_id }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+            body: JSON.stringify({
+              tenant_id: order.tenant_id,
+              template_key: "order_canceled",
+              recipient_id: order.discord_user_id,
+              vars: {
+                customer: order.discord_username || `<@${order.discord_user_id}>`,
+                order_id: order.id,
+                order_number: order.order_number,
+                product: order.product_name,
+                total: formatBRL(order.total_cents),
+              },
+            }),
           });
-          if (dmChRes.ok) {
-            const dmCh = await dmChRes.json();
-            await fetch(`${DISCORD_API}/channels/${dmCh.id}/messages`, {
-              method: "POST",
-              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                embeds: [{
-                  title: "❌ Pedido Cancelado",
-                  description: `Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`,
-                  color: 0xED4245,
-                }],
-              }),
-            });
-          }
         } catch (e) { console.error("DM cancel error:", e); }
 
         await editFollowup(interaction, botToken, {
