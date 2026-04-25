@@ -2173,6 +2173,7 @@ export type Database = {
           ecloud_custom_url: string | null
           email: string | null
           id: string
+          language: string
           logo_url: string | null
           name: string
           owner_discord_id: string | null
@@ -2218,6 +2219,7 @@ export type Database = {
           ecloud_custom_url?: string | null
           email?: string | null
           id?: string
+          language?: string
           logo_url?: string | null
           name: string
           owner_discord_id?: string | null
@@ -2263,6 +2265,7 @@ export type Database = {
           ecloud_custom_url?: string | null
           email?: string | null
           id?: string
+          language?: string
           logo_url?: string | null
           name?: string
           owner_discord_id?: string | null

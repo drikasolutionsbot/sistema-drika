@@ -1,0 +1,1 @@
+ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS language text NOT NULL DEFAULT 'pt-BR' CHECK (language IN ('pt-BR','en','de'));
