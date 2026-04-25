@@ -3040,6 +3040,18 @@ async function generatePixInThread(
   const orderName = order.product_name;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
+  // Resolve preferred provider: product-level override > tenant default
+  let preferredKey: string | null = null;
+  if (order.product_id) {
+    const { data: prod } = await supabase
+      .from("products")
+      .select("payment_provider_key")
+      .eq("id", order.product_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    preferredKey = (prod as any)?.payment_provider_key || null;
+  }
+
   // Check for active payment provider
   const { data: providers } = await supabase
     .from("payment_providers")
@@ -3047,7 +3059,13 @@ async function generatePixInThread(
     .eq("tenant_id", tenantId)
     .eq("active", true);
 
-  const activeProvider = providers?.find((p: any) => p.api_key_encrypted);
+  let activeProvider: any = null;
+  if (preferredKey) {
+    activeProvider = providers?.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+  }
+  if (!activeProvider) {
+    activeProvider = providers?.find((p: any) => p.api_key_encrypted) || null;
+  }
   const amountBRL = priceCents / 100;
   const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
   let brcode = "";

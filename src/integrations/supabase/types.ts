@@ -1367,6 +1367,7 @@ export type Database = {
           icon_url: string | null
           id: string
           name: string
+          payment_provider_key: string | null
           price_cents: number
           role_id: string | null
           show_sold: boolean
@@ -1391,6 +1392,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           name: string
+          payment_provider_key?: string | null
           price_cents?: number
           role_id?: string | null
           show_sold?: boolean
@@ -1415,6 +1417,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           name?: string
+          payment_provider_key?: string | null
           price_cents?: number
           role_id?: string | null
           show_sold?: boolean

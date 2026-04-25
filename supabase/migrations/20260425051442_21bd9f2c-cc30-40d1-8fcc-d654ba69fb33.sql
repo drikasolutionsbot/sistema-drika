@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS payment_provider_key text;
+COMMENT ON COLUMN public.products.payment_provider_key IS 'Gateway específico para esse produto (pushinpay, efi, abacatepay, mercadopago, misticpay). NULL = usa o gateway padrão ativo do tenant.';

@@ -329,7 +329,7 @@ serve(async (req) => {
   }
 
   try {
-    const { tenant_id, amount_cents, product_name, tx_id } = await req.json();
+    const { tenant_id, amount_cents, product_name, tx_id, product_id, provider_key } = await req.json();
 
     if (!tenant_id) throw new Error("Missing tenant_id");
 
@@ -337,14 +337,32 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1. Check for active payment provider (all supported providers)
+    // 1. Resolve preferred provider: explicit > product-level > tenant default
+    let preferredKey: string | null = provider_key || null;
+    if (!preferredKey && product_id) {
+      const { data: prod } = await supabase
+        .from("products")
+        .select("payment_provider_key")
+        .eq("id", product_id)
+        .eq("tenant_id", tenant_id)
+        .maybeSingle();
+      preferredKey = (prod as any)?.payment_provider_key || null;
+    }
+
+    // 2. Load active payment providers for tenant
     const { data: providers } = await supabase
       .from("payment_providers")
       .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
       .eq("tenant_id", tenant_id)
       .eq("active", true);
 
-    const activeProvider = providers?.find((p: any) => p.api_key_encrypted);
+    let activeProvider: any = null;
+    if (preferredKey) {
+      activeProvider = providers?.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+    }
+    if (!activeProvider) {
+      activeProvider = providers?.find((p: any) => p.api_key_encrypted) || null;
+    }
     const amount = amount_cents ? amount_cents / 100 : undefined;
     const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
 

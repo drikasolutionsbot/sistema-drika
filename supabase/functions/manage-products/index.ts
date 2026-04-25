@@ -34,7 +34,7 @@ serve(async (req) => {
 
     if (action === "update") {
       if (!product_id) throw new Error("Missing product_id");
-      const allowedFields = ["name", "description", "price_cents", "compare_price_cents", "type", "active", "icon_url", "banner_url", "auto_delivery", "category_id", "stock", "enable_credits", "show_stock", "show_sold", "enable_instructions", "button_style", "embed_config", "role_id"];
+      const allowedFields = ["name", "description", "price_cents", "compare_price_cents", "type", "active", "icon_url", "banner_url", "auto_delivery", "category_id", "stock", "enable_credits", "show_stock", "show_sold", "enable_instructions", "button_style", "embed_config", "role_id", "payment_provider_key"];
       const safeUpdates: Record<string, unknown> = {};
       for (const key of Object.keys(product || {})) {
         if (allowedFields.includes(key)) {

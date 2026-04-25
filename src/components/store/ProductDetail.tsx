@@ -37,6 +37,7 @@ interface Product {
   show_sold?: boolean;
   enable_instructions?: boolean;
   role_id?: string | null;
+  payment_provider_key?: string | null;
   button_style?: DiscordButtonStyle;
   embed_config?: EmbedConfig;
 }

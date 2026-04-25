@@ -4,9 +4,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ProductImageUpload } from "./ProductImageUpload";
 import { useTenant } from "@/contexts/TenantContext";
-import { List, Zap, Shield } from "lucide-react";
+import { List, Zap, Shield, Wallet } from "lucide-react";
 import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+
+const PROVIDER_LABELS: Record<string, string> = {
+  pushinpay: "PushinPay",
+  efi: "Efí (Gerencianet)",
+  abacatepay: "AbacatePay",
+  mercadopago: "Mercado Pago",
+  misticpay: "MisticPay",
+};
 
 interface Category {
   id: string;
@@ -31,6 +40,7 @@ interface Product {
   show_sold?: boolean;
   enable_instructions?: boolean;
   role_id?: string | null;
+  payment_provider_key?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
 }
 
@@ -43,8 +53,22 @@ interface ProductDetailGeneralProps {
 export const ProductDetailGeneral = ({ product, onChange, categories = [] }: ProductDetailGeneralProps) => {
   const { tenantId } = useTenant();
   const { roles, loading: rolesLoading } = useDiscordRoles();
+  const [activeProviders, setActiveProviders] = useState<string[]>([]);
   const nameMaxLen = 256;
   const descMaxLen = 4096;
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase
+      .from("payment_providers")
+      .select("provider_key")
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .not("api_key_encrypted", "is", null)
+      .then(({ data }) => {
+        setActiveProviders((data || []).map((p: any) => p.provider_key));
+      });
+  }, [tenantId]);
 
   return (
     <div className="space-y-8">
@@ -189,6 +213,40 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             ))}
           </SelectContent>
         </Select>
+      </section>
+
+      {/* Section: Gateway de Pagamento */}
+      <section className="space-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-foreground" />
+            <p className="text-sm font-bold">Gateway de Pagamento</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Escolha por qual gateway este produto será cobrado. Deixe em "Padrão" para usar o gateway principal da loja.
+          </p>
+        </div>
+        <Select
+          value={product.payment_provider_key || "default"}
+          onValueChange={(val) => onChange({ payment_provider_key: val === "default" ? null : val })}
+        >
+          <SelectTrigger className="bg-muted border-border w-full max-w-sm">
+            <SelectValue placeholder="Padrão da loja" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Padrão da loja</SelectItem>
+            {activeProviders.map((key) => (
+              <SelectItem key={key} value={key}>
+                {PROVIDER_LABELS[key] || key}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {activeProviders.length === 0 && (
+          <p className="text-xs text-muted-foreground italic">
+            Nenhum gateway ativo. Configure em Pagamentos.
+          </p>
+        )}
       </section>
 
       {/* Section: Imagens */}
