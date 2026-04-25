@@ -295,12 +295,6 @@ serve(async (req) => {
         });
       }
 
-      dmButtons.push({
-        type: 1,
-        components: [
-          { type: 2, style: 1, label: "Avaliar compra", emoji: { name: "⭐" }, custom_id: `feedback_order:${order.id}` },
-        ],
-      });
 
       await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
         method: "POST",
