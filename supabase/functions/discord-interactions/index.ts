@@ -2315,6 +2315,38 @@ serve(async (req) => {
         return ok();
       }
 
+      // ─── FEEDBACK OPEN: substitui o botão único pelos 3 de avaliação ─
+      if (customId.startsWith("feedback_open:")) {
+        const orderId = customId.replace("feedback_open:", "");
+
+        const { data: existingFb } = await supabase
+          .from("order_feedbacks")
+          .select("id")
+          .eq("order_id", orderId)
+          .eq("discord_user_id", userId)
+          .maybeSingle();
+
+        if (existingFb) {
+          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+        }
+
+        return new Response(JSON.stringify({
+          type: 7, // UPDATE_MESSAGE
+          data: {
+            content: interaction.message?.content || "Como foi sua experiência?",
+            components: [{
+              type: 1,
+              components: [
+                { type: 2, style: 4, label: "Ruim :(", custom_id: `feedback_rate:${orderId}:1` },
+                { type: 2, style: 2, label: "Mediano", custom_id: `feedback_rate:${orderId}:3` },
+                { type: 2, style: 1, label: "Muito Bom!", custom_id: `feedback_rate:${orderId}:5` },
+              ],
+            }],
+            allowed_mentions: { parse: [] },
+          },
+        }), { headers: { "Content-Type": "application/json" } });
+      }
+
       // ─── FEEDBACK INLINE BUTTONS (Ruim/Mediano/Muito Bom) ─
       if (customId.startsWith("feedback_rate:")) {
         const [, orderId, ratingStr] = customId.split(":");
