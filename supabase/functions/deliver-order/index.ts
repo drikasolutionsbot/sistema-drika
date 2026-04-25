@@ -279,7 +279,7 @@ serve(async (req) => {
       // 6c. Send "Entrega Realizada" embed with action buttons
       const deliveryEmbed: any = {
         author: storeBrand,
-        title: `Pedido #${order.id}`,
+        title: `${tr(lang, "order_label")} #${order.id}`,
         description: isAutoDelivery && stockItems.length > 0
           ? "**Entrega Realizada**\nSeu produto foi anexado a essa mensagem"
           : isAutoDelivery
