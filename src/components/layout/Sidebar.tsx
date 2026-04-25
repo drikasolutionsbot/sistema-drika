@@ -4,7 +4,7 @@ import {
   LayoutDashboard, DollarSign, Server, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck, Sparkles, BookOpen,
-  ShoppingBag, Gift, Users, HandMetal, LayoutTemplate,
+  ShoppingBag, Gift, Users, HandMetal, LayoutTemplate, Mail,
   ChevronUp, ChevronDown, GripVertical, Check,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -52,6 +52,7 @@ const navLabelKeys: Record<string, keyof typeof import("@/i18n/translations/pt-B
   "/giveaways": "giveaways",
   "/ecloud": "ecloud",
   "/embeds": "embeds",
+  "/dm-templates": "dmTemplates",
   "/tutorials": "tutorials",
   "/support": "support",
   "/settings": "settings",
@@ -109,6 +110,7 @@ const defaultNavGroups: NavGroup[] = [
       { label: "giveaways", icon: Gift, path: "/giveaways" },
       { label: "ecloud", icon: Cloud, path: "/ecloud" },
       { label: "embeds", icon: LayoutTemplate, path: "/embeds" },
+      { label: "dmTemplates", icon: Mail, path: "/dm-templates" },
     ],
     reorderable: true,
   },
@@ -141,6 +143,7 @@ const iconMap: Record<string, React.ElementType> = {
   "/giveaways": Gift,
   "/ecloud": Cloud,
   "/embeds": LayoutTemplate,
+  "/dm-templates": Mail,
 };
 
 function getSavedOrder(tenantId: string): Record<string, string[]> | null {

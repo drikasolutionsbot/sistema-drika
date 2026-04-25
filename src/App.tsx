@@ -59,6 +59,7 @@ import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminBotConfigPage from "./pages/admin/AdminBotConfigPage";
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
 import TranscriptPage from "./pages/TranscriptPage";
+import DmTemplatesPage from "./pages/DmTemplatesPage";
 
 const queryClient = new QueryClient();
 
@@ -143,6 +144,7 @@ const AppRoutes = () => (
       <Route path="/tutorials" element={<TutorialsPage />} />
       <Route path="/giveaways" element={<GiveawaysPage />} />
       <Route path="/embeds" element={<EmbedsPage />} />
+      <Route path="/dm-templates" element={<DmTemplatesPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
