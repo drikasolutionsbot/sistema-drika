@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
           });
           if (dmRes.ok) {
             const dm = await dmRes.json();
-            const embed = buildEmbed(config.dm_embed_data, replaceVars, tenant);
+            const embed = buildEmbed(config.dm_embed_data, replaceVars, tenant, lang);
             const payload: any = { embeds: [embed] };
             if (config.dm_content) payload.content = replaceVars(config.dm_content);
 
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
     if (event === "GUILD_MEMBER_REMOVE") {
       if (config.goodbye_enabled && config.goodbye_channel_id) {
         try {
-          const embed = buildEmbed(config.goodbye_embed_data, replaceVars, tenant);
+          const embed = buildEmbed(config.goodbye_embed_data, replaceVars, tenant, lang);
           const payload: any = { embeds: [embed] };
           if (config.goodbye_content) payload.content = replaceVars(config.goodbye_content);
 
