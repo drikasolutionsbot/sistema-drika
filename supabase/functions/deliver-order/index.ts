@@ -348,7 +348,7 @@ serve(async (req) => {
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            description: `✅ **Entrega realizada!** Verifique seu privado, esse ticket será excluído **em 2 minutos**`,
+            description: tr(lang, "delivery_done"),
             color: 0x2B2D31,
           }],
           components: [
@@ -357,7 +357,7 @@ serve(async (req) => {
               components: [{
                 type: 2,
                 style: 5,
-                label: "Ir para o pedido entregue",
+                label: tr(lang, "go_to_order"),
                 url: dmLink,
               }],
             },
