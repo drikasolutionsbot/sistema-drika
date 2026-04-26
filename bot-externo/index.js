@@ -483,6 +483,15 @@ client.on(Events.GuildRoleDelete, async (role) => {
   }
 });
 
+// ── Member Update (sincroniza staff em tickets quando ganha cargo) ──
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  try {
+    await memberRoleUpdateHandler(client, oldMember, newMember);
+  } catch (err) {
+    console.error("Erro no GuildMemberUpdate:", err);
+  }
+});
+
 // ── Login ──
 client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {
   console.error("❌ Falha ao fazer login:", err.message);
