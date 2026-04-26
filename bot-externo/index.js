@@ -51,6 +51,7 @@ const sorteioCommand = require("./commands/sorteio");
 const interactionHandler = require("./events/interaction");
 const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
+const memberRoleUpdateHandler = require("./events/memberRoleUpdate");
 const verificationHandler = require("./handlers/verification");
 
 // ── Status + identidade global polling ──
@@ -479,6 +480,15 @@ client.on(Events.GuildRoleDelete, async (role) => {
     await protectionHandler.onRoleDelete(client, role);
   } catch (err) {
     console.error("Erro na proteção (role delete):", err);
+  }
+});
+
+// ── Member Update (sincroniza staff em tickets quando ganha cargo) ──
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  try {
+    await memberRoleUpdateHandler(client, oldMember, newMember);
+  } catch (err) {
+    console.error("Erro no GuildMemberUpdate:", err);
   }
 });
 
