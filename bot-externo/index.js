@@ -51,6 +51,7 @@ const sorteioCommand = require("./commands/sorteio");
 const interactionHandler = require("./events/interaction");
 const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
+const memberRoleUpdateHandler = require("./events/memberRoleUpdate");
 const verificationHandler = require("./handlers/verification");
 
 // ── Status + identidade global polling ──
