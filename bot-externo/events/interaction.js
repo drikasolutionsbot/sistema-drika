@@ -10,6 +10,7 @@ const checkoutHandler = require("../handlers/checkout");
 const ticketsHandler = require("../handlers/tickets");
 const moderationHandler = require("../handlers/moderation");
 const feedbackHandler = require("../handlers/feedback");
+const { getTenantByGuild } = require("../supabase");
 
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
@@ -31,7 +32,9 @@ module.exports = async function handleInteraction(client, interaction) {
     return;
   }
 
-  const tenant = await client.resolveTenant(guildId);
+  const cachedTenant = await client.resolveTenant(guildId);
+  const freshTenant = await getTenantByGuild(guildId).catch(() => null);
+  const tenant = freshTenant || cachedTenant;
 
   if (!tenant) {
     if (interaction.isCommand()) {
