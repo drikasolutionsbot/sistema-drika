@@ -467,15 +467,15 @@ serve(async (req) => {
           : order.payment_provider || "PIX";
 
         const paymentLogEmbed: any = {
-          title: "💰 Pagamento confirmado",
-          description: `Usuário <@${order.discord_user_id}> teve o pagamento confirmado.`,
+          title: tr(lang, "payment_confirmed_log_title"),
+          description: trf(lang, "payment_confirmed_log_desc", { user_id: order.discord_user_id }),
           color: 0x57F287,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Forma de Pagamento**", value: `\`💎 Pix – ${providerLabel}\``, inline: false },
+            { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(lang, "payment_method_label")}**`, value: `\`💎 Pix – ${providerLabel}\``, inline: false },
           ],
-          footer: { text: `${tenant?.name || "Loja"} | ${new Date().toLocaleDateString("pt-BR")}, ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, icon_url: tenant?.logo_url || undefined },
+          footer: { text: `${tenant?.name || tr(lang, "store_default")} | ${new Date().toLocaleDateString("pt-BR")}, ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, icon_url: tenant?.logo_url || undefined },
           timestamp: new Date().toISOString(),
         };
 
@@ -493,18 +493,18 @@ serve(async (req) => {
         const isOutOfStock = isAutoDelivery && stockItems.length === 0;
         const needsManualAction = !isAutoDelivery || isOutOfStock;
         const deliveryLogEmbed: any = {
-          title: isOutOfStock ? "⚠️ Estoque Esgotado" : isAutoDelivery ? "⚡ Entrega Automática" : "📦 Entrega Manual Pendente",
+          title: isOutOfStock ? tr(lang, "stock_empty_title") : isAutoDelivery ? tr(lang, "auto_delivery_title") : tr(lang, "manual_delivery_pending"),
           description: isOutOfStock
-            ? `Pedido de <@${order.discord_user_id}> pago, mas **sem estoque** para entrega automática.`
+            ? tr(lang, "out_of_stock_customer_desc")
             : isAutoDelivery
-            ? `Usuário <@${order.discord_user_id}> teve seu pedido entregue automaticamente.`
-            : `Pedido de <@${order.discord_user_id}> aguardando entrega manual.`,
+            ? trf(lang, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: order.discord_user_id })
+            : trf(lang, "manual_delivery_pending_desc", { user_id: order.discord_user_id }),
           color: (isAutoDelivery && !isOutOfStock) ? 0x57F287 : 0xFEE75C,
           fields: [
-            { name: "**Detalhes**", value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
-            { name: "**ID do Pedido**", value: order.id, inline: false },
+            { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+            { name: `**${tr(lang, "order_id_label")}**`, value: order.id, inline: false },
           ],
-          footer: { text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` },
+          footer: { text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` },
           timestamp: new Date().toISOString(),
         };
 
@@ -513,7 +513,7 @@ serve(async (req) => {
             : order.payment_provider === "efi" ? "Pix - Efi Bank"
             : order.payment_provider === "mercadopago" ? "Pix - Mercado Pago"
             : order.payment_provider;
-          deliveryLogEmbed.fields.push({ name: "**Forma de Pagamento**", value: `💎 ${pLabel}`, inline: false });
+          deliveryLogEmbed.fields.push({ name: `**${tr(lang, "payment_method_label")}**`, value: `💎 ${pLabel}`, inline: false });
         }
 
         if (tenant?.logo_url) deliveryLogEmbed.thumbnail = { url: tenant.logo_url };
