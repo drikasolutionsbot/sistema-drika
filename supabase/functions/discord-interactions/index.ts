@@ -1007,6 +1007,7 @@ serve(async (req) => {
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
         const L = await resolveOrderLang(supabase, order);
         const L = await resolveOrderLang(supabase, order);
+        const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
@@ -2100,8 +2101,8 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "❌ Pedido Cancelado",
-            description: `Pedido **#${order.order_number}** cancelado por <@${userId}>.`,
+            title: tr(L, "order_canceled_title"),
+            description: trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name }),
             color: 0xED4245,
           }],
           components: [],
@@ -2109,13 +2110,13 @@ serve(async (req) => {
 
         // Log: Cancelamento manual pelo admin
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "⛔ Cancelamento manual",
-          description: `Pedido **#${order.order_number}** cancelado manualmente por <@${userId}>.`,
+          title: tr(L, "manual_cancel_log_title"),
+          description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
