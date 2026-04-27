@@ -850,7 +850,7 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               // Log: Pagamento confirmado
               const Lpaid = await resolveOrderLang(supabase, paidOrder);
               const paidTenant = await require("../supabase").getTenantByGuild(null) || tenant;
-              await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || tr("en", "store_default"), logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
+              await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || tr(Lpaid, "store_default"), logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
                 title: tr(Lpaid, "payment_confirmed_log_title"),
                 description: trf(Lpaid, "payment_confirmed_log_desc", { user_id: paidOrder.discord_user_id }),
                 color: 0x57F287,
@@ -1028,7 +1028,7 @@ async function copyPix(interaction, tenant, orderId) {
   if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   if (tenant.pix_key) {
-    const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr("en", "store_default"), order.total_cents / 100, `PED${order.order_number}`);
+    const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), order.total_cents / 100, `PED${order.order_number}`);
     return interaction.reply({ content: `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
   }
   return interaction.reply({ content: tr(L, "pix_code_above"), ephemeral: true });
