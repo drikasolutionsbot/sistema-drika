@@ -2807,14 +2807,8 @@ async function processPurchase(
   fieldName?: string
 ) {
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
-  const [{ data: freshTenantLang }, { data: freshProductLang }] = await Promise.all([
-    supabase.from("tenants").select("language").eq("id", tenantId).maybeSingle(),
-    supabase.from("products").select("language").eq("id", product.id).eq("tenant_id", tenantId).maybeSingle(),
-  ]);
-  const Lreview = normLang(
-    freshProductLang?.language || product.language || freshTenantLang?.language || undefined
-  );
-  console.log(`[CHECKOUT][i18n] tenant=${tenantId} product=${product.id} tenantLang=${freshTenantLang?.language || "null"} productLang=${freshProductLang?.language || product.language || "null"} resolved=${Lreview}`);
+  const Lreview = await resolveCheckoutLang(supabase, tenantId, product.id, product.language);
+  console.log(`[CHECKOUT][i18n] tenant=${tenantId} product=${product.id} resolved=${Lreview}`);
 
   // Create order
   const { data: order, error: orderErr } = await supabase
