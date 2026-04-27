@@ -106,6 +106,18 @@ const I18N = {
     product_label: "Produkt",
     order_id_label: "Bestell-ID",
     comment_label: "Kommentar",
+    review_title: "Bestellübersicht",
+    cart_label: "🛒 Warenkorb",
+    price_label: "Preis",
+    stock_label_emoji: "📦 Auf Lager",
+    go_to_payment: "Zur Zahlung",
+    edit_quantity: "Menge ändern",
+    confirm_manual: "Manuell bestätigen",
+    use_coupon: "Gutschein verwenden",
+    cancel: "Abbrechen",
+    cart_created: "✅ | Dein Warenkorb wurde erfolgreich erstellt.",
+    go_to_cart: "Zum Warenkorb",
+    auto_delivery_inline: "⚡ **Sofortige Lieferung!**",
   },
 };
 
