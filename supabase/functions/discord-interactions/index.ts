@@ -2543,14 +2543,13 @@ serve(async (req) => {
         await respondDeferred(interaction, botToken);
 
         const couponCode = interaction.data?.components?.[0]?.components?.[0]?.value?.trim()?.toUpperCase();
-        if (!couponCode) { await editFollowup(interaction, botToken, "❌ Código inválido."); return ok(); }
-
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        const L = await resolveOrderLang(supabase, order || {});
+        if (!couponCode) { await editFollowup(interaction, botToken, tr(L, "invalid_coupon_code")); return ok(); }
         if (!order || order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
+          await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
           return ok();
         }
-        const L = await resolveOrderLang(supabase, order);
 
         // Find coupon
         const { data: coupon } = await supabase
@@ -2562,17 +2561,17 @@ serve(async (req) => {
           .single();
 
         if (!coupon) {
-          await editFollowup(interaction, botToken, "❌ Cupom não encontrado ou inativo.");
+          await editFollowup(interaction, botToken, tr(L, "coupon_not_found"));
           return ok();
         }
 
         if (coupon.max_uses && coupon.used_count >= coupon.max_uses) {
-          await editFollowup(interaction, botToken, "❌ Este cupom atingiu o limite de uso.");
+          await editFollowup(interaction, botToken, tr(L, "coupon_usage_limit"));
           return ok();
         }
 
         if (coupon.product_id && coupon.product_id !== order.product_id) {
-          await editFollowup(interaction, botToken, "❌ Este cupom não é válido para este produto.");
+          await editFollowup(interaction, botToken, tr(L, "coupon_not_valid_for_product"));
           return ok();
         }
 
