@@ -574,11 +574,11 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {
-    title: "🛒 Carrinho aberto",
-    description: `Usuário <@${userId}> abriu um carrinho.`,
+    title: tr(Lreview, "cart_opened_log_title"),
+    description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig,
   });
@@ -590,7 +590,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       const current = await getOrder(order.id);
       if (current?.status === "pending_payment") {
         await updateOrderStatus(order.id, "expired");
-        await checkoutThread.send("⏰ Pedido expirado por falta de pagamento.").catch(() => {});
+        await checkoutThread.send(trf(Lreview, "order_expired_desc2", { order_number: current.order_number, product: current.product_name })).catch(() => {});
         setTimeout(() => {
           checkoutThread.setArchived?.(true).catch(() => {});
           checkoutThread.setLocked?.(true).catch(() => {});
@@ -598,12 +598,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
         // ── Send "Pagamento expirado" log via unified helper ──
         await sendLog(interaction.guild, tenant, {
-          title: "🍃 Pagamento expirado",
-          description: `Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`,
+          title: tr(Lreview, "payment_expired_log_title"),
+          description: trf(Lreview, "payment_expired_log_desc", { user_id: current.discord_user_id }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
+            { name: `**${tr(Lreview, "details_label")}**`, value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
+            { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${current.id}\``, inline: false },
           ],
         });
       }
