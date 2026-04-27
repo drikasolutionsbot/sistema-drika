@@ -1188,11 +1188,11 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não pode ser cancelado (status: **${order.status}**).`);
+          await editFollowup(interaction, botToken, trf(L, "order_cannot_cancel_status", { order_number: order.order_number, status: order.status }));
           return ok();
         }
 
@@ -1216,10 +1216,10 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não está mais pendente.`);
+          await editFollowup(interaction, botToken, trf(L, "order_not_pending_notice", { order_number: order.order_number }));
           return ok();
         }
 
@@ -1245,7 +1245,7 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         if (order.status === "pending_payment") {
