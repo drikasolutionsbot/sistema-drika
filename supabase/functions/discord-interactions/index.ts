@@ -1020,7 +1020,7 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
@@ -1359,13 +1359,13 @@ serve(async (req) => {
       if (customId.startsWith("copy_pix:")) {
         const orderId = customId.replace("copy_pix:", "");
         const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, product_id, total_cents, product_name, order_number").eq("id", orderId).single();
-        if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        if (!order) return respondImmediate(interaction, tr("en", "order_not_found"));
         const L = await resolveOrderLang(supabase, order);
         
         // Regenerate brcode for display
         const { data: tenant } = await supabase.from("tenants").select("name, pix_key").eq("id", order.tenant_id).single();
         if (tenant?.pix_key) {
-          const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
+          const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), order.total_cents / 100, `PED${order.order_number}`);
           return respondImmediate(interaction, `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``);
         }
         return respondImmediate(interaction, tr(L, "pix_code_above"));
