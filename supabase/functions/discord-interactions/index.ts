@@ -1000,11 +1000,11 @@ serve(async (req) => {
         };
 
         if (product.show_stock && product.stock !== null) {
-          embed.fields.push({ name: "📊 Estoque", value: `${product.stock} disponíveis`, inline: true });
+          embed.fields.push({ name: `📊 ${tr(Lproduct, "stock_label_md")}`, value: trf(Lproduct, "stock_count", { stock: product.stock }), inline: true });
         }
 
         if (fields && fields.length > 0) {
-          embed.fields.push({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
+          embed.fields.push({ name: `📋 ${tr(Lproduct, "variations_label")}`, value: trf(Lproduct, "variations_count", { count: fields.length }), inline: true });
         }
 
         if (product.banner_url) embed.image = { url: product.banner_url };
