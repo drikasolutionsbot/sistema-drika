@@ -364,20 +364,22 @@ async function startCheckout(interaction, tenant, productId) {
 // ── Select Variation (from dropdown) ──
 async function selectVariation(interaction, tenant, productId, fieldId) {
   await interaction.deferReply({ ephemeral: true });
+  let L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.editReply({ content: "❌ Produto não encontrado." });
+  if (!product) return interaction.editReply({ content: tr(L, "product_not_found") });
+  L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: product.id, product_language: product.language });
 
   const fields = await getProductFields(product.id, tenant.id);
   const field = fields.find((f) => f.id === fieldId);
-  if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
+  if (!field) return interaction.editReply({ content: tr(L, "variation_not_found") });
 
   // Check stock for this specific field (block regardless of auto_delivery)
   const sc = await countStock(product.id, tenant.id, fieldId);
   if (sc !== null && sc <= 0) {
     return interaction.editReply({
-      content: "❌ Esta variação está **sem estoque** no momento. Tente novamente mais tarde.",
+      content: tr(L, "variation_out_of_stock"),
     });
   }
 
@@ -389,6 +391,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenant.id,
+    tenant_language: tenant.language,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   const order = await createOrder({
     tenant_id: tenant.id, product_id: product.id, field_id: fieldId,
@@ -407,7 +415,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
     await deliverOrder(order.id, tenant.id);
-    return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
+    return interaction.editReply({ content: trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }) });
   }
 
   // ── Create checkout thread ──
@@ -425,7 +433,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .slice(0, 40) || "cliente";
 
   if (!threadParent?.threads?.create) {
-    return interaction.editReply({ content: "❌ Não foi possível abrir o carrinho neste canal." });
+    return interaction.editReply({ content: tr(Lreview, "cannot_open_cart") });
   }
 
   try {
@@ -439,7 +447,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let checkoutThread;
   try {
     checkoutThread = await threadParent.threads.create({
-      name: `carrinho-${safeUsername}-${order.order_number}`,
+      name: `${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
       type: ChannelType.PrivateThread,
       invitable: false,
       autoArchiveDuration: 10080,
@@ -448,7 +456,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   } catch (privateThreadError) {
     console.error("[CHECKOUT] private thread creation failed:", privateThreadError.message);
     checkoutThread = await threadParent.threads.create({
-      name: `carrinho-${safeUsername}-${order.order_number}`,
+      name: `${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
       type: ChannelType.PublicThread,
       autoArchiveDuration: 10080,
       reason: `Checkout #${order.order_number}`,
