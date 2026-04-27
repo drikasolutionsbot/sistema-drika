@@ -634,7 +634,8 @@ async function goToPayment(interaction, tenant, orderId) {
 
 async function _goToPaymentInternal(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
+  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   // Block if payment was already generated for this order
@@ -657,7 +658,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor))] });
+  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(tr(L, "generating_qr")).setColor(preEmbedColor))] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
@@ -707,12 +708,12 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       : `Pix – ${providerKey}`;
 
     await sendLog(interaction.guild, tenant, {
-      title: "🆕 Pedido solicitado",
-      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      title: tr(L, "order_requested_log_title"),
+      description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+        { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
       ],
     });
   } else {
@@ -725,17 +726,17 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
 
     const storeConfig = await getStoreConfig(tenant.id);
     const approvalRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel(tr(L, "approve_payment")).setEmoji("✅").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel(tr(L, "reject")).setEmoji("❌").setStyle(ButtonStyle.Danger),
     );
 
     await sendLog(interaction.guild, tenant, {
-      title: "🆕 Pedido solicitado",
-      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      title: tr(L, "order_requested_log_title"),
+      description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        { name: "**Forma de Pagamento**", value: "`💎 Pix – Estático`", inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+        { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${tr(L, "static_pix_label")}\``, inline: false },
       ],
       components: [approvalRow],
       storeConfig,
