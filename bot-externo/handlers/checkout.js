@@ -879,7 +879,8 @@ async function approveOrder(interaction, tenant, orderId) {
   }
 
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
+  const L = await resolveOrderLang(supabase, order);
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
@@ -948,7 +949,6 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    const L = await resolveOrderLang(supabase, order);
     const dmRejectedEmbed = new EmbedBuilder()
       .setTitle(tr(L, "order_rejected_title"))
       .setDescription(trf(L, "order_rejected_desc", { order_number: order.order_number, product: order.product_name }))
@@ -958,7 +958,7 @@ async function rejectOrder(interaction, tenant, orderId) {
     await user.send({ embeds: [dmRejectedEmbed] });
   } catch {}
 
-  const rejectedEmbed = new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp();
+  const rejectedEmbed = new EmbedBuilder().setTitle(tr(L, "order_rejected_panel_title")).setDescription(trf(L, "order_rejected_panel_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(0xED4245).addFields({ name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true }, { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp();
   applyDrikaCover(rejectedEmbed);
   await interaction.editReply({
     embeds: [rejectedEmbed],
@@ -967,13 +967,13 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   // Log: Pedido recusado
   await sendLog(interaction.guild, tenant, {
-    title: "🚫 Pedido recusado",
-    description: `Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>.`,
+    title: tr(L, "order_rejected_log_title"),
+    description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0xED4245,
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
