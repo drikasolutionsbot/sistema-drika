@@ -1174,6 +1174,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não pode ser cancelado (status: **${order.status}**).`);
@@ -1184,8 +1185,8 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "❌ Compra Cancelada",
-            description: `Pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`,
+            title: tr(L, "purchase_canceled_title"),
+            description: trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number }),
             color: 0x2B2D31,
             timestamp: new Date().toISOString(),
           }],
@@ -1241,7 +1242,7 @@ serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            embeds: [{ title: "❌ Compra Cancelada", description: `Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`, color: cancelColor }],
+            embeds: [{ title: tr(L, "purchase_canceled_title"), description: trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number }), color: cancelColor }],
           }),
         });
 
@@ -1258,12 +1259,12 @@ serve(async (req) => {
 
         // Log: Pedido cancelado pelo cliente
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "🗑️ Pedido cancelado",
-          description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
+          title: tr(L, "order_canceled_log_title"),
+          description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
 
