@@ -1342,7 +1342,7 @@ serve(async (req) => {
       // ─── COPY PIX CODE (ephemeral) ────────────────────────
       if (customId.startsWith("copy_pix:")) {
         const orderId = customId.replace("copy_pix:", "");
-        const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, total_cents, product_name, order_number").eq("id", orderId).single();
+        const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, product_id, total_cents, product_name, order_number").eq("id", orderId).single();
         if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
         const L = await resolveOrderLang(supabase, order);
         
