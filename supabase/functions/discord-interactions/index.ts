@@ -3159,7 +3159,7 @@ async function generatePixInThread(
       });
       return;
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr("en", "store_default"), amountBRL, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amountBRL, `PED${order.order_number}`);
     await supabase.from("orders").update({ payment_provider: "static_pix" }).eq("id", order.id);
 
     // Send admin notification
