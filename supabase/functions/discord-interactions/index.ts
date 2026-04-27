@@ -1344,14 +1344,15 @@ serve(async (req) => {
         const orderId = customId.replace("copy_pix:", "");
         const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, total_cents, product_name, order_number").eq("id", orderId).single();
         if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        const L = await resolveOrderLang(supabase, order);
         
         // Regenerate brcode for display
         const { data: tenant } = await supabase.from("tenants").select("name, pix_key").eq("id", order.tenant_id).single();
         if (tenant?.pix_key) {
           const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
-          return respondImmediate(interaction, `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``);
+          return respondImmediate(interaction, `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``);
         }
-        return respondImmediate(interaction, "📋 O código PIX está na mensagem acima.");
+        return respondImmediate(interaction, tr(L, "pix_code_above"));
       }
 
       // ─── COPY DELIVERED PRODUCT (ephemeral) ───────────────
