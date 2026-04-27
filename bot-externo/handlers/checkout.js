@@ -1096,11 +1096,10 @@ async function showQuantityModal(interaction, orderId) {
 async function handleQuantityModal(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
   const qty = parseInt(interaction.fields.getTextInputValue("quantity_value").trim());
-  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "❌ Quantidade inválida (1-99)." });
-
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
-  const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: tr(L, "invalid_quantity") });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: tr(L, "order_not_found_or_processed") });
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1136,15 +1135,15 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 // ── Mark Delivered ──
 async function markDelivered(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+  const order = await getOrder(orderId);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const canApprove = await canManuallyApproveOrder(interaction, tenant);
   if (!canApprove) {
-    return interaction.followUp({ content: "❌ Você não tem permissão para marcar este pedido como entregue.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "no_mark_delivered_permission"), ephemeral: true });
   }
 
-  const order = await getOrder(orderId);
   if (!order) return;
-  const L = await resolveOrderLang(supabase, order);
 
   await updateOrderStatus(orderId, "delivered");
 
@@ -1173,13 +1172,14 @@ async function markDelivered(interaction, tenant, orderId) {
 // ── Cancel Manual ──
 async function cancelManual(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+  const order = await getOrder(orderId);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const canApprove = await canManuallyApproveOrder(interaction, tenant);
   if (!canApprove) {
-    return interaction.followUp({ content: "❌ Você não tem permissão para cancelar este pedido.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "no_cancel_permission"), ephemeral: true });
   }
 
-  const order = await getOrder(orderId);
   if (!order) return;
 
   await updateOrderStatus(orderId, "canceled");
