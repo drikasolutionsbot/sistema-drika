@@ -667,8 +667,9 @@ serve(async (req) => {
 
       // ─── /estoque - Verifica estoque ──────────────────────
       if (commandName === "estoque") {
-        const { data: tenant } = await supabase.from("tenants").select("id").eq("discord_guild_id", guildId).single();
+        const { data: tenant } = await supabase.from("tenants").select("id, language").eq("discord_guild_id", guildId).single();
         if (!tenant) return respondImmediate(interaction, "❌ Servidor não configurado.");
+        const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
         const { data: products } = await supabase
           .from("products")
@@ -677,16 +678,16 @@ serve(async (req) => {
           .eq("active", true)
           .order("name");
 
-        if (!products || products.length === 0) return respondImmediate(interaction, "ℹ️ Nenhum produto encontrado.");
+        if (!products || products.length === 0) return respondImmediate(interaction, tr(L, "no_products_registered"));
 
         const lines = products.map((p: any) => {
           const stockText = p.stock !== null ? `${p.stock}` : "∞";
           const emoji = (p.stock === null || p.stock > 0) ? "🟢" : "🔴";
-          return `${emoji} **${p.name}** — ${stockText} em estoque`;
+          return `${emoji} **${p.name}** — ${trf(L, "stock_count", { stock: stockText })}`;
         });
 
         return respondImmediate(interaction, {
-          embeds: [{ title: "📦 Estoque", description: lines.join("\n"), color: 0x2B2D31 }],
+          embeds: [{ title: tr(L, "stock_title"), description: lines.join("\n"), color: 0x2B2D31 }],
         });
       }
 
