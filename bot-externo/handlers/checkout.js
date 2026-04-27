@@ -754,7 +754,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
 
   // Send PIX embed
   const storeConfig = await getStoreConfig(tenant.id);
-  const storeName = storeConfig?.store_title || tenant.name || "Loja";
+  const storeName = storeConfig?.store_title || tenant.name || tr(L, "store_default");
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
   const embedColor = await resolveOrderColor(order, storeConfig);
@@ -767,6 +767,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     timeoutMin,
     date: paymentDate,
     time: paymentTime,
+    lang: L,
     username: order.discord_username || "",
   });
 
