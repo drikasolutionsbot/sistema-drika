@@ -2534,6 +2534,7 @@ serve(async (req) => {
           await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
           return ok();
         }
+        const L = await resolveOrderLang(supabase, order);
 
         // Find coupon
         const { data: coupon } = await supabase
@@ -2580,24 +2581,24 @@ serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             embeds: [{
-              title: "🏷️ Cupom Aplicado!",
-              description: `Cupom **${couponCode}** aplicado com sucesso!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`,
+              title: tr(L, "coupon_applied_title"),
+              description: trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatBRL(order.total_cents), new_total: formatBRL(newTotal), discount: formatBRL(discount) }),
               color: couponColor,
             }],
           }),
         });
 
-        await editFollowup(interaction, botToken, `✅ Cupom aplicado!`);
+        await editFollowup(interaction, botToken, tr(L, "coupon_applied_response"));
 
         // Log: Cupom aplicado
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "🏷️ Cupom aplicado",
-          description: `Usuário <@${userId}> aplicou um cupom.`,
+          title: tr(L, "coupon_applied_log_title"),
+          description: trf(L, "coupon_applied_log_desc", { user_id: userId }),
           fields: [
-            { name: "**Cupom**", value: `\`${couponCode}\``, inline: true },
-            { name: "**Desconto**", value: `\`-${formatBRL(discount)}\``, inline: true },
-            { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "coupon")}**`, value: `\`${couponCode}\``, inline: true },
+            { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatBRL(discount)}\``, inline: true },
+            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
 
