@@ -448,7 +448,7 @@ function normLang(value) {
   if (["en", "en-us", "en-gb", "english"].includes(lower)) return "en";
   if (["de", "de-de", "german", "deutsch"].includes(lower)) return "de";
   if (["pt-br", "pt", "pt-brasil", "portuguese", "português"].includes(lower)) return "pt-BR";
-  return "pt-BR";
+  return "en";
 }
 
 function optionalLang(value) {
@@ -458,7 +458,7 @@ function optionalLang(value) {
 
 function tr(lang, key) {
   const L = normLang(lang);
-  return I18N[L]?.[key] || I18N["pt-BR"][key] || key;
+  return I18N[L]?.[key] || I18N.en[key] || I18N["pt-BR"][key] || key;
 }
 
 function trf(lang, key, vars = {}) {
@@ -468,7 +468,7 @@ function trf(lang, key, vars = {}) {
 }
 
 async function resolveOrderLang(supabase, order) {
-  let lang = optionalLang(order?.tenant_language) || "pt-BR";
+  let lang = optionalLang(order?.tenant_language) || "en";
   if (order?.tenant_id) {
     const { data: tenant } = await supabase.from("tenants").select("language").eq("id", order.tenant_id).maybeSingle();
     lang = optionalLang(tenant?.language) || lang;
