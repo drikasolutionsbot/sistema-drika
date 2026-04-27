@@ -982,7 +982,6 @@ async function cancelOrder(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
   if (!order) return;
   const L = await resolveOrderLang(supabase, order);
-  const L = await resolveOrderLang(supabase, order);
 
   if (order.status === "pending_payment") {
     await updateOrderStatus(orderId, "canceled");
