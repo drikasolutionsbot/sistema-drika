@@ -3174,22 +3174,22 @@ async function generatePixInThread(
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: "🔔 Novo Pedido — PIX Estático",
-            description: `Aguardando confirmação manual do pagamento.`,
+            title: tr(L, "static_pix_new_order_title"),
+            description: tr(L, "manual_confirmation_pending"),
             color: 0xFEE75C,
             fields: [
-              { name: "📦 Produto", value: orderName, inline: true },
-              { name: "💰 Valor", value: formatBRL(priceCents), inline: true },
-              { name: "🔢 Pedido", value: `#${order.order_number}`, inline: true },
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
+              { name: `📦 ${tr(L, "product_label")}`, value: orderName, inline: true },
+              { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(priceCents), inline: true },
+              { name: `🔢 ${tr(L, "order_label")}`, value: `#${order.order_number}`, inline: true },
+              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
             ],
             timestamp: new Date().toISOString(),
           }],
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 3, label: "Aprovar Pagamento", emoji: { name: "✅" }, custom_id: `approve_order:${order.id}` },
-              { type: 2, style: 4, label: "Recusar", emoji: { name: "❌" }, custom_id: `reject_order:${order.id}` },
+              { type: 2, style: 3, label: tr(L, "approve_payment"), emoji: { name: "✅" }, custom_id: `approve_order:${order.id}` },
+              { type: 2, style: 4, label: tr(L, "reject"), emoji: { name: "❌" }, custom_id: `reject_order:${order.id}` },
             ],
           }],
         }),
