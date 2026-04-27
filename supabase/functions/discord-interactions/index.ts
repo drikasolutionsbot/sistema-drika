@@ -1006,6 +1006,7 @@ serve(async (req) => {
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
         const L = await resolveOrderLang(supabase, order);
+        const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
@@ -2021,8 +2022,8 @@ serve(async (req) => {
             headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               embeds: [{
-                title: "✅ Entrega Confirmada",
-                description: `Pedido **#${order.order_number}** marcado como entregue por <@${userId}>.`,
+                title: tr(L, "delivery_confirmed_title"),
+                description: trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: userId }),
                 color: 0x2B2D31,
               }],
             }),
@@ -2031,8 +2032,8 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "✅ Pedido Entregue",
-            description: `Pedido **#${order.order_number}** (${order.product_name}) marcado como entregue.`,
+            title: tr(L, "order_delivered_panel_title"),
+            description: trf(L, "order_delivered_panel_desc", { order_number: order.order_number, product: order.product_name }),
             color: 0x57F287,
           }],
           components: [],
@@ -2040,13 +2041,13 @@ serve(async (req) => {
 
         // Log: Entrega manual confirmada
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "📦 Entrega manual confirmada",
-          description: `Pedido **#${order.order_number}** marcado como entregue por <@${userId}>.`,
+          title: tr(L, "manual_delivery_confirmed_log_title"),
+          description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0x57F287,
           fields: [
-            { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
