@@ -3069,6 +3069,7 @@ async function generatePixInThread(
   const priceCents = order.total_cents;
   const orderName = order.product_name;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const L = await resolveOrderLang(supabase, order);
 
   // Resolve preferred provider: product-level override > tenant default
   let preferredKey: string | null = null;
@@ -3220,13 +3221,13 @@ async function generatePixInThread(
   // Send PIX embed in the thread
   const pixEmbed: any = {
     author: { name: order.discord_username || userId },
-    title: "Pagamento via PIX criado",
+    title: tr(L, "pix_created_title"),
     description: [
-      "🟢 **Ambiente Seguro**",
-      "Seu pagamento será processado em um ambiente 100% seguro e protegido.\n",
-      "🟢 **Pagamento Instantâneo**",
-      "Assim que o pagamento for confirmado, o seu pedido será processado imediatamente.\n",
-      "**Código copia e cola**",
+      tr(L, "secure_environment_title"),
+      `${tr(L, "secure_environment_desc")}\n`,
+      tr(L, "instant_payment_title"),
+      `${tr(L, "instant_payment_desc")}\n`,
+      `**${tr(L, "pix_copy_code_label")}**`,
       `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"),
     color: embedColor,
@@ -3247,8 +3248,8 @@ async function generatePixInThread(
       components: [{
         type: 1,
         components: [
-          { type: 2, style: 2, label: "Código copia e cola", emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
-          { type: 2, style: 4, label: "Cancelar", custom_id: `checkout_cancel:${order.id}` },
+          { type: 2, style: 2, label: tr(L, "pix_copy_code_label"), emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
+          { type: 2, style: 4, label: tr(L, "cancel"), custom_id: `checkout_cancel:${order.id}` },
         ],
       }],
     }),
