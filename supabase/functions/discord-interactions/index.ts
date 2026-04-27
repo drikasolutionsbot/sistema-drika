@@ -2012,13 +2012,13 @@ serve(async (req) => {
         const MANAGE_GUILD = BigInt(0x20);
         const isStaff = (memberPerms & ADMIN) === ADMIN || (memberPerms & MANAGE_GUILD) === MANAGE_GUILD;
         if (!isStaff) {
-          return respondImmediate(interaction, "🔒 Apenas a equipe da loja pode confirmar a entrega deste pedido.");
+          return respondImmediate(interaction, tr("en", "no_mark_delivered_permission"));
         }
 
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         // Update order to delivered
@@ -2080,13 +2080,13 @@ serve(async (req) => {
         const MANAGE_GUILD2 = BigInt(0x20);
         const isStaff2 = (memberPerms2 & ADMIN2) === ADMIN2 || (memberPerms2 & MANAGE_GUILD2) === MANAGE_GUILD2;
         if (!isStaff2) {
-          return respondImmediate(interaction, "🔒 Apenas a equipe da loja pode cancelar este pedido.");
+          return respondImmediate(interaction, tr("en", "no_cancel_permission"));
         }
 
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
