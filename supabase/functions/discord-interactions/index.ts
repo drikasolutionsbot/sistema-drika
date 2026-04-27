@@ -1006,8 +1006,6 @@ serve(async (req) => {
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
         const L = await resolveOrderLang(supabase, order);
-        const L = await resolveOrderLang(supabase, order);
-        const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
@@ -2005,6 +2003,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         // Update order to delivered
         await supabase.from("orders").update({ status: "delivered", updated_at: new Date().toISOString() }).eq("id", orderId);
@@ -2072,6 +2071,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
         await supabase
@@ -2534,7 +2534,6 @@ serve(async (req) => {
           await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
           return ok();
         }
-        const L = await resolveOrderLang(supabase, order);
         const L = await resolveOrderLang(supabase, order);
 
         // Find coupon
