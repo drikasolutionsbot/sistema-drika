@@ -2627,17 +2627,16 @@ serve(async (req) => {
 
         const qtyStr = interaction.data?.components?.[0]?.components?.[0]?.value?.trim();
         const qty = parseInt(qtyStr || "1");
-        if (isNaN(qty) || qty < 1 || qty > 99) {
-          await editFollowup(interaction, botToken, "❌ Quantidade inválida (1-99).");
-          return ok();
-        }
-
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order || order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
+        const L = await resolveOrderLang(supabase, order || {});
+        if (isNaN(qty) || qty < 1 || qty > 99) {
+          await editFollowup(interaction, botToken, tr(L, "invalid_quantity"));
           return ok();
         }
-        const L = await resolveOrderLang(supabase, order);
+        if (!order || order.status !== "pending_payment") {
+          await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
+          return ok();
+        }
 
         // Get original unit price
         let unitPrice = order.total_cents; // if qty was 1
