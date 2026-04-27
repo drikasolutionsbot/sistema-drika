@@ -897,10 +897,15 @@ serve(async (req) => {
         await respondDeferred(interaction, botToken);
 
         const product = await resolveProductFromCustomId(supabase, productId, interaction.guild_id);
-        if (!product) { await editFollowup(interaction, botToken, "❌ Produto não encontrado."); return ok(); }
+        if (!product) { await editFollowup(interaction, botToken, tr("pt-BR", "product_not_found")); return ok(); }
+        const Lproduct = await resolveOrderLang(supabase, {
+          tenant_id: product.tenant_id,
+          product_id: product.id,
+          product_language: product.language,
+        });
 
         const { data: field } = await supabase.from("product_fields").select("*").eq("id", fieldId).single();
-        if (!field) { await editFollowup(interaction, botToken, "❌ Variação não encontrada."); return ok(); }
+        if (!field) { await editFollowup(interaction, botToken, tr(Lproduct, "variation_not_found")); return ok(); }
 
         // ── Stock check for this variation ──
         const { count: fieldStock } = await supabase
@@ -924,7 +929,7 @@ serve(async (req) => {
         }
 
         if (totalStock <= 0) {
-          await editFollowup(interaction, botToken, "❌ Esta variação está **sem estoque** no momento. Tente novamente mais tarde.");
+          await editFollowup(interaction, botToken, tr(Lproduct, "variation_out_of_stock"));
           return ok();
         }
 
