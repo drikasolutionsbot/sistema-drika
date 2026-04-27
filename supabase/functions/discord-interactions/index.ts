@@ -88,6 +88,16 @@ async function resolveOrderLang(supabase: any, order: any): Promise<Lang> {
   return lang;
 }
 
+async function resolveCheckoutLang(supabase: any, tenantId: string, productId?: string | null, productLanguage?: string | null): Promise<Lang> {
+  const [{ data: tenant }, { data: product }] = await Promise.all([
+    supabase.from("tenants").select("language").eq("id", tenantId).maybeSingle(),
+    productId
+      ? supabase.from("products").select("language").eq("id", productId).eq("tenant_id", tenantId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  return normLang(product?.language || productLanguage || tenant?.language || "en");
+}
+
 // ─── PIX generation helpers (same as generate-pix) ──────────
 function tlv(id: string, value: string): string {
   return `${id}${value.length.toString().padStart(2, "0")}${value}`;
