@@ -983,6 +983,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
   if (!order) return;
+  const L = await resolveOrderLang(supabase, order);
 
   if (order.status === "pending_payment") {
     await updateOrderStatus(orderId, "canceled");
@@ -991,16 +992,16 @@ async function cancelOrder(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor))] });
+  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "purchase_canceled_title")).setDescription(trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number })).setColor(cancelEmbedColor))] });
 
   // Log: Pedido cancelado pelo cliente
   await sendLog(interaction.guild, tenant, {
-    title: "🗑️ Pedido cancelado",
-    description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
+    title: tr(L, "order_canceled_log_title"),
+    description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
     color: 0xED4245,
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig: cancelStoreConfig,
   });
