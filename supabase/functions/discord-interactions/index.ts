@@ -3154,7 +3154,7 @@ async function generatePixInThread(
       await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ embeds: [{ title: "❌ Erro", description: "Nenhum método de pagamento configurado.", color: 0xED4245 }] }),
+        body: JSON.stringify({ embeds: [{ title: "❌ Error", description: tr(L, "no_payment_method"), color: 0xED4245 }] }),
       });
       return;
     }
@@ -3205,7 +3205,7 @@ async function generatePixInThread(
     .single();
 
   const { data: tInfo } = await supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single();
-  const storeName = scBrand?.store_title || tInfo?.name || "Loja";
+  const storeName = scBrand?.store_title || tInfo?.name || tr(L, "store_default");
   const storeLogo = scBrand?.store_logo_url || tInfo?.logo_url;
   const timeoutMin = scBrand?.payment_timeout_minutes || 30;
   // Resolve product-specific color for PIX embed
@@ -3231,7 +3231,7 @@ async function generatePixInThread(
     date: paymentDate,
     time: paymentTime,
     username: order.discord_username || userId,
-  }) || `${storeName} – Pagamento expira em ${timeoutMin} minutos.\n• Hoje às ${paymentTime}`;
+  }) || `${storeName} – ${trf(L, "payment_expires_in", { minutes: timeoutMin })}.\n• ${tr(L, "today_at")} ${paymentTime}`;
 
   // Send PIX embed in the thread
   const pixEmbed: any = {
