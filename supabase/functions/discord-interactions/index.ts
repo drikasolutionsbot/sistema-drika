@@ -1202,6 +1202,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não está mais pendente.`);
           return ok();
@@ -1214,7 +1215,7 @@ serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            embeds: [{ description: "⏳ | Gerando QR Code...\nQuase lá, só mais um instante!", color: loadingColor }],
+            embeds: [{ description: tr(L, "generating_qr"), color: loadingColor }],
           }),
         });
 
@@ -1282,15 +1283,15 @@ serve(async (req) => {
             type: 9, // MODAL
             data: {
               custom_id: `coupon_modal_${orderId}`,
-              title: "Usar Cupom",
+              title: tr(L, "use_coupon"),
               components: [{
                 type: 1,
                 components: [{
                   type: 4, // TEXT_INPUT
                   custom_id: "coupon_code",
-                  label: "Código do Cupom",
+                  label: tr(L, "coupon_code_label"),
                   style: 1,
-                  placeholder: "Digite o código do cupom...",
+                  placeholder: tr(L, "coupon_code_placeholder"),
                   required: true,
                   min_length: 1,
                   max_length: 50,
@@ -1312,13 +1313,13 @@ serve(async (req) => {
             type: 9,
             data: {
               custom_id: `quantity_modal_${orderId}`,
-              title: "Editar Quantidade",
+              title: tr(L, "edit_quantity"),
               components: [{
                 type: 1,
                 components: [{
                   type: 4,
                   custom_id: "quantity_value",
-                  label: "Quantidade",
+                  label: tr(L, "quantity"),
                   style: 1,
                   placeholder: "1",
                   required: true,
