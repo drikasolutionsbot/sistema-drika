@@ -514,7 +514,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (sc !== null) stockCount = String(sc);
 
   // Resolve language (product overrides tenant)
-  const Lreview = await resolveOrderLang(supabase, { tenant_id: tenant.id, product_id: product.id });
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenant.id,
+    tenant_language: tenant.language,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   // Build checkout embed
   const descLines = [];

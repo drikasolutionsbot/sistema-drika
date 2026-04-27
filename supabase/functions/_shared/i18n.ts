@@ -511,8 +511,17 @@ export const I18N: Record<Lang, Record<string, string>> = {
 };
 
 export function normLang(v: string | null | undefined): Lang {
-  if (v === "en" || v === "de" || v === "pt-BR") return v;
+  const raw = String(v || "").trim();
+  const lower = raw.toLowerCase().replace("_", "-");
+  if (["en", "en-us", "en-gb", "english"].includes(lower)) return "en";
+  if (["de", "de-de", "german", "deutsch"].includes(lower)) return "de";
+  if (["pt-br", "pt", "pt-brasil", "portuguese", "português"].includes(lower)) return "pt-BR";
   return "pt-BR";
+}
+
+export function optionalLang(v: string | null | undefined): Lang | null {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  return normLang(v);
 }
 
 export function tr(lang: string | null | undefined, key: string): string {
@@ -537,7 +546,7 @@ export async function getTenantLang(supabase: any, tenantId: string): Promise<La
       .select("language")
       .eq("id", tenantId)
       .maybeSingle();
-    return normLang((data as any)?.language);
+    return optionalLang((data as any)?.language) || "pt-BR";
   } catch {
     return "pt-BR";
   }

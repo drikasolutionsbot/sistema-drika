@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { tr, trf, normLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
+import { tr, trf, normLang, optionalLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -73,7 +73,9 @@ function resolveHexColor(value: unknown, fallback = "#5865F2") {
 }
 
 async function resolveOrderLang(supabase: any, order: any): Promise<Lang> {
-  let lang = await getTenantLang(supabase, order?.tenant_id);
+  let lang = optionalLang(order?.tenant_language) || await getTenantLang(supabase, order?.tenant_id);
+  const inlineProductLang = optionalLang(order?.product_language || order?.language);
+  if (inlineProductLang) lang = inlineProductLang;
   if (order?.product_id) {
     const { data: product } = await supabase
       .from("products")
@@ -2914,7 +2916,11 @@ async function processPurchase(
   }
 
   // Resolve language from product (fallback tenant)
-  const Lreview = await resolveOrderLang(supabase, { tenant_id: tenantId, product_id: product.id });
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenantId,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   // Build description from product description
   const descLines: string[] = [];
