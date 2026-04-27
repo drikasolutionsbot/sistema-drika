@@ -1043,6 +1043,7 @@ async function handleCouponModal(interaction, tenant, orderId) {
 
   const order = await getOrder(orderId);
   if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
+  const L = await resolveOrderLang(supabase, order);
 
   const coupon = await getCoupon(tenant.id, couponCode);
   if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
@@ -1055,20 +1056,20 @@ async function handleCouponModal(interaction, tenant, orderId) {
   await incrementCouponUsage(coupon.id, coupon.used_count);
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle("🏷️ Cupom Aplicado!").setDescription(`Cupom **${couponCode}** aplicado!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`).setColor(0x57F287))],
+    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "coupon_applied_title")).setDescription(trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatBRL(order.total_cents), new_total: formatBRL(newTotal), discount: formatBRL(discount) })).setColor(0x57F287))],
   });
 
-  await interaction.editReply({ content: "✅ Cupom aplicado!" });
+  await interaction.editReply({ content: tr(L, "coupon_applied_response") });
 
   // Log: Cupom aplicado
   await sendLog(interaction.guild, tenant, {
-    title: "🏷️ Cupom aplicado",
-    description: `Usuário <@${interaction.user.id}> aplicou um cupom.`,
+    title: tr(L, "coupon_applied_log_title"),
+    description: trf(L, "coupon_applied_log_desc", { user_id: interaction.user.id }),
     fields: [
-      { name: "**Cupom**", value: `\`${couponCode}\``, inline: true },
-      { name: "**Desconto**", value: `\`-${formatBRL(discount)}\``, inline: true },
-      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "coupon") || tr(L, "coupon_code_label")}**`, value: `\`${couponCode}\``, inline: true },
+      { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatBRL(discount)}\``, inline: true },
+      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
 }
@@ -1091,6 +1092,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 
   const order = await getOrder(orderId);
   if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
+  const L = await resolveOrderLang(supabase, order);
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1105,20 +1107,20 @@ async function handleQuantityModal(interaction, tenant, orderId) {
   await updateOrderStatus(order.id, "pending_payment", { total_cents: newTotal });
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
+    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "quantity_updated_title")).setDescription(trf(L, "quantity_updated_desc", { quantity: qty, total: formatBRL(newTotal) })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
   });
 
-  await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
+  await interaction.editReply({ content: trf(L, "quantity_updated_response", { quantity: qty }) });
 
   // Log: Quantidade editada
   await sendLog(interaction.guild, tenant, {
-    title: "✏️ Quantidade editada",
-    description: `Usuário <@${interaction.user.id}> alterou a quantidade do pedido.`,
+    title: tr(L, "quantity_edited_log_title"),
+    description: trf(L, "quantity_edited_log_desc", { user_id: interaction.user.id }),
     fields: [
-      { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-      { name: "**Quantidade**", value: `\`${qty}x\``, inline: true },
-      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+      { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
+      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
 }
