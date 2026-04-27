@@ -898,7 +898,6 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    const L = await resolveOrderLang(supabase, order);
     const dmApprovedEmbed = new EmbedBuilder()
       .setTitle(tr(L, "payment_confirmed_title"))
       .setDescription(trf(L, "payment_confirmed_desc", { order_number: order.order_number, product: order.product_name }))
@@ -910,7 +909,6 @@ async function approveOrder(interaction, tenant, orderId) {
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
-  const L = await resolveOrderLang(supabase, order);
   const approvedEmbed = new EmbedBuilder()
     .setTitle(tr(L, "order_approved_panel_title"))
     .setDescription(trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: interaction.user.id }))
