@@ -950,8 +950,9 @@ async function approveOrder(interaction, tenant, orderId) {
 async function rejectOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
 
@@ -1047,15 +1048,14 @@ async function showCouponModal(interaction, orderId) {
 async function handleCouponModal(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
   const couponCode = interaction.fields.getTextInputValue("coupon_code").trim().toUpperCase();
-  if (!couponCode) return interaction.editReply({ content: "❌ Código inválido." });
-
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
-  const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!couponCode) return interaction.editReply({ content: tr(L, "invalid_coupon_code") });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: tr(L, "order_not_found_or_processed") });
 
   const coupon = await getCoupon(tenant.id, couponCode);
-  if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
-  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "❌ Este cupom não é válido para este produto." });
+  if (!coupon) return interaction.editReply({ content: tr(L, "coupon_not_found") });
+  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: tr(L, "coupon_not_valid_for_product") });
 
   let discount = coupon.type === "percent" ? Math.floor(order.total_cents * coupon.value / 100) : coupon.value;
   const newTotal = Math.max(0, order.total_cents - discount);
