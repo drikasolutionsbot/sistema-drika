@@ -3007,11 +3007,11 @@ async function processPurchase(
   });
 
   await sendStoreLog(supabase, botToken, tenantId, {
-    title: "🛒 Carrinho aberto",
-    description: `Usuário <@${userId}> abriu um carrinho.`,
+    title: tr(Lreview, "cart_opened_log_title"),
+    description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
 }
