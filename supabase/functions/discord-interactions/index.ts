@@ -3277,20 +3277,21 @@ async function sendPixGeneratedLog(
   order: any,
   providerKey: string,
 ) {
+  const L = await resolveOrderLang(supabase, order);
   const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
     : providerKey === "efi" ? "Pix – Efi Bank"
     : providerKey === "mercadopago" ? "Pix – Mercado Pago"
     : providerKey === "misticpay" ? "Pix – Mistic Pay"
-    : providerKey === "static_pix" ? "Pix – Estático"
+    : providerKey === "static_pix" ? tr(L, "static_pix_label")
     : `Pix – ${providerKey}`;
 
   await sendStoreLog(supabase, botToken, order.tenant_id, {
-    title: "🆕 Pedido solicitado",
-    description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+    title: tr(L, "order_requested_log_title"),
+    description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
     ],
   });
 }
