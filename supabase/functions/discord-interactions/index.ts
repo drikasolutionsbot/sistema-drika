@@ -2535,6 +2535,7 @@ serve(async (req) => {
           return ok();
         }
         const L = await resolveOrderLang(supabase, order);
+        const L = await resolveOrderLang(supabase, order);
 
         // Find coupon
         const { data: coupon } = await supabase
@@ -2643,24 +2644,24 @@ serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             embeds: [{
-              title: "✏️ Quantidade Atualizada",
-              description: `Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`,
+              title: tr(L, "quantity_updated_title"),
+              description: trf(L, "quantity_updated_desc", { quantity: qty, total: formatBRL(newTotal) }),
               color: qtyColor,
             }],
           }),
         });
 
-        await editFollowup(interaction, botToken, `✅ Quantidade atualizada para ${qty}x!`);
+        await editFollowup(interaction, botToken, trf(L, "quantity_updated_response", { quantity: qty }));
 
         // Log: Quantidade editada
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "✏️ Quantidade editada",
-          description: `Usuário <@${userId}> alterou a quantidade do pedido.`,
+          title: tr(L, "quantity_edited_log_title"),
+          description: trf(L, "quantity_edited_log_desc", { user_id: userId }),
           fields: [
-            { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-            { name: "**Quantidade**", value: `\`${qty}x\``, inline: true },
-            { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+            { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
+            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
 
