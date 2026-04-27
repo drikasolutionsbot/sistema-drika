@@ -909,14 +909,15 @@ async function approveOrder(interaction, tenant, orderId) {
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
+  const L = await resolveOrderLang(supabase, order);
   const approvedEmbed = new EmbedBuilder()
-    .setTitle("✅ Pedido Aprovado")
-    .setDescription(`Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
+    .setTitle(tr(L, "order_approved_panel_title"))
+    .setDescription(trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: interaction.user.id }))
     .setColor(approveEmbedColor)
     .addFields(
-      { name: "📦 Produto", value: order.product_name, inline: true },
-      { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
-      { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+      { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+      { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(order.total_cents), inline: true },
+      { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
     )
     .setTimestamp();
   applyDrikaCover(approvedEmbed);
@@ -925,13 +926,13 @@ async function approveOrder(interaction, tenant, orderId) {
 
   // Log: Pedido aprovado
   await sendLog(interaction.guild, tenant, {
-    title: "✅ Pedido aprovado",
-    description: `Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>.`,
+    title: tr(L, "order_approved_log_title"),
+    description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0x57F287,
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
