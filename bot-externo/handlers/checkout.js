@@ -513,9 +513,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   const sc = await countStock(product.id, tenant.id, fieldId);
   if (sc !== null) stockCount = String(sc);
 
+  // Resolve language (product overrides tenant)
+  const Lreview = await resolveOrderLang(supabase, { tenant_id: tenant.id, product_id: product.id });
+
   // Build checkout embed
   const descLines = [];
-  if (product.auto_delivery) descLines.push("⚡ **Entrega Automática!**");
+  if (product.auto_delivery) descLines.push(tr(Lreview, "auto_delivery_inline"));
   if (product.description) descLines.push(product.description);
 
   const { date: checkoutDate, time: checkoutTime } = formatDateTime();
@@ -531,12 +534,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   const reviewEmbed = new EmbedBuilder()
     .setAuthor({ name: username, iconURL: interaction.user.displayAvatarURL() })
-    .setTitle("Revisão do Pedido")
+    .setTitle(tr(Lreview, "review_title"))
     .setColor(embedColor)
     .addFields(
-      { name: "🛒 Carrinho", value: `1x ${orderName}`, inline: false },
-      { name: "Valor à vista", value: formatBRL(priceCents), inline: true },
-      { name: "📦 Em estoque", value: stockCount, inline: true },
+      { name: tr(Lreview, "cart_label"), value: `1x ${orderName}`, inline: false },
+      { name: tr(Lreview, "price_label"), value: formatBRL(priceCents), inline: true },
+      { name: tr(Lreview, "stock_label_emoji"), value: stockCount, inline: true },
     )
     .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
     .setTimestamp();
@@ -546,13 +549,13 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel("Editar Quantidade").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Confirmar manualmente").setEmoji("🛠️").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel(tr(Lreview, "go_to_payment")).setEmoji("✅").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel(tr(Lreview, "edit_quantity")).setEmoji("✏️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel(tr(Lreview, "confirm_manual")).setEmoji("🛠️").setStyle(ButtonStyle.Primary),
   );
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel("Usar Cupom").setEmoji("🏷️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel(tr(Lreview, "use_coupon")).setEmoji("🏷️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(Lreview, "cancel")).setEmoji("🗑️").setStyle(ButtonStyle.Danger),
   );
 
   await sendWithIdentity(checkoutThread, tenant, {
@@ -564,10 +567,10 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   // Tell user where to go
   const threadLink = `https://discord.com/channels/${interaction.guild.id}/${checkoutThread.id}`;
   const linkRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setLabel("Ir para o carrinho").setStyle(ButtonStyle.Link).setURL(threadLink)
+    new ButtonBuilder().setLabel(tr(Lreview, "go_to_cart")).setStyle(ButtonStyle.Link).setURL(threadLink)
   );
 
-  await interaction.editReply({ content: "✅ | Seu carrinho foi criado com êxito.", components: [linkRow] });
+  await interaction.editReply({ content: tr(Lreview, "cart_created"), components: [linkRow] });
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {

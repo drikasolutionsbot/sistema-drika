@@ -2899,13 +2899,16 @@ async function processPurchase(
     if (count !== null) stockCount = String(count);
   }
 
+  // Resolve language from product (fallback tenant)
+  const Lreview = await resolveOrderLang(supabase, { tenant_id: tenantId, product_id: product.id });
+
   // Build description from product description
   const descLines: string[] = [];
   if (product.description) {
     descLines.push(product.description);
   }
   if (product.auto_delivery) {
-    descLines.unshift("⚡ **Entrega Automática!**");
+    descLines.unshift(tr(Lreview, "auto_delivery_inline"));
   }
 
   const checkoutDate = new Date().toLocaleDateString("pt-BR");
@@ -2923,12 +2926,12 @@ async function processPurchase(
   // Send order review embed with buttons
   const reviewEmbed: any = {
     author: { name: username || userId, icon_url: `https://cdn.discordapp.com/embed/avatars/${(parseInt(userId) >> 22) % 6}.png` },
-    title: "Revisão do Pedido",
+    title: tr(Lreview, "review_title"),
     description: descLines.join("\n\n") || undefined,
     color: reviewEmbedColor,
     fields: [
-      { name: "Valor à vista", value: formatBRL(priceCents), inline: true },
-      { name: "📦 Em estoque", value: stockCount, inline: true },
+      { name: tr(Lreview, "price_label"), value: formatBRL(priceCents), inline: true },
+      { name: tr(Lreview, "stock_label_emoji"), value: stockCount, inline: true },
     ],
     footer: {
       text: reviewFooterText,
@@ -2937,7 +2940,7 @@ async function processPurchase(
   };
 
   // Always show cart field
-  reviewEmbed.fields.unshift({ name: "🛒 Carrinho", value: `1x ${orderName}`, inline: false });
+  reviewEmbed.fields.unshift({ name: tr(Lreview, "cart_label"), value: `1x ${orderName}`, inline: false });
 
   if (product.banner_url) reviewEmbed.image = { url: product.banner_url };
   if (product.icon_url) reviewEmbed.thumbnail = { url: product.icon_url };
@@ -2947,26 +2950,23 @@ async function processPurchase(
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       embeds: [reviewEmbed],
-      components: await (async () => {
-        const L = await getTenantLang(supabase, tenantId);
-        return [
-          {
-            type: 1,
-            components: [
-              { type: 2, style: 3, label: tr(L, "payment"), emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
-              { type: 2, style: 2, label: tr(L, "edit_quantity"), emoji: { name: "✏️" }, custom_id: `checkout_quantity:${order.id}` },
-              { type: 2, style: 1, label: tr(L, "confirm"), emoji: { name: "🛠️" }, custom_id: `approve_order:${order.id}` },
-            ],
-          },
-          {
-            type: 1,
-            components: [
-              { type: 2, style: 2, label: tr(L, "coupon"), emoji: { name: "🏷️" }, custom_id: `checkout_coupon:${order.id}` },
-              { type: 2, style: 4, label: tr(L, "cancel"), emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
-            ],
-          },
-        ];
-      })(),
+      components: [
+        {
+          type: 1,
+          components: [
+            { type: 2, style: 3, label: tr(Lreview, "go_to_payment"), emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
+            { type: 2, style: 2, label: tr(Lreview, "edit_quantity"), emoji: { name: "✏️" }, custom_id: `checkout_quantity:${order.id}` },
+            { type: 2, style: 1, label: tr(Lreview, "confirm_manual"), emoji: { name: "🛠️" }, custom_id: `approve_order:${order.id}` },
+          ],
+        },
+        {
+          type: 1,
+          components: [
+            { type: 2, style: 2, label: tr(Lreview, "use_coupon"), emoji: { name: "🏷️" }, custom_id: `checkout_coupon:${order.id}` },
+            { type: 2, style: 4, label: tr(Lreview, "cancel"), emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
+          ],
+        },
+      ],
       allowed_mentions: { parse: [] },
     }),
   });
@@ -2975,7 +2975,7 @@ async function processPurchase(
   const guildIdForLink = interaction.guild_id;
   const threadLink = `https://discord.com/channels/${guildIdForLink}/${checkoutThread.id}`;
   await editFollowup(interaction, botToken, {
-    content: "✅ | Seu carrinho foi criado com êxito.",
+    content: tr(Lreview, "cart_created"),
     embeds: [],
     components: [
       {
@@ -2984,7 +2984,7 @@ async function processPurchase(
           {
             type: 2,
             style: 5, // Link button
-            label: "Ir para o carrinho",
+            label: tr(Lreview, "go_to_cart"),
             url: threadLink,
           },
         ],
