@@ -2442,21 +2442,21 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingFb) {
-          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+          return respondImmediate(interaction, tr(L, "feedback_already_rated"));
         }
 
         return new Response(JSON.stringify({
           type: 9,
           data: {
             custom_id: `feedback_modal:${orderId}`,
-            title: "Avaliar sua compra",
+            title: tr(L, "feedback_modal_purchase_title"),
             components: [
               {
                 type: 1,
                 components: [{
                   type: 4,
                   custom_id: "rating",
-                  label: "Nota de 1 a 5 (estrelas)",
+                  label: tr(L, "rating_input_label"),
                   style: 1,
                   min_length: 1,
                   max_length: 1,
@@ -2469,10 +2469,10 @@ serve(async (req) => {
                 components: [{
                   type: 4,
                   custom_id: "comment",
-                  label: "Comentário (opcional)",
+                  label: tr(L, "feedback_comment_label"),
                   style: 2,
                   max_length: 500,
-                  placeholder: "Conte como foi sua experiência...",
+                  placeholder: tr(L, "feedback_comment_placeholder"),
                   required: false,
                 }],
               },
