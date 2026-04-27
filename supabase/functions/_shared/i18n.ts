@@ -672,7 +672,7 @@ export function normLang(v: string | null | undefined): Lang {
   if (["en", "en-us", "en-gb", "english"].includes(lower)) return "en";
   if (["de", "de-de", "german", "deutsch"].includes(lower)) return "de";
   if (["pt-br", "pt", "pt-brasil", "portuguese", "português"].includes(lower)) return "pt-BR";
-  return "pt-BR";
+  return "en";
 }
 
 export function optionalLang(v: string | null | undefined): Lang | null {
@@ -682,7 +682,7 @@ export function optionalLang(v: string | null | undefined): Lang | null {
 
 export function tr(lang: string | null | undefined, key: string): string {
   const L = normLang(lang);
-  return I18N[L][key] ?? I18N["pt-BR"][key] ?? key;
+  return I18N[L][key] ?? I18N.en[key] ?? I18N["pt-BR"][key] ?? key;
 }
 
 /** Translate + replace {placeholders}. */
@@ -702,8 +702,8 @@ export async function getTenantLang(supabase: any, tenantId: string): Promise<La
       .select("language")
       .eq("id", tenantId)
       .maybeSingle();
-    return optionalLang((data as any)?.language) || "pt-BR";
+    return optionalLang((data as any)?.language) || "en";
   } catch {
-    return "pt-BR";
+    return "en";
   }
 }
