@@ -1231,6 +1231,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         if (order.status === "pending_payment") {
           await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
@@ -1275,6 +1276,8 @@ serve(async (req) => {
       // ─── CHECKOUT: USE COUPON (open modal) ────────────────
       if (customId.startsWith("checkout_coupon:")) {
         const orderId = customId.replace("checkout_coupon:", "");
+        const { data: order } = await supabase.from("orders").select("tenant_id, product_id").eq("id", orderId).maybeSingle();
+        const L = await resolveOrderLang(supabase, order || {});
         // Show modal for coupon code
         await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
           method: "POST",
@@ -1306,6 +1309,8 @@ serve(async (req) => {
       // ─── CHECKOUT: EDIT QUANTITY (open modal) ─────────────
       if (customId.startsWith("checkout_quantity:")) {
         const orderId = customId.replace("checkout_quantity:", "");
+        const { data: order } = await supabase.from("orders").select("tenant_id, product_id").eq("id", orderId).maybeSingle();
+        const L = await resolveOrderLang(supabase, order || {});
         await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
