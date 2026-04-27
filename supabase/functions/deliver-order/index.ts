@@ -392,10 +392,10 @@ serve(async (req) => {
     } else if (checkoutThreadId && (!isAutoDelivery || (isAutoDelivery && stockItems.length === 0))) {
       // Manual delivery OR auto-delivery with no stock: keep thread open with staff notification
       const isOutOfStock = isAutoDelivery && stockItems.length === 0;
-      const embedTitle = isOutOfStock ? "⚠️ Estoque Esgotado — Entrega Pendente" : "📋 Entrega Manual Pendente";
+      const embedTitle = isOutOfStock ? tr(lang, "out_of_stock_pending_title") : tr(lang, "manual_delivery_pending_title");
       const embedDesc = isOutOfStock
-        ? `O pagamento foi aprovado, mas **não há estoque disponível** para entrega automática.\n\nPor favor, reponha o estoque ou realize a entrega manualmente e clique em **Marcar como Entregue**.`
-        : `Este pedido requer entrega manual.\n\nPor favor, realize a entrega do produto e clique em **Marcar como Entregue** quando finalizar.`;
+        ? tr(lang, "out_of_stock_pending_desc")
+        : tr(lang, "manual_delivery_pending_desc");
 
       await fetch(`${DISCORD_API}/channels/${checkoutThreadId}/messages`, {
         method: "POST",
@@ -406,15 +406,15 @@ serve(async (req) => {
             description: embedDesc,
             color: 0xFEE75C,
             fields: [
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
-              { name: "📦 Produto", value: order.product_name, inline: true },
+              { name: `👤 ${tr(lang, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `📦 ${tr(lang, "product_label")}`, value: order.product_name, inline: true },
             ],
           }],
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 3, label: "Marcar como Entregue", custom_id: `mark_delivered_${order.id}` },
-              { type: 2, style: 4, label: "Cancelar Pedido", custom_id: `cancel_manual_${order.id}` },
+              { type: 2, style: 3, label: tr(lang, "mark_delivered"), custom_id: `mark_delivered_${order.id}` },
+              { type: 2, style: 4, label: tr(lang, "cancel_order"), custom_id: `cancel_manual_${order.id}` },
             ],
           }],
         }),
