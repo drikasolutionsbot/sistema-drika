@@ -1276,7 +1276,7 @@ async function viewDetails(interaction, tenant, productId) {
     embed.addFields({ name: `📊 ${tr(L, "stock_label_md")}`, value: trf(L, "stock_count", { stock: product.stock }), inline: true });
   }
   if (fields.length > 0) {
-    embed.addFields({ name: trf(L, "variations_of", { product: "" }).trim(), value: trf(L, "variations_count", { count: fields.length }), inline: true });
+    embed.addFields({ name: `📋 ${tr(L, "variations_label")}`, value: trf(L, "variations_count", { count: fields.length }), inline: true });
   }
   embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
   if (product.icon_url) embed.setThumbnail(product.icon_url);
