@@ -269,6 +269,7 @@ async function startCheckout(interaction, tenant, productId) {
   await interaction.deferReply({ ephemeral: true });
 
   console.log(`[CHECKOUT] startCheckout productId=${productId} tenantId=${tenant.id}`);
+  let L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const productIdCandidates = String(productId || "")
     .split(/[:|,;\/\s]+/)
@@ -293,10 +294,11 @@ async function startCheckout(interaction, tenant, productId) {
 
   if (!product) {
     console.error(`[CHECKOUT] Product not found for rawId=${productId} tenantId=${tenant.id}`);
-    return interaction.editReply({ content: "❌ Produto não encontrado." });
+    return interaction.editReply({ content: tr(L, "product_not_found") });
   }
+  L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: product.id, product_language: product.language });
 
-  if (!product.active) return interaction.editReply({ content: "❌ Este produto está indisponível." });
+  if (!product.active) return interaction.editReply({ content: tr(L, "product_unavailable") });
 
   const fields = await getProductFields(product.id, tenant.id);
 
@@ -309,14 +311,14 @@ async function startCheckout(interaction, tenant, productId) {
     }
     if (totalStock <= 0) {
       return interaction.editReply({
-        content: "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.",
+        content: tr(L, "product_out_of_stock"),
       });
     }
   } else {
     const sc = await countStock(product.id, tenant.id);
     if (sc !== null && sc <= 0) {
       return interaction.editReply({
-        content: "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.",
+        content: tr(L, "product_out_of_stock"),
       });
     }
   }
@@ -337,10 +339,10 @@ async function startCheckout(interaction, tenant, productId) {
     const options = fields.slice(0, 25).map((f) => ({
       label: f.name,
       value: `buy_field:${productId}:${f.id}`,
-      description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stockMap[f.id] || 0}`,
+      description: trf(L, "field_option_desc", { price: formatBRL(f.price_cents), stock: stockMap[f.id] || 0 }),
     }));
 
-    const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+    const autoDelivery = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
     const embed = new EmbedBuilder()
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
@@ -349,7 +351,7 @@ async function startCheckout(interaction, tenant, productId) {
     if (product.icon_url) embed.setThumbnail(product.icon_url);
 
     const row = new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder("Clique aqui para ver as opções").addOptions(options)
+      new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder(tr(L, "select_variation_placeholder")).addOptions(options)
     );
 
     return interaction.editReply({ embeds: [embed], components: [row] });
