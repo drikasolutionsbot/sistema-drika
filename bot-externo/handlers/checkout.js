@@ -1255,27 +1255,28 @@ async function viewVariations(interaction, tenant, productId) {
 async function viewDetails(interaction, tenant, productId) {
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+  const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
+  if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
 
   const fields = await getProductFields(productId, tenant.id);
   const storeConfig = await getStoreConfig(tenant.id);
   const embedColor = resolveProductColor(product, storeConfig);
 
-  const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+  const autoDeliveryText = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${product.name}`)
-    .setDescription(`${autoDeliveryText}${product.description || "Sem descrição."}`)
+    .setDescription(`${autoDeliveryText}${product.description || tr(L, "no_description")}`)
     .setColor(embedColor)
     .addFields(
-      { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
-      { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
+      { name: tr(L, "price_label_md"), value: formatBRL(product.price_cents), inline: true },
+      { name: `📦 ${tr(L, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(L, "service_type") : tr(L, "hybrid_type"), inline: true },
     );
 
   if (product.show_stock && product.stock !== null) {
-    embed.addFields({ name: "📊 Estoque", value: `${product.stock} disponíveis`, inline: true });
+    embed.addFields({ name: `📊 ${tr(L, "stock_label_md")}`, value: trf(L, "stock_count", { stock: product.stock }), inline: true });
   }
   if (fields.length > 0) {
-    embed.addFields({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
+    embed.addFields({ name: trf(L, "variations_of", { product: "" }).trim(), value: trf(L, "variations_count", { count: fields.length }), inline: true });
   }
   embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
   if (product.icon_url) embed.setThumbnail(product.icon_url);
