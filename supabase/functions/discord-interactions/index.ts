@@ -941,8 +941,9 @@ serve(async (req) => {
       if (customId.startsWith("view_variations:")) {
         const productId = customId.replace("view_variations:", "");
 
-        const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
-        if (!product) return respondImmediate(interaction, "❌ Produto não encontrado.");
+        const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+        const Lproduct = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id, product_id: productId, product_language: product?.language });
+        if (!product) return respondImmediate(interaction, tr(Lproduct, "product_not_found"));
 
         const { data: fields } = await supabase
           .from("product_fields")
@@ -952,7 +953,7 @@ serve(async (req) => {
           .order("sort_order", { ascending: true });
 
         if (!fields || fields.length === 0) {
-          return respondImmediate(interaction, "Este produto não tem variações.");
+          return respondImmediate(interaction, tr(Lproduct, "no_variations"));
         }
 
         const fieldLines = fields.map((f: any) => {
@@ -964,7 +965,7 @@ serve(async (req) => {
 
         const varEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
         const embed = {
-          title: `📋 Variações de ${product.name}`,
+          title: trf(Lproduct, "variations_of", { product: product.name }),
           description: fieldLines.join("\n"),
           color: varEmbedColor,
         };
@@ -977,7 +978,8 @@ serve(async (req) => {
         const productId = customId.replace("view_details:", "");
 
         const { data: product } = await supabase.from("products").select("*").eq("id", productId).single();
-        if (!product) return respondImmediate(interaction, "❌ Produto não encontrado.");
+        const Lproduct = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id, product_id: productId, product_language: product?.language });
+        if (!product) return respondImmediate(interaction, tr(Lproduct, "product_not_found"));
 
         const { data: fields } = await supabase
           .from("product_fields")
@@ -986,14 +988,14 @@ serve(async (req) => {
           .eq("tenant_id", product.tenant_id);
 
         const detailEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
-        const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+        const autoDeliveryText = product.auto_delivery ? `${tr(Lproduct, "auto_delivery_inline")}\n\n` : "";
         const embed: any = {
           title: `ℹ️ ${product.name}`,
-          description: `${autoDeliveryText}${product.description || "Sem descrição."}`,
+          description: `${autoDeliveryText}${product.description || tr(Lproduct, "no_description")}`,
           color: detailEmbedColor,
           fields: [
-            { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
-            { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
+            { name: tr(Lproduct, "price_label_md"), value: formatBRL(product.price_cents), inline: true },
+            { name: `📦 ${tr(Lproduct, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(Lproduct, "service_type") : tr(Lproduct, "hybrid_type"), inline: true },
           ],
         };
 
