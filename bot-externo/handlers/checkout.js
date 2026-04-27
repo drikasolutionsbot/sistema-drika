@@ -175,7 +175,8 @@ function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
 
 function resolvePixFooter(storeConfig, context) {
   const storeFooter = storeConfig?.purchase_embed_footer || "";
-  const fallback = `${context.storeName} – Pagamento expira em ${context.timeoutMin} minutos.\n• Hoje às ${context.time}`;
+  const lang = context.lang || "pt-BR";
+  const fallback = `${context.storeName} – ${trf(lang, "payment_expires_in", { minutes: context.timeoutMin })}.\n• ${tr(lang, "today_at")} ${context.time}`;
   return applyFooterTemplate(storeFooter || fallback, context);
 }
 
@@ -269,6 +270,7 @@ async function startCheckout(interaction, tenant, productId) {
   await interaction.deferReply({ ephemeral: true });
 
   console.log(`[CHECKOUT] startCheckout productId=${productId} tenantId=${tenant.id}`);
+  let L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const productIdCandidates = String(productId || "")
     .split(/[:|,;\/\s]+/)
@@ -293,10 +295,11 @@ async function startCheckout(interaction, tenant, productId) {
 
   if (!product) {
     console.error(`[CHECKOUT] Product not found for rawId=${productId} tenantId=${tenant.id}`);
-    return interaction.editReply({ content: "❌ Produto não encontrado." });
+    return interaction.editReply({ content: tr(L, "product_not_found") });
   }
+  L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: product.id, product_language: product.language });
 
-  if (!product.active) return interaction.editReply({ content: "❌ Este produto está indisponível." });
+  if (!product.active) return interaction.editReply({ content: tr(L, "product_unavailable") });
 
   const fields = await getProductFields(product.id, tenant.id);
 
@@ -309,14 +312,14 @@ async function startCheckout(interaction, tenant, productId) {
     }
     if (totalStock <= 0) {
       return interaction.editReply({
-        content: "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.",
+        content: tr(L, "product_out_of_stock"),
       });
     }
   } else {
     const sc = await countStock(product.id, tenant.id);
     if (sc !== null && sc <= 0) {
       return interaction.editReply({
-        content: "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.",
+        content: tr(L, "product_out_of_stock"),
       });
     }
   }
@@ -337,10 +340,10 @@ async function startCheckout(interaction, tenant, productId) {
     const options = fields.slice(0, 25).map((f) => ({
       label: f.name,
       value: `buy_field:${productId}:${f.id}`,
-      description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stockMap[f.id] || 0}`,
+      description: trf(L, "field_option_desc", { price: formatBRL(f.price_cents), stock: stockMap[f.id] || 0 }),
     }));
 
-    const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+    const autoDelivery = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
     const embed = new EmbedBuilder()
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
@@ -349,7 +352,7 @@ async function startCheckout(interaction, tenant, productId) {
     if (product.icon_url) embed.setThumbnail(product.icon_url);
 
     const row = new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder("Clique aqui para ver as opções").addOptions(options)
+      new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder(tr(L, "select_variation_placeholder")).addOptions(options)
     );
 
     return interaction.editReply({ embeds: [embed], components: [row] });
@@ -362,20 +365,22 @@ async function startCheckout(interaction, tenant, productId) {
 // ── Select Variation (from dropdown) ──
 async function selectVariation(interaction, tenant, productId, fieldId) {
   await interaction.deferReply({ ephemeral: true });
+  let L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.editReply({ content: "❌ Produto não encontrado." });
+  if (!product) return interaction.editReply({ content: tr(L, "product_not_found") });
+  L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: product.id, product_language: product.language });
 
   const fields = await getProductFields(product.id, tenant.id);
   const field = fields.find((f) => f.id === fieldId);
-  if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
+  if (!field) return interaction.editReply({ content: tr(L, "variation_not_found") });
 
   // Check stock for this specific field (block regardless of auto_delivery)
   const sc = await countStock(product.id, tenant.id, fieldId);
   if (sc !== null && sc <= 0) {
     return interaction.editReply({
-      content: "❌ Esta variação está **sem estoque** no momento. Tente novamente mais tarde.",
+      content: tr(L, "variation_out_of_stock"),
     });
   }
 
@@ -387,6 +392,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenant.id,
+    tenant_language: tenant.language,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   const order = await createOrder({
     tenant_id: tenant.id, product_id: product.id, field_id: fieldId,
@@ -405,7 +416,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
     await deliverOrder(order.id, tenant.id);
-    return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
+    return interaction.editReply({ content: trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }) });
   }
 
   // ── Create checkout thread ──
@@ -423,7 +434,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .slice(0, 40) || "cliente";
 
   if (!threadParent?.threads?.create) {
-    return interaction.editReply({ content: "❌ Não foi possível abrir o carrinho neste canal." });
+    return interaction.editReply({ content: tr(Lreview, "cannot_open_cart") });
   }
 
   try {
@@ -437,7 +448,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let checkoutThread;
   try {
     checkoutThread = await threadParent.threads.create({
-      name: `carrinho-${safeUsername}-${order.order_number}`,
+      name: `${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
       type: ChannelType.PrivateThread,
       invitable: false,
       autoArchiveDuration: 10080,
@@ -446,7 +457,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   } catch (privateThreadError) {
     console.error("[CHECKOUT] private thread creation failed:", privateThreadError.message);
     checkoutThread = await threadParent.threads.create({
-      name: `carrinho-${safeUsername}-${order.order_number}`,
+      name: `${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
       type: ChannelType.PublicThread,
       autoArchiveDuration: 10080,
       reason: `Checkout #${order.order_number}`,
@@ -502,7 +513,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   } catch (e) {
     console.error("[CHECKOUT] staff auto-add error:", e.message);
   }
-  const storeName = storeConfig?.store_title || tenant.name || "Loja";
+  const storeName = storeConfig?.store_title || tenant.name || tr(Lreview, "store_default");
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const productEmbedConfig = getProductEmbedConfig(product);
   const resolvedEmbedHex = resolveHexColor(productEmbedConfig.color, resolveHexColor(storeConfig?.embed_color || "#5865F2"));
@@ -512,14 +523,6 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let stockCount = "∞";
   const sc = await countStock(product.id, tenant.id, fieldId);
   if (sc !== null) stockCount = String(sc);
-
-  // Resolve language (product overrides tenant)
-  const Lreview = await resolveOrderLang(supabase, {
-    tenant_id: tenant.id,
-    tenant_language: tenant.language,
-    product_id: product.id,
-    product_language: product.language,
-  });
 
   // Build checkout embed
   const descLines = [];
@@ -625,7 +628,8 @@ async function goToPayment(interaction, tenant, orderId) {
 
   // Prevent multiple clicks from generating multiple PIX
   if (paymentLocks.has(orderId)) {
-    return interaction.followUp({ content: "⏳ O pagamento já está sendo gerado, aguarde...", ephemeral: true });
+    const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
+    return interaction.followUp({ content: tr(L, "payment_generating_busy"), ephemeral: true });
   }
   paymentLocks.add(orderId);
 
@@ -641,11 +645,11 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
   const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
   if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: tr(L, "order_not_pending"), ephemeral: true });
 
   // Block if payment was already generated for this order
   if (order.payment_id) {
-    return interaction.followUp({ content: "ℹ️ O pagamento PIX já foi gerado para este pedido. Verifique acima.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "pix_already_generated"), ephemeral: true });
   }
 
   // ── Validate stock before generating PIX ──
@@ -655,7 +659,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const fieldId = order.field_id;
       const sc = await countStock(order.product_id, order.tenant_id, fieldId || undefined);
       if (sc !== null && sc <= 0) {
-        return interaction.followUp({ content: "❌ Este produto está **sem estoque** no momento. Não é possível gerar o pagamento.", ephemeral: true });
+        return interaction.followUp({ content: tr(L, "product_out_of_stock"), ephemeral: true });
       }
     }
   }
@@ -750,7 +754,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
 
   // Send PIX embed
   const storeConfig = await getStoreConfig(tenant.id);
-  const storeName = storeConfig?.store_title || tenant.name || "Loja";
+  const storeName = storeConfig?.store_title || tenant.name || tr(L, "store_default");
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
   const embedColor = await resolveOrderColor(order, storeConfig);
@@ -763,6 +767,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     timeoutMin,
     date: paymentDate,
     time: paymentTime,
+    lang: L,
     username: order.discord_username || "",
   });
 

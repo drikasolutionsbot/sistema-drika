@@ -756,12 +756,18 @@ serve(async (req) => {
         const product = await resolveProductFromCustomId(supabase, productId, interaction.guild_id);
 
         if (!product) {
-          await editFollowup(interaction, botToken, "❌ Produto não encontrado.");
+          await editFollowup(interaction, botToken, tr("pt-BR", "product_not_found"));
           return ok();
         }
 
+        const Lproduct = await resolveOrderLang(supabase, {
+          tenant_id: product.tenant_id,
+          product_id: product.id,
+          product_language: product.language,
+        });
+
         if (!product.active) {
-          await editFollowup(interaction, botToken, "❌ Este produto está indisponível no momento.");
+          await editFollowup(interaction, botToken, tr(Lproduct, "product_unavailable"));
           return ok();
         }
 
@@ -798,7 +804,7 @@ serve(async (req) => {
 
           const combinedStock = (totalFieldStock || 0) + (generalStock || 0);
           if (combinedStock <= 0) {
-            await editFollowup(interaction, botToken, "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.");
+            await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
             return ok();
           }
         } else {
@@ -810,7 +816,7 @@ serve(async (req) => {
             .eq("delivered", false);
 
           if (productStock !== null && productStock <= 0) {
-            await editFollowup(interaction, botToken, "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.");
+            await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
             return ok();
           }
         }
@@ -838,13 +844,13 @@ serve(async (req) => {
             return {
               label: f.name,
               value: `buy_field:${productId}:${f.id}`,
-              description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stock}`,
+              description: trf(Lproduct, "field_option_desc", { price: formatBRL(f.price_cents), stock }),
               emoji: f.emoji ? parseEmoji(f.emoji) : undefined,
             };
           });
 
           const embedColorVal = await resolveProductEmbedColor(product, tenantId);
-          const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+          const autoDelivery = product.auto_delivery ? `${tr(Lproduct, "auto_delivery_inline")}\n\n` : "";
           await editFollowup(interaction, botToken, {
             content: "",
             embeds: [{
@@ -859,7 +865,7 @@ serve(async (req) => {
               components: [{
                 type: 3, // String Select
                 custom_id: `select_variation:${productId}`,
-                placeholder: "Clique aqui para ver as opções",
+                placeholder: tr(Lproduct, "select_variation_placeholder"),
                 options: options.slice(0, 25),
               }],
             }],
@@ -891,10 +897,15 @@ serve(async (req) => {
         await respondDeferred(interaction, botToken);
 
         const product = await resolveProductFromCustomId(supabase, productId, interaction.guild_id);
-        if (!product) { await editFollowup(interaction, botToken, "❌ Produto não encontrado."); return ok(); }
+        if (!product) { await editFollowup(interaction, botToken, tr("pt-BR", "product_not_found")); return ok(); }
+        const Lproduct = await resolveOrderLang(supabase, {
+          tenant_id: product.tenant_id,
+          product_id: product.id,
+          product_language: product.language,
+        });
 
         const { data: field } = await supabase.from("product_fields").select("*").eq("id", fieldId).single();
-        if (!field) { await editFollowup(interaction, botToken, "❌ Variação não encontrada."); return ok(); }
+        if (!field) { await editFollowup(interaction, botToken, tr(Lproduct, "variation_not_found")); return ok(); }
 
         // ── Stock check for this variation ──
         const { count: fieldStock } = await supabase
@@ -918,7 +929,7 @@ serve(async (req) => {
         }
 
         if (totalStock <= 0) {
-          await editFollowup(interaction, botToken, "❌ Esta variação está **sem estoque** no momento. Tente novamente mais tarde.");
+          await editFollowup(interaction, botToken, tr(Lproduct, "variation_out_of_stock"));
           return ok();
         }
 
@@ -2785,6 +2796,11 @@ async function processPurchase(
   fieldName?: string
 ) {
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenantId,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   // Create order
   const { data: order, error: orderErr } = await supabase
@@ -2840,12 +2856,12 @@ async function processPurchase(
       });
     } catch (e) { console.error("Free delivery error:", e); }
 
-    await editFollowup(interaction, botToken, `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.`);
+    await editFollowup(interaction, botToken, trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }));
     return;
   }
 
   // ─── Create private thread for checkout ───────────────────
-  const threadName = `🛒 • ${username || userId} • ${order.order_number}`.substring(0, 100);
+  const threadName = `${tr(Lreview, "cart_thread_prefix")}-${username || userId}-${order.order_number}`.substring(0, 100);
 
   const createThreadRes = await fetch(`${DISCORD_API}/channels/${channelId}/threads`, {
     method: "POST",
@@ -2860,7 +2876,7 @@ async function processPurchase(
   if (!createThreadRes.ok) {
     const errText = await createThreadRes.text();
     console.error("Failed to create checkout thread:", errText);
-    await editFollowup(interaction, botToken, "❌ Não foi possível criar o tópico de compra. Verifique as permissões do bot.");
+    await editFollowup(interaction, botToken, tr(Lreview, "checkout_thread_error"));
     return;
   }
 
@@ -2888,7 +2904,7 @@ async function processPurchase(
     .eq("id", tenantId)
     .single();
 
-  const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || "Loja";
+  const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || tr(Lreview, "store_default");
   const storeLogo = storeConfigForCheckout?.store_logo_url || tenantInfo?.logo_url;
   const productEmbedConfig = parseProductEmbedConfig(product.embed_config);
   const resolvedEmbedHex = resolveHexColor(productEmbedConfig.color, resolveHexColor(storeConfigForCheckout?.embed_color || "#5865F2"));
@@ -2914,13 +2930,6 @@ async function processPurchase(
       .eq("delivered", false);
     if (count !== null) stockCount = String(count);
   }
-
-  // Resolve language from product (fallback tenant)
-  const Lreview = await resolveOrderLang(supabase, {
-    tenant_id: tenantId,
-    product_id: product.id,
-    product_language: product.language,
-  });
 
   // Build description from product description
   const descLines: string[] = [];
@@ -3145,7 +3154,7 @@ async function generatePixInThread(
       await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ embeds: [{ title: "❌ Erro", description: "Nenhum método de pagamento configurado.", color: 0xED4245 }] }),
+        body: JSON.stringify({ embeds: [{ title: "❌ Error", description: tr(L, "no_payment_method"), color: 0xED4245 }] }),
       });
       return;
     }
@@ -3165,22 +3174,22 @@ async function generatePixInThread(
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: "🔔 Novo Pedido — PIX Estático",
-            description: `Aguardando confirmação manual do pagamento.`,
+            title: tr(L, "static_pix_new_order_title"),
+            description: tr(L, "manual_confirmation_pending"),
             color: 0xFEE75C,
             fields: [
-              { name: "📦 Produto", value: orderName, inline: true },
-              { name: "💰 Valor", value: formatBRL(priceCents), inline: true },
-              { name: "🔢 Pedido", value: `#${order.order_number}`, inline: true },
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
+              { name: `📦 ${tr(L, "product_label")}`, value: orderName, inline: true },
+              { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(priceCents), inline: true },
+              { name: `🔢 ${tr(L, "order_label")}`, value: `#${order.order_number}`, inline: true },
+              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
             ],
             timestamp: new Date().toISOString(),
           }],
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 3, label: "Aprovar Pagamento", emoji: { name: "✅" }, custom_id: `approve_order:${order.id}` },
-              { type: 2, style: 4, label: "Recusar", emoji: { name: "❌" }, custom_id: `reject_order:${order.id}` },
+              { type: 2, style: 3, label: tr(L, "approve_payment"), emoji: { name: "✅" }, custom_id: `approve_order:${order.id}` },
+              { type: 2, style: 4, label: tr(L, "reject"), emoji: { name: "❌" }, custom_id: `reject_order:${order.id}` },
             ],
           }],
         }),
@@ -3196,7 +3205,7 @@ async function generatePixInThread(
     .single();
 
   const { data: tInfo } = await supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single();
-  const storeName = scBrand?.store_title || tInfo?.name || "Loja";
+  const storeName = scBrand?.store_title || tInfo?.name || tr(L, "store_default");
   const storeLogo = scBrand?.store_logo_url || tInfo?.logo_url;
   const timeoutMin = scBrand?.payment_timeout_minutes || 30;
   // Resolve product-specific color for PIX embed
@@ -3222,7 +3231,7 @@ async function generatePixInThread(
     date: paymentDate,
     time: paymentTime,
     username: order.discord_username || userId,
-  }) || `${storeName} – Pagamento expira em ${timeoutMin} minutos.\n• Hoje às ${paymentTime}`;
+  }) || `${storeName} – ${trf(L, "payment_expires_in", { minutes: timeoutMin })}.\n• ${tr(L, "today_at")} ${paymentTime}`;
 
   // Send PIX embed in the thread
   const pixEmbed: any = {
