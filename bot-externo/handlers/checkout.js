@@ -627,7 +627,8 @@ async function goToPayment(interaction, tenant, orderId) {
 
   // Prevent multiple clicks from generating multiple PIX
   if (paymentLocks.has(orderId)) {
-    return interaction.followUp({ content: "⏳ O pagamento já está sendo gerado, aguarde...", ephemeral: true });
+    const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
+    return interaction.followUp({ content: tr(L, "payment_generating_busy"), ephemeral: true });
   }
   paymentLocks.add(orderId);
 
@@ -643,11 +644,11 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
   const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
   if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: tr(L, "order_not_pending"), ephemeral: true });
 
   // Block if payment was already generated for this order
   if (order.payment_id) {
-    return interaction.followUp({ content: "ℹ️ O pagamento PIX já foi gerado para este pedido. Verifique acima.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "pix_already_generated"), ephemeral: true });
   }
 
   // ── Validate stock before generating PIX ──
@@ -657,7 +658,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const fieldId = order.field_id;
       const sc = await countStock(order.product_id, order.tenant_id, fieldId || undefined);
       if (sc !== null && sc <= 0) {
-        return interaction.followUp({ content: "❌ Este produto está **sem estoque** no momento. Não é possível gerar o pagamento.", ephemeral: true });
+        return interaction.followUp({ content: tr(L, "product_out_of_stock"), ephemeral: true });
       }
     }
   }
