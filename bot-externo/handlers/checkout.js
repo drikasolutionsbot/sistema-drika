@@ -1136,27 +1136,28 @@ async function markDelivered(interaction, tenant, orderId) {
 
   const order = await getOrder(orderId);
   if (!order) return;
+  const L = await resolveOrderLang(supabase, order);
 
   await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+    embeds: [new EmbedBuilder().setTitle(tr(L, "delivery_confirmed_title")).setDescription(trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("✅ Pedido Entregue").setDescription(`Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle(tr(L, "order_delivered_panel_title")).setDescription(trf(L, "order_delivered_panel_desc", { order_number: order.order_number, product: order.product_name })).setColor(0x57F287)],
     components: [],
   });
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {
-    title: "📦 Entrega manual confirmada",
-    description: `Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`,
+    title: tr(L, "manual_delivery_confirmed_log_title"),
+    description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0x57F287,
     fields: [
-      { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
