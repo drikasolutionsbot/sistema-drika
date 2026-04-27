@@ -2622,6 +2622,7 @@ serve(async (req) => {
           await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
           return ok();
         }
+        const L = await resolveOrderLang(supabase, order);
 
         // Get original unit price
         let unitPrice = order.total_cents; // if qty was 1
