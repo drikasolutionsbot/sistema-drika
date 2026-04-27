@@ -1213,8 +1213,8 @@ async function cancelManual(interaction, tenant, orderId) {
 // ── Copy Delivered ──
 async function copyDelivered(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
-  const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
@@ -1228,11 +1228,12 @@ async function copyDelivered(interaction, tenant, orderId) {
 
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
-  const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
-  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+  const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+  const L = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id || tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
+  if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
 
   const fields = await getProductFields(productId, product.tenant_id);
-  if (!fields.length) return interaction.reply({ content: "Este produto não tem variações.", ephemeral: true });
+  if (!fields.length) return interaction.reply({ content: tr(L, "no_variations"), ephemeral: true });
 
   const storeConfig = await getStoreConfig(product.tenant_id);
   const { data: fullProduct } = await supabase.from("products").select("*").eq("id", productId).single();
@@ -1245,7 +1246,7 @@ async function viewVariations(interaction, tenant, productId) {
   });
 
   return interaction.reply({
-    embeds: [new EmbedBuilder().setTitle(`📋 Variações de ${product.name}`).setDescription(fieldLines.join("\n")).setColor(embedColor)],
+    embeds: [new EmbedBuilder().setTitle(trf(L, "variations_of", { product: product.name })).setDescription(fieldLines.join("\n")).setColor(embedColor)],
     ephemeral: true,
   });
 }
