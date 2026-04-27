@@ -169,7 +169,7 @@ async function sendStoreLog(
     if (!sc?.logs_channel_id) return;
 
     const { data: t } = await supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single();
-    const storeName = sc.store_title || t?.name || "Loja";
+    const storeName = sc.store_title || t?.name || tr("en", "store_default");
     const storeLogo = sc.store_logo_url || t?.logo_url;
     const embedColor = opts.color ?? (sc.embed_color ? parseInt(sc.embed_color.replace("#", ""), 16) : 0x2B2D31);
     const d = new Date().toLocaleDateString("pt-BR");
@@ -667,8 +667,9 @@ serve(async (req) => {
 
       // ─── /estoque - Verifica estoque ──────────────────────
       if (commandName === "estoque") {
-        const { data: tenant } = await supabase.from("tenants").select("id").eq("discord_guild_id", guildId).single();
+        const { data: tenant } = await supabase.from("tenants").select("id, language").eq("discord_guild_id", guildId).single();
         if (!tenant) return respondImmediate(interaction, "❌ Servidor não configurado.");
+        const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
         const { data: products } = await supabase
           .from("products")
@@ -677,16 +678,16 @@ serve(async (req) => {
           .eq("active", true)
           .order("name");
 
-        if (!products || products.length === 0) return respondImmediate(interaction, "ℹ️ Nenhum produto encontrado.");
+        if (!products || products.length === 0) return respondImmediate(interaction, tr(L, "no_products_registered"));
 
         const lines = products.map((p: any) => {
           const stockText = p.stock !== null ? `${p.stock}` : "∞";
           const emoji = (p.stock === null || p.stock > 0) ? "🟢" : "🔴";
-          return `${emoji} **${p.name}** — ${stockText} em estoque`;
+          return `${emoji} **${p.name}** — ${trf(L, "stock_count", { stock: stockText })}`;
         });
 
         return respondImmediate(interaction, {
-          embeds: [{ title: "📦 Estoque", description: lines.join("\n"), color: 0x2B2D31 }],
+          embeds: [{ title: tr(L, "stock_title"), description: lines.join("\n"), color: 0x2B2D31 }],
         });
       }
 
@@ -941,8 +942,9 @@ serve(async (req) => {
       if (customId.startsWith("view_variations:")) {
         const productId = customId.replace("view_variations:", "");
 
-        const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
-        if (!product) return respondImmediate(interaction, "❌ Produto não encontrado.");
+        const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+        const Lproduct = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id, product_id: productId, product_language: product?.language });
+        if (!product) return respondImmediate(interaction, tr(Lproduct, "product_not_found"));
 
         const { data: fields } = await supabase
           .from("product_fields")
@@ -952,7 +954,7 @@ serve(async (req) => {
           .order("sort_order", { ascending: true });
 
         if (!fields || fields.length === 0) {
-          return respondImmediate(interaction, "Este produto não tem variações.");
+          return respondImmediate(interaction, tr(Lproduct, "no_variations"));
         }
 
         const fieldLines = fields.map((f: any) => {
@@ -964,7 +966,7 @@ serve(async (req) => {
 
         const varEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
         const embed = {
-          title: `📋 Variações de ${product.name}`,
+          title: trf(Lproduct, "variations_of", { product: product.name }),
           description: fieldLines.join("\n"),
           color: varEmbedColor,
         };
@@ -977,7 +979,8 @@ serve(async (req) => {
         const productId = customId.replace("view_details:", "");
 
         const { data: product } = await supabase.from("products").select("*").eq("id", productId).single();
-        if (!product) return respondImmediate(interaction, "❌ Produto não encontrado.");
+        const Lproduct = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id, product_id: productId, product_language: product?.language });
+        if (!product) return respondImmediate(interaction, tr(Lproduct, "product_not_found"));
 
         const { data: fields } = await supabase
           .from("product_fields")
@@ -986,23 +989,23 @@ serve(async (req) => {
           .eq("tenant_id", product.tenant_id);
 
         const detailEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
-        const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+        const autoDeliveryText = product.auto_delivery ? `${tr(Lproduct, "auto_delivery_inline")}\n\n` : "";
         const embed: any = {
           title: `ℹ️ ${product.name}`,
-          description: `${autoDeliveryText}${product.description || "Sem descrição."}`,
+          description: `${autoDeliveryText}${product.description || tr(Lproduct, "no_description")}`,
           color: detailEmbedColor,
           fields: [
-            { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
-            { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
+            { name: tr(Lproduct, "price_label_md"), value: formatBRL(product.price_cents), inline: true },
+            { name: `📦 ${tr(Lproduct, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(Lproduct, "service_type") : tr(Lproduct, "hybrid_type"), inline: true },
           ],
         };
 
         if (product.show_stock && product.stock !== null) {
-          embed.fields.push({ name: "📊 Estoque", value: `${product.stock} disponíveis`, inline: true });
+          embed.fields.push({ name: `📊 ${tr(Lproduct, "stock_label_md")}`, value: trf(Lproduct, "stock_count", { stock: product.stock }), inline: true });
         }
 
         if (fields && fields.length > 0) {
-          embed.fields.push({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
+          embed.fields.push({ name: `📋 ${tr(Lproduct, "variations_label")}`, value: trf(Lproduct, "variations_count", { count: fields.length }), inline: true });
         }
 
         if (product.banner_url) embed.image = { url: product.banner_url };
@@ -1017,17 +1020,17 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
-          await editFollowup(interaction, botToken, "❌ Você não tem permissão para confirmar manualmente este pedido.");
+          await editFollowup(interaction, botToken, tr(L, "no_manual_approve_permission"));
           return ok();
         }
 
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
+          await editFollowup(interaction, botToken, trf(L, "order_status_notice", { order_number: order.order_number, status: order.status }));
           return ok();
         }
 
@@ -1123,10 +1126,10 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
+          await editFollowup(interaction, botToken, trf(L, "order_status_notice", { order_number: order.order_number, status: order.status }));
           return ok();
         }
 
@@ -1186,11 +1189,11 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não pode ser cancelado (status: **${order.status}**).`);
+          await editFollowup(interaction, botToken, trf(L, "order_cannot_cancel_status", { order_number: order.order_number, status: order.status }));
           return ok();
         }
 
@@ -1214,10 +1217,10 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não está mais pendente.`);
+          await editFollowup(interaction, botToken, trf(L, "order_not_pending_notice", { order_number: order.order_number }));
           return ok();
         }
 
@@ -1243,7 +1246,7 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         if (order.status === "pending_payment") {
@@ -1356,13 +1359,13 @@ serve(async (req) => {
       if (customId.startsWith("copy_pix:")) {
         const orderId = customId.replace("copy_pix:", "");
         const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, product_id, total_cents, product_name, order_number").eq("id", orderId).single();
-        if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        if (!order) return respondImmediate(interaction, tr("en", "order_not_found"));
         const L = await resolveOrderLang(supabase, order);
         
         // Regenerate brcode for display
         const { data: tenant } = await supabase.from("tenants").select("name, pix_key").eq("id", order.tenant_id).single();
         if (tenant?.pix_key) {
-          const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
+          const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), order.total_cents / 100, `PED${order.order_number}`);
           return respondImmediate(interaction, `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``);
         }
         return respondImmediate(interaction, tr(L, "pix_code_above"));
@@ -2009,13 +2012,13 @@ serve(async (req) => {
         const MANAGE_GUILD = BigInt(0x20);
         const isStaff = (memberPerms & ADMIN) === ADMIN || (memberPerms & MANAGE_GUILD) === MANAGE_GUILD;
         if (!isStaff) {
-          return respondImmediate(interaction, "🔒 Apenas a equipe da loja pode confirmar a entrega deste pedido.");
+          return respondImmediate(interaction, tr("en", "no_mark_delivered_permission"));
         }
 
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         // Update order to delivered
@@ -2077,13 +2080,13 @@ serve(async (req) => {
         const MANAGE_GUILD2 = BigInt(0x20);
         const isStaff2 = (memberPerms2 & ADMIN2) === ADMIN2 || (memberPerms2 & MANAGE_GUILD2) === MANAGE_GUILD2;
         if (!isStaff2) {
-          return respondImmediate(interaction, "🔒 Apenas a equipe da loja pode cancelar este pedido.");
+          return respondImmediate(interaction, tr("en", "no_cancel_permission"));
         }
 
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
@@ -2439,21 +2442,21 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingFb) {
-          return respondImmediate(interaction, "⭐ Você já avaliou esta compra. Obrigado!");
+          return respondImmediate(interaction, tr(L, "feedback_already_rated"));
         }
 
         return new Response(JSON.stringify({
           type: 9,
           data: {
             custom_id: `feedback_modal:${orderId}`,
-            title: "Avaliar sua compra",
+            title: tr(L, "feedback_modal_purchase_title"),
             components: [
               {
                 type: 1,
                 components: [{
                   type: 4,
                   custom_id: "rating",
-                  label: "Nota de 1 a 5 (estrelas)",
+                  label: tr(L, "rating_input_label"),
                   style: 1,
                   min_length: 1,
                   max_length: 1,
@@ -2466,10 +2469,10 @@ serve(async (req) => {
                 components: [{
                   type: 4,
                   custom_id: "comment",
-                  label: "Comentário (opcional)",
+                  label: tr(L, "feedback_comment_label"),
                   style: 2,
                   max_length: 500,
-                  placeholder: "Conte como foi sua experiência...",
+                  placeholder: tr(L, "feedback_comment_placeholder"),
                   required: false,
                 }],
               },
@@ -2540,14 +2543,13 @@ serve(async (req) => {
         await respondDeferred(interaction, botToken);
 
         const couponCode = interaction.data?.components?.[0]?.components?.[0]?.value?.trim()?.toUpperCase();
-        if (!couponCode) { await editFollowup(interaction, botToken, "❌ Código inválido."); return ok(); }
-
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        const L = await resolveOrderLang(supabase, order || {});
+        if (!couponCode) { await editFollowup(interaction, botToken, tr(L, "invalid_coupon_code")); return ok(); }
         if (!order || order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
+          await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
           return ok();
         }
-        const L = await resolveOrderLang(supabase, order);
 
         // Find coupon
         const { data: coupon } = await supabase
@@ -2559,17 +2561,17 @@ serve(async (req) => {
           .single();
 
         if (!coupon) {
-          await editFollowup(interaction, botToken, "❌ Cupom não encontrado ou inativo.");
+          await editFollowup(interaction, botToken, tr(L, "coupon_not_found"));
           return ok();
         }
 
         if (coupon.max_uses && coupon.used_count >= coupon.max_uses) {
-          await editFollowup(interaction, botToken, "❌ Este cupom atingiu o limite de uso.");
+          await editFollowup(interaction, botToken, tr(L, "coupon_usage_limit"));
           return ok();
         }
 
         if (coupon.product_id && coupon.product_id !== order.product_id) {
-          await editFollowup(interaction, botToken, "❌ Este cupom não é válido para este produto.");
+          await editFollowup(interaction, botToken, tr(L, "coupon_not_valid_for_product"));
           return ok();
         }
 
@@ -2625,17 +2627,16 @@ serve(async (req) => {
 
         const qtyStr = interaction.data?.components?.[0]?.components?.[0]?.value?.trim();
         const qty = parseInt(qtyStr || "1");
-        if (isNaN(qty) || qty < 1 || qty > 99) {
-          await editFollowup(interaction, botToken, "❌ Quantidade inválida (1-99).");
-          return ok();
-        }
-
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order || order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
+        const L = await resolveOrderLang(supabase, order || {});
+        if (isNaN(qty) || qty < 1 || qty > 99) {
+          await editFollowup(interaction, botToken, tr(L, "invalid_quantity"));
           return ok();
         }
-        const L = await resolveOrderLang(supabase, order);
+        if (!order || order.status !== "pending_payment") {
+          await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
+          return ok();
+        }
 
         // Get original unit price
         let unitPrice = order.total_cents; // if qty was 1
@@ -3158,7 +3159,7 @@ async function generatePixInThread(
       });
       return;
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amountBRL, `PED${order.order_number}`);
     await supabase.from("orders").update({ payment_provider: "static_pix" }).eq("id", order.id);
 
     // Send admin notification

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { getProducts, getCategories, countStock, getStoreConfig } = require("../supabase");
 const { applyDrikaCover } = require("../drikaTemplate");
+const { tr, trf, resolveOrderLang } = require("../i18n");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,6 +10,7 @@ module.exports = {
 
   async execute(interaction, tenant) {
     await interaction.deferReply();
+    const L = await resolveOrderLang(require("../supabase").supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
     const [products, categories, storeConfig] = await Promise.all([
       getProducts(tenant.id),
@@ -18,7 +20,7 @@ module.exports = {
 
     if (!products.length) {
       return interaction.editReply({
-        content: "📦 Nenhum produto disponível no momento.",
+        content: tr(L, "no_products_available"),
       });
     }
 
@@ -40,7 +42,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setTitle(storeConfig?.store_title || `🛒 ${tenant.name}`)
-      .setDescription(storeConfig?.store_description || "Confira nossos produtos disponíveis!")
+      .setDescription(storeConfig?.store_description || tr(L, "store_products_desc"))
       .setColor(embedColor)
       .setTimestamp();
 
@@ -51,13 +53,13 @@ module.exports = {
     // Listar produtos
     for (const product of productsWithStock) {
       const price = (product.price_cents / 100).toFixed(2);
-      const stockText = product.show_stock ? ` | Estoque: ${product.stockCount}` : "";
+      const stockText = product.show_stock ? ` | ${tr(L, "stock_label_md")}: ${product.stockCount}` : "";
       const catName = product.category_id ? categoryMap[product.category_id] : null;
       const catTag = catName ? ` [${catName}]` : "";
 
       embed.addFields({
         name: `${product.name}${catTag}`,
-        value: `R$ ${price}${stockText}\n${product.description || "Sem descrição"}`,
+        value: `R$ ${price}${stockText}\n${product.description || tr(L, "no_description")}`,
         inline: true,
       });
     }
@@ -66,11 +68,11 @@ module.exports = {
     if (productsWithStock.length <= 25) {
       const selectMenu = new StringSelectMenuBuilder()
         .setCustomId("select_product")
-        .setPlaceholder("Selecione um produto para comprar")
+        .setPlaceholder(tr(L, "select_product_placeholder"))
         .addOptions(
           productsWithStock.map((p) => ({
             label: p.name.slice(0, 100),
-            description: `R$ ${(p.price_cents / 100).toFixed(2)}${p.show_stock ? ` | Estoque: ${p.stockCount}` : ""}`,
+            description: `R$ ${(p.price_cents / 100).toFixed(2)}${p.show_stock ? ` | ${tr(L, "stock_label_md")}: ${p.stockCount}` : ""}`,
             value: p.id,
             emoji: p.stockCount > 0 ? "✅" : "❌",
           }))

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { getProducts } = require("../supabase");
+const { getProducts, supabase } = require("../supabase");
 const checkoutHandler = require("../handlers/checkout");
+const { trf, resolveOrderLang } = require("../i18n");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,6 +13,7 @@ module.exports = {
 
   async execute(interaction, tenant) {
     const produtoNome = interaction.options.getString("produto");
+    const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
     const products = await getProducts(tenant.id);
 
     const product = products.find(
@@ -20,7 +22,7 @@ module.exports = {
 
     if (!product) {
       return interaction.reply({
-        content: `❌ Produto "${produtoNome}" não encontrado. Use **/loja** para ver os disponíveis.`,
+        content: trf(L, "product_not_found_use_store", { product: produtoNome }),
         ephemeral: true,
       });
     }

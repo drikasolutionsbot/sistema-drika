@@ -28,7 +28,7 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       return;
     }
 
-    const storeName = storeConfig?.store_title || tenant.name || "Loja";
+    const storeName = storeConfig?.store_title || tenant.name || tr("en", "store_default");
     const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
     const embedColor = color || parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
     const { date, time } = formatDateTime();
@@ -728,9 +728,9 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   } else {
     // Static PIX
     if (!tenant.pix_key) {
-      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245))] });
+      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Error").setDescription(tr(L, "no_payment_method")).setColor(0xED4245))] });
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
 
     const storeConfig = await getStoreConfig(tenant.id);
@@ -850,7 +850,7 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               // Log: Pagamento confirmado
               const Lpaid = await resolveOrderLang(supabase, paidOrder);
               const paidTenant = await require("../supabase").getTenantByGuild(null) || tenant;
-              await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || "Loja", logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
+              await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || tr(Lpaid, "store_default"), logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
                 title: tr(Lpaid, "payment_confirmed_log_title"),
                 description: trf(Lpaid, "payment_confirmed_log_desc", { user_id: paidOrder.discord_user_id }),
                 color: 0x57F287,
@@ -882,16 +882,16 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+  const order = await getOrder(orderId);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const canApprove = await canManuallyApproveOrder(interaction, tenant);
   if (!canApprove) {
-    return interaction.followUp({ content: "❌ Você não tem permissão para confirmar manualmente este pedido.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "no_manual_approve_permission"), ephemeral: true });
   }
 
-  const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
-  const L = await resolveOrderLang(supabase, order);
-  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
+  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
   await deliverOrder(orderId, order.tenant_id);
@@ -950,8 +950,9 @@ async function approveOrder(interaction, tenant, orderId) {
 async function rejectOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
 
@@ -1027,7 +1028,7 @@ async function copyPix(interaction, tenant, orderId) {
   if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   if (tenant.pix_key) {
-    const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
+    const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), order.total_cents / 100, `PED${order.order_number}`);
     return interaction.reply({ content: `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
   }
   return interaction.reply({ content: tr(L, "pix_code_above"), ephemeral: true });
@@ -1047,15 +1048,14 @@ async function showCouponModal(interaction, orderId) {
 async function handleCouponModal(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
   const couponCode = interaction.fields.getTextInputValue("coupon_code").trim().toUpperCase();
-  if (!couponCode) return interaction.editReply({ content: "❌ Código inválido." });
-
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
-  const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!couponCode) return interaction.editReply({ content: tr(L, "invalid_coupon_code") });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: tr(L, "order_not_found_or_processed") });
 
   const coupon = await getCoupon(tenant.id, couponCode);
-  if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
-  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "❌ Este cupom não é válido para este produto." });
+  if (!coupon) return interaction.editReply({ content: tr(L, "coupon_not_found") });
+  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: tr(L, "coupon_not_valid_for_product") });
 
   let discount = coupon.type === "percent" ? Math.floor(order.total_cents * coupon.value / 100) : coupon.value;
   const newTotal = Math.max(0, order.total_cents - discount);
@@ -1096,11 +1096,10 @@ async function showQuantityModal(interaction, orderId) {
 async function handleQuantityModal(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
   const qty = parseInt(interaction.fields.getTextInputValue("quantity_value").trim());
-  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "❌ Quantidade inválida (1-99)." });
-
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
-  const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: tr(L, "invalid_quantity") });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: tr(L, "order_not_found_or_processed") });
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1136,15 +1135,15 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 // ── Mark Delivered ──
 async function markDelivered(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+  const order = await getOrder(orderId);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const canApprove = await canManuallyApproveOrder(interaction, tenant);
   if (!canApprove) {
-    return interaction.followUp({ content: "❌ Você não tem permissão para marcar este pedido como entregue.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "no_mark_delivered_permission"), ephemeral: true });
   }
 
-  const order = await getOrder(orderId);
   if (!order) return;
-  const L = await resolveOrderLang(supabase, order);
 
   await updateOrderStatus(orderId, "delivered");
 
@@ -1173,13 +1172,14 @@ async function markDelivered(interaction, tenant, orderId) {
 // ── Cancel Manual ──
 async function cancelManual(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+  const order = await getOrder(orderId);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const canApprove = await canManuallyApproveOrder(interaction, tenant);
   if (!canApprove) {
-    return interaction.followUp({ content: "❌ Você não tem permissão para cancelar este pedido.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "no_cancel_permission"), ephemeral: true });
   }
 
-  const order = await getOrder(orderId);
   if (!order) return;
 
   await updateOrderStatus(orderId, "canceled");
@@ -1213,8 +1213,8 @@ async function cancelManual(interaction, tenant, orderId) {
 // ── Copy Delivered ──
 async function copyDelivered(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
-  const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
@@ -1228,11 +1228,12 @@ async function copyDelivered(interaction, tenant, orderId) {
 
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
-  const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
-  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+  const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+  const L = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id || tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
+  if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
 
   const fields = await getProductFields(productId, product.tenant_id);
-  if (!fields.length) return interaction.reply({ content: "Este produto não tem variações.", ephemeral: true });
+  if (!fields.length) return interaction.reply({ content: tr(L, "no_variations"), ephemeral: true });
 
   const storeConfig = await getStoreConfig(product.tenant_id);
   const { data: fullProduct } = await supabase.from("products").select("*").eq("id", productId).single();
@@ -1245,7 +1246,7 @@ async function viewVariations(interaction, tenant, productId) {
   });
 
   return interaction.reply({
-    embeds: [new EmbedBuilder().setTitle(`📋 Variações de ${product.name}`).setDescription(fieldLines.join("\n")).setColor(embedColor)],
+    embeds: [new EmbedBuilder().setTitle(trf(L, "variations_of", { product: product.name })).setDescription(fieldLines.join("\n")).setColor(embedColor)],
     ephemeral: true,
   });
 }
@@ -1254,27 +1255,28 @@ async function viewVariations(interaction, tenant, productId) {
 async function viewDetails(interaction, tenant, productId) {
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+  const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
+  if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
 
   const fields = await getProductFields(productId, tenant.id);
   const storeConfig = await getStoreConfig(tenant.id);
   const embedColor = resolveProductColor(product, storeConfig);
 
-  const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+  const autoDeliveryText = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${product.name}`)
-    .setDescription(`${autoDeliveryText}${product.description || "Sem descrição."}`)
+    .setDescription(`${autoDeliveryText}${product.description || tr(L, "no_description")}`)
     .setColor(embedColor)
     .addFields(
-      { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
-      { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
+      { name: tr(L, "price_label_md"), value: formatBRL(product.price_cents), inline: true },
+      { name: `📦 ${tr(L, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(L, "service_type") : tr(L, "hybrid_type"), inline: true },
     );
 
   if (product.show_stock && product.stock !== null) {
-    embed.addFields({ name: "📊 Estoque", value: `${product.stock} disponíveis`, inline: true });
+    embed.addFields({ name: `📊 ${tr(L, "stock_label_md")}`, value: trf(L, "stock_count", { stock: product.stock }), inline: true });
   }
   if (fields.length > 0) {
-    embed.addFields({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
+    embed.addFields({ name: `📋 ${tr(L, "variations_label")}`, value: trf(L, "variations_count", { count: fields.length }), inline: true });
   }
   embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
   if (product.icon_url) embed.setThumbnail(product.icon_url);
