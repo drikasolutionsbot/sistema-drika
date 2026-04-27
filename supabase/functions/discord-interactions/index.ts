@@ -2916,7 +2916,11 @@ async function processPurchase(
   }
 
   // Resolve language from product (fallback tenant)
-  const Lreview = await resolveOrderLang(supabase, { tenant_id: tenantId, product_id: product.id });
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenantId,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   // Build description from product description
   const descLines: string[] = [];
