@@ -574,11 +574,11 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {
-    title: "🛒 Carrinho aberto",
-    description: `Usuário <@${userId}> abriu um carrinho.`,
+    title: tr(Lreview, "cart_opened_log_title"),
+    description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig,
   });
@@ -590,7 +590,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       const current = await getOrder(order.id);
       if (current?.status === "pending_payment") {
         await updateOrderStatus(order.id, "expired");
-        await checkoutThread.send("⏰ Pedido expirado por falta de pagamento.").catch(() => {});
+        await checkoutThread.send(trf(Lreview, "order_expired_desc2", { order_number: current.order_number, product: current.product_name })).catch(() => {});
         setTimeout(() => {
           checkoutThread.setArchived?.(true).catch(() => {});
           checkoutThread.setLocked?.(true).catch(() => {});
@@ -598,12 +598,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
         // ── Send "Pagamento expirado" log via unified helper ──
         await sendLog(interaction.guild, tenant, {
-          title: "🍃 Pagamento expirado",
-          description: `Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`,
+          title: tr(Lreview, "payment_expired_log_title"),
+          description: trf(Lreview, "payment_expired_log_desc", { user_id: current.discord_user_id }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
+            { name: `**${tr(Lreview, "details_label")}**`, value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
+            { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${current.id}\``, inline: false },
           ],
         });
       }
@@ -634,7 +634,8 @@ async function goToPayment(interaction, tenant, orderId) {
 
 async function _goToPaymentInternal(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
+  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   // Block if payment was already generated for this order
@@ -657,7 +658,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor))] });
+  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(tr(L, "generating_qr")).setColor(preEmbedColor))] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
@@ -707,12 +708,12 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       : `Pix – ${providerKey}`;
 
     await sendLog(interaction.guild, tenant, {
-      title: "🆕 Pedido solicitado",
-      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      title: tr(L, "order_requested_log_title"),
+      description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+        { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
       ],
     });
   } else {
@@ -725,17 +726,17 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
 
     const storeConfig = await getStoreConfig(tenant.id);
     const approvalRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel(tr(L, "approve_payment")).setEmoji("✅").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel(tr(L, "reject")).setEmoji("❌").setStyle(ButtonStyle.Danger),
     );
 
     await sendLog(interaction.guild, tenant, {
-      title: "🆕 Pedido solicitado",
-      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      title: tr(L, "order_requested_log_title"),
+      description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        { name: "**Forma de Pagamento**", value: "`💎 Pix – Estático`", inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+        { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${tr(L, "static_pix_label")}\``, inline: false },
       ],
       components: [approvalRow],
       storeConfig,
@@ -761,12 +762,12 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   });
 
   const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: order.discord_username || "Comprador" })
-    .setTitle("Pagamento via PIX criado")
+    .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
+    .setTitle(tr(L, "pix_created_title"))
     .setDescription([
-      "🟢 **Ambiente Seguro**", "Seu pagamento será processado em um ambiente 100% seguro.\n",
-      "🟢 **Pagamento Instantâneo**", "Assim que confirmado, seu pedido será processado imediatamente.\n",
-      "**Código copia e cola**", `\`\`\`\n${brcode}\n\`\`\``,
+      tr(L, "secure_environment_title"), `${tr(L, "secure_environment_desc")}\n`,
+      tr(L, "instant_payment_title"), `${tr(L, "instant_payment_desc")}\n`,
+      `**${tr(L, "pix_copy_code_label")}**`, `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
@@ -775,8 +776,8 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   if (storeLogo) pixEmbed.setThumbnail(storeLogo);
 
   const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código copia e cola").setEmoji("📋").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel(tr(L, "pix_copy_code_label")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
   );
 
   await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
@@ -837,15 +838,16 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               });
 
               // Log: Pagamento confirmado
+              const Lpaid = await resolveOrderLang(supabase, paidOrder);
               const paidTenant = await require("../supabase").getTenantByGuild(null) || tenant;
               await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || "Loja", logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
-                title: "💰 Pagamento confirmado",
-                description: `Usuário <@${paidOrder.discord_user_id}> teve o pagamento confirmado.`,
+                title: tr(Lpaid, "payment_confirmed_log_title"),
+                description: trf(Lpaid, "payment_confirmed_log_desc", { user_id: paidOrder.discord_user_id }),
                 color: 0x57F287,
                 fields: [
-                  { name: "**Detalhes**", value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
-                  { name: "**Pedido**", value: `\`#${paidOrder.order_number}\``, inline: true },
-                  { name: "**ID do Pedido**", value: `\`${orderId}\``, inline: false },
+                  { name: `**${tr(Lpaid, "details_label")}**`, value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
+                  { name: `**${tr(Lpaid, "order_label")}**`, value: `\`#${paidOrder.order_number}\``, inline: true },
+                  { name: `**${tr(Lpaid, "order_id_label")}**`, value: `\`${orderId}\``, inline: false },
                 ],
               });
             }
@@ -877,7 +879,8 @@ async function approveOrder(interaction, tenant, orderId) {
   }
 
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
+  const L = await resolveOrderLang(supabase, order);
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
@@ -895,7 +898,6 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    const L = await resolveOrderLang(supabase, order);
     const dmApprovedEmbed = new EmbedBuilder()
       .setTitle(tr(L, "payment_confirmed_title"))
       .setDescription(trf(L, "payment_confirmed_desc", { order_number: order.order_number, product: order.product_name }))
@@ -908,13 +910,13 @@ async function approveOrder(interaction, tenant, orderId) {
   const approveStoreConfig = await getStoreConfig(tenant.id);
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
   const approvedEmbed = new EmbedBuilder()
-    .setTitle("✅ Pedido Aprovado")
-    .setDescription(`Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
+    .setTitle(tr(L, "order_approved_panel_title"))
+    .setDescription(trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: interaction.user.id }))
     .setColor(approveEmbedColor)
     .addFields(
-      { name: "📦 Produto", value: order.product_name, inline: true },
-      { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
-      { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+      { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+      { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(order.total_cents), inline: true },
+      { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
     )
     .setTimestamp();
   applyDrikaCover(approvedEmbed);
@@ -923,13 +925,13 @@ async function approveOrder(interaction, tenant, orderId) {
 
   // Log: Pedido aprovado
   await sendLog(interaction.guild, tenant, {
-    title: "✅ Pedido aprovado",
-    description: `Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>.`,
+    title: tr(L, "order_approved_log_title"),
+    description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0x57F287,
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -945,7 +947,6 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    const L = await resolveOrderLang(supabase, order);
     const dmRejectedEmbed = new EmbedBuilder()
       .setTitle(tr(L, "order_rejected_title"))
       .setDescription(trf(L, "order_rejected_desc", { order_number: order.order_number, product: order.product_name }))
@@ -955,7 +956,7 @@ async function rejectOrder(interaction, tenant, orderId) {
     await user.send({ embeds: [dmRejectedEmbed] });
   } catch {}
 
-  const rejectedEmbed = new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp();
+  const rejectedEmbed = new EmbedBuilder().setTitle(tr(L, "order_rejected_panel_title")).setDescription(trf(L, "order_rejected_panel_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(0xED4245).addFields({ name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true }, { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp();
   applyDrikaCover(rejectedEmbed);
   await interaction.editReply({
     embeds: [rejectedEmbed],
@@ -964,13 +965,13 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   // Log: Pedido recusado
   await sendLog(interaction.guild, tenant, {
-    title: "🚫 Pedido recusado",
-    description: `Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>.`,
+    title: tr(L, "order_rejected_log_title"),
+    description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0xED4245,
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -980,6 +981,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
   if (!order) return;
+  const L = await resolveOrderLang(supabase, order);
 
   if (order.status === "pending_payment") {
     await updateOrderStatus(orderId, "canceled");
@@ -988,16 +990,16 @@ async function cancelOrder(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor))] });
+  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "purchase_canceled_title")).setDescription(trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number })).setColor(cancelEmbedColor))] });
 
   // Log: Pedido cancelado pelo cliente
   await sendLog(interaction.guild, tenant, {
-    title: "🗑️ Pedido cancelado",
-    description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
+    title: tr(L, "order_canceled_log_title"),
+    description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
     color: 0xED4245,
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig: cancelStoreConfig,
   });
@@ -1011,19 +1013,22 @@ async function cancelOrder(interaction, tenant, orderId) {
 // ── Copy PIX ──
 async function copyPix(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
+  if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   if (tenant.pix_key) {
     const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
-    return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
+    return interaction.reply({ content: `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
   }
-  return interaction.reply({ content: "📋 O código PIX está na mensagem acima.", ephemeral: true });
+  return interaction.reply({ content: tr(L, "pix_code_above"), ephemeral: true });
 }
 
 // ── Coupon Modal ──
 async function showCouponModal(interaction, orderId) {
-  const modal = new ModalBuilder().setCustomId(`coupon_modal_${orderId}`).setTitle("Usar Cupom");
-  const input = new TextInputBuilder().setCustomId("coupon_code").setLabel("Código do Cupom").setStyle(TextInputStyle.Short).setPlaceholder("Digite o código...").setRequired(true).setMaxLength(50);
+  const order = await getOrder(orderId).catch(() => null);
+  const L = await resolveOrderLang(supabase, order || {});
+  const modal = new ModalBuilder().setCustomId(`coupon_modal_${orderId}`).setTitle(tr(L, "use_coupon"));
+  const input = new TextInputBuilder().setCustomId("coupon_code").setLabel(tr(L, "coupon_code_label")).setStyle(TextInputStyle.Short).setPlaceholder(tr(L, "coupon_code_placeholder")).setRequired(true).setMaxLength(50);
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
 }
@@ -1036,6 +1041,7 @@ async function handleCouponModal(interaction, tenant, orderId) {
 
   const order = await getOrder(orderId);
   if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
+  const L = await resolveOrderLang(supabase, order);
 
   const coupon = await getCoupon(tenant.id, couponCode);
   if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
@@ -1048,28 +1054,30 @@ async function handleCouponModal(interaction, tenant, orderId) {
   await incrementCouponUsage(coupon.id, coupon.used_count);
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle("🏷️ Cupom Aplicado!").setDescription(`Cupom **${couponCode}** aplicado!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`).setColor(0x57F287))],
+    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "coupon_applied_title")).setDescription(trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatBRL(order.total_cents), new_total: formatBRL(newTotal), discount: formatBRL(discount) })).setColor(0x57F287))],
   });
 
-  await interaction.editReply({ content: "✅ Cupom aplicado!" });
+  await interaction.editReply({ content: tr(L, "coupon_applied_response") });
 
   // Log: Cupom aplicado
   await sendLog(interaction.guild, tenant, {
-    title: "🏷️ Cupom aplicado",
-    description: `Usuário <@${interaction.user.id}> aplicou um cupom.`,
+    title: tr(L, "coupon_applied_log_title"),
+    description: trf(L, "coupon_applied_log_desc", { user_id: interaction.user.id }),
     fields: [
-      { name: "**Cupom**", value: `\`${couponCode}\``, inline: true },
-      { name: "**Desconto**", value: `\`-${formatBRL(discount)}\``, inline: true },
-      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "coupon") || tr(L, "coupon_code_label")}**`, value: `\`${couponCode}\``, inline: true },
+      { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatBRL(discount)}\``, inline: true },
+      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
 }
 
 // ── Quantity Modal ──
 async function showQuantityModal(interaction, orderId) {
-  const modal = new ModalBuilder().setCustomId(`quantity_modal_${orderId}`).setTitle("Editar Quantidade");
-  const input = new TextInputBuilder().setCustomId("quantity_value").setLabel("Quantidade").setStyle(TextInputStyle.Short).setPlaceholder("1").setRequired(true).setMaxLength(3).setValue("1");
+  const order = await getOrder(orderId).catch(() => null);
+  const L = await resolveOrderLang(supabase, order || {});
+  const modal = new ModalBuilder().setCustomId(`quantity_modal_${orderId}`).setTitle(tr(L, "edit_quantity"));
+  const input = new TextInputBuilder().setCustomId("quantity_value").setLabel(tr(L, "quantity")).setStyle(TextInputStyle.Short).setPlaceholder("1").setRequired(true).setMaxLength(3).setValue("1");
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
 }
@@ -1082,6 +1090,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 
   const order = await getOrder(orderId);
   if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
+  const L = await resolveOrderLang(supabase, order);
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1096,20 +1105,20 @@ async function handleQuantityModal(interaction, tenant, orderId) {
   await updateOrderStatus(order.id, "pending_payment", { total_cents: newTotal });
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
+    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "quantity_updated_title")).setDescription(trf(L, "quantity_updated_desc", { quantity: qty, total: formatBRL(newTotal) })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
   });
 
-  await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
+  await interaction.editReply({ content: trf(L, "quantity_updated_response", { quantity: qty }) });
 
   // Log: Quantidade editada
   await sendLog(interaction.guild, tenant, {
-    title: "✏️ Quantidade editada",
-    description: `Usuário <@${interaction.user.id}> alterou a quantidade do pedido.`,
+    title: tr(L, "quantity_edited_log_title"),
+    description: trf(L, "quantity_edited_log_desc", { user_id: interaction.user.id }),
     fields: [
-      { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-      { name: "**Quantidade**", value: `\`${qty}x\``, inline: true },
-      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+      { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
+      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
 }
@@ -1125,27 +1134,28 @@ async function markDelivered(interaction, tenant, orderId) {
 
   const order = await getOrder(orderId);
   if (!order) return;
+  const L = await resolveOrderLang(supabase, order);
 
   await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+    embeds: [new EmbedBuilder().setTitle(tr(L, "delivery_confirmed_title")).setDescription(trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("✅ Pedido Entregue").setDescription(`Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle(tr(L, "order_delivered_panel_title")).setDescription(trf(L, "order_delivered_panel_desc", { order_number: order.order_number, product: order.product_name })).setColor(0x57F287)],
     components: [],
   });
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {
-    title: "📦 Entrega manual confirmada",
-    description: `Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`,
+    title: tr(L, "manual_delivery_confirmed_log_title"),
+    description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0x57F287,
     fields: [
-      { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -1166,7 +1176,6 @@ async function cancelManual(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    const L = await resolveOrderLang(supabase, order);
     await user.send({ embeds: [new EmbedBuilder()
       .setTitle(tr(L, "order_canceled_title"))
       .setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name }))
@@ -1174,19 +1183,19 @@ async function cancelManual(interaction, tenant, orderId) {
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
+    embeds: [new EmbedBuilder().setTitle(tr(L, "order_canceled_title")).setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name })).setColor(0xED4245)],
     components: [],
   });
 
   // Log: Cancelamento manual pelo admin
   await sendLog(interaction.guild, tenant, {
-    title: "⛔ Cancelamento manual",
-    description: `Pedido **#${order.order_number}** cancelado manualmente por <@${interaction.user.id}>.`,
+    title: tr(L, "manual_cancel_log_title"),
+    description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0xED4245,
     fields: [
-      { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }

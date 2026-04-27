@@ -1005,6 +1005,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
@@ -1076,13 +1077,13 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "✅ Pedido Aprovado",
-            description: `Pedido **#${order.order_number}** aprovado por <@${userId}>`,
+            title: tr(L, "order_approved_panel_title"),
+            description: trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: userId }),
             color: 0x2B2D31,
             fields: [
-              { name: "📦 Produto", value: order.product_name, inline: true },
-              { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+              { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(order.total_cents), inline: true },
+              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
           }],
@@ -1090,13 +1091,13 @@ serve(async (req) => {
 
         // Log: Pedido aprovado
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "✅ Pedido aprovado",
-          description: `Pedido **#${order.order_number}** aprovado por <@${userId}>.`,
+          title: tr(L, "order_approved_log_title"),
+          description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0x57F287,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
@@ -1110,6 +1111,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
           return ok();
@@ -1139,12 +1141,12 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "❌ Pedido Recusado",
-            description: `Pedido **#${order.order_number}** recusado por <@${userId}>`,
+            title: tr(L, "order_rejected_panel_title"),
+            description: trf(L, "order_rejected_panel_desc", { order_number: order.order_number, user_id: userId }),
             color: 0x2B2D31,
             fields: [
-              { name: "📦 Produto", value: order.product_name, inline: true },
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
           }],
@@ -1152,13 +1154,13 @@ serve(async (req) => {
 
         // Log: Pedido recusado
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "🚫 Pedido recusado",
-          description: `Pedido **#${order.order_number}** recusado por <@${userId}>.`,
+          title: tr(L, "order_rejected_log_title"),
+          description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
@@ -1172,6 +1174,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não pode ser cancelado (status: **${order.status}**).`);
@@ -1182,8 +1185,8 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "❌ Compra Cancelada",
-            description: `Pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`,
+            title: tr(L, "purchase_canceled_title"),
+            description: trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number }),
             color: 0x2B2D31,
             timestamp: new Date().toISOString(),
           }],
@@ -1199,6 +1202,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} não está mais pendente.`);
           return ok();
@@ -1211,7 +1215,7 @@ serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            embeds: [{ description: "⏳ | Gerando QR Code...\nQuase lá, só mais um instante!", color: loadingColor }],
+            embeds: [{ description: tr(L, "generating_qr"), color: loadingColor }],
           }),
         });
 
@@ -1227,6 +1231,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         if (order.status === "pending_payment") {
           await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
@@ -1239,7 +1244,7 @@ serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            embeds: [{ title: "❌ Compra Cancelada", description: `Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`, color: cancelColor }],
+            embeds: [{ title: tr(L, "purchase_canceled_title"), description: trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number }), color: cancelColor }],
           }),
         });
 
@@ -1256,12 +1261,12 @@ serve(async (req) => {
 
         // Log: Pedido cancelado pelo cliente
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "🗑️ Pedido cancelado",
-          description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
+          title: tr(L, "order_canceled_log_title"),
+          description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
 
@@ -1271,6 +1276,8 @@ serve(async (req) => {
       // ─── CHECKOUT: USE COUPON (open modal) ────────────────
       if (customId.startsWith("checkout_coupon:")) {
         const orderId = customId.replace("checkout_coupon:", "");
+        const { data: order } = await supabase.from("orders").select("tenant_id, product_id").eq("id", orderId).maybeSingle();
+        const L = await resolveOrderLang(supabase, order || {});
         // Show modal for coupon code
         await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
           method: "POST",
@@ -1279,15 +1286,15 @@ serve(async (req) => {
             type: 9, // MODAL
             data: {
               custom_id: `coupon_modal_${orderId}`,
-              title: "Usar Cupom",
+              title: tr(L, "use_coupon"),
               components: [{
                 type: 1,
                 components: [{
                   type: 4, // TEXT_INPUT
                   custom_id: "coupon_code",
-                  label: "Código do Cupom",
+                  label: tr(L, "coupon_code_label"),
                   style: 1,
-                  placeholder: "Digite o código do cupom...",
+                  placeholder: tr(L, "coupon_code_placeholder"),
                   required: true,
                   min_length: 1,
                   max_length: 50,
@@ -1302,6 +1309,8 @@ serve(async (req) => {
       // ─── CHECKOUT: EDIT QUANTITY (open modal) ─────────────
       if (customId.startsWith("checkout_quantity:")) {
         const orderId = customId.replace("checkout_quantity:", "");
+        const { data: order } = await supabase.from("orders").select("tenant_id, product_id").eq("id", orderId).maybeSingle();
+        const L = await resolveOrderLang(supabase, order || {});
         await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -1309,13 +1318,13 @@ serve(async (req) => {
             type: 9,
             data: {
               custom_id: `quantity_modal_${orderId}`,
-              title: "Editar Quantidade",
+              title: tr(L, "edit_quantity"),
               components: [{
                 type: 1,
                 components: [{
                   type: 4,
                   custom_id: "quantity_value",
-                  label: "Quantidade",
+                  label: tr(L, "quantity"),
                   style: 1,
                   placeholder: "1",
                   required: true,
@@ -1333,16 +1342,17 @@ serve(async (req) => {
       // ─── COPY PIX CODE (ephemeral) ────────────────────────
       if (customId.startsWith("copy_pix:")) {
         const orderId = customId.replace("copy_pix:", "");
-        const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, total_cents, product_name, order_number").eq("id", orderId).single();
+        const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, product_id, total_cents, product_name, order_number").eq("id", orderId).single();
         if (!order) return respondImmediate(interaction, "❌ Pedido não encontrado.");
+        const L = await resolveOrderLang(supabase, order);
         
         // Regenerate brcode for display
         const { data: tenant } = await supabase.from("tenants").select("name, pix_key").eq("id", order.tenant_id).single();
         if (tenant?.pix_key) {
           const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
-          return respondImmediate(interaction, `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``);
+          return respondImmediate(interaction, `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``);
         }
-        return respondImmediate(interaction, "📋 O código PIX está na mensagem acima.");
+        return respondImmediate(interaction, tr(L, "pix_code_above"));
       }
 
       // ─── COPY DELIVERED PRODUCT (ephemeral) ───────────────
@@ -1993,6 +2003,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         // Update order to delivered
         await supabase.from("orders").update({ status: "delivered", updated_at: new Date().toISOString() }).eq("id", orderId);
@@ -2011,8 +2022,8 @@ serve(async (req) => {
             headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               embeds: [{
-                title: "✅ Entrega Confirmada",
-                description: `Pedido **#${order.order_number}** marcado como entregue por <@${userId}>.`,
+                title: tr(L, "delivery_confirmed_title"),
+                description: trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: userId }),
                 color: 0x2B2D31,
               }],
             }),
@@ -2021,8 +2032,8 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "✅ Pedido Entregue",
-            description: `Pedido **#${order.order_number}** (${order.product_name}) marcado como entregue.`,
+            title: tr(L, "order_delivered_panel_title"),
+            description: trf(L, "order_delivered_panel_desc", { order_number: order.order_number, product: order.product_name }),
             color: 0x57F287,
           }],
           components: [],
@@ -2030,13 +2041,13 @@ serve(async (req) => {
 
         // Log: Entrega manual confirmada
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "📦 Entrega manual confirmada",
-          description: `Pedido **#${order.order_number}** marcado como entregue por <@${userId}>.`,
+          title: tr(L, "manual_delivery_confirmed_log_title"),
+          description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0x57F287,
           fields: [
-            { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
@@ -2060,6 +2071,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
         await supabase
@@ -2089,8 +2101,8 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "❌ Pedido Cancelado",
-            description: `Pedido **#${order.order_number}** cancelado por <@${userId}>.`,
+            title: tr(L, "order_canceled_title"),
+            description: trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name }),
             color: 0xED4245,
           }],
           components: [],
@@ -2098,13 +2110,13 @@ serve(async (req) => {
 
         // Log: Cancelamento manual pelo admin
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "⛔ Cancelamento manual",
-          description: `Pedido **#${order.order_number}** cancelado manualmente por <@${userId}>.`,
+          title: tr(L, "manual_cancel_log_title"),
+          description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
@@ -2522,6 +2534,7 @@ serve(async (req) => {
           await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
           return ok();
         }
+        const L = await resolveOrderLang(supabase, order);
 
         // Find coupon
         const { data: coupon } = await supabase
@@ -2568,24 +2581,24 @@ serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             embeds: [{
-              title: "🏷️ Cupom Aplicado!",
-              description: `Cupom **${couponCode}** aplicado com sucesso!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`,
+              title: tr(L, "coupon_applied_title"),
+              description: trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatBRL(order.total_cents), new_total: formatBRL(newTotal), discount: formatBRL(discount) }),
               color: couponColor,
             }],
           }),
         });
 
-        await editFollowup(interaction, botToken, `✅ Cupom aplicado!`);
+        await editFollowup(interaction, botToken, tr(L, "coupon_applied_response"));
 
         // Log: Cupom aplicado
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "🏷️ Cupom aplicado",
-          description: `Usuário <@${userId}> aplicou um cupom.`,
+          title: tr(L, "coupon_applied_log_title"),
+          description: trf(L, "coupon_applied_log_desc", { user_id: userId }),
           fields: [
-            { name: "**Cupom**", value: `\`${couponCode}\``, inline: true },
-            { name: "**Desconto**", value: `\`-${formatBRL(discount)}\``, inline: true },
-            { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "coupon")}**`, value: `\`${couponCode}\``, inline: true },
+            { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatBRL(discount)}\``, inline: true },
+            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
 
@@ -2609,6 +2622,7 @@ serve(async (req) => {
           await editFollowup(interaction, botToken, "❌ Pedido não encontrado ou já processado.");
           return ok();
         }
+        const L = await resolveOrderLang(supabase, order);
 
         // Get original unit price
         let unitPrice = order.total_cents; // if qty was 1
@@ -2630,24 +2644,24 @@ serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             embeds: [{
-              title: "✏️ Quantidade Atualizada",
-              description: `Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`,
+              title: tr(L, "quantity_updated_title"),
+              description: trf(L, "quantity_updated_desc", { quantity: qty, total: formatBRL(newTotal) }),
               color: qtyColor,
             }],
           }),
         });
 
-        await editFollowup(interaction, botToken, `✅ Quantidade atualizada para ${qty}x!`);
+        await editFollowup(interaction, botToken, trf(L, "quantity_updated_response", { quantity: qty }));
 
         // Log: Quantidade editada
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "✏️ Quantidade editada",
-          description: `Usuário <@${userId}> alterou a quantidade do pedido.`,
+          title: tr(L, "quantity_edited_log_title"),
+          description: trf(L, "quantity_edited_log_desc", { user_id: userId }),
           fields: [
-            { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
-            { name: "**Quantidade**", value: `\`${qty}x\``, inline: true },
-            { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
+            { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
+            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
 
@@ -2993,11 +3007,11 @@ async function processPurchase(
   });
 
   await sendStoreLog(supabase, botToken, tenantId, {
-    title: "🛒 Carrinho aberto",
-    description: `Usuário <@${userId}> abriu um carrinho.`,
+    title: tr(Lreview, "cart_opened_log_title"),
+    description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
 }
@@ -3055,6 +3069,7 @@ async function generatePixInThread(
   const priceCents = order.total_cents;
   const orderName = order.product_name;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const L = await resolveOrderLang(supabase, order);
 
   // Resolve preferred provider: product-level override > tenant default
   let preferredKey: string | null = null;
@@ -3206,13 +3221,13 @@ async function generatePixInThread(
   // Send PIX embed in the thread
   const pixEmbed: any = {
     author: { name: order.discord_username || userId },
-    title: "Pagamento via PIX criado",
+    title: tr(L, "pix_created_title"),
     description: [
-      "🟢 **Ambiente Seguro**",
-      "Seu pagamento será processado em um ambiente 100% seguro e protegido.\n",
-      "🟢 **Pagamento Instantâneo**",
-      "Assim que o pagamento for confirmado, o seu pedido será processado imediatamente.\n",
-      "**Código copia e cola**",
+      tr(L, "secure_environment_title"),
+      `${tr(L, "secure_environment_desc")}\n`,
+      tr(L, "instant_payment_title"),
+      `${tr(L, "instant_payment_desc")}\n`,
+      `**${tr(L, "pix_copy_code_label")}**`,
       `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"),
     color: embedColor,
@@ -3233,8 +3248,8 @@ async function generatePixInThread(
       components: [{
         type: 1,
         components: [
-          { type: 2, style: 2, label: "Código copia e cola", emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
-          { type: 2, style: 4, label: "Cancelar", custom_id: `checkout_cancel:${order.id}` },
+          { type: 2, style: 2, label: tr(L, "pix_copy_code_label"), emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
+          { type: 2, style: 4, label: tr(L, "cancel"), custom_id: `checkout_cancel:${order.id}` },
         ],
       }],
     }),
@@ -3262,20 +3277,21 @@ async function sendPixGeneratedLog(
   order: any,
   providerKey: string,
 ) {
+  const L = await resolveOrderLang(supabase, order);
   const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
     : providerKey === "efi" ? "Pix – Efi Bank"
     : providerKey === "mercadopago" ? "Pix – Mercado Pago"
     : providerKey === "misticpay" ? "Pix – Mistic Pay"
-    : providerKey === "static_pix" ? "Pix – Estático"
+    : providerKey === "static_pix" ? tr(L, "static_pix_label")
     : `Pix – ${providerKey}`;
 
   await sendStoreLog(supabase, botToken, order.tenant_id, {
-    title: "🆕 Pedido solicitado",
-    description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+    title: tr(L, "order_requested_log_title"),
+    description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
     fields: [
-      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
     ],
   });
 }
