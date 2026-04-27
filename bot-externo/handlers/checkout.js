@@ -728,9 +728,9 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   } else {
     // Static PIX
     if (!tenant.pix_key) {
-      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245))] });
+      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Error").setDescription(tr(L, "no_payment_method")).setColor(0xED4245))] });
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
 
     const storeConfig = await getStoreConfig(tenant.id);
@@ -882,16 +882,16 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
+  const order = await getOrder(orderId);
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const canApprove = await canManuallyApproveOrder(interaction, tenant);
   if (!canApprove) {
-    return interaction.followUp({ content: "❌ Você não tem permissão para confirmar manualmente este pedido.", ephemeral: true });
+    return interaction.followUp({ content: tr(L, "no_manual_approve_permission"), ephemeral: true });
   }
 
-  const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: tr("pt-BR", "order_not_found"), ephemeral: true });
-  const L = await resolveOrderLang(supabase, order);
-  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
+  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
   await deliverOrder(orderId, order.tenant_id);
