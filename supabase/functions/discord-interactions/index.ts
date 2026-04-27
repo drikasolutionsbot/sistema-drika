@@ -1111,6 +1111,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
           return ok();
@@ -1140,12 +1141,12 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "❌ Pedido Recusado",
-            description: `Pedido **#${order.order_number}** recusado por <@${userId}>`,
+            title: tr(L, "order_rejected_panel_title"),
+            description: trf(L, "order_rejected_panel_desc", { order_number: order.order_number, user_id: userId }),
             color: 0x2B2D31,
             fields: [
-              { name: "📦 Produto", value: order.product_name, inline: true },
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
           }],
@@ -1153,13 +1154,13 @@ serve(async (req) => {
 
         // Log: Pedido recusado
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "🚫 Pedido recusado",
-          description: `Pedido **#${order.order_number}** recusado por <@${userId}>.`,
+          title: tr(L, "order_rejected_log_title"),
+          description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0xED4245,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
