@@ -11,7 +11,7 @@ const {
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
-const { tr, trf, resolveOrderLang } = require("../i18n");
+const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
@@ -392,12 +392,14 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
-  const Lreview = await resolveOrderLang(supabase, {
-    tenant_id: tenant.id,
-    tenant_language: tenant.language,
-    product_id: product.id,
-    product_language: product.language,
-  });
+  const [{ data: freshTenantLang }, { data: freshProductLang }] = await Promise.all([
+    supabase.from("tenants").select("language").eq("id", tenant.id).maybeSingle(),
+    supabase.from("products").select("language").eq("id", product.id).eq("tenant_id", tenant.id).maybeSingle(),
+  ]);
+  const Lreview = normLang(
+    freshProductLang?.language || product.language || freshTenantLang?.language || tenant.language
+  );
+  console.log(`[CHECKOUT][i18n] tenant=${tenant.id} product=${product.id} tenantLang=${freshTenantLang?.language || tenant.language || "null"} productLang=${freshProductLang?.language || product.language || "null"} resolved=${Lreview}`);
 
   const order = await createOrder({
     tenant_id: tenant.id, product_id: product.id, field_id: fieldId,
