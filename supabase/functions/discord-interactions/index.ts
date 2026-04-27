@@ -844,13 +844,13 @@ serve(async (req) => {
             return {
               label: f.name,
               value: `buy_field:${productId}:${f.id}`,
-              description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stock}`,
+              description: trf(Lproduct, "field_option_desc", { price: formatBRL(f.price_cents), stock }),
               emoji: f.emoji ? parseEmoji(f.emoji) : undefined,
             };
           });
 
           const embedColorVal = await resolveProductEmbedColor(product, tenantId);
-          const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+          const autoDelivery = product.auto_delivery ? `${tr(Lproduct, "auto_delivery_inline")}\n\n` : "";
           await editFollowup(interaction, botToken, {
             content: "",
             embeds: [{
@@ -865,7 +865,7 @@ serve(async (req) => {
               components: [{
                 type: 3, // String Select
                 custom_id: `select_variation:${productId}`,
-                placeholder: "Clique aqui para ver as opções",
+                placeholder: tr(Lproduct, "select_variation_placeholder"),
                 options: options.slice(0, 25),
               }],
             }],
