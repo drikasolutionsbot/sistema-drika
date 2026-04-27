@@ -539,8 +539,8 @@ serve(async (req) => {
             logPayload.components = [{
               type: 1,
               components: [
-                { type: 2, style: 3, label: "Marcar como Entregue", emoji: { name: "✅" }, custom_id: `mark_delivered_${order_id}` },
-                { type: 2, style: 4, label: "Cancelar Pedido", emoji: { name: "❌" }, custom_id: `cancel_manual_${order_id}` },
+                { type: 2, style: 3, label: tr(lang, "mark_delivered"), emoji: { name: "✅" }, custom_id: `mark_delivered_${order_id}` },
+                { type: 2, style: 4, label: tr(lang, "cancel_order"), emoji: { name: "❌" }, custom_id: `cancel_manual_${order_id}` },
               ],
             }];
           }
@@ -562,23 +562,23 @@ serve(async (req) => {
 
     const salesEmbed: any = {
       author: {
-        name: tenant?.name || "Loja",
+        name: tenant?.name || tr(lang, "store_default"),
         icon_url: tenant?.logo_url || undefined,
       },
       description: [
         `<@${order.discord_user_id}>`,
         "",
-        "🛒 **Compra Realizada!**",
+        tr(lang, "purchase_completed"),
         "",
-        "**Carrinho**",
+        `**${tr(lang, "cart_label")}**`,
         `1x ${order.product_name}`,
         "",
-        "**Valor pago**",
+        `**${tr(lang, "paid_amount_label")}**`,
         `R$ ${(order.total_cents / 100).toFixed(2).replace(".", ",")}`,
       ].join("\n"),
       color: salesEmbedColor,
       footer: {
-        text: `${tenant?.name || "Loja"} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+        text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
         icon_url: tenant?.logo_url || undefined,
       },
       timestamp: new Date().toISOString(),
