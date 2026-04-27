@@ -302,7 +302,17 @@ const I18N = {
 };
 
 function normLang(value) {
-  return value === "en" || value === "de" || value === "pt-BR" ? value : "pt-BR";
+  const raw = String(value || "").trim();
+  const lower = raw.toLowerCase().replace("_", "-");
+  if (["en", "en-us", "en-gb", "english"].includes(lower)) return "en";
+  if (["de", "de-de", "german", "deutsch"].includes(lower)) return "de";
+  if (["pt-br", "pt", "pt-brasil", "portuguese", "português"].includes(lower)) return "pt-BR";
+  return "pt-BR";
+}
+
+function optionalLang(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  return normLang(value);
 }
 
 function tr(lang, key) {
@@ -317,11 +327,13 @@ function trf(lang, key, vars = {}) {
 }
 
 async function resolveOrderLang(supabase, order) {
-  let lang = "pt-BR";
+  let lang = optionalLang(order?.tenant_language) || "pt-BR";
   if (order?.tenant_id) {
     const { data: tenant } = await supabase.from("tenants").select("language").eq("id", order.tenant_id).maybeSingle();
-    lang = normLang(tenant?.language);
+    lang = optionalLang(tenant?.language) || lang;
   }
+  const inlineProductLang = optionalLang(order?.product_language || order?.language);
+  if (inlineProductLang) lang = inlineProductLang;
   if (order?.product_id) {
     const { data: product } = await supabase.from("products").select("language").eq("id", order.product_id).eq("tenant_id", order.tenant_id).maybeSingle();
     if (product?.language) lang = normLang(product.language);
