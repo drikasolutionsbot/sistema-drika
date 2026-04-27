@@ -756,12 +756,18 @@ serve(async (req) => {
         const product = await resolveProductFromCustomId(supabase, productId, interaction.guild_id);
 
         if (!product) {
-          await editFollowup(interaction, botToken, "❌ Produto não encontrado.");
+          await editFollowup(interaction, botToken, tr("pt-BR", "product_not_found"));
           return ok();
         }
 
+        const Lproduct = await resolveOrderLang(supabase, {
+          tenant_id: product.tenant_id,
+          product_id: product.id,
+          product_language: product.language,
+        });
+
         if (!product.active) {
-          await editFollowup(interaction, botToken, "❌ Este produto está indisponível no momento.");
+          await editFollowup(interaction, botToken, tr(Lproduct, "product_unavailable"));
           return ok();
         }
 
@@ -798,7 +804,7 @@ serve(async (req) => {
 
           const combinedStock = (totalFieldStock || 0) + (generalStock || 0);
           if (combinedStock <= 0) {
-            await editFollowup(interaction, botToken, "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.");
+            await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
             return ok();
           }
         } else {
@@ -810,7 +816,7 @@ serve(async (req) => {
             .eq("delivered", false);
 
           if (productStock !== null && productStock <= 0) {
-            await editFollowup(interaction, botToken, "❌ Este produto está **sem estoque** no momento. Tente novamente mais tarde.");
+            await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
             return ok();
           }
         }
