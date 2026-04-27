@@ -48,7 +48,7 @@ serve(async (req) => {
     // Identidade da loja para embeds em DM (DM usa perfil global do bot;
     // por isso aplicamos a marca no embed via author + footer)
     const storeBrand = {
-      name: tenant?.bot_name || tenant?.name || "Loja",
+      name: tenant?.bot_name || tenant?.name || tr("en", "store_default"),
       icon_url: tenant?.bot_avatar_url || tenant?.logo_url || undefined,
     };
 

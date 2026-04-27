@@ -169,7 +169,7 @@ async function sendStoreLog(
     if (!sc?.logs_channel_id) return;
 
     const { data: t } = await supabase.from("tenants").select("name, logo_url").eq("id", tenantId).single();
-    const storeName = sc.store_title || t?.name || "Loja";
+    const storeName = sc.store_title || t?.name || tr("en", "store_default");
     const storeLogo = sc.store_logo_url || t?.logo_url;
     const embedColor = opts.color ?? (sc.embed_color ? parseInt(sc.embed_color.replace("#", ""), 16) : 0x2B2D31);
     const d = new Date().toLocaleDateString("pt-BR");
@@ -3159,7 +3159,7 @@ async function generatePixInThread(
       });
       return;
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr("en", "store_default"), amountBRL, `PED${order.order_number}`);
     await supabase.from("orders").update({ payment_provider: "static_pix" }).eq("id", order.id);
 
     // Send admin notification
