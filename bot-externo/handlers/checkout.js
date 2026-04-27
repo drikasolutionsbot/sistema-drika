@@ -984,6 +984,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
   if (!order) return;
   const L = await resolveOrderLang(supabase, order);
+  const L = await resolveOrderLang(supabase, order);
 
   if (order.status === "pending_payment") {
     await updateOrderStatus(orderId, "canceled");
@@ -1178,7 +1179,6 @@ async function cancelManual(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    const L = await resolveOrderLang(supabase, order);
     await user.send({ embeds: [new EmbedBuilder()
       .setTitle(tr(L, "order_canceled_title"))
       .setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name }))
@@ -1186,19 +1186,19 @@ async function cancelManual(interaction, tenant, orderId) {
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
+    embeds: [new EmbedBuilder().setTitle(tr(L, "order_canceled_title")).setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name })).setColor(0xED4245)],
     components: [],
   });
 
   // Log: Cancelamento manual pelo admin
   await sendLog(interaction.guild, tenant, {
-    title: "⛔ Cancelamento manual",
-    description: `Pedido **#${order.order_number}** cancelado manualmente por <@${interaction.user.id}>.`,
+    title: tr(L, "manual_cancel_log_title"),
+    description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0xED4245,
     fields: [
-      { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
