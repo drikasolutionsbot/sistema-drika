@@ -838,15 +838,16 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               });
 
               // Log: Pagamento confirmado
+              const Lpaid = await resolveOrderLang(supabase, paidOrder);
               const paidTenant = await require("../supabase").getTenantByGuild(null) || tenant;
               await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || "Loja", logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
-                title: "💰 Pagamento confirmado",
-                description: `Usuário <@${paidOrder.discord_user_id}> teve o pagamento confirmado.`,
+                title: tr(Lpaid, "payment_confirmed_log_title"),
+                description: trf(Lpaid, "payment_confirmed_log_desc", { user_id: paidOrder.discord_user_id }),
                 color: 0x57F287,
                 fields: [
-                  { name: "**Detalhes**", value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
-                  { name: "**Pedido**", value: `\`#${paidOrder.order_number}\``, inline: true },
-                  { name: "**ID do Pedido**", value: `\`${orderId}\``, inline: false },
+                  { name: `**${tr(Lpaid, "details_label")}**`, value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
+                  { name: `**${tr(Lpaid, "order_label")}**`, value: `\`#${paidOrder.order_number}\``, inline: true },
+                  { name: `**${tr(Lpaid, "order_id_label")}**`, value: `\`${orderId}\``, inline: false },
                 ],
               });
             }
