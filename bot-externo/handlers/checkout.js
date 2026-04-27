@@ -762,12 +762,12 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   });
 
   const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: order.discord_username || "Comprador" })
-    .setTitle("Pagamento via PIX criado")
+    .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
+    .setTitle(tr(L, "pix_created_title"))
     .setDescription([
-      "🟢 **Ambiente Seguro**", "Seu pagamento será processado em um ambiente 100% seguro.\n",
-      "🟢 **Pagamento Instantâneo**", "Assim que confirmado, seu pedido será processado imediatamente.\n",
-      "**Código copia e cola**", `\`\`\`\n${brcode}\n\`\`\``,
+      tr(L, "secure_environment_title"), `${tr(L, "secure_environment_desc")}\n`,
+      tr(L, "instant_payment_title"), `${tr(L, "instant_payment_desc")}\n`,
+      `**${tr(L, "pix_copy_code_label")}**`, `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
@@ -776,8 +776,8 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   if (storeLogo) pixEmbed.setThumbnail(storeLogo);
 
   const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código copia e cola").setEmoji("📋").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel(tr(L, "pix_copy_code_label")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
   );
 
   await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
