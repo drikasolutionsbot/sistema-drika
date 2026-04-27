@@ -512,7 +512,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   } catch (e) {
     console.error("[CHECKOUT] staff auto-add error:", e.message);
   }
-  const storeName = storeConfig?.store_title || tenant.name || "Loja";
+  const storeName = storeConfig?.store_title || tenant.name || tr(Lreview, "store_default");
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const productEmbedConfig = getProductEmbedConfig(product);
   const resolvedEmbedHex = resolveHexColor(productEmbedConfig.color, resolveHexColor(storeConfig?.embed_color || "#5865F2"));
@@ -522,14 +522,6 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let stockCount = "∞";
   const sc = await countStock(product.id, tenant.id, fieldId);
   if (sc !== null) stockCount = String(sc);
-
-  // Resolve language (product overrides tenant)
-  const Lreview = await resolveOrderLang(supabase, {
-    tenant_id: tenant.id,
-    tenant_language: tenant.language,
-    product_id: product.id,
-    product_language: product.language,
-  });
 
   // Build checkout embed
   const descLines = [];
