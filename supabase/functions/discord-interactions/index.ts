@@ -1024,12 +1024,12 @@ serve(async (req) => {
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
-          await editFollowup(interaction, botToken, "❌ Você não tem permissão para confirmar manualmente este pedido.");
+          await editFollowup(interaction, botToken, tr(L, "no_manual_approve_permission"));
           return ok();
         }
 
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
+          await editFollowup(interaction, botToken, trf(L, "order_status_notice", { order_number: order.order_number, status: order.status }));
           return ok();
         }
 
@@ -1125,10 +1125,10 @@ serve(async (req) => {
         await respondDeferredUpdate(interaction, botToken);
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
-        if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
         if (order.status !== "pending_payment") {
-          await editFollowup(interaction, botToken, `ℹ️ Pedido #${order.order_number} já está com status: **${order.status}**`);
+          await editFollowup(interaction, botToken, trf(L, "order_status_notice", { order_number: order.order_number, status: order.status }));
           return ok();
         }
 
