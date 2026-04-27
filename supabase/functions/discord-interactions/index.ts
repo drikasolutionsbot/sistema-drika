@@ -2796,6 +2796,11 @@ async function processPurchase(
   fieldName?: string
 ) {
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
+  const Lreview = await resolveOrderLang(supabase, {
+    tenant_id: tenantId,
+    product_id: product.id,
+    product_language: product.language,
+  });
 
   // Create order
   const { data: order, error: orderErr } = await supabase
@@ -2851,12 +2856,12 @@ async function processPurchase(
       });
     } catch (e) { console.error("Free delivery error:", e); }
 
-    await editFollowup(interaction, botToken, `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.`);
+    await editFollowup(interaction, botToken, trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }));
     return;
   }
 
   // ─── Create private thread for checkout ───────────────────
-  const threadName = `🛒 • ${username || userId} • ${order.order_number}`.substring(0, 100);
+  const threadName = `${tr(Lreview, "cart_thread_prefix")}-${username || userId}-${order.order_number}`.substring(0, 100);
 
   const createThreadRes = await fetch(`${DISCORD_API}/channels/${channelId}/threads`, {
     method: "POST",
@@ -2871,7 +2876,7 @@ async function processPurchase(
   if (!createThreadRes.ok) {
     const errText = await createThreadRes.text();
     console.error("Failed to create checkout thread:", errText);
-    await editFollowup(interaction, botToken, "❌ Não foi possível criar o tópico de compra. Verifique as permissões do bot.");
+    await editFollowup(interaction, botToken, tr(Lreview, "checkout_thread_error"));
     return;
   }
 
@@ -2899,7 +2904,7 @@ async function processPurchase(
     .eq("id", tenantId)
     .single();
 
-  const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || "Loja";
+  const storeName = storeConfigForCheckout?.store_title || tenantInfo?.name || tr(Lreview, "store_default");
   const storeLogo = storeConfigForCheckout?.store_logo_url || tenantInfo?.logo_url;
   const productEmbedConfig = parseProductEmbedConfig(product.embed_config);
   const resolvedEmbedHex = resolveHexColor(productEmbedConfig.color, resolveHexColor(storeConfigForCheckout?.embed_color || "#5865F2"));
@@ -2925,13 +2930,6 @@ async function processPurchase(
       .eq("delivered", false);
     if (count !== null) stockCount = String(count);
   }
-
-  // Resolve language from product (fallback tenant)
-  const Lreview = await resolveOrderLang(supabase, {
-    tenant_id: tenantId,
-    product_id: product.id,
-    product_language: product.language,
-  });
 
   // Build description from product description
   const descLines: string[] = [];
