@@ -175,7 +175,8 @@ function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
 
 function resolvePixFooter(storeConfig, context) {
   const storeFooter = storeConfig?.purchase_embed_footer || "";
-  const fallback = `${context.storeName} – Pagamento expira em ${context.timeoutMin} minutos.\n• Hoje às ${context.time}`;
+  const lang = context.lang || "pt-BR";
+  const fallback = `${context.storeName} – ${trf(lang, "payment_expires_in", { minutes: context.timeoutMin })}.\n• ${tr(lang, "today_at")} ${context.time}`;
   return applyFooterTemplate(storeFooter || fallback, context);
 }
 
