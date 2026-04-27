@@ -132,6 +132,9 @@ const I18N = {
     stock_count: "{stock} disponíveis",
     variations_label: "Variações",
     variations_count: "{count} opções disponíveis",
+    no_payment_method: "Nenhum método de pagamento configurado.",
+    price_label_md: "💰 Preço",
+    stock_label_md: "Estoque",
   },
   en: {
     order_not_found: "❌ Order not found.",
@@ -266,6 +269,9 @@ const I18N = {
     stock_count: "{stock} available",
     variations_label: "Variations",
     variations_count: "{count} options available",
+    no_payment_method: "No payment method configured.",
+    price_label_md: "💰 Price",
+    stock_label_md: "Stock",
   },
   de: {
     order_not_found: "❌ Bestellung nicht gefunden.",
@@ -400,6 +406,9 @@ const I18N = {
     stock_count: "{stock} verfügbar",
     variations_label: "Varianten",
     variations_count: "{count} Optionen verfügbar",
+    no_payment_method: "Keine Zahlungsmethode konfiguriert.",
+    price_label_md: "💰 Preis",
+    stock_label_md: "Bestand",
   },
 };
 
