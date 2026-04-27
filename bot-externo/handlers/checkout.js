@@ -1015,19 +1015,22 @@ async function cancelOrder(interaction, tenant, orderId) {
 // ── Copy PIX ──
 async function copyPix(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
+  if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   if (tenant.pix_key) {
     const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
-    return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
+    return interaction.reply({ content: `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
   }
-  return interaction.reply({ content: "📋 O código PIX está na mensagem acima.", ephemeral: true });
+  return interaction.reply({ content: tr(L, "pix_code_above"), ephemeral: true });
 }
 
 // ── Coupon Modal ──
 async function showCouponModal(interaction, orderId) {
-  const modal = new ModalBuilder().setCustomId(`coupon_modal_${orderId}`).setTitle("Usar Cupom");
-  const input = new TextInputBuilder().setCustomId("coupon_code").setLabel("Código do Cupom").setStyle(TextInputStyle.Short).setPlaceholder("Digite o código...").setRequired(true).setMaxLength(50);
+  const order = await getOrder(orderId).catch(() => null);
+  const L = await resolveOrderLang(supabase, order || {});
+  const modal = new ModalBuilder().setCustomId(`coupon_modal_${orderId}`).setTitle(tr(L, "use_coupon"));
+  const input = new TextInputBuilder().setCustomId("coupon_code").setLabel(tr(L, "coupon_code_label")).setStyle(TextInputStyle.Short).setPlaceholder(tr(L, "coupon_code_placeholder")).setRequired(true).setMaxLength(50);
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
 }
@@ -1072,8 +1075,10 @@ async function handleCouponModal(interaction, tenant, orderId) {
 
 // ── Quantity Modal ──
 async function showQuantityModal(interaction, orderId) {
-  const modal = new ModalBuilder().setCustomId(`quantity_modal_${orderId}`).setTitle("Editar Quantidade");
-  const input = new TextInputBuilder().setCustomId("quantity_value").setLabel("Quantidade").setStyle(TextInputStyle.Short).setPlaceholder("1").setRequired(true).setMaxLength(3).setValue("1");
+  const order = await getOrder(orderId).catch(() => null);
+  const L = await resolveOrderLang(supabase, order || {});
+  const modal = new ModalBuilder().setCustomId(`quantity_modal_${orderId}`).setTitle(tr(L, "edit_quantity"));
+  const input = new TextInputBuilder().setCustomId("quantity_value").setLabel(tr(L, "quantity")).setStyle(TextInputStyle.Short).setPlaceholder("1").setRequired(true).setMaxLength(3).setValue("1");
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
 }
