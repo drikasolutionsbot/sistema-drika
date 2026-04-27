@@ -211,6 +211,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     service_type: "Serviço",
     hybrid_type: "Híbrido",
     stock_count: "{stock} disponíveis",
+    variations_label: "Variações",
     variations_count: "{count} opções disponíveis",
   },
   en: {
@@ -420,6 +421,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     service_type: "Service",
     hybrid_type: "Hybrid",
     stock_count: "{stock} available",
+    variations_label: "Variations",
     variations_count: "{count} options available",
   },
   de: {
@@ -629,6 +631,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     service_type: "Service",
     hybrid_type: "Hybrid",
     stock_count: "{stock} verfügbar",
+    variations_label: "Varianten",
     variations_count: "{count} Optionen verfügbar",
   },
 };
