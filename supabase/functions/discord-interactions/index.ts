@@ -1005,6 +1005,7 @@ serve(async (req) => {
 
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, "❌ Pedido não encontrado."); return ok(); }
+        const L = await resolveOrderLang(supabase, order);
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, order.tenant_id, interaction.guild_id, userId, interaction.member);
         if (!isStaff) {
@@ -1076,13 +1077,13 @@ serve(async (req) => {
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "✅ Pedido Aprovado",
-            description: `Pedido **#${order.order_number}** aprovado por <@${userId}>`,
+            title: tr(L, "order_approved_panel_title"),
+            description: trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: userId }),
             color: 0x2B2D31,
             fields: [
-              { name: "📦 Produto", value: order.product_name, inline: true },
-              { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
-              { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+              { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(order.total_cents), inline: true },
+              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
           }],
@@ -1090,13 +1091,13 @@ serve(async (req) => {
 
         // Log: Pedido aprovado
         await sendStoreLog(supabase, botToken, order.tenant_id, {
-          title: "✅ Pedido aprovado",
-          description: `Pedido **#${order.order_number}** aprovado por <@${userId}>.`,
+          title: tr(L, "order_approved_log_title"),
+          description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0x57F287,
           fields: [
-            { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
-            { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-            { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+            { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
         });
 
