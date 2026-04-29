@@ -3263,7 +3263,7 @@ async function generatePixInThread(
 
   if (storeLogo) pixEmbed.thumbnail = { url: storeLogo };
 
-  await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+  const pixMsgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -3277,6 +3277,16 @@ async function generatePixInThread(
       }],
     }),
   });
+
+  // Save the PIX message id so we can delete it once the payment is resolved
+  try {
+    if (pixMsgRes.ok) {
+      const pixMsgJson = await pixMsgRes.json().catch(() => null);
+      if (pixMsgJson?.id) {
+        await supabase.from("orders").update({ pix_message_id: pixMsgJson.id }).eq("id", order.id);
+      }
+    }
+  } catch (e) { console.error("[CHECKOUT] Failed to persist pix_message_id:", e); }
 
   // Rename thread to show payment status
   try {
