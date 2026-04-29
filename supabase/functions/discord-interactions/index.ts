@@ -1209,6 +1209,16 @@ serve(async (req) => {
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
 
+        // Delete PIX QR Code message in the checkout thread (if any)
+        if (order.pix_message_id && order.checkout_thread_id) {
+          try {
+            await fetch(`${DISCORD_API}/channels/${order.checkout_thread_id}/messages/${order.pix_message_id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+          } catch (e) { console.error("[CANCEL_ORDER] failed to delete pix message:", e); }
+        }
+
         await editFollowup(interaction, botToken, {
           embeds: [{
             title: tr(L, "purchase_canceled_title"),
