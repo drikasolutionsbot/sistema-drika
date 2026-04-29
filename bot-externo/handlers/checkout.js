@@ -804,7 +804,8 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   // Save the PIX message id so we can delete it once the payment is resolved
   try {
     if (pixSentMsg?.id) {
-      await updateOrderStatus(order.id, order.status || "pending_payment", { pix_message_id: pixSentMsg.id });
+      await supabase.from("orders").update({ pix_message_id: pixSentMsg.id }).eq("id", order.id);
+      order.pix_message_id = pixSentMsg.id;
     }
   } catch (e) { console.error("[CHECKOUT] Failed to persist pix_message_id:", e?.message || e); }
 
