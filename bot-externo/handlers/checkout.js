@@ -984,10 +984,7 @@ async function rejectOrder(interaction, tenant, orderId) {
   if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
-
-  try {
-    const user = await interaction.client.users.fetch(order.discord_user_id);
-    const dmRejectedEmbed = new EmbedBuilder()
+  await deletePixMessageByOrder(interaction.client, order);
       .setTitle(tr(L, "order_rejected_title"))
       .setDescription(trf(L, "order_rejected_desc", { order_number: order.order_number, product: order.product_name }))
       .setColor(0xED4245)
