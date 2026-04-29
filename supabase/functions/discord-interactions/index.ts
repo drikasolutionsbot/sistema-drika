@@ -1670,6 +1670,8 @@ serve(async (req) => {
           .map((roleId: string) => roleId.trim())
           .filter(Boolean);
 
+        await addTicketStaffToThread(supabase, botToken, ticketTenantId, guildId, ticketThread.id, userId, configuredStaffRoleIds);
+
         // Fallback: if explicit ticket staff roles are empty, use internal management roles
         let staffRoleIds = [...configuredStaffRoleIds];
         if (staffRoleIds.length === 0) {
