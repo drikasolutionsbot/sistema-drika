@@ -14,6 +14,14 @@ const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+// ── Delete PIX QR Code message after payment is resolved (paid/canceled/expired) ──
+async function deletePixMessage(channel, order) {
+  try {
+    if (!channel || !order?.pix_message_id) return;
+    await channel.messages.delete(order.pix_message_id).catch(() => {});
+  } catch {}
+}
 const formatDateTime = (dateObj = new Date()) => ({
   date: dateObj.toLocaleDateString("pt-BR"),
   time: dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
