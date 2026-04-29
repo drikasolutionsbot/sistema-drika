@@ -2129,6 +2129,8 @@ serve(async (req) => {
             });
           } catch (e) { console.error("[CANCEL_MANUAL] failed to delete pix message:", e); }
         }
+        await supabase
+          .from("tickets")
           .update({ status: "closed", closed_by: username || userId, closed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
           .eq("order_id", orderId);
 
