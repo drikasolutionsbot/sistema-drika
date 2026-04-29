@@ -1265,6 +1265,15 @@ serve(async (req) => {
 
         // Send cancel message then archive thread
         const channelId = interaction.channel_id;
+        // Delete the PIX QR Code message (if any) before posting the cancel embed
+        if (order.pix_message_id) {
+          try {
+            await fetch(`${DISCORD_API}/channels/${channelId}/messages/${order.pix_message_id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+          } catch (e) { console.error("[CHECKOUT_CANCEL] failed to delete pix message:", e); }
+        }
         const cancelColor = await resolveOrderEmbedColor(order) || 0x2B2D31;
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
