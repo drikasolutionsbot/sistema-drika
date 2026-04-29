@@ -922,6 +922,7 @@ async function approveOrder(interaction, tenant, orderId) {
   if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
+  await deletePixMessageByOrder(interaction.client, order);
   await deliverOrder(orderId, order.tenant_id);
 
   // Trigger automation
