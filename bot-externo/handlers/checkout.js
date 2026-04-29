@@ -1029,6 +1029,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   }
 
   const channel = interaction.channel;
+  await deletePixMessage(channel, order);
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
   await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "purchase_canceled_title")).setDescription(trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number })).setColor(cancelEmbedColor))] });
