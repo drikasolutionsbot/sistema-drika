@@ -10,6 +10,15 @@ const {
 const { sendWithIdentity } = require("./webhookSender");
 const { applyDrikaCover } = require("../drikaTemplate");
 
+async function fetchGuildMembersForStaff(guild) {
+  try {
+    return await guild.members.fetch();
+  } catch (err) {
+    console.warn("[STAFF_AUTO_ADD] full member fetch failed, using cache:", err.message);
+    return guild.members.cache;
+  }
+}
+
 // ── Check staff permission ──
 async function checkStaffPermission(tenant, interaction) {
   try {
@@ -171,7 +180,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   // Auto-add staff members to private thread
   try {
     const guild = interaction.guild;
-    const members = await guild.members.fetch({ limit: 1000 });
+    const members = await fetchGuildMembersForStaff(guild);
     const guildRoles = await guild.roles.fetch();
 
     // Find roles with ADMINISTRATOR permission
@@ -186,8 +195,10 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     const allStaffIds = [...new Set([...roleBasedStaffIds, ...panelStaffUserIds])];
 
     for (const staffId of allStaffIds) {
-      try { await ticketThread.members.add(staffId); } catch {}
+      try { await ticketThread.members.add(staffId); }
+      catch (addErr) { console.warn(`[TICKET_OPEN] failed to add staff ${staffId}:`, addErr.message); }
     }
+    console.log(`[TICKET_OPEN] Added ${allStaffIds.length} staff members to ticket thread ${ticketThread.id}`);
   } catch (e) { console.error("[TICKET_OPEN] staff auto-add error:", e.message); }
 
   await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketThread.id}>` });

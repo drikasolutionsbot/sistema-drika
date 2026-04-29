@@ -160,6 +160,15 @@ function getProductEmbedConfig(product) {
   return typeof rawConfig === "object" ? rawConfig : {};
 }
 
+async function fetchGuildMembersForStaff(guild) {
+  try {
+    return await guild.members.fetch();
+  } catch (err) {
+    console.warn("[STAFF_AUTO_ADD] full member fetch failed, using cache:", err.message);
+    return guild.members.cache;
+  }
+}
+
 // Resolve embed color for a product: product color > store color > fallback
 function resolveProductColor(product, storeConfig) {
   const embedConfig = getProductEmbedConfig(product);
@@ -519,7 +528,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     const adminRoleIds = new Set([...guildRoles.filter((r) => r.permissions.has("Administrator")).keys()]);
     const effectiveStaffRoleIds = new Set([...staffRoleIds, ...adminRoleIds]);
 
-    const members = await guild.members.fetch({ limit: 1000 });
+    const members = await fetchGuildMembersForStaff(guild);
     const roleBasedStaffIds = members
       .filter((m) => !m.user.bot && m.user.id !== userId)
       .filter((m) => m.roles.cache.some((r) => effectiveStaffRoleIds.has(r.id)))
@@ -527,7 +536,8 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
     const allStaffIds = [...new Set([...roleBasedStaffIds, ...panelStaffUserIds])];
     for (const staffId of allStaffIds) {
-      try { await checkoutThread.members.add(staffId); } catch {}
+      try { await checkoutThread.members.add(staffId); }
+      catch (addErr) { console.warn(`[CHECKOUT] failed to add staff ${staffId}:`, addErr.message); }
     }
     console.log(`[CHECKOUT] Added ${allStaffIds.length} staff members to checkout thread #${order.order_number}`);
   } catch (e) {

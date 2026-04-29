@@ -302,6 +302,104 @@ async function checkTicketStaffPermission(
   return staffRoleIds.some((roleId: string) => memberRoles.includes(roleId));
 }
 
+async function listGuildMembers(botToken: string, guildId: string): Promise<any[]> {
+  const members: any[] = [];
+  let after = "0";
+
+  for (let page = 0; page < 20; page += 1) {
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members?limit=1000&after=${after}`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`[TICKET_OPEN] failed to list guild members: ${res.status} ${errText}`);
+      break;
+    }
+
+    const pageMembers = await res.json();
+    if (!Array.isArray(pageMembers) || pageMembers.length === 0) break;
+
+    members.push(...pageMembers);
+    after = String(pageMembers[pageMembers.length - 1]?.user?.id || after);
+    if (pageMembers.length < 1000) break;
+  }
+
+  return members;
+}
+
+async function addTicketStaffToThread(
+  supabase: any,
+  botToken: string,
+  tenantId: string,
+  guildId: string,
+  threadId: string,
+  openerUserId: string,
+  configuredStaffRoleIds: string[]
+) {
+  const managementFilter = [
+    "can_manage_app.eq.true",
+    "can_manage_permissions.eq.true",
+    "can_manage_store.eq.true",
+    "can_manage_stock.eq.true",
+    "can_manage_resources.eq.true",
+    "can_manage_protection.eq.true",
+  ].join(",");
+
+  let staffRoleIds = [...configuredStaffRoleIds];
+  if (staffRoleIds.length === 0) {
+    const { data: fallbackTenantRoles, error } = await supabase
+      .from("tenant_roles")
+      .select("discord_role_id")
+      .eq("tenant_id", tenantId)
+      .or(managementFilter);
+
+    if (error) console.warn("[TICKET_OPEN] failed to load fallback tenant roles:", error.message || error);
+    staffRoleIds = Array.from(new Set((fallbackTenantRoles || []).map((r: any) => r?.discord_role_id).filter(Boolean).map((id: string) => String(id).trim())));
+  }
+
+  const { data: panelStaffRows, error: panelStaffErr } = await supabase
+    .from("tenant_permissions")
+    .select("discord_user_id")
+    .eq("tenant_id", tenantId)
+    .or(managementFilter);
+
+  if (panelStaffErr) console.warn("[TICKET_OPEN] failed to load panel staff users:", panelStaffErr.message || panelStaffErr);
+  const panelStaffUserIds = Array.from(new Set((panelStaffRows || []).map((row: any) => row?.discord_user_id).filter(Boolean).map((id: string) => String(id).trim())));
+
+  const [members, rolesRes] = await Promise.all([
+    listGuildMembers(botToken, guildId),
+    fetch(`${DISCORD_API}/guilds/${guildId}/roles`, { headers: { Authorization: `Bot ${botToken}` } }),
+  ]);
+
+  const effectiveStaffRoleIds = new Set(staffRoleIds);
+  if (rolesRes.ok) {
+    const guildRoles = await rolesRes.json();
+    for (const role of guildRoles || []) {
+      try {
+        if ((BigInt(role?.permissions || "0") & BigInt(0x8)) === BigInt(0x8)) effectiveStaffRoleIds.add(String(role.id));
+      } catch {}
+    }
+  }
+
+  const roleBasedStaffIds = (members || [])
+    .filter((m: any) => !m?.user?.bot && m?.user?.id && m.user.id !== openerUserId)
+    .filter((m: any) => Array.isArray(m.roles) && m.roles.some((roleId: string) => effectiveStaffRoleIds.has(roleId)))
+    .map((m: any) => String(m.user.id));
+
+  const staffMemberIds = Array.from(new Set([...roleBasedStaffIds, ...panelStaffUserIds.filter((id: string) => id && id !== openerUserId)]));
+
+  for (const staffUserId of staffMemberIds) {
+    const addRes = await fetch(`${DISCORD_API}/channels/${threadId}/thread-members/${staffUserId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (!addRes.ok) console.warn(`[TICKET_OPEN] failed to add staff member ${staffUserId}: ${addRes.status} ${await addRes.text()}`);
+  }
+
+  console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -627,6 +725,8 @@ serve(async (req) => {
               ],
             }),
           });
+
+          await addTicketStaffToThread(supabase, botToken, tenant.id, guildId, ticketThread.id, userId, staffRoleIds);
         }
 
         await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketThread.id}>`);
@@ -1570,6 +1670,8 @@ serve(async (req) => {
           .map((roleId: string) => roleId.trim())
           .filter(Boolean);
 
+        await addTicketStaffToThread(supabase, botToken, ticketTenantId, guildId, ticketThread.id, userId, configuredStaffRoleIds);
+
         // Fallback: if explicit ticket staff roles are empty, use internal management roles
         let staffRoleIds = [...configuredStaffRoleIds];
         if (staffRoleIds.length === 0) {
@@ -1604,116 +1706,6 @@ serve(async (req) => {
               console.log(`[TICKET_OPEN] using fallback tenant_roles for staff (${staffRoleIds.length})`);
             }
           }
-        }
-
-        // Also include panel users with management permissions (direct user-based fallback)
-        const managementUserFilter = [
-          "can_manage_app.eq.true",
-          "can_manage_permissions.eq.true",
-          "can_manage_store.eq.true",
-          "can_manage_stock.eq.true",
-          "can_manage_resources.eq.true",
-          "can_manage_protection.eq.true",
-        ].join(",");
-
-        const { data: panelStaffRows, error: panelStaffErr } = await supabase
-          .from("tenant_permissions")
-          .select("discord_user_id")
-          .eq("tenant_id", ticketTenantId)
-          .or(managementUserFilter);
-
-        const panelStaffUserIds = panelStaffErr
-          ? []
-          : Array.from(
-              new Set(
-                (panelStaffRows || [])
-                  .map((row: any) => row?.discord_user_id)
-                  .filter((id: string | null) => typeof id === "string" && id.trim().length > 0)
-                  .map((id: string) => id.trim())
-              )
-            );
-
-        if (panelStaffErr) {
-          console.warn("[TICKET_OPEN] failed to load panel staff users:", panelStaffErr.message || panelStaffErr);
-        }
-
-        // Add staff members to the private thread
-        if (staffRoleIds.length > 0 || panelStaffUserIds.length > 0) {
-          try {
-            const [membersRes, rolesRes] = await Promise.all([
-              fetch(`${DISCORD_API}/guilds/${guildId}/members?limit=1000`, {
-                headers: { Authorization: `Bot ${botToken}` },
-              }),
-              fetch(`${DISCORD_API}/guilds/${guildId}/roles`, {
-                headers: { Authorization: `Bot ${botToken}` },
-              }),
-            ]);
-
-            if (membersRes.ok) {
-              const members = await membersRes.json();
-
-              let effectiveStaffRoleIds = new Set(staffRoleIds);
-
-              if (rolesRes.ok) {
-                const guildRoles = await rolesRes.json();
-                const adminRoleIds = new Set(
-                  (guildRoles || [])
-                    .filter((role: any) => {
-                      try {
-                        return (BigInt(role?.permissions || "0") & BigInt(0x8)) === BigInt(0x8);
-                      } catch {
-                        return false;
-                      }
-                    })
-                    .map((role: any) => String(role.id))
-                );
-
-                effectiveStaffRoleIds = new Set([...effectiveStaffRoleIds, ...adminRoleIds]);
-              }
-
-              const roleBasedStaffIds = Array.from(
-                new Set(
-                  (members || [])
-                    .filter((m: any) => !m?.user?.bot)
-                    .filter((m: any) => m?.user?.id && m.user.id !== userId)
-                    .filter(
-                      (m: any) =>
-                        Array.isArray(m.roles) &&
-                        m.roles.some((roleId: string) => effectiveStaffRoleIds.has(roleId))
-                    )
-                    .map((m: any) => m.user.id)
-                )
-              );
-
-              const staffMemberIds = Array.from(
-                new Set([
-                  ...roleBasedStaffIds,
-                  ...panelStaffUserIds.filter((id: string) => id && id !== userId),
-                ])
-              );
-
-              for (const staffUserId of staffMemberIds) {
-                const addRes = await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${staffUserId}`, {
-                  method: "PUT",
-                  headers: { Authorization: `Bot ${botToken}` },
-                });
-
-                if (!addRes.ok) {
-                  const addErrText = await addRes.text();
-                  console.warn(`[TICKET_OPEN] failed to add staff member ${staffUserId}: ${addRes.status} ${addErrText}`);
-                }
-              }
-
-              console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
-            } else {
-              const membersErr = await membersRes.text();
-              console.warn(`[TICKET_OPEN] failed to list guild members: ${membersRes.status} ${membersErr}`);
-            }
-          } catch (staffAddErr) {
-            console.error("[TICKET_OPEN] error while adding staff members:", staffAddErr);
-          }
-        } else {
-          console.warn("[TICKET_OPEN] no staff roles/users configured for auto-add");
         }
 
         // Insert ticket in DB
