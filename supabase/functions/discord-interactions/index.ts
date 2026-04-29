@@ -725,6 +725,8 @@ serve(async (req) => {
               ],
             }),
           });
+
+          await addTicketStaffToThread(supabase, botToken, tenant.id, guildId, ticketThread.id, userId, staffRoleIds);
         }
 
         await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketThread.id}>`);
