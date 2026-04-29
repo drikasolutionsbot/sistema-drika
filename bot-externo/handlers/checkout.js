@@ -14,6 +14,24 @@ const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
+// ── Delete PIX QR Code message after payment is resolved (paid/canceled/expired) ──
+async function deletePixMessage(channel, order) {
+  try {
+    if (!channel || !order?.pix_message_id) return;
+    await channel.messages.delete(order.pix_message_id).catch(() => {});
+  } catch {}
+}
+
+// ── Delete PIX QR Code by client + order (resolves checkout thread by id) ──
+async function deletePixMessageByOrder(client, order) {
+  try {
+    if (!client || !order?.pix_message_id || !order?.checkout_thread_id) return;
+    const ch = await client.channels.fetch(order.checkout_thread_id).catch(() => null);
+    if (!ch) return;
+    await ch.messages.delete(order.pix_message_id).catch(() => {});
+  } catch {}
+}
 const formatDateTime = (dateObj = new Date()) => ({
   date: dateObj.toLocaleDateString("pt-BR"),
   time: dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -600,6 +618,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       const current = await getOrder(order.id);
       if (current?.status === "pending_payment") {
         await updateOrderStatus(order.id, "expired");
+        await deletePixMessage(checkoutThread, current);
         await checkoutThread.send(trf(Lreview, "order_expired_desc2", { order_number: current.order_number, product: current.product_name })).catch(() => {});
         setTimeout(() => {
           checkoutThread.setArchived?.(true).catch(() => {});
@@ -792,7 +811,14 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
   );
 
-  await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+  const pixSentMsg = await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+  // Save the PIX message id so we can delete it once the payment is resolved
+  try {
+    if (pixSentMsg?.id) {
+      await supabase.from("orders").update({ pix_message_id: pixSentMsg.id }).eq("id", order.id);
+      order.pix_message_id = pixSentMsg.id;
+    }
+  } catch (e) { console.error("[CHECKOUT] Failed to persist pix_message_id:", e?.message || e); }
 
   // ── Start payment polling for providers without reliable webhooks ──
   if (provider && provider.provider_key) {
@@ -896,6 +922,7 @@ async function approveOrder(interaction, tenant, orderId) {
   if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
+  await deletePixMessageByOrder(interaction.client, order);
   await deliverOrder(orderId, order.tenant_id);
 
   // Trigger automation
@@ -957,6 +984,7 @@ async function rejectOrder(interaction, tenant, orderId) {
   if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
+  await deletePixMessageByOrder(interaction.client, order);
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
@@ -1001,6 +1029,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   }
 
   const channel = interaction.channel;
+  await deletePixMessage(channel, order);
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
   await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "purchase_canceled_title")).setDescription(trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number })).setColor(cancelEmbedColor))] });
@@ -1185,6 +1214,7 @@ async function cancelManual(interaction, tenant, orderId) {
   if (!order) return;
 
   await updateOrderStatus(orderId, "canceled");
+  await deletePixMessageByOrder(interaction.client, order);
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);

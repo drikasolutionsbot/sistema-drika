@@ -1209,6 +1209,16 @@ serve(async (req) => {
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
 
+        // Delete PIX QR Code message in the checkout thread (if any)
+        if (order.pix_message_id && order.checkout_thread_id) {
+          try {
+            await fetch(`${DISCORD_API}/channels/${order.checkout_thread_id}/messages/${order.pix_message_id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+          } catch (e) { console.error("[CANCEL_ORDER] failed to delete pix message:", e); }
+        }
+
         await editFollowup(interaction, botToken, {
           embeds: [{
             title: tr(L, "purchase_canceled_title"),
@@ -1265,6 +1275,15 @@ serve(async (req) => {
 
         // Send cancel message then archive thread
         const channelId = interaction.channel_id;
+        // Delete the PIX QR Code message (if any) before posting the cancel embed
+        if (order.pix_message_id) {
+          try {
+            await fetch(`${DISCORD_API}/channels/${channelId}/messages/${order.pix_message_id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+          } catch (e) { console.error("[CHECKOUT_CANCEL] failed to delete pix message:", e); }
+        }
         const cancelColor = await resolveOrderEmbedColor(order) || 0x2B2D31;
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
@@ -2100,6 +2119,16 @@ serve(async (req) => {
         const L = await resolveOrderLang(supabase, order);
 
         await supabase.from("orders").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", orderId);
+
+        // Delete the PIX QR Code message in the checkout thread (if any)
+        if (order.pix_message_id && order.checkout_thread_id) {
+          try {
+            await fetch(`${DISCORD_API}/channels/${order.checkout_thread_id}/messages/${order.pix_message_id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+          } catch (e) { console.error("[CANCEL_MANUAL] failed to delete pix message:", e); }
+        }
         await supabase
           .from("tickets")
           .update({ status: "closed", closed_by: username || userId, closed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -3263,7 +3292,7 @@ async function generatePixInThread(
 
   if (storeLogo) pixEmbed.thumbnail = { url: storeLogo };
 
-  await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+  const pixMsgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -3277,6 +3306,16 @@ async function generatePixInThread(
       }],
     }),
   });
+
+  // Save the PIX message id so we can delete it once the payment is resolved
+  try {
+    if (pixMsgRes.ok) {
+      const pixMsgJson = await pixMsgRes.json().catch(() => null);
+      if (pixMsgJson?.id) {
+        await supabase.from("orders").update({ pix_message_id: pixMsgJson.id }).eq("id", order.id);
+      }
+    }
+  } catch (e) { console.error("[CHECKOUT] Failed to persist pix_message_id:", e); }
 
   // Rename thread to show payment status
   try {

@@ -174,6 +174,16 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════
     const checkoutThreadId = order.checkout_thread_id;
 
+    // Delete the PIX QR Code message in the checkout thread (payment is now approved)
+    if (checkoutThreadId && order.pix_message_id) {
+      try {
+        await fetch(`${DISCORD_API}/channels/${checkoutThreadId}/messages/${order.pix_message_id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+      } catch (e) { console.error("[DELIVER] failed to delete pix message:", e); }
+    }
+
     if (checkoutThreadId) {
       // Determine payment provider label
       const providerLabel = order.payment_provider === "pushinpay" ? "PushinPay"
