@@ -618,6 +618,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       const current = await getOrder(order.id);
       if (current?.status === "pending_payment") {
         await updateOrderStatus(order.id, "expired");
+        await deletePixMessage(checkoutThread, current);
         await checkoutThread.send(trf(Lreview, "order_expired_desc2", { order_number: current.order_number, product: current.product_name })).catch(() => {});
         setTimeout(() => {
           checkoutThread.setArchived?.(true).catch(() => {});
