@@ -1214,6 +1214,7 @@ async function cancelManual(interaction, tenant, orderId) {
   if (!order) return;
 
   await updateOrderStatus(orderId, "canceled");
+  await deletePixMessageByOrder(interaction.client, order);
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
