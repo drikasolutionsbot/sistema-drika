@@ -985,6 +985,10 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   await updateOrderStatus(orderId, "canceled");
   await deletePixMessageByOrder(interaction.client, order);
+
+  try {
+    const user = await interaction.client.users.fetch(order.discord_user_id);
+    const dmRejectedEmbed = new EmbedBuilder()
       .setTitle(tr(L, "order_rejected_title"))
       .setDescription(trf(L, "order_rejected_desc", { order_number: order.order_number, product: order.product_name }))
       .setColor(0xED4245)
