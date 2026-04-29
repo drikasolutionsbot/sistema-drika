@@ -800,7 +800,13 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
   );
 
-  await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+  const pixSentMsg = await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+  // Save the PIX message id so we can delete it once the payment is resolved
+  try {
+    if (pixSentMsg?.id) {
+      await updateOrderStatus(order.id, order.status || "pending_payment", { pix_message_id: pixSentMsg.id });
+    }
+  } catch (e) { console.error("[CHECKOUT] Failed to persist pix_message_id:", e?.message || e); }
 
   // ── Start payment polling for providers without reliable webhooks ──
   if (provider && provider.provider_key) {
