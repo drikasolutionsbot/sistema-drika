@@ -1009,6 +1009,7 @@ export type Database = {
           order_number: number
           payment_id: string | null
           payment_provider: string | null
+          pix_message_id: string | null
           product_id: string | null
           product_name: string
           status: Database["public"]["Enums"]["order_status"]
@@ -1028,6 +1029,7 @@ export type Database = {
           order_number?: number
           payment_id?: string | null
           payment_provider?: string | null
+          pix_message_id?: string | null
           product_id?: string | null
           product_name: string
           status?: Database["public"]["Enums"]["order_status"]
@@ -1047,6 +1049,7 @@ export type Database = {
           order_number?: number
           payment_id?: string | null
           payment_provider?: string | null
+          pix_message_id?: string | null
           product_id?: string | null
           product_name?: string
           status?: Database["public"]["Enums"]["order_status"]
