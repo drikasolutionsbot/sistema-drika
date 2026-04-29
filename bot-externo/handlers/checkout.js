@@ -22,6 +22,16 @@ async function deletePixMessage(channel, order) {
     await channel.messages.delete(order.pix_message_id).catch(() => {});
   } catch {}
 }
+
+// ── Delete PIX QR Code by client + order (resolves checkout thread by id) ──
+async function deletePixMessageByOrder(client, order) {
+  try {
+    if (!client || !order?.pix_message_id || !order?.checkout_thread_id) return;
+    const ch = await client.channels.fetch(order.checkout_thread_id).catch(() => null);
+    if (!ch) return;
+    await ch.messages.delete(order.pix_message_id).catch(() => {});
+  } catch {}
+}
 const formatDateTime = (dateObj = new Date()) => ({
   date: dateObj.toLocaleDateString("pt-BR"),
   time: dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
