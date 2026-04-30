@@ -54,6 +54,19 @@ const providers = [
     instructions: "Acesse Mercado Pago Developers > Suas integrações > Credenciais de produção e copie o Access Token.",
   },
   {
+    key: "stripe",
+    name: "Stripe",
+    color: "bg-violet-500/10 text-violet-400",
+    iconUrl: stripeIcon,
+    docsUrl: "https://dashboard.stripe.com/apikeys",
+    fields: [
+      { key: "api_key", label: "Secret Key", placeholder: "sk_test_... ou sk_live_..." },
+      { key: "secret_key", label: "Signing Secret (Webhook)", placeholder: "whsec_..." },
+    ],
+    instructions: "Em Desenvolvedores > Chaves de API, copie a Secret Key. Depois, em Webhooks > Adicionar destino, cole a URL abaixo e copie o Signing Secret.",
+    isStripe: true,
+  },
+  {
     key: "pushinpay",
     name: "PushinPay",
     color: "bg-orange-500/10 text-orange-400",
@@ -99,19 +112,6 @@ const providers = [
       { key: "api_key", label: "API Key", placeholder: "abc_dev_... ou abc_live_..." },
     ],
     instructions: "No painel AbacatePay, acesse Integrar > API Keys e copie sua chave (use abc_live_ em produção).",
-  },
-  {
-    key: "stripe",
-    name: "Stripe",
-    color: "bg-violet-500/10 text-violet-400",
-    iconUrl: stripeIcon,
-    docsUrl: "https://dashboard.stripe.com/apikeys",
-    fields: [
-      { key: "api_key", label: "Secret Key", placeholder: "sk_test_... ou sk_live_..." },
-      { key: "secret_key", label: "Signing Secret (Webhook)", placeholder: "whsec_..." },
-    ],
-    instructions: "Em Desenvolvedores > Chaves de API, copie a Secret Key. Depois, em Webhooks > Adicionar destino, cole a URL abaixo e copie o Signing Secret.",
-    isStripe: true,
   },
 ];
 
@@ -159,6 +159,7 @@ const PaymentsPage = () => {
   }, [tenantId]);
 
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
+  const defaultProviderKey = configs.some(c => c.provider_key === "stripe" && c.active) ? "stripe" : "mercadopago";
 
   const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string; stripe_webhook_secret?: string }) => {
     if (!tenantId) return;
@@ -218,7 +219,7 @@ const PaymentsPage = () => {
       {isLoading ? (
         <Skeleton className="h-64" />
       ) : (
-        <Tabs defaultValue="mercadopago">
+        <Tabs key={defaultProviderKey} defaultValue={defaultProviderKey}>
           <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
             <TabsList className="bg-muted w-max min-w-full sm:w-auto">
               {providers.map(p => {
