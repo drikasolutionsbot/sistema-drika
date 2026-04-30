@@ -127,40 +127,8 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
       </section>
 
       {/* Section: Preço */}
-      <section className="space-y-5">
-        <h3 className="text-base font-bold text-foreground">Preço</h3>
-        <p className="text-xs text-muted-foreground">Valor exibido no embed do produto. Não afeta variações.</p>
+      <PriceSection product={product} onChange={onChange} />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Preço (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.01}
-              value={(product.price_cents / 100).toFixed(2)}
-              onChange={(e) => onChange({ price_cents: Math.round(parseFloat(e.target.value || "0") * 100) })}
-              placeholder="0.00"
-              className="bg-muted border-border"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Preço Comparativo (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.01}
-              value={product.compare_price_cents ? (product.compare_price_cents / 100).toFixed(2) : ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                onChange({ compare_price_cents: val ? Math.round(parseFloat(val) * 100) : null });
-              }}
-              placeholder="Opcional"
-              className="bg-muted border-border"
-            />
-          </div>
-        </div>
-      </section>
       {/* Section: Tipo de Entrega */}
       <section className="space-y-3">
         <div>
