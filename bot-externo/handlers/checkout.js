@@ -853,7 +853,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       title: tr(L, "order_requested_log_title"),
       description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, order.currency)}\``, inline: false },
         { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
         { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${tr(L, "static_pix_label")}\``, inline: false },
       ],
