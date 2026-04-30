@@ -105,6 +105,7 @@ const StorePage = () => {
           role_id: product.role_id,
           payment_provider_key: (product as any).payment_provider_key ?? null,
           language: (product as any).language ?? null,
+          currency: (product as any).currency ?? "BRL",
         },
       },
     });
