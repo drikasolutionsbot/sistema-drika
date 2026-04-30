@@ -711,7 +711,6 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(tr(L, "generating_qr")).setColor(preEmbedColor))] });
 
   const priceCents = order.total_cents;
   const orderCurrency = (order.currency || "BRL").toUpperCase();
@@ -726,15 +725,22 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const preferredProviderKey = orderProduct?.payment_provider_key || null;
   const provider = await getActivePaymentProvider(tenant.id, preferredProviderKey);
 
+  if (preferredProviderKey && !provider) {
+    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Gateway indisponível").setDescription("O gateway selecionado neste produto não está ativo ou está sem credenciais. Ajuste o produto em Loja > Geral > Gateway de Pagamento.").setColor(0xED4245))] });
+  }
+
+  if (orderCurrency !== "BRL" && provider?.provider_key !== "stripe") {
+    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Gateway incompatível").setDescription(`${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`).setColor(0xED4245))] });
+  }
+
+  const generatingText = provider?.provider_key === "stripe" ? "⏳ Gerando checkout seguro do cartão..." : tr(L, "generating_qr");
+  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(generatingText).setColor(preEmbedColor))] });
+
   if (provider && amount > 0) {
     const providerKey = provider.provider_key;
     const apiKey = provider.api_key_encrypted;
     const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
     const externalRef = `order_${order.id}`;
-
-    if (orderCurrency !== "BRL" && providerKey !== "stripe") {
-      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Gateway incompatível").setDescription(`${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`).setColor(0xED4245))] });
-    }
 
     if (providerKey === "mercadopago") {
       const r = await generateMercadoPagoPix(apiKey, amount, order.product_name, externalRef, webhookUrl);
@@ -843,7 +849,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     if (!tenant.pix_key) {
       return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Error").setDescription(tr(L, "no_payment_method")).setColor(0xED4245))] });
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amountBRL, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amount, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
 
     const storeConfig = await getStoreConfig(tenant.id);
