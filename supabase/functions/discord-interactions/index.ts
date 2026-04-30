@@ -2843,7 +2843,19 @@ async function processPurchase(
   fieldName?: string
 ) {
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
-  const orderCurrency = normalizeCurrency(product.currency);
+  // Sempre buscar a moeda direto do DB para evitar cache desatualizado do produto
+  let dbCurrency: string | null = null;
+  try {
+    const { data: freshProd } = await supabase
+      .from("products")
+      .select("currency")
+      .eq("id", product.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    dbCurrency = (freshProd as any)?.currency || null;
+  } catch (e) { console.error("[CHECKOUT] failed to refetch currency:", e); }
+  const orderCurrency = normalizeCurrency(dbCurrency || product.currency);
+  console.log(`[CHECKOUT][currency] product=${product.id} db=${dbCurrency} prop=${product.currency} resolved=${orderCurrency}`);
   const Lreview = await resolveCheckoutLang(supabase, tenantId, product.id, product.language);
   console.log(`[CHECKOUT][i18n] tenant=${tenantId} product=${product.id} resolved=${Lreview}`);
 
