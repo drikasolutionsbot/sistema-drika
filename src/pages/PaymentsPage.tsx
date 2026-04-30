@@ -224,7 +224,7 @@ const PaymentsPage = () => {
                 return (
                   <TabsTrigger key={p.key} value={p.key} className="gap-2 text-xs sm:text-sm">
                     <span className="hidden sm:inline">{p.name}</span>
-                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : "Efí"}</span>
+                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : p.key === "stripe" ? "Stripe" : "Efí"}</span>
                     {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
                   </TabsTrigger>
                 );
@@ -270,10 +270,12 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
 
   const isEfi = provider.key === "efi";
 
+  const isStripe = provider.key === "stripe";
+
   // Build server state from config
   const serverState = {
     apiKey: config?.api_key_encrypted || "",
-    secretKey: config?.secret_key_encrypted || "",
+    secretKey: isStripe ? (config?.stripe_webhook_secret || "") : (config?.secret_key_encrypted || ""),
     efiPixKey: config?.efi_pix_key || "",
     efiCertPem: config?.efi_cert_pem || "",
     efiKeyPem: config?.efi_key_pem || "",
@@ -335,7 +337,9 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
   const setEfiKeyPem = (v: string) => setFormState(p => ({ ...p, efiKeyPem: v }));
 
   const webhookUrl = tenantId
-    ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/payment-webhook/${provider.key}/${tenantId}`
+    ? (provider.key === "stripe"
+        ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/stripe-webhook`
+        : `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/payment-webhook/${provider.key}/${tenantId}`)
     : "Configure o tenant primeiro";
 
   const copyWebhook = () => {
