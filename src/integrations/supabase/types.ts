@@ -1092,6 +1092,7 @@ export type Database = {
           id: string
           provider_key: string
           secret_key_encrypted: string | null
+          stripe_webhook_secret: string | null
           tenant_id: string
           updated_at: string
         }
@@ -1105,6 +1106,7 @@ export type Database = {
           id?: string
           provider_key: string
           secret_key_encrypted?: string | null
+          stripe_webhook_secret?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -1118,6 +1120,7 @@ export type Database = {
           id?: string
           provider_key?: string
           secret_key_encrypted?: string | null
+          stripe_webhook_secret?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -1393,6 +1396,7 @@ export type Database = {
           category_id: string | null
           compare_price_cents: number | null
           created_at: string
+          currency: string
           description: string | null
           embed_config: Json
           enable_credits: boolean
@@ -1419,6 +1423,7 @@ export type Database = {
           category_id?: string | null
           compare_price_cents?: number | null
           created_at?: string
+          currency?: string
           description?: string | null
           embed_config?: Json
           enable_credits?: boolean
@@ -1445,6 +1450,7 @@ export type Database = {
           category_id?: string | null
           compare_price_cents?: number | null
           created_at?: string
+          currency?: string
           description?: string | null
           embed_config?: Json
           enable_credits?: boolean
