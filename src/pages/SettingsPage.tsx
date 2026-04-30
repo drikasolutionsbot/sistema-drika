@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Bot, Palette, LayoutTemplate, Trash2, Database, HardDrive, Plug } from "lucide-react";
-import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
-import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
-import AbacatePayIntegrationTab from "@/components/admin/AbacatePayIntegrationTab";
+import PaymentsPage from "@/pages/PaymentsPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
