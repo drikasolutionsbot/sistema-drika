@@ -360,10 +360,14 @@ async function getTicketById(ticketId) {
 }
 
 // ── Payment Providers ──
-async function getActivePaymentProvider(tenantId) {
+async function getActivePaymentProvider(tenantId, preferredKey = null) {
   const { data } = await supabase.from("payment_providers").select("*").eq("tenant_id", tenantId).eq("active", true);
   if (!data) return null;
-  return data.find((p) => p.api_key_encrypted) || null;
+  const usableProviders = data.filter((p) => p.api_key_encrypted);
+  if (preferredKey) {
+    return usableProviders.find((p) => p.provider_key === preferredKey) || null;
+  }
+  return usableProviders[0] || null;
 }
 
 // ── Automations ──
