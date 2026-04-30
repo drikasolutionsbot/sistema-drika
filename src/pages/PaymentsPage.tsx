@@ -422,11 +422,11 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start sm:items-center gap-3">
-          <div className={`rounded-lg p-2.5 shrink-0 flex items-center justify-center ${provider.color}`}>
+          <div className={`rounded-lg p-2 shrink-0 flex items-center justify-center h-14 w-14 ${provider.color}`}>
             {(provider as any).iconUrl ? (
-              <img src={(provider as any).iconUrl} alt={provider.name} className="h-5 w-5 object-contain" />
+              <img src={(provider as any).iconUrl} alt={provider.name} className="h-10 w-10 object-contain" />
             ) : (
-              <CreditCard className="h-5 w-5" />
+              <CreditCard className="h-7 w-7" />
             )}
           </div>
           <div className="min-w-0">
