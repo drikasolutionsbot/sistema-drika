@@ -213,7 +213,7 @@ const PaymentsPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="font-display text-2xl font-bold">Pagamentos</h1>
-        <p className="text-muted-foreground">Configure seus provedores de pagamento (PIX e Cartão) em tempo real</p>
+        <p className="text-muted-foreground">Configure seus provedores de pagamento (PIX e Cartão via Stripe) em tempo real.</p>
       </div>
 
       {isLoading ? (
