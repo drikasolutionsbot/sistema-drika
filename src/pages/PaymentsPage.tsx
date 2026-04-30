@@ -19,6 +19,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback } from "react";
 import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
+import { GatewayTutorialDialog } from "@/components/payments/GatewayTutorialDialog";
+import { GraduationCap } from "lucide-react";
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
 
@@ -267,6 +269,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [certFileName, setCertFileName] = useState<string | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const isEfi = provider.key === "efi";
 
@@ -443,6 +446,14 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
               <Switch checked={config.active} onCheckedChange={() => onToggle(config.id, config.active)} />
             </>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTutorialOpen(true)}
+            className="border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary"
+          >
+            <GraduationCap className="h-3.5 w-3.5 mr-1.5" /> Tutorial
+          </Button>
           <a href={provider.docsUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Docs
@@ -609,6 +620,12 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           Salvar e Ativar
         </Button>
       </div>
+
+      <GatewayTutorialDialog
+        open={tutorialOpen}
+        onOpenChange={setTutorialOpen}
+        gatewayKey={provider.key}
+      />
     </div>
   );
 };
