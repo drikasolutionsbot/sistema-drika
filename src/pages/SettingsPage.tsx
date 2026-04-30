@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Bot, Palette, LayoutTemplate, Trash2, Database, HardDrive, Plug } from "lucide-react";
-import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
-import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
-import AbacatePayIntegrationTab from "@/components/admin/AbacatePayIntegrationTab";
+import PaymentsPage from "@/pages/PaymentsPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -448,26 +446,9 @@ const SettingsPage = () => {
         </TabsContent>
 
 
-        {/* Gateways Tab — Configuração direta dos provedores */}
+        {/* Gateways Tab — Configuração de gateways do CLIENTE (payment_providers do tenant) */}
         <TabsContent value="gateways">
-          <Tabs defaultValue="efi" className="space-y-4">
-            <div className="overflow-x-auto scrollbar-none -mx-2 px-2">
-              <TabsList className="bg-card border border-border w-max min-w-full sm:w-auto">
-                <TabsTrigger value="efi" className="gap-2">
-                  <Plug className="h-4 w-4" /> Efí
-                </TabsTrigger>
-                <TabsTrigger value="pushinpay" className="gap-2">
-                  <Zap className="h-4 w-4" /> PushinPay
-                </TabsTrigger>
-                <TabsTrigger value="abacatepay" className="gap-2">
-                  <Sparkles className="h-4 w-4" /> AbacatePay
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            <TabsContent value="efi"><EfiIntegrationTab /></TabsContent>
-            <TabsContent value="pushinpay"><PushinPayIntegrationTab /></TabsContent>
-            <TabsContent value="abacatepay"><AbacatePayIntegrationTab /></TabsContent>
-          </Tabs>
+          <PaymentsPage />
         </TabsContent>
 
         {/* Plan Tab */}
