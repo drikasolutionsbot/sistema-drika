@@ -10,8 +10,23 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
-const formatBRL = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+const SUPPORTED_CURRENCIES = new Set(["BRL", "USD", "EUR"]);
+const CURRENCY_LOCALES: Record<string, string> = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
+
+const normalizeCurrency = (currency?: string | null) => {
+  const cur = String(currency || "BRL").trim().toUpperCase();
+  return SUPPORTED_CURRENCIES.has(cur) ? cur : "BRL";
+};
+
+const formatMoney = (cents: number, currency: string | null = "BRL") => {
+  const cur = normalizeCurrency(currency);
+  try {
+    return new Intl.NumberFormat(CURRENCY_LOCALES[cur] || "en-US", { style: "currency", currency: cur }).format((cents || 0) / 100);
+  } catch {
+    return `${cur} ${((cents || 0) / 100).toFixed(2)}`;
+  }
+};
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -202,7 +217,7 @@ serve(async (req) => {
             description: tr(lang, "order_approved_desc"),
             color: purchaseEmbedColor,
             fields: [
-              { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+              { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
               { name: `**${tr(lang, "payment_gateway_label")}**`, value: providerLabel, inline: true },
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
@@ -249,7 +264,7 @@ serve(async (req) => {
           embeds: [{
             author: storeBrand,
             title: tr(lang, "payment_confirmed_title"),
-            description: trf(lang, "payment_confirmed_desc", { total: formatBRL(order.total_cents) }),
+            description: trf(lang, "payment_confirmed_desc", { total: formatMoney(order.total_cents, order.currency) }),
             color: purchaseEmbedColor,
             fields: [
               { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name}`, inline: false },
@@ -301,7 +316,7 @@ serve(async (req) => {
           : `**${tr(lang, "manual_delivery_heading")}**\n${tr(lang, "manual_delivery_customer_desc")}`,
         color: embedColor,
         fields: [
-          { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+          { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
         ],
         footer: {
           text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
@@ -481,7 +496,7 @@ serve(async (req) => {
           description: trf(lang, "payment_confirmed_log_desc", { user_id: order.discord_user_id }),
           color: 0x57F287,
           fields: [
-            { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(lang, "payment_method_label")}**`, value: `\`💎 Pix – ${providerLabel}\``, inline: false },
           ],
@@ -511,7 +526,7 @@ serve(async (req) => {
             : trf(lang, "manual_delivery_pending_desc", { user_id: order.discord_user_id }),
           color: (isAutoDelivery && !isOutOfStock) ? 0x57F287 : 0xFEE75C,
           fields: [
-            { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatBRL(order.total_cents)}`, inline: false },
+            { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: order.id, inline: false },
           ],
           footer: { text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` },
@@ -584,7 +599,7 @@ serve(async (req) => {
         `1x ${order.product_name}`,
         "",
         `**${tr(lang, "paid_amount_label")}**`,
-        `R$ ${(order.total_cents / 100).toFixed(2).replace(".", ",")}`,
+        `${formatMoney(order.total_cents, order.currency)}`,
       ].join("\n"),
       color: salesEmbedColor,
       footer: {

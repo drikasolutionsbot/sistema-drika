@@ -160,8 +160,23 @@ async function generatePushinPayPix(apiKey: string, amountCents: number, webhook
 }
 
 // ─── Format price ───────────────────────────────────────────
-const formatBRL = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+const SUPPORTED_CURRENCIES = new Set(["BRL", "USD", "EUR"]);
+const CURRENCY_LOCALES: Record<string, string> = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
+
+const normalizeCurrency = (currency?: string | null) => {
+  const cur = String(currency || "BRL").trim().toUpperCase();
+  return SUPPORTED_CURRENCIES.has(cur) ? cur : "BRL";
+};
+
+const formatMoney = (cents: number, currency: string | null = "BRL") => {
+  const cur = normalizeCurrency(currency);
+  try {
+    return new Intl.NumberFormat(CURRENCY_LOCALES[cur] || "en-US", { style: "currency", currency: cur }).format((cents || 0) / 100);
+  } catch {
+    return `${cur} ${((cents || 0) / 100).toFixed(2)}`;
+  }
+};
+
 
 // ─── Store Log Helper ───────────────────────────────────────
 async function sendStoreLog(
@@ -955,7 +970,7 @@ serve(async (req) => {
             return {
               label: f.name,
               value: `buy_field:${productId}:${f.id}`,
-              description: trf(Lproduct, "field_option_desc", { price: formatBRL(f.price_cents), stock }),
+              description: trf(Lproduct, "field_option_desc", { price: formatMoney(f.price_cents, product.currency), stock }),
               emoji: f.emoji ? parseEmoji(f.emoji) : undefined,
             };
           });
@@ -1052,7 +1067,7 @@ serve(async (req) => {
       if (customId.startsWith("view_variations:")) {
         const productId = customId.replace("view_variations:", "");
 
-        const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+        const { data: product } = await supabase.from("products").select("name, tenant_id, language, currency").eq("id", productId).single();
         const Lproduct = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id, product_id: productId, product_language: product?.language });
         if (!product) return respondImmediate(interaction, tr(Lproduct, "product_not_found"));
 
@@ -1069,7 +1084,7 @@ serve(async (req) => {
 
         const fieldLines = fields.map((f: any) => {
           const emoji = f.emoji || "•";
-          const priceStr = formatBRL(f.price_cents);
+          const priceStr = formatMoney(f.price_cents, product.currency);
           const desc = f.description ? ` - ${f.description}` : "";
           return `${emoji} **${f.name}** — ${priceStr}${desc}`;
         });
@@ -1105,7 +1120,7 @@ serve(async (req) => {
           description: `${autoDeliveryText}${product.description || tr(Lproduct, "no_description")}`,
           color: detailEmbedColor,
           fields: [
-            { name: tr(Lproduct, "price_label_md"), value: formatBRL(product.price_cents), inline: true },
+            { name: tr(Lproduct, "price_label_md"), value: formatMoney(product.price_cents, product.currency), inline: true },
             { name: `📦 ${tr(Lproduct, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(Lproduct, "service_type") : tr(Lproduct, "hybrid_type"), inline: true },
           ],
         };
@@ -1194,7 +1209,7 @@ serve(async (req) => {
                 order_id: order.id,
                 order_number: order.order_number,
                 product: order.product_name,
-                total: formatBRL(order.total_cents),
+                total: formatMoney(order.total_cents, order.currency),
                 quantity: 1,
               },
             }),
@@ -1208,7 +1223,7 @@ serve(async (req) => {
             color: 0x2B2D31,
             fields: [
               { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
-              { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(order.total_cents), inline: true },
+              { name: `💰 ${tr(L, "value_label")}`, value: formatMoney(order.total_cents, order.currency), inline: true },
               { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
@@ -1221,7 +1236,7 @@ serve(async (req) => {
           description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0x57F287,
           fields: [
-            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
@@ -1259,7 +1274,7 @@ serve(async (req) => {
                 order_id: order.id,
                 order_number: order.order_number,
                 product: order.product_name,
-                total: formatBRL(order.total_cents),
+                total: formatMoney(order.total_cents, order.currency),
               },
             }),
           });
@@ -1284,7 +1299,7 @@ serve(async (req) => {
           description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0xED4245,
           fields: [
-            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
@@ -1410,7 +1425,7 @@ serve(async (req) => {
           description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
           color: 0xED4245,
           fields: [
-            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
@@ -2082,7 +2097,7 @@ serve(async (req) => {
           description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0x57F287,
           fields: [
-            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
@@ -2140,7 +2155,7 @@ serve(async (req) => {
                 order_id: order.id,
                 order_number: order.order_number,
                 product: order.product_name,
-                total: formatBRL(order.total_cents),
+                total: formatMoney(order.total_cents, order.currency),
               },
             }),
           });
@@ -2161,7 +2176,7 @@ serve(async (req) => {
           description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: userId }),
           color: 0xED4245,
           fields: [
-            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+            { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
           ],
@@ -2628,7 +2643,7 @@ serve(async (req) => {
           body: JSON.stringify({
             embeds: [{
               title: tr(L, "coupon_applied_title"),
-              description: trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatBRL(order.total_cents), new_total: formatBRL(newTotal), discount: formatBRL(discount) }),
+              description: trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatMoney(order.total_cents, order.currency), new_total: formatMoney(newTotal, order.currency), discount: formatMoney(discount, order.currency) }),
               color: couponColor,
             }],
           }),
@@ -2642,8 +2657,8 @@ serve(async (req) => {
           description: trf(L, "coupon_applied_log_desc", { user_id: userId }),
           fields: [
             { name: `**${tr(L, "coupon")}**`, value: `\`${couponCode}\``, inline: true },
-            { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatBRL(discount)}\``, inline: true },
-            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+            { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatMoney(discount, order.currency)}\``, inline: true },
+            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatMoney(newTotal, order.currency)}\``, inline: true },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
@@ -2690,7 +2705,7 @@ serve(async (req) => {
           body: JSON.stringify({
             embeds: [{
               title: tr(L, "quantity_updated_title"),
-              description: trf(L, "quantity_updated_desc", { quantity: qty, total: formatBRL(newTotal) }),
+              description: trf(L, "quantity_updated_desc", { quantity: qty, total: formatMoney(newTotal, order.currency) }),
               color: qtyColor,
             }],
           }),
@@ -2705,7 +2720,7 @@ serve(async (req) => {
           fields: [
             { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
             { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
-            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+            { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatMoney(newTotal, order.currency)}\``, inline: true },
             { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           ],
         });
@@ -2828,6 +2843,7 @@ async function processPurchase(
   fieldName?: string
 ) {
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
+  const orderCurrency = normalizeCurrency(product.currency);
   const Lreview = await resolveCheckoutLang(supabase, tenantId, product.id, product.language);
   console.log(`[CHECKOUT][i18n] tenant=${tenantId} product=${product.id} resolved=${Lreview}`);
 
@@ -2842,6 +2858,7 @@ async function processPurchase(
       discord_user_id: userId,
       discord_username: username,
       total_cents: priceCents,
+      currency: orderCurrency,
       status: "pending_payment",
     })
     .select()
@@ -2988,7 +3005,7 @@ async function processPurchase(
     description: descLines.join("\n\n") || undefined,
     color: reviewEmbedColor,
     fields: [
-      { name: tr(Lreview, "price_label"), value: formatBRL(priceCents), inline: true },
+      { name: tr(Lreview, "price_label"), value: formatMoney(priceCents, orderCurrency), inline: true },
       { name: tr(Lreview, "stock_label_emoji"), value: stockCount, inline: true },
     ],
     footer: {
@@ -3054,7 +3071,7 @@ async function processPurchase(
     title: tr(Lreview, "cart_opened_log_title"),
     description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatMoney(priceCents, orderCurrency)}\``, inline: false },
       { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
@@ -3111,6 +3128,7 @@ async function generatePixInThread(
 ) {
   const tenantId = order.tenant_id;
   const priceCents = order.total_cents;
+  const orderCurrency = normalizeCurrency(order.currency);
   const orderName = order.product_name;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const L = await resolveOrderLang(supabase, order);
@@ -3146,11 +3164,77 @@ async function generatePixInThread(
   let brcode = "";
   let paymentId = "";
 
+  if (orderCurrency !== "BRL" && activeProvider?.provider_key !== "stripe") {
+    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [{
+          title: "❌ Gateway incompatível",
+          description: `${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`,
+          color: 0xED4245,
+        }],
+      }),
+    });
+    return;
+  }
+
   if (activeProvider && amountBRL > 0) {
     const providerKey = activeProvider.provider_key;
     const apiKey = activeProvider.api_key_encrypted;
     const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenantId}`;
     const externalRef = `order_${order.id}`;
+
+    if (providerKey === "stripe") {
+      const stripeRes = await fetch(`${supabaseUrl}/functions/v1/stripe-create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({ tenant_id: tenantId, order_id: order.id }),
+      });
+      const stripeData = await stripeRes.json();
+      if (stripeData.error) throw new Error(stripeData.error);
+      const checkoutUrl = stripeData.checkout_url;
+      const stripeCurrency = normalizeCurrency(stripeData.currency || orderCurrency);
+      paymentId = stripeData.session_id || externalRef;
+
+      const stripeEmbed = {
+        author: { name: order.discord_username || userId },
+        title: "💳 Pagamento via Cartão",
+        description: [
+          `**Produto:** \`${orderName}\``,
+          `**Valor:** \`${formatMoney(priceCents, stripeCurrency)}\``,
+          "",
+          "🔒 Ambiente seguro processado pela **Stripe**.",
+          "Clique no botão abaixo para abrir o checkout e finalizar o pagamento com seu cartão.",
+          "",
+          "_O pedido será confirmado automaticamente após a aprovação do pagamento._",
+        ].join("\n"),
+        color: 0x2B2D31,
+      };
+
+      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [stripeEmbed],
+          components: [{ type: 1, components: [
+            { type: 2, style: 5, label: "💳 Pagar com Cartão", url: checkoutUrl },
+            { type: 2, style: 4, label: tr(L, "cancel"), custom_id: `checkout_cancel:${order.id}` },
+          ] }],
+        }),
+      });
+
+      await sendStoreLog(supabase, botToken, order.tenant_id, {
+        title: tr(L, "order_requested_log_title"),
+        description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+        fields: [
+          { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, stripeCurrency)}\``, inline: false },
+          { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+          { name: `**${tr(L, "payment_method_label")}**`, value: "`💳 Stripe (Cartão)`", inline: false },
+        ],
+      });
+      return;
+    }
 
     if (providerKey === "mercadopago") {
       const result = await generateMercadoPagoPix(apiKey, amountBRL, orderName, externalRef, webhookUrl);
@@ -3208,7 +3292,7 @@ async function generatePixInThread(
             color: 0xFEE75C,
             fields: [
               { name: `📦 ${tr(L, "product_label")}`, value: orderName, inline: true },
-              { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(priceCents), inline: true },
+              { name: `💰 ${tr(L, "value_label")}`, value: formatMoney(priceCents, orderCurrency), inline: true },
               { name: `🔢 ${tr(L, "order_label")}`, value: `#${order.order_number}`, inline: true },
               { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
             ],
@@ -3343,7 +3427,7 @@ async function sendPixGeneratedLog(
     title: tr(L, "order_requested_log_title"),
     description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
       { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
     ],
