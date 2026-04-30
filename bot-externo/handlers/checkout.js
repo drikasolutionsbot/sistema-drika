@@ -443,6 +443,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     tenant_id: tenant.id, product_id: product.id, field_id: fieldId,
     product_name: orderName, discord_user_id: userId, discord_username: username,
     total_cents: priceCents, status: "pending_payment",
+    currency: (product.currency || "BRL").toUpperCase(),
   });
 
   // Trigger automation
