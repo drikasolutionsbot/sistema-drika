@@ -199,6 +199,9 @@ const SettingsPage = () => {
               <TabsTrigger value="pix" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <QrCode className="h-4 w-4" /> PIX
               </TabsTrigger>
+              <TabsTrigger value="gateways" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Plug className="h-4 w-4" /> Gateways
+              </TabsTrigger>
               <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Crown className="h-4 w-4" /> Plano
               </TabsTrigger>
