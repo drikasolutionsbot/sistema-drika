@@ -378,7 +378,7 @@ async function startCheckout(interaction, tenant, productId) {
     const options = fields.slice(0, 25).map((f) => ({
       label: f.name,
       value: `buy_field:${productId}:${f.id}`,
-      description: trf(L, "field_option_desc", { price: formatBRL(f.price_cents), stock: stockMap[f.id] || 0 }),
+      description: trf(L, "field_option_desc", { price: formatMoney(f.price_cents, product.currency), stock: stockMap[f.id] || 0 }),
     }));
 
     const autoDelivery = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
