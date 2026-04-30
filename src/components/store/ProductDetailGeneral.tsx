@@ -265,6 +265,34 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
         )}
       </section>
 
+      {/* Section: Moeda do Produto */}
+      <section className="space-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-foreground" />
+            <p className="text-sm font-bold">Moeda</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Selecione a moeda de cobrança. <strong>Real (BRL)</strong> funciona em todos os gateways. <strong>Dólar (USD)</strong> e <strong>Euro (EUR)</strong> funcionam apenas com <strong>Stripe (Cartão)</strong>.
+          </p>
+        </div>
+        <Select
+          value={product.currency || "BRL"}
+          onValueChange={(val) => onChange({ currency: val })}
+        >
+          <SelectTrigger className="bg-muted border-border w-full max-w-sm">
+            <SelectValue placeholder="Real (BRL)" />
+          </SelectTrigger>
+          <SelectContent>
+            {CURRENCIES.map((c) => (
+              <SelectItem key={c.value} value={c.value}>
+                {c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </section>
+
       {/* Section: Idioma do Produto */}
       <section className="space-y-3">
         <div>
