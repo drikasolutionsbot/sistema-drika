@@ -736,6 +736,73 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const pixData = await pixRes.json();
       if (pixData.error) throw new Error(pixData.error);
       brcode = pixData.brcode || ""; paymentId = pixData.payment_id || externalRef;
+    } else if (providerKey === "stripe") {
+      // Stripe: gera Checkout Session (link de pagamento por cartão) ao invés de PIX
+      const stripeRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/stripe-create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+        body: JSON.stringify({ tenant_id: tenant.id, order_id: order.id }),
+      });
+      const stripeData = await stripeRes.json();
+      if (stripeData.error) throw new Error(stripeData.error);
+      const checkoutUrl = stripeData.checkout_url;
+      const currency = stripeData.currency || "BRL";
+      paymentId = stripeData.session_id || externalRef;
+
+      await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: "stripe" });
+
+      // Envia embed Stripe com link button
+      const storeConfig = await getStoreConfig(tenant.id);
+      const embedColor = await resolveOrderColor(order, storeConfig);
+      const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
+      const fmtMoney = (cents) => {
+        const v = (cents / 100).toFixed(2);
+        if (currency === "USD") return `$${v}`;
+        if (currency === "EUR") return `€${v}`;
+        return `R$ ${v.replace(".", ",")}`;
+      };
+
+      const stripeEmbed = new EmbedBuilder()
+        .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
+        .setTitle("💳 Pagamento via Cartão")
+        .setDescription([
+          `**Produto:** \`${order.product_name}\``,
+          `**Valor:** \`${fmtMoney(priceCents)} ${currency}\``,
+          ``,
+          `🔒 Ambiente seguro processado pela **Stripe**.`,
+          `Clique no botão abaixo para abrir o checkout e finalizar o pagamento com seu cartão.`,
+          ``,
+          `_O pedido será confirmado automaticamente após a aprovação do pagamento._`,
+        ].join("\n"))
+        .setColor(embedColor);
+      if (storeLogo) stripeEmbed.setThumbnail(storeLogo);
+
+      const stripeRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel("💳 Pagar com Cartão").setStyle(ButtonStyle.Link).setURL(checkoutUrl),
+        new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
+      );
+
+      const stripeSentMsg = await sendWithIdentity(channel, tenant, { embeds: [stripeEmbed], components: [stripeRow] });
+      try {
+        if (stripeSentMsg?.id) {
+          await supabase.from("orders").update({ pix_message_id: stripeSentMsg.id }).eq("id", order.id);
+          order.pix_message_id = stripeSentMsg.id;
+        }
+      } catch (e) { console.error("[CHECKOUT] Failed to persist stripe msg id:", e?.message || e); }
+
+      await sendLog(interaction.guild, tenant, {
+        title: tr(L, "order_requested_log_title"),
+        description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+        fields: [
+          { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${fmtMoney(priceCents)} ${currency}\``, inline: false },
+          { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+          { name: `**${tr(L, "payment_method_label")}**`, value: `\`💳 Stripe (Cartão)\``, inline: false },
+        ],
+      });
+
+      // Inicia polling como fallback (webhook é o caminho principal)
+      startPaymentPolling(order.id, tenant.id, channel, tenant, (await getStoreConfig(tenant.id))?.payment_timeout_minutes || 30);
+      return;
     }
 
     await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey });

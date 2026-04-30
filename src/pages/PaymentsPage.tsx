@@ -5,6 +5,7 @@ import misticPayIcon from "@/assets/misticpay-icon.png";
 import efiIcon from "@/assets/efi-icon.png";
 import mercadoPagoIcon from "@/assets/mercadopago-icon.png";
 import pushinPayIcon from "@/assets/pushinpay-icon.png";
+import stripeIcon from "@/assets/stripe-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,6 +98,19 @@ const providers = [
     ],
     instructions: "No painel AbacatePay, acesse Integrar > API Keys e copie sua chave (use abc_live_ em produção).",
   },
+  {
+    key: "stripe",
+    name: "Stripe",
+    color: "bg-violet-500/10 text-violet-400",
+    iconUrl: stripeIcon,
+    docsUrl: "https://dashboard.stripe.com/apikeys",
+    fields: [
+      { key: "api_key", label: "Secret Key", placeholder: "sk_test_... ou sk_live_..." },
+      { key: "secret_key", label: "Signing Secret (Webhook)", placeholder: "whsec_..." },
+    ],
+    instructions: "Em Desenvolvedores > Chaves de API, copie a Secret Key. Depois, em Webhooks > Adicionar destino, cole a URL abaixo e copie o Signing Secret.",
+    isStripe: true,
+  },
 ];
 
 interface PaymentProvider {
@@ -108,6 +122,7 @@ interface PaymentProvider {
   efi_cert_pem?: string | null;
   efi_key_pem?: string | null;
   efi_pix_key?: string | null;
+  stripe_webhook_secret?: string | null;
 }
 
 const PaymentsPage = () => {
@@ -143,17 +158,23 @@ const PaymentsPage = () => {
 
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
 
-  const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string }) => {
+  const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string; stripe_webhook_secret?: string }) => {
     if (!tenantId) return;
     try {
-      const data = await invokeWithRetry("manage-payment-providers", {
+      // Para Stripe: api_key = Secret Key, stripe_webhook_secret = Signing Secret
+      // O campo secret_key do form vai como stripe_webhook_secret
+      const payload: any = {
         action: "upsert",
         tenant_id: tenantId,
         provider_key: providerKey,
         api_key: apiKey,
-        secret_key: secretKey,
+        secret_key: providerKey === "stripe" ? null : secretKey,
         ...extra,
-      });
+      };
+      if (providerKey === "stripe") {
+        payload.stripe_webhook_secret = secretKey || extra?.stripe_webhook_secret || null;
+      }
+      const data = await invokeWithRetry("manage-payment-providers", payload);
       if (data?.error) throw new Error(data.error);
       refetch();
       toast({ title: "Provedor salvo e ativado!" });
@@ -203,7 +224,7 @@ const PaymentsPage = () => {
                 return (
                   <TabsTrigger key={p.key} value={p.key} className="gap-2 text-xs sm:text-sm">
                     <span className="hidden sm:inline">{p.name}</span>
-                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : "Efí"}</span>
+                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : p.key === "stripe" ? "Stripe" : "Efí"}</span>
                     {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
                   </TabsTrigger>
                 );
@@ -249,10 +270,12 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
 
   const isEfi = provider.key === "efi";
 
+  const isStripe = provider.key === "stripe";
+
   // Build server state from config
   const serverState = {
     apiKey: config?.api_key_encrypted || "",
-    secretKey: config?.secret_key_encrypted || "",
+    secretKey: isStripe ? (config?.stripe_webhook_secret || "") : (config?.secret_key_encrypted || ""),
     efiPixKey: config?.efi_pix_key || "",
     efiCertPem: config?.efi_cert_pem || "",
     efiKeyPem: config?.efi_key_pem || "",
@@ -314,7 +337,9 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
   const setEfiKeyPem = (v: string) => setFormState(p => ({ ...p, efiKeyPem: v }));
 
   const webhookUrl = tenantId
-    ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/payment-webhook/${provider.key}/${tenantId}`
+    ? (provider.key === "stripe"
+        ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/stripe-webhook`
+        : `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/payment-webhook/${provider.key}/${tenantId}`)
     : "Configure o tenant primeiro";
 
   const copyWebhook = () => {
