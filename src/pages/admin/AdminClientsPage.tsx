@@ -633,6 +633,44 @@ const AdminClientsPage = () => {
                               <CalendarClock className="h-3 w-3 mr-1" />
                               + Dias
                             </Button>
+                            {tenant.plan !== "free" && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 text-[10px] px-2 border-destructive/30 text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={expiringPlan === tenant.id}
+                                  >
+                                    {expiringPlan === tenant.id ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <ShieldOff className="h-3 w-3 mr-1" />
+                                    )}
+                                    Expirar
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-card border-border" onClick={(e) => e.stopPropagation()}>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Expirar plano agora?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O plano de <strong>{tenant.name}</strong> será marcado como expirado imediatamente.
+                                      O cliente precisará efetuar um novo pagamento para reativar o acesso.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => handleExpirePlan(tenant.id)}
+                                    >
+                                      Expirar plano
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         )}
                         <span className="text-xs text-muted-foreground hidden sm:inline">
