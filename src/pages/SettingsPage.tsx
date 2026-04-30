@@ -448,6 +448,28 @@ const SettingsPage = () => {
         </TabsContent>
 
 
+        {/* Gateways Tab — Configuração direta dos provedores */}
+        <TabsContent value="gateways">
+          <Tabs defaultValue="efi" className="space-y-4">
+            <div className="overflow-x-auto scrollbar-none -mx-2 px-2">
+              <TabsList className="bg-card border border-border w-max min-w-full sm:w-auto">
+                <TabsTrigger value="efi" className="gap-2">
+                  <Plug className="h-4 w-4" /> Efí
+                </TabsTrigger>
+                <TabsTrigger value="pushinpay" className="gap-2">
+                  <Zap className="h-4 w-4" /> PushinPay
+                </TabsTrigger>
+                <TabsTrigger value="abacatepay" className="gap-2">
+                  <Sparkles className="h-4 w-4" /> AbacatePay
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="efi"><EfiIntegrationTab /></TabsContent>
+            <TabsContent value="pushinpay"><PushinPayIntegrationTab /></TabsContent>
+            <TabsContent value="abacatepay"><AbacatePayIntegrationTab /></TabsContent>
+          </Tabs>
+        </TabsContent>
+
         {/* Plan Tab */}
         <TabsContent value="plan">
           <SettingsPlanTab tenant={tenant} tenantId={tenantId} refetchTenant={refetchTenant} />
