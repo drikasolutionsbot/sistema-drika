@@ -13,7 +13,18 @@ const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
-const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
+const formatMoney = (cents, currency = "BRL") => {
+  const cur = (currency || "BRL").toUpperCase();
+  const locale = CURRENCY_LOCALES[cur] || "en-US";
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency: cur }).format((cents || 0) / 100);
+  } catch {
+    return `${cur} ${((cents || 0) / 100).toFixed(2)}`;
+  }
+};
+// Mantido por compatibilidade
+const formatBRL = (cents) => formatMoney(cents, "BRL");
 
 // ── Delete PIX QR Code message after payment is resolved (paid/canceled/expired) ──
 async function deletePixMessage(channel, order) {
