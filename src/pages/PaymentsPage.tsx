@@ -5,6 +5,7 @@ import misticPayIcon from "@/assets/misticpay-icon.png";
 import efiIcon from "@/assets/efi-icon.png";
 import mercadoPagoIcon from "@/assets/mercadopago-icon.png";
 import pushinPayIcon from "@/assets/pushinpay-icon.png";
+import stripeIcon from "@/assets/stripe-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +97,19 @@ const providers = [
       { key: "api_key", label: "API Key", placeholder: "abc_dev_... ou abc_live_..." },
     ],
     instructions: "No painel AbacatePay, acesse Integrar > API Keys e copie sua chave (use abc_live_ em produção).",
+  },
+  {
+    key: "stripe",
+    name: "Stripe",
+    color: "bg-violet-500/10 text-violet-400",
+    iconUrl: stripeIcon,
+    docsUrl: "https://dashboard.stripe.com/apikeys",
+    fields: [
+      { key: "api_key", label: "Secret Key", placeholder: "sk_test_... ou sk_live_..." },
+      { key: "secret_key", label: "Signing Secret (Webhook)", placeholder: "whsec_..." },
+    ],
+    instructions: "Em Desenvolvedores > Chaves de API, copie a Secret Key. Depois, em Webhooks > Adicionar destino, cole a URL abaixo e copie o Signing Secret.",
+    isStripe: true,
   },
 ];
 
