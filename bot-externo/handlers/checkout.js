@@ -13,7 +13,18 @@ const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
-const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
+const formatMoney = (cents, currency = "BRL") => {
+  const cur = (currency || "BRL").toUpperCase();
+  const locale = CURRENCY_LOCALES[cur] || "en-US";
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency: cur }).format((cents || 0) / 100);
+  } catch {
+    return `${cur} ${((cents || 0) / 100).toFixed(2)}`;
+  }
+};
+// Mantido por compatibilidade
+const formatBRL = (cents) => formatMoney(cents, "BRL");
 
 // ── Delete PIX QR Code message after payment is resolved (paid/canceled/expired) ──
 async function deletePixMessage(channel, order) {
@@ -367,7 +378,7 @@ async function startCheckout(interaction, tenant, productId) {
     const options = fields.slice(0, 25).map((f) => ({
       label: f.name,
       value: `buy_field:${productId}:${f.id}`,
-      description: trf(L, "field_option_desc", { price: formatBRL(f.price_cents), stock: stockMap[f.id] || 0 }),
+      description: trf(L, "field_option_desc", { price: formatMoney(f.price_cents, product.currency), stock: stockMap[f.id] || 0 }),
     }));
 
     const autoDelivery = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
@@ -432,6 +443,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     tenant_id: tenant.id, product_id: product.id, field_id: fieldId,
     product_name: orderName, discord_user_id: userId, discord_username: username,
     total_cents: priceCents, status: "pending_payment",
+    currency: (product.currency || "BRL").toUpperCase(),
   });
 
   // Trigger automation
@@ -576,7 +588,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .setColor(embedColor)
     .addFields(
       { name: tr(Lreview, "cart_label"), value: `1x ${orderName}`, inline: false },
-      { name: tr(Lreview, "price_label"), value: formatBRL(priceCents), inline: true },
+      { name: tr(Lreview, "price_label"), value: formatMoney(priceCents, product.currency), inline: true },
       { name: tr(Lreview, "stock_label_emoji"), value: stockCount, inline: true },
     )
     .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
@@ -615,7 +627,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     title: tr(Lreview, "cart_opened_log_title"),
     description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatMoney(priceCents, product.currency)}\``, inline: false },
       { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig,
@@ -641,7 +653,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
           description: trf(Lreview, "payment_expired_log_desc", { user_id: current.discord_user_id }),
           color: 0xED4245,
           fields: [
-            { name: `**${tr(Lreview, "details_label")}**`, value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
+            { name: `**${tr(Lreview, "details_label")}**`, value: `\`${current.product_name} | ${formatMoney(current.total_cents, current.currency)}\``, inline: false },
             { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${current.id}\``, inline: false },
           ],
         });
@@ -818,7 +830,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       title: tr(L, "order_requested_log_title"),
       description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, order.currency)}\``, inline: false },
         { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
         { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
       ],
@@ -841,7 +853,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       title: tr(L, "order_requested_log_title"),
       description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
       fields: [
-        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, order.currency)}\``, inline: false },
         { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
         { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${tr(L, "static_pix_label")}\``, inline: false },
       ],
@@ -960,7 +972,7 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
                 description: trf(Lpaid, "payment_confirmed_log_desc", { user_id: paidOrder.discord_user_id }),
                 color: 0x57F287,
                 fields: [
-                  { name: `**${tr(Lpaid, "details_label")}**`, value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
+                  { name: `**${tr(Lpaid, "details_label")}**`, value: `\`${paidOrder.product_name} | ${formatMoney(paidOrder.total_cents, paidOrder.currency)}\``, inline: false },
                   { name: `**${tr(Lpaid, "order_label")}**`, value: `\`#${paidOrder.order_number}\``, inline: true },
                   { name: `**${tr(Lpaid, "order_id_label")}**`, value: `\`${orderId}\``, inline: false },
                 ],
@@ -1031,7 +1043,7 @@ async function approveOrder(interaction, tenant, orderId) {
     .setColor(approveEmbedColor)
     .addFields(
       { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
-      { name: `💰 ${tr(L, "value_label")}`, value: formatBRL(order.total_cents), inline: true },
+      { name: `💰 ${tr(L, "value_label")}`, value: formatMoney(order.total_cents, order.currency), inline: true },
       { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
     )
     .setTimestamp();
@@ -1045,7 +1057,7 @@ async function approveOrder(interaction, tenant, orderId) {
     description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0x57F287,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
       { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
@@ -1087,7 +1099,7 @@ async function rejectOrder(interaction, tenant, orderId) {
     description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0xED4245,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
       { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
@@ -1117,7 +1129,7 @@ async function cancelOrder(interaction, tenant, orderId) {
     description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
     color: 0xED4245,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig: cancelStoreConfig,
@@ -1172,7 +1184,7 @@ async function handleCouponModal(interaction, tenant, orderId) {
   await incrementCouponUsage(coupon.id, coupon.used_count);
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "coupon_applied_title")).setDescription(trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatBRL(order.total_cents), new_total: formatBRL(newTotal), discount: formatBRL(discount) })).setColor(0x57F287))],
+    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "coupon_applied_title")).setDescription(trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatMoney(order.total_cents, order.currency), new_total: formatMoney(newTotal, order.currency), discount: formatMoney(discount, order.currency) })).setColor(0x57F287))],
   });
 
   await interaction.editReply({ content: tr(L, "coupon_applied_response") });
@@ -1183,8 +1195,8 @@ async function handleCouponModal(interaction, tenant, orderId) {
     description: trf(L, "coupon_applied_log_desc", { user_id: interaction.user.id }),
     fields: [
       { name: `**${tr(L, "coupon") || tr(L, "coupon_code_label")}**`, value: `\`${couponCode}\``, inline: true },
-      { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatBRL(discount)}\``, inline: true },
-      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatMoney(discount, order.currency)}\``, inline: true },
+      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatMoney(newTotal, order.currency)}\``, inline: true },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
@@ -1222,7 +1234,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
   await updateOrderStatus(order.id, "pending_payment", { total_cents: newTotal });
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "quantity_updated_title")).setDescription(trf(L, "quantity_updated_desc", { quantity: qty, total: formatBRL(newTotal) })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
+    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "quantity_updated_title")).setDescription(trf(L, "quantity_updated_desc", { quantity: qty, total: formatMoney(newTotal, order.currency) })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
   });
 
   await interaction.editReply({ content: trf(L, "quantity_updated_response", { quantity: qty }) });
@@ -1234,7 +1246,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
     fields: [
       { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
       { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
-      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatMoney(newTotal, order.currency)}\``, inline: true },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
   });
@@ -1270,7 +1282,7 @@ async function markDelivered(interaction, tenant, orderId) {
     description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0x57F287,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
       { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
@@ -1312,7 +1324,7 @@ async function cancelManual(interaction, tenant, orderId) {
     description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
     color: 0xED4245,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
       { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
     ],
@@ -1337,7 +1349,7 @@ async function copyDelivered(interaction, tenant, orderId) {
 
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
-  const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+  const { data: product } = await supabase.from("products").select("name, tenant_id, language, currency").eq("id", productId).single();
   const L = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id || tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
   if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
 
@@ -1351,7 +1363,7 @@ async function viewVariations(interaction, tenant, productId) {
   const fieldLines = fields.map((f) => {
     const emoji = f.emoji || "•";
     const desc = f.description ? ` - ${f.description}` : "";
-    return `${emoji} **${f.name}** — ${formatBRL(f.price_cents)}${desc}`;
+    return `${emoji} **${f.name}** — ${formatMoney(f.price_cents, product.currency)}${desc}`;
   });
 
   return interaction.reply({
@@ -1377,7 +1389,7 @@ async function viewDetails(interaction, tenant, productId) {
     .setDescription(`${autoDeliveryText}${product.description || tr(L, "no_description")}`)
     .setColor(embedColor)
     .addFields(
-      { name: tr(L, "price_label_md"), value: formatBRL(product.price_cents), inline: true },
+      { name: tr(L, "price_label_md"), value: formatMoney(product.price_cents, product.currency), inline: true },
       { name: `📦 ${tr(L, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(L, "service_type") : tr(L, "hybrid_type"), inline: true },
     );
 
