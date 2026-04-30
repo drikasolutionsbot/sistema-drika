@@ -177,7 +177,6 @@ const formatMoney = (cents: number, currency: string | null = "BRL") => {
   }
 };
 
-const formatBRL = (cents: number) => formatMoney(cents, "BRL");
 
 // ─── Store Log Helper ───────────────────────────────────────
 async function sendStoreLog(

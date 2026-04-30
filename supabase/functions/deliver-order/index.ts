@@ -27,7 +27,6 @@ const formatMoney = (cents: number, currency: string | null = "BRL") => {
   }
 };
 
-const formatBRL = (cents: number) => formatMoney(cents, "BRL");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
