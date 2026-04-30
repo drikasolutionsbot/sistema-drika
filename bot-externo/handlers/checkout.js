@@ -1348,7 +1348,7 @@ async function copyDelivered(interaction, tenant, orderId) {
 
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
-  const { data: product } = await supabase.from("products").select("name, tenant_id, language").eq("id", productId).single();
+  const { data: product } = await supabase.from("products").select("name, tenant_id, language, currency").eq("id", productId).single();
   const L = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id || tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
   if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
 
