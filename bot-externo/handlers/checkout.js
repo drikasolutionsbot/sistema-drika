@@ -1362,7 +1362,7 @@ async function viewVariations(interaction, tenant, productId) {
   const fieldLines = fields.map((f) => {
     const emoji = f.emoji || "•";
     const desc = f.description ? ` - ${f.description}` : "";
-    return `${emoji} **${f.name}** — ${formatBRL(f.price_cents)}${desc}`;
+    return `${emoji} **${f.name}** — ${formatMoney(f.price_cents, product.currency)}${desc}`;
   });
 
   return interaction.reply({
