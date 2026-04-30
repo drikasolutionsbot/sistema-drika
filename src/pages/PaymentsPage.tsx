@@ -19,6 +19,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback } from "react";
 import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
+import { GatewayTutorialDialog } from "@/components/payments/GatewayTutorialDialog";
+import { GraduationCap } from "lucide-react";
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
 
