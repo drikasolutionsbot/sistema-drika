@@ -206,6 +206,40 @@ const AdminClientsPage = () => {
     setSavingPlan(false);
   };
 
+  const [expiringPlan, setExpiringPlan] = useState<string | null>(null);
+
+  const handleExpirePlan = async (tenantId: string) => {
+    setExpiringPlan(tenantId);
+    try {
+      const tenant = tenants.find(t => t.id === tenantId);
+      // Força expiração imediata: define plan_expires_at = agora.
+      // Mantemos o plano atual (pro/master) para que a UI mostre como "Expirado"
+      // e o cliente precise renovar/pagar para reativar.
+      const expiredAt = new Date(Date.now() - 60_000).toISOString();
+      const { error } = await supabase
+        .from("tenants")
+        .update({ plan_expires_at: expiredAt })
+        .eq("id", tenantId);
+      if (error) throw error;
+
+      const tenantName = tenant?.name || tenantId;
+      await logAudit("plan_expired_manually", "tenant", tenantId, tenantName, {
+        previous_expires_at: tenant?.plan_expires_at || null,
+        plan: tenant?.plan || null,
+      });
+      setTenants(prev =>
+        prev.map(t => (t.id === tenantId ? { ...t, plan_expires_at: expiredAt } : t))
+      );
+      toast({
+        title: "Plano expirado",
+        description: `${tenantName} precisará renovar o pagamento para reativar.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+    setExpiringPlan(null);
+  };
+
   const handleGenerateToken = async (tenantId: string) => {
     setGeneratingToken(tenantId);
     try {
@@ -599,6 +633,44 @@ const AdminClientsPage = () => {
                               <CalendarClock className="h-3 w-3 mr-1" />
                               + Dias
                             </Button>
+                            {tenant.plan !== "free" && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 text-[10px] px-2 border-destructive/30 text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={expiringPlan === tenant.id}
+                                  >
+                                    {expiringPlan === tenant.id ? (
+                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <ShieldOff className="h-3 w-3 mr-1" />
+                                    )}
+                                    Expirar
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-card border-border" onClick={(e) => e.stopPropagation()}>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Expirar plano agora?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O plano de <strong>{tenant.name}</strong> será marcado como expirado imediatamente.
+                                      O cliente precisará efetuar um novo pagamento para reativar o acesso.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => handleExpirePlan(tenant.id)}
+                                    >
+                                      Expirar plano
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         )}
                         <span className="text-xs text-muted-foreground hidden sm:inline">
