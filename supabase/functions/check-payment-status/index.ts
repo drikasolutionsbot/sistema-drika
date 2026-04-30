@@ -190,6 +190,25 @@ serve(async (req) => {
       }
     }
 
+    // ── Stripe: Check Checkout Session status ──
+    if (provider === "stripe" && paymentId) {
+      try {
+        const stripeSecret = providerConfig.api_key_encrypted;
+        if (stripeSecret) {
+          const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(paymentId)}`, {
+            headers: { Authorization: `Bearer ${stripeSecret}` },
+          });
+          if (res.ok) {
+            const session = await res.json();
+            console.log(`Stripe session ${paymentId}: payment_status=${session.payment_status}, status=${session.status}`);
+            if (session.payment_status === "paid" || session.status === "complete") isPaid = true;
+          }
+        }
+      } catch (e) {
+        console.error("Stripe polling error:", e);
+      }
+    }
+
     // If paid, update order and trigger delivery
     if (isPaid) {
       await supabase
