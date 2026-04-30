@@ -59,6 +59,76 @@ interface ProductDetailGeneralProps {
   categories?: Category[];
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = { BRL: "R$", USD: "$", EUR: "€" };
+
+const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: Partial<Product>) => void }) => {
+  const symbol = CURRENCY_SYMBOLS[product.currency || "BRL"] || product.currency || "R$";
+  const centsToStr = (c?: number | null) =>
+    c == null || c === 0 ? "" : (c / 100).toString().replace(".", ",");
+
+  const [priceStr, setPriceStr] = useState<string>(
+    product.price_cents ? (product.price_cents / 100).toString().replace(".", ",") : ""
+  );
+  const [comparePriceStr, setComparePriceStr] = useState<string>(centsToStr(product.compare_price_cents));
+
+  // Sync when product changes externally (different product selected)
+  useEffect(() => {
+    setPriceStr(product.price_cents ? (product.price_cents / 100).toString().replace(".", ",") : "");
+    setComparePriceStr(centsToStr(product.compare_price_cents));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
+
+  const parseToCents = (s: string): number | null => {
+    const cleaned = s.replace(/[^\d.,]/g, "").replace(",", ".");
+    if (!cleaned) return null;
+    const n = parseFloat(cleaned);
+    if (isNaN(n)) return null;
+    return Math.round(n * 100);
+  };
+
+  return (
+    <section className="space-y-5">
+      <h3 className="text-base font-bold text-foreground">Preço</h3>
+      <p className="text-xs text-muted-foreground">Valor exibido no embed do produto. Não afeta variações.</p>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">Preço ({symbol})</Label>
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={priceStr}
+            onChange={(e) => {
+              const v = e.target.value;
+              setPriceStr(v);
+              const cents = parseToCents(v);
+              onChange({ price_cents: cents ?? 0 });
+            }}
+            placeholder="0,00"
+            className="bg-muted border-border"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm font-bold">Preço Comparativo ({symbol})</Label>
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={comparePriceStr}
+            onChange={(e) => {
+              const v = e.target.value;
+              setComparePriceStr(v);
+              const cents = parseToCents(v);
+              onChange({ compare_price_cents: cents });
+            }}
+            placeholder="Opcional"
+            className="bg-muted border-border"
+          />
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export const ProductDetailGeneral = ({ product, onChange, categories = [] }: ProductDetailGeneralProps) => {
   const { tenantId } = useTenant();
   const { roles, loading: rolesLoading } = useDiscordRoles();
@@ -127,40 +197,8 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
       </section>
 
       {/* Section: Preço */}
-      <section className="space-y-5">
-        <h3 className="text-base font-bold text-foreground">Preço</h3>
-        <p className="text-xs text-muted-foreground">Valor exibido no embed do produto. Não afeta variações.</p>
+      <PriceSection product={product} onChange={onChange} />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Preço (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.01}
-              value={(product.price_cents / 100).toFixed(2)}
-              onChange={(e) => onChange({ price_cents: Math.round(parseFloat(e.target.value || "0") * 100) })}
-              placeholder="0.00"
-              className="bg-muted border-border"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Preço Comparativo (R$)</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.01}
-              value={product.compare_price_cents ? (product.compare_price_cents / 100).toFixed(2) : ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                onChange({ compare_price_cents: val ? Math.round(parseFloat(val) * 100) : null });
-              }}
-              placeholder="Opcional"
-              className="bg-muted border-border"
-            />
-          </div>
-        </div>
-      </section>
       {/* Section: Tipo de Entrega */}
       <section className="space-y-3">
         <div>
