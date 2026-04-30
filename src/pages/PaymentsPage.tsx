@@ -122,6 +122,7 @@ interface PaymentProvider {
   efi_cert_pem?: string | null;
   efi_key_pem?: string | null;
   efi_pix_key?: string | null;
+  stripe_webhook_secret?: string | null;
 }
 
 const PaymentsPage = () => {
@@ -157,17 +158,23 @@ const PaymentsPage = () => {
 
   const getConfig = (key: string) => configs.find(c => c.provider_key === key);
 
-  const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string }) => {
+  const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string; stripe_webhook_secret?: string }) => {
     if (!tenantId) return;
     try {
-      const data = await invokeWithRetry("manage-payment-providers", {
+      // Para Stripe: api_key = Secret Key, stripe_webhook_secret = Signing Secret
+      // O campo secret_key do form vai como stripe_webhook_secret
+      const payload: any = {
         action: "upsert",
         tenant_id: tenantId,
         provider_key: providerKey,
         api_key: apiKey,
-        secret_key: secretKey,
+        secret_key: providerKey === "stripe" ? null : secretKey,
         ...extra,
-      });
+      };
+      if (providerKey === "stripe") {
+        payload.stripe_webhook_secret = secretKey || extra?.stripe_webhook_secret || null;
+      }
+      const data = await invokeWithRetry("manage-payment-providers", payload);
       if (data?.error) throw new Error(data.error);
       refetch();
       toast({ title: "Provedor salvo e ativado!" });
