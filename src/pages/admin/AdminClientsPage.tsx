@@ -206,6 +206,40 @@ const AdminClientsPage = () => {
     setSavingPlan(false);
   };
 
+  const [expiringPlan, setExpiringPlan] = useState<string | null>(null);
+
+  const handleExpirePlan = async (tenantId: string) => {
+    setExpiringPlan(tenantId);
+    try {
+      const tenant = tenants.find(t => t.id === tenantId);
+      // Força expiração imediata: define plan_expires_at = agora.
+      // Mantemos o plano atual (pro/master) para que a UI mostre como "Expirado"
+      // e o cliente precise renovar/pagar para reativar.
+      const expiredAt = new Date(Date.now() - 60_000).toISOString();
+      const { error } = await supabase
+        .from("tenants")
+        .update({ plan_expires_at: expiredAt })
+        .eq("id", tenantId);
+      if (error) throw error;
+
+      const tenantName = tenant?.name || tenantId;
+      await logAudit("plan_expired_manually", "tenant", tenantId, tenantName, {
+        previous_expires_at: tenant?.plan_expires_at || null,
+        plan: tenant?.plan || null,
+      });
+      setTenants(prev =>
+        prev.map(t => (t.id === tenantId ? { ...t, plan_expires_at: expiredAt } : t))
+      );
+      toast({
+        title: "Plano expirado",
+        description: `${tenantName} precisará renovar o pagamento para reativar.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+    setExpiringPlan(null);
+  };
+
   const handleGenerateToken = async (tenantId: string) => {
     setGeneratingToken(tenantId);
     try {
