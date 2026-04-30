@@ -213,9 +213,17 @@ async function buildProductPayload(
   // Price field
   if (embedConfig.show_price !== false) {
     const priceLabel = localizedOrCustom(embedConfig.price_label, lang, "price_label");
+    const currency = (product.currency || "BRL").toUpperCase();
+    const localeMap: Record<string, string> = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
+    let formattedPrice: string;
+    try {
+      formattedPrice = new Intl.NumberFormat(localeMap[currency] || "en-US", { style: "currency", currency }).format((product.price_cents || 0) / 100);
+    } catch {
+      formattedPrice = `${currency} ${((product.price_cents || 0) / 100).toFixed(2)}`;
+    }
     embed.fields.push({
       name: `**${priceLabel}**`,
-      value: `\`R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}\``,
+      value: `\`${formattedPrice}\``,
       inline: true,
     });
   }
