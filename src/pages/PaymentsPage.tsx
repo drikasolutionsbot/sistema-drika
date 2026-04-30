@@ -446,6 +446,14 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
               <Switch checked={config.active} onCheckedChange={() => onToggle(config.id, config.active)} />
             </>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTutorialOpen(true)}
+            className="border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary"
+          >
+            <GraduationCap className="h-3.5 w-3.5 mr-1.5" /> Tutorial
+          </Button>
           <a href={provider.docsUrl} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Docs
