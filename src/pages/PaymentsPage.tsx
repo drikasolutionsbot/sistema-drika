@@ -269,6 +269,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [certFileName, setCertFileName] = useState<string | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const isEfi = provider.key === "efi";
 
