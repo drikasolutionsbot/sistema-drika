@@ -1002,6 +1002,7 @@ export type Database = {
           checkout_thread_id: string | null
           coupon_id: string | null
           created_at: string
+          currency: string
           discord_user_id: string
           discord_username: string | null
           field_id: string | null
@@ -1022,6 +1023,7 @@ export type Database = {
           checkout_thread_id?: string | null
           coupon_id?: string | null
           created_at?: string
+          currency?: string
           discord_user_id: string
           discord_username?: string | null
           field_id?: string | null
@@ -1042,6 +1044,7 @@ export type Database = {
           checkout_thread_id?: string | null
           coupon_id?: string | null
           created_at?: string
+          currency?: string
           discord_user_id?: string
           discord_username?: string | null
           field_id?: string | null
