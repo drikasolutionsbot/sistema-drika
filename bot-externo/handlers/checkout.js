@@ -587,7 +587,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .setColor(embedColor)
     .addFields(
       { name: tr(Lreview, "cart_label"), value: `1x ${orderName}`, inline: false },
-      { name: tr(Lreview, "price_label"), value: formatBRL(priceCents), inline: true },
+      { name: tr(Lreview, "price_label"), value: formatMoney(priceCents, product.currency), inline: true },
       { name: tr(Lreview, "stock_label_emoji"), value: stockCount, inline: true },
     )
     .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
