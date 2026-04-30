@@ -1388,7 +1388,7 @@ async function viewDetails(interaction, tenant, productId) {
     .setDescription(`${autoDeliveryText}${product.description || tr(L, "no_description")}`)
     .setColor(embedColor)
     .addFields(
-      { name: tr(L, "price_label_md"), value: formatMoney(product.price_cents, product.currency), inline: true }, },
+      { name: tr(L, "price_label_md"), value: formatMoney(product.price_cents, product.currency), inline: true },
       { name: `📦 ${tr(L, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(L, "service_type") : tr(L, "hybrid_type"), inline: true },
     );
 
