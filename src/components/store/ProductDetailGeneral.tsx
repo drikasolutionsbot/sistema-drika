@@ -15,7 +15,14 @@ const PROVIDER_LABELS: Record<string, string> = {
   abacatepay: "AbacatePay",
   mercadopago: "Mercado Pago",
   misticpay: "MisticPay",
+  stripe: "Stripe (Cartão)",
 };
+
+const CURRENCIES: { value: string; label: string }[] = [
+  { value: "BRL", label: "🇧🇷 Real (BRL)" },
+  { value: "USD", label: "🇺🇸 Dólar (USD)" },
+  { value: "EUR", label: "🇪🇺 Euro (EUR)" },
+];
 
 interface Category {
   id: string;
@@ -43,6 +50,7 @@ interface Product {
   payment_provider_key?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
   language?: string | null;
+  currency?: string | null;
 }
 
 interface ProductDetailGeneralProps {
