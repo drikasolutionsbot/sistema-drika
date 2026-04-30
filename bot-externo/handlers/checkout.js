@@ -25,6 +25,7 @@ const formatMoney = (cents, currency = "BRL") => {
 };
 // Mantido por compatibilidade
 const formatBRL = (cents) => formatMoney(cents, "BRL");
+const PIX_PROVIDER_KEYS = new Set(["mercadopago", "pushinpay", "efi", "misticpay", "abacatepay"]);
 
 // ── Delete PIX QR Code message after payment is resolved (paid/canceled/expired) ──
 async function deletePixMessage(channel, order) {
@@ -713,28 +714,37 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(tr(L, "generating_qr")).setColor(preEmbedColor))] });
 
   const priceCents = order.total_cents;
-  const amountBRL = priceCents / 100;
+  const orderCurrency = (order.currency || "BRL").toUpperCase();
+  const amount = priceCents / 100;
   const webhookBaseUrl = `${process.env.SUPABASE_URL}/functions/v1/payment-webhook`;
   let brcode = "";
   let paymentId = "";
 
-  const provider = await getActivePaymentProvider(tenant.id);
+  const { data: orderProduct } = order.product_id
+    ? await supabase.from("products").select("payment_provider_key, currency").eq("id", order.product_id).eq("tenant_id", tenant.id).maybeSingle()
+    : { data: null };
+  const preferredProviderKey = orderProduct?.payment_provider_key || null;
+  const provider = await getActivePaymentProvider(tenant.id, preferredProviderKey);
 
-  if (provider && amountBRL > 0) {
+  if (provider && amount > 0) {
     const providerKey = provider.provider_key;
     const apiKey = provider.api_key_encrypted;
     const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
     const externalRef = `order_${order.id}`;
 
+    if (orderCurrency !== "BRL" && providerKey !== "stripe") {
+      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Gateway incompatível").setDescription(`${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`).setColor(0xED4245))] });
+    }
+
     if (providerKey === "mercadopago") {
-      const r = await generateMercadoPagoPix(apiKey, amountBRL, order.product_name, externalRef, webhookUrl);
+      const r = await generateMercadoPagoPix(apiKey, amount, order.product_name, externalRef, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "pushinpay") {
       const r = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "misticpay") {
       const secretKey = provider.secret_key_encrypted || "";
-      const r = await generateMisticPayPix(apiKey, secretKey, amountBRL, externalRef, webhookUrl);
+      const r = await generateMisticPayPix(apiKey, secretKey, amount, externalRef, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "abacatepay") {
       const r = await generateAbacatePayPix(apiKey, priceCents, order.product_name, externalRef);
@@ -758,7 +768,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const stripeData = await stripeRes.json();
       if (stripeData.error) throw new Error(stripeData.error);
       const checkoutUrl = stripeData.checkout_url;
-      const currency = stripeData.currency || "BRL";
+      const currency = (stripeData.currency || orderCurrency).toUpperCase();
       paymentId = stripeData.session_id || externalRef;
 
       await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: "stripe" });
@@ -767,19 +777,12 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const storeConfig = await getStoreConfig(tenant.id);
       const embedColor = await resolveOrderColor(order, storeConfig);
       const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
-      const fmtMoney = (cents) => {
-        const v = (cents / 100).toFixed(2);
-        if (currency === "USD") return `$${v}`;
-        if (currency === "EUR") return `€${v}`;
-        return `R$ ${v.replace(".", ",")}`;
-      };
-
       const stripeEmbed = new EmbedBuilder()
         .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
         .setTitle("💳 Pagamento via Cartão")
         .setDescription([
           `**Produto:** \`${order.product_name}\``,
-          `**Valor:** \`${fmtMoney(priceCents)} ${currency}\``,
+          `**Valor:** \`${formatMoney(priceCents, currency)}\``,
           ``,
           `🔒 Ambiente seguro processado pela **Stripe**.`,
           `Clique no botão abaixo para abrir o checkout e finalizar o pagamento com seu cartão.`,
@@ -806,7 +809,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
         title: tr(L, "order_requested_log_title"),
         description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
         fields: [
-          { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${fmtMoney(priceCents)} ${currency}\``, inline: false },
+          { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, currency)}\``, inline: false },
           { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
           { name: `**${tr(L, "payment_method_label")}**`, value: `\`💳 Stripe (Cartão)\``, inline: false },
         ],
