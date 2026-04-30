@@ -3165,11 +3165,77 @@ async function generatePixInThread(
   let brcode = "";
   let paymentId = "";
 
+  if (orderCurrency !== "BRL" && activeProvider?.provider_key !== "stripe") {
+    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [{
+          title: "❌ Gateway incompatível",
+          description: `${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`,
+          color: 0xED4245,
+        }],
+      }),
+    });
+    return;
+  }
+
   if (activeProvider && amountBRL > 0) {
     const providerKey = activeProvider.provider_key;
     const apiKey = activeProvider.api_key_encrypted;
     const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenantId}`;
     const externalRef = `order_${order.id}`;
+
+    if (providerKey === "stripe") {
+      const stripeRes = await fetch(`${supabaseUrl}/functions/v1/stripe-create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({ tenant_id: tenantId, order_id: order.id }),
+      });
+      const stripeData = await stripeRes.json();
+      if (stripeData.error) throw new Error(stripeData.error);
+      const checkoutUrl = stripeData.checkout_url;
+      const stripeCurrency = normalizeCurrency(stripeData.currency || orderCurrency);
+      paymentId = stripeData.session_id || externalRef;
+
+      const stripeEmbed = {
+        author: { name: order.discord_username || userId },
+        title: "💳 Pagamento via Cartão",
+        description: [
+          `**Produto:** \`${orderName}\``,
+          `**Valor:** \`${formatMoney(priceCents, stripeCurrency)}\``,
+          "",
+          "🔒 Ambiente seguro processado pela **Stripe**.",
+          "Clique no botão abaixo para abrir o checkout e finalizar o pagamento com seu cartão.",
+          "",
+          "_O pedido será confirmado automaticamente após a aprovação do pagamento._",
+        ].join("\n"),
+        color: 0x2B2D31,
+      };
+
+      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [stripeEmbed],
+          components: [{ type: 1, components: [
+            { type: 2, style: 5, label: "💳 Pagar com Cartão", url: checkoutUrl },
+            { type: 2, style: 4, label: tr(L, "cancel"), custom_id: `checkout_cancel:${order.id}` },
+          ] }],
+        }),
+      });
+
+      await sendStoreLog(supabase, botToken, order.tenant_id, {
+        title: tr(L, "order_requested_log_title"),
+        description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+        fields: [
+          { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, stripeCurrency)}\``, inline: false },
+          { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+          { name: `**${tr(L, "payment_method_label")}**`, value: "`💳 Stripe (Cartão)`", inline: false },
+        ],
+      });
+      return;
+    }
 
     if (providerKey === "mercadopago") {
       const result = await generateMercadoPagoPix(apiKey, amountBRL, orderName, externalRef, webhookUrl);
