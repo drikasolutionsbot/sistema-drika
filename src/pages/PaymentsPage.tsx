@@ -620,6 +620,12 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           Salvar e Ativar
         </Button>
       </div>
+
+      <GatewayTutorialDialog
+        open={tutorialOpen}
+        onOpenChange={setTutorialOpen}
+        gatewayKey={provider.key}
+      />
     </div>
   );
 };
