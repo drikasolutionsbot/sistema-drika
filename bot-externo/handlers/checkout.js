@@ -626,7 +626,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     title: tr(Lreview, "cart_opened_log_title"),
     description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
     fields: [
-      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatMoney(priceCents, product.currency)}\``, inline: false },
       { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
     ],
     storeConfig,
