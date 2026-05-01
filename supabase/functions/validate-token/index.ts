@@ -23,13 +23,19 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Find the token
+    // Find the token (busca pelo valor do token, que é único; revoked é checado abaixo)
     const { data: tokenRecord, error: tokenError } = await supabase
       .from("access_tokens")
       .select("*, tenants(name)")
       .eq("token", token)
-      .eq("revoked", false)
-      .single();
+      .maybeSingle();
+
+    if (!tokenError && tokenRecord && tokenRecord.revoked) {
+      return new Response(JSON.stringify({ error: "Token revogado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (tokenError || !tokenRecord) {
       return new Response(JSON.stringify({ error: "Token inválido ou revogado" }), {
@@ -38,12 +44,16 @@ serve(async (req) => {
       });
     }
 
-    // Check expiration
+    // Check expiration — se o token expirou mas o tenant ainda existe,
+    // estendemos automaticamente para que o cliente possa entrar e ver o
+    // overlay de plano expirado (e renovar via PIX). NUNCA bloqueamos por aqui.
     if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date()) {
-      return new Response(JSON.stringify({ error: "Token expirado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from("access_tokens")
+        .update({ expires_at: newExpiry })
+        .eq("id", tokenRecord.id);
+      tokenRecord.expires_at = newExpiry;
     }
 
     // Check IP if restricted
