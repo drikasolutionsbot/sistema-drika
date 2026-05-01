@@ -23,13 +23,19 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Find the token
+    // Find the token (busca pelo valor do token, que é único; revoked é checado abaixo)
     const { data: tokenRecord, error: tokenError } = await supabase
       .from("access_tokens")
       .select("*, tenants(name)")
       .eq("token", token)
-      .eq("revoked", false)
-      .single();
+      .maybeSingle();
+
+    if (!tokenError && tokenRecord && tokenRecord.revoked) {
+      return new Response(JSON.stringify({ error: "Token revogado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (tokenError || !tokenRecord) {
       return new Response(JSON.stringify({ error: "Token inválido ou revogado" }), {
