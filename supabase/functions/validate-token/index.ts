@@ -38,12 +38,16 @@ serve(async (req) => {
       });
     }
 
-    // Check expiration
+    // Check expiration — se o token expirou mas o tenant ainda existe,
+    // estendemos automaticamente para que o cliente possa entrar e ver o
+    // overlay de plano expirado (e renovar via PIX). NUNCA bloqueamos por aqui.
     if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date()) {
-      return new Response(JSON.stringify({ error: "Token expirado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from("access_tokens")
+        .update({ expires_at: newExpiry })
+        .eq("id", tokenRecord.id);
+      tokenRecord.expires_at = newExpiry;
     }
 
     // Check IP if restricted
