@@ -199,6 +199,21 @@ async function autoLinkGuildToPendingTenant({ guildId, guildName, ownerDiscordId
   const tenant = await findPendingTenantForOwner(ownerDiscordId || null, guildId);
   if (!tenant) return null;
 
+  const { data: pendingInvite } = await supabase
+    .from("tenant_audit_logs")
+    .select("details")
+    .eq("tenant_id", tenant.id)
+    .eq("action", "pending_bot_invite")
+    .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const baseline = Array.isArray(pendingInvite?.details?.baseline_guild_ids)
+    ? pendingInvite.details.baseline_guild_ids
+    : [];
+  const appearedAfterDashboardInvite = !!pendingInvite && !baseline.includes(guildId);
+
   const { data: claimedTenant } = await supabase
     .from("tenants")
     .select("id")
@@ -207,8 +222,21 @@ async function autoLinkGuildToPendingTenant({ guildId, guildName, ownerDiscordId
     .maybeSingle();
 
   if (claimedTenant) {
-    console.warn(`[auto-link] Guild ${guildId} já vinculada a outro tenant`);
-    return null;
+    if (!appearedAfterDashboardInvite) {
+      console.warn(`[auto-link] Guild ${guildId} já vinculada a outro tenant`);
+      return null;
+    }
+
+    const { error: clearClaimError } = await supabase
+      .from("tenants")
+      .update({ discord_guild_id: null, updated_at: new Date().toISOString() })
+      .eq("id", claimedTenant.id)
+      .eq("discord_guild_id", guildId);
+
+    if (clearClaimError) {
+      console.warn(`[auto-link] Falha ao liberar claim antigo da guild ${guildId}:`, clearClaimError.message);
+      return null;
+    }
   }
 
   const { data: updatedTenant, error } = await supabase
