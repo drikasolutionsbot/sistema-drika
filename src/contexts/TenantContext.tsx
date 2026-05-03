@@ -130,6 +130,18 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => { fetchTenant(); }, [user]);
 
+  useEffect(() => {
+    if (!tenant?.id || tenant.discord_guild_id) return;
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchTenant(true);
+      }
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [tenant?.id, tenant?.discord_guild_id]);
+
   const isPlanExpired = (() => {
     if (!tenant) return false;
     if (tenant.plan === "expired") return true;
