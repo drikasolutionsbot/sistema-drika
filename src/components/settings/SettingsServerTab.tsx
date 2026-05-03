@@ -309,7 +309,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     setDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: null } },
+        body: { ...getRequestBody(), updates: { discord_guild_id: null } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -331,7 +331,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     setDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: null } },
+        body: { ...getRequestBody(), updates: { discord_guild_id: null } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
