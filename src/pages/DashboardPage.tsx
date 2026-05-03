@@ -80,6 +80,7 @@ const DashboardPage = () => {
   const guildsBeforeInviteRef = useRef<Set<string>>(new Set());
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
+  const linkingInProgressRef = useRef(false);
 
   useEffect(() => {
     if (!tenant?.discord_guild_id) {
@@ -318,7 +319,8 @@ const DashboardPage = () => {
   }, [getDiscordRequestBody]);
 
   const autoLinkGuild = useCallback(async (guild: { id: string; name: string }) => {
-    if (!tenantId) return false;
+    if (!tenantId || linkingInProgressRef.current) return false;
+    linkingInProgressRef.current = true;
 
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
@@ -335,6 +337,7 @@ const DashboardPage = () => {
       toast.success(`Servidor ${guild.name} conectado! 🎉`);
       return true;
     } catch {
+      linkingInProgressRef.current = false;
       return false;
     }
   }, [tenantId, refetch, clearPreferredReconnectGuildId, stopPolling]);
@@ -375,6 +378,8 @@ const DashboardPage = () => {
     if (autoError || !autoData || Array.isArray(autoData)) return false;
 
     if (autoData.auto_linked) {
+      if (linkingInProgressRef.current) return true;
+      linkingInProgressRef.current = true;
       stopPolling();
       setWaitingForBot(false);
       await refetch();
@@ -395,6 +400,7 @@ const DashboardPage = () => {
     if (!tenantId) return;
 
     stopPolling();
+    linkingInProgressRef.current = false;
     setWaitingForBot(true);
     pollCountRef.current = 0;
 
