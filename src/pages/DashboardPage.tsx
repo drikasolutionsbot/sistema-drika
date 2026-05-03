@@ -513,7 +513,7 @@ const DashboardPage = () => {
 
   const handleDisconnectServer = async () => {
     if (!tenantId || !tenant?.discord_guild_id) return;
-    if (!confirm(t.dashboard.disconnectServerConfirm)) return;
+    setDisconnecting(true);
     try {
       if (disconnectedGuildStorageKey) {
         localStorage.setItem(disconnectedGuildStorageKey, tenant.discord_guild_id);
@@ -531,6 +531,9 @@ const DashboardPage = () => {
       refetch();
     } catch (err: any) {
       toast.error(err?.message || "Erro ao desconectar servidor.");
+    } finally {
+      setDisconnecting(false);
+      setDisconnectModalOpen(false);
     }
   };
 
