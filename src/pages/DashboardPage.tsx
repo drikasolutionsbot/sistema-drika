@@ -382,7 +382,12 @@ const DashboardPage = () => {
       linkingInProgressRef.current = true;
       stopPolling();
       setWaitingForBot(false);
-      await refetch();
+      const freshTenant = await refetch();
+      if (!freshTenant?.discord_guild_id) {
+        linkingInProgressRef.current = false;
+        setWaitingForBot(true);
+        return false;
+      }
       clearPreferredReconnectGuildId();
       toast.success("Servidor conectado automaticamente! 🎉");
       return true;
