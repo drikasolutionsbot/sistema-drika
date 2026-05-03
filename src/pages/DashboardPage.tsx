@@ -46,7 +46,7 @@ const DashboardPage = () => {
   const [guilds, setGuilds] = useState<{ id: string; name: string; icon: string | null }[]>([]);
   const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
-  const [manualGuildId, setManualGuildId] = useState("");
+  
 
   // Members state
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
