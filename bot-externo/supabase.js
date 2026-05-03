@@ -157,7 +157,7 @@ async function findPendingTenantForOwner(ownerDiscordId, guildId = null) {
 async function autoLinkGuildToPendingTenant({ guildId, guildName, ownerDiscordId }) {
   if (!guildId) return null;
 
-  const tenant = await findPendingTenantForOwner(ownerDiscordId || null);
+  const tenant = await findPendingTenantForOwner(ownerDiscordId || null, guildId);
   if (!tenant) return null;
 
   const { data: claimedTenant } = await supabase
