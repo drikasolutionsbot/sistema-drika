@@ -41,6 +41,7 @@ serve(async (req) => {
     let invitePermissions = "8";
     let guildIdFromBody: string | null = null;
     let baselineGuildIds: string[] = [];
+    let allowStoredReconnect = false;
 
     try {
       const body = await req.json();
@@ -52,6 +53,7 @@ serve(async (req) => {
       baselineGuildIds = Array.isArray(body?.baseline_guild_ids)
         ? body.baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
         : [];
+      allowStoredReconnect = body?.allow_stored_reconnect === true;
       if (typeof body?.permissions === "string" && /^\d+$/.test(body.permissions)) {
         invitePermissions = body.permissions;
       }
@@ -120,6 +122,20 @@ serve(async (req) => {
         }
       }));
       return checks.filter(Boolean) as Array<{ id: string; name: string; icon: string | null }>;
+    };
+
+    const verifyBotGuild = async (guildId: string) => {
+      if (!/^\d{17,20}$/.test(guildId)) return null;
+      const guildRes = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (!guildRes.ok) return null;
+      const guildData = await guildRes.json();
+      return {
+        id: guildData.id,
+        name: guildData.name,
+        icon: guildData.icon ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.png` : null,
+      };
     };
 
     // Sempre usar o bot externo 24h (token único para todos os tenants)
