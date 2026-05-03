@@ -349,11 +349,8 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   };
 
   const handleAddBot = async () => {
-    let inviteUrl = botInviteData?.invite_url;
-    if (!inviteUrl) {
-      const refreshed = await refetchInvite();
-      inviteUrl = refreshed.data?.invite_url;
-    }
+    const refreshed = await refetchInvite();
+    const inviteUrl = refreshed.data?.invite_url || botInviteData?.invite_url;
     if (!inviteUrl) {
       toast({ title: "Não foi possível gerar o link do bot", description: "Tente novamente.", variant: "destructive" });
       return;
