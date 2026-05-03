@@ -337,6 +337,7 @@ const DashboardPage = () => {
       toast.success(`Servidor ${guild.name} conectado! 🎉`);
       return true;
     } catch {
+      linkingInProgressRef.current = false;
       return false;
     }
   }, [tenantId, refetch, clearPreferredReconnectGuildId, stopPolling]);
