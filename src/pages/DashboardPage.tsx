@@ -400,6 +400,7 @@ const DashboardPage = () => {
     if (!tenantId) return;
 
     stopPolling();
+    linkingInProgressRef.current = false;
     setWaitingForBot(true);
     pollCountRef.current = 0;
 
