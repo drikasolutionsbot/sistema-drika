@@ -112,12 +112,28 @@ serve(async (req) => {
 
     const fetchBotGuilds = async () => {
       if (!botToken) return [] as Array<{ id: string; name: string; icon: string | null }>;
-      const botGuildsRes = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds?limit=200", {
-        headers: { Authorization: `Bot ${botToken}` },
-      });
-      if (!botGuildsRes.ok) return [] as Array<{ id: string; name: string; icon: string | null }>;
-      const botGuilds = await botGuildsRes.json();
-      return Array.isArray(botGuilds) ? botGuilds.map(mapGuild) : [];
+      const allGuilds: any[] = [];
+      let after: string | null = null;
+
+      for (let page = 0; page < 20; page += 1) {
+        const url = new URL("https://discord.com/api/v10/users/@me/guilds");
+        url.searchParams.set("limit", "200");
+        if (after) url.searchParams.set("after", after);
+
+        const botGuildsRes = await fetchWithRetry(url.toString(), {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (!botGuildsRes.ok) break;
+
+        const botGuilds = await botGuildsRes.json();
+        if (!Array.isArray(botGuilds) || botGuilds.length === 0) break;
+        allGuilds.push(...botGuilds);
+        if (botGuilds.length < 200) break;
+        after = botGuilds[botGuilds.length - 1]?.id || null;
+        if (!after) break;
+      }
+
+      return allGuilds.map(mapGuild);
     };
 
     const filterGuildsWithBotPresent = async (guilds: Array<{ id: string; name: string; icon: string | null }>) => {
