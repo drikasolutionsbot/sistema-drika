@@ -215,14 +215,16 @@ serve(async (req) => {
       return checks.filter(Boolean) as Array<{ id: string; name: string; icon: string | null }>;
     };
 
-    // 1) Token de acesso (sessão por token) tem prioridade e resolve tenant no backend
+    // 1) Token de acesso (sessão por token) tem prioridade e resolve tenant no backend.
+    // O token NÃO pode bloquear a reconexão do servidor quando expira: o painel precisa
+    // continuar acessível para o cliente reconectar/renovar sem cair em loop.
     if (accessToken) {
       const { data: tokenRecord, error: tokenError } = await admin
         .from("access_tokens")
-        .select("tenant_id, expires_at, created_by")
+        .select("id, tenant_id, expires_at, created_by")
         .eq("token", accessToken)
         .eq("revoked", false)
-        .single();
+        .maybeSingle();
 
       if (tokenError || !tokenRecord) {
         return new Response(JSON.stringify({ error: "Token inválido" }), {
@@ -232,10 +234,12 @@ serve(async (req) => {
       }
 
       if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date()) {
-        return new Response(JSON.stringify({ error: "Token expirado" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        await admin
+          .from("access_tokens")
+          .update({ expires_at: newExpiry })
+          .eq("id", tokenRecord.id);
+        tokenRecord.expires_at = newExpiry;
       }
 
       if (tenantIdFromBody && tokenRecord.tenant_id !== tenantIdFromBody) {
