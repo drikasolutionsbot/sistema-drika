@@ -80,6 +80,7 @@ const DashboardPage = () => {
   const guildsBeforeInviteRef = useRef<Set<string>>(new Set());
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
+  const linkingInProgressRef = useRef(false);
 
   useEffect(() => {
     if (!tenant?.discord_guild_id) {
