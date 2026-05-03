@@ -473,10 +473,9 @@ serve(async (req) => {
         : [];
       const effectiveBaselineGuildIds = storedBaselineGuildIds.length > 0 ? storedBaselineGuildIds : baselineGuildIds;
 
-      // NOTE: Auto-link via baseline diff REMOVIDO por segurança.
-      // O bot-externo (guildCreate event) é o único responsável por vincular
-      // o servidor ao tenant correto, usando ownerDiscordId como prova de identidade.
-      // A edge function apenas verifica se o bot-externo já fez o vínculo.
+      // Auto-link via diff seguro: o painel registra um pending_bot_invite antes de abrir
+      // o convite. Durante o polling, qualquer servidor que apareceu depois desse snapshot
+      // pode ser vinculado ao tenant atual, mesmo para clientes por e-mail/token sem Discord OAuth.
 
       if (allowStoredReconnect) {
         const { data: lastDisconnectLog } = await admin
@@ -514,7 +513,7 @@ serve(async (req) => {
 
       // Privacy: servers already claimed by other tenants are excluded above.
       // Prefer newly detected guilds (diff do snapshot do front) when available.
-      const baselineSet = new Set(baselineGuildIds);
+      const baselineSet = new Set(effectiveBaselineGuildIds);
       let finalGuilds = available;
 
       if (baselineSet.size > 0) {
@@ -573,12 +572,14 @@ serve(async (req) => {
       // onde o bot-externo guildCreate pode não ter conseguido resolver o owner.
       let autoLinked = false;
 
-      if (finalGuilds.length === 1 && pendingInvite && baselineGuildIds.length > 0) {
+      if (finalGuilds.length === 1 && pendingInvite) {
         const candidateGuild = finalGuilds[0];
         const storedBaseline = Array.isArray((pendingInvite.details as any)?.baseline_guild_ids)
           ? (pendingInvite.details as any).baseline_guild_ids
           : [];
-        const isNewGuild = !storedBaseline.includes(candidateGuild.id) && !baselineGuildIds.includes(candidateGuild.id);
+        const isNewGuild =
+          effectiveBaselineGuildIds.length === 0 ||
+          (!storedBaseline.includes(candidateGuild.id) && !baselineGuildIds.includes(candidateGuild.id));
 
         if (isNewGuild) {
           const { error: linkError } = await admin

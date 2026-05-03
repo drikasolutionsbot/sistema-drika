@@ -363,13 +363,11 @@ client.on(Events.GuildCreate, async (guild) => {
     const ownerDiscordId = await resolveOwnerDiscordId();
     let linkedTenant = null;
 
-    if (ownerDiscordId) {
-      linkedTenant = await autoLinkGuildToPendingTenant({
-        guildId: guild.id,
-        guildName: guild.name,
-        ownerDiscordId,
-      });
-    }
+    linkedTenant = await autoLinkGuildToPendingTenant({
+      guildId: guild.id,
+      guildName: guild.name,
+      ownerDiscordId,
+    });
 
     if (!linkedTenant) {
       console.log(`⚠️ Nenhum tenant pendente encontrado para ${guild.name} (owner: ${ownerDiscordId || 'desconhecido'})`);
