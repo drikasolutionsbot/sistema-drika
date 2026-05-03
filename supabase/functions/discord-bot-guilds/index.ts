@@ -453,7 +453,7 @@ serve(async (req) => {
       const cutoffIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       const { data: pendingInvite } = await admin
         .from("tenant_audit_logs")
-        .select("id")
+        .select("id, details")
         .eq("tenant_id", resolvedTenantId)
         .eq("action", "pending_bot_invite")
         .gte("created_at", cutoffIso)
@@ -468,8 +468,13 @@ serve(async (req) => {
           .filter(Boolean)
       );
 
-      if (pendingInvite && baselineGuildIds.length > 0) {
-        const baselineSet = new Set(baselineGuildIds);
+      const storedBaselineGuildIds = Array.isArray((pendingInvite?.details as any)?.baseline_guild_ids)
+        ? (pendingInvite?.details as any).baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
+        : [];
+      const effectiveBaselineGuildIds = storedBaselineGuildIds.length > 0 ? storedBaselineGuildIds : baselineGuildIds;
+
+      if (pendingInvite && effectiveBaselineGuildIds.length > 0) {
+        const baselineSet = new Set(effectiveBaselineGuildIds);
         const botNewGuilds = botMapped.filter((guild: any) => !baselineSet.has(guild.id) && !claimedByOthers.has(guild.id));
         if (botNewGuilds.length === 1) {
           const guildToLink = botNewGuilds[0];
