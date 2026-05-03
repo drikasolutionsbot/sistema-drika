@@ -960,6 +960,34 @@ const DashboardPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Disconnect Server Modal */}
+      <AlertDialog open={disconnectModalOpen} onOpenChange={setDisconnectModalOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-foreground">
+              <Unplug className="h-5 w-5 text-destructive" />
+              Desconectar servidor
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Tem certeza que deseja desconectar o servidor{" "}
+              <span className="font-semibold text-foreground">{guildInfo?.name || tenant?.name}</span>
+              ? O bot continuará no servidor, mas o painel não estará mais vinculado a ele.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnecting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnectServer}
+              disabled={disconnecting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {disconnecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
