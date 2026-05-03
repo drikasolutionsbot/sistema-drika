@@ -461,17 +461,19 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      const claimedByOthers = new Set(
-        (claimedRows || [])
-          .filter((r: any) => r.id !== resolvedTenantId)
-          .map((r: any) => r.discord_guild_id)
-          .filter(Boolean)
-      );
-
       const storedBaselineGuildIds = Array.isArray((pendingInvite?.details as any)?.baseline_guild_ids)
         ? (pendingInvite?.details as any).baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
         : [];
       const effectiveBaselineGuildIds = storedBaselineGuildIds.length > 0 ? storedBaselineGuildIds : baselineGuildIds;
+      const baselineSet = new Set(effectiveBaselineGuildIds);
+      const canReclaimStaleClaim = (guildId: string) => !!pendingInvite && !baselineSet.has(guildId);
+
+      const claimedByOthers = new Set(
+        (claimedRows || [])
+          .filter((r: any) => r.id !== resolvedTenantId && !canReclaimStaleClaim(r.discord_guild_id))
+          .map((r: any) => r.discord_guild_id)
+          .filter(Boolean)
+      );
 
       // Auto-link via diff seguro: o painel registra um pending_bot_invite antes de abrir
       // o convite. Durante o polling, qualquer servidor que apareceu depois desse snapshot
@@ -490,7 +492,7 @@ serve(async (req) => {
 
         const previousGuildId = lastDisconnectLog?.entity_id;
         if (previousGuildId && /^\d{17,20}$/.test(previousGuildId)) {
-          const claimedByOther = (claimedRows || []).some((row: any) => row.id !== resolvedTenantId && row.discord_guild_id === previousGuildId);
+          const claimedByOther = (claimedRows || []).some((row: any) => row.id !== resolvedTenantId && row.discord_guild_id === previousGuildId && !canReclaimStaleClaim(previousGuildId));
           if (!claimedByOther) {
             const guild = await verifyBotGuild(previousGuildId);
             if (guild) {
@@ -513,7 +515,6 @@ serve(async (req) => {
 
       // Privacy: servers already claimed by other tenants are excluded above.
       // Prefer newly detected guilds (diff do snapshot do front) when available.
-      const baselineSet = new Set(effectiveBaselineGuildIds);
       let finalGuilds = available;
 
       if (baselineSet.size > 0) {
@@ -582,6 +583,15 @@ serve(async (req) => {
           (!storedBaseline.includes(candidateGuild.id) && !baselineGuildIds.includes(candidateGuild.id));
 
         if (isNewGuild) {
+          const staleClaim = (claimedRows || []).find((row: any) => row.id !== resolvedTenantId && row.discord_guild_id === candidateGuild.id);
+          if (staleClaim) {
+            await admin
+              .from("tenants")
+              .update({ discord_guild_id: null, updated_at: new Date().toISOString() })
+              .eq("id", staleClaim.id)
+              .eq("discord_guild_id", candidateGuild.id);
+          }
+
           const { error: linkError } = await admin
             .from("tenants")
             .update({ discord_guild_id: candidateGuild.id, updated_at: new Date().toISOString() })
