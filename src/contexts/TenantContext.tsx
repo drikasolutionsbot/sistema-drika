@@ -36,7 +36,7 @@ interface TenantContextType {
   tenant: Tenant | null;
   tenantId: string | null;
   loading: boolean;
-  refetch: () => void;
+  refetch: () => Promise<Tenant | null>;
   isPlanExpired: boolean;
 }
 
