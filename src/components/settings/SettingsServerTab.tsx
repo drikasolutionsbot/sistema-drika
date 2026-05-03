@@ -29,6 +29,17 @@ import {
 
 const BOT_PERMISSIONS = "536870920";
 
+const appendGuildToInvite = (inviteUrl: string, targetGuildId: string | null) => {
+  if (!targetGuildId?.trim()) return inviteUrl;
+  try {
+    const url = new URL(inviteUrl);
+    url.searchParams.set("guild_id", targetGuildId.trim());
+    return url.toString();
+  } catch {
+    return inviteUrl;
+  }
+};
+
 interface Props {
   tenant: any;
   tenantId: string | null;
