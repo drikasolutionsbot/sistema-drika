@@ -473,23 +473,10 @@ serve(async (req) => {
         : [];
       const effectiveBaselineGuildIds = storedBaselineGuildIds.length > 0 ? storedBaselineGuildIds : baselineGuildIds;
 
-      if (pendingInvite && effectiveBaselineGuildIds.length > 0) {
-        const baselineSet = new Set(effectiveBaselineGuildIds);
-        const botNewGuilds = botMapped.filter((guild: any) => !baselineSet.has(guild.id) && !claimedByOthers.has(guild.id));
-        if (botNewGuilds.length === 1) {
-          const guildToLink = botNewGuilds[0];
-          const { error: linkError } = await admin
-            .from("tenants")
-            .update({ discord_guild_id: guildToLink.id, updated_at: new Date().toISOString() })
-            .eq("id", resolvedTenantId)
-            .is("discord_guild_id", null);
-          if (!linkError) {
-            return new Response(JSON.stringify({ guilds: [guildToLink], auto_linked: true, source: "bot_guild_diff" }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-        }
-      }
+      // NOTE: Auto-link via baseline diff REMOVIDO por segurança.
+      // O bot-externo (guildCreate event) é o único responsável por vincular
+      // o servidor ao tenant correto, usando ownerDiscordId como prova de identidade.
+      // A edge function apenas verifica se o bot-externo já fez o vínculo.
 
       if (allowStoredReconnect) {
         const { data: lastDisconnectLog } = await admin
