@@ -150,6 +150,45 @@ async function findPendingTenantForOwner(ownerDiscordId, guildId = null) {
     }
   }
 
+  // ── 5) FINAL FALLBACK: any recent dashboard invite with a baseline diff ──
+  // Covers token/email clients and owner resolution failures. It only links when exactly
+  // one unlinked tenant has a recent pending invite whose snapshot did not include this guild.
+  if (guildId) {
+    const { data: recentLogs } = await supabase
+      .from("tenant_audit_logs")
+      .select("tenant_id, details, created_at")
+      .eq("action", "pending_bot_invite")
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    const candidateTenantIds = [];
+    for (const log of recentLogs || []) {
+      const baseline = Array.isArray(log.details?.baseline_guild_ids)
+        ? log.details.baseline_guild_ids
+        : [];
+      if (!baseline.includes(guildId)) {
+        candidateTenantIds.push(log.tenant_id);
+      }
+    }
+
+    const uniqueTenantIds = [...new Set(candidateTenantIds.filter(Boolean))];
+    if (uniqueTenantIds.length > 0) {
+      const { data: candidateTenants } = await supabase
+        .from("tenants")
+        .select("id, name, discord_guild_id")
+        .in("id", uniqueTenantIds)
+        .is("discord_guild_id", null);
+
+      if (candidateTenants && candidateTenants.length === 1) {
+        console.log(`[auto-link] Final fallback match: tenant ${candidateTenants[0].name} (${candidateTenants[0].id})`);
+        return candidateTenants[0];
+      } else if (candidateTenants && candidateTenants.length > 1) {
+        console.warn(`[auto-link] Multiple pending tenants in final fallback — skipping auto-link for safety`);
+      }
+    }
+  }
+
   // NO generic fallback — never link to a random tenant
   return null;
 }
