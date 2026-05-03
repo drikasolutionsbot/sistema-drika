@@ -388,7 +388,11 @@ serve(async (req) => {
     }
 
     const userGuilds = await fetchUserGuilds();
-    const mapped = await filterGuildsWithBotPresent(userGuilds);
+    const userMapped = await filterGuildsWithBotPresent(userGuilds);
+    const botMapped = await fetchBotGuilds();
+    const mappedById = new Map<string, { id: string; name: string; icon: string | null }>();
+    [...userMapped, ...botMapped].forEach((guild) => mappedById.set(guild.id, guild));
+    const mapped = Array.from(mappedById.values());
 
     // Busca servidores já vinculados a qualquer tenant
     const { data: claimedRows } = await admin
@@ -415,6 +419,42 @@ serve(async (req) => {
         return new Response(JSON.stringify({ guilds: result, auto_linked: baselineGuildIds.length > 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      const cutoffIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const { data: pendingInvite } = await admin
+        .from("tenant_audit_logs")
+        .select("id")
+        .eq("tenant_id", resolvedTenantId)
+        .eq("action", "pending_bot_invite")
+        .gte("created_at", cutoffIso)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const claimedByOthers = new Set(
+        (claimedRows || [])
+          .filter((r: any) => r.id !== resolvedTenantId)
+          .map((r: any) => r.discord_guild_id)
+          .filter(Boolean)
+      );
+
+      if (pendingInvite && baselineGuildIds.length > 0) {
+        const baselineSet = new Set(baselineGuildIds);
+        const botNewGuilds = botMapped.filter((guild: any) => !baselineSet.has(guild.id) && !claimedByOthers.has(guild.id));
+        if (botNewGuilds.length === 1) {
+          const guildToLink = botNewGuilds[0];
+          const { error: linkError } = await admin
+            .from("tenants")
+            .update({ discord_guild_id: guildToLink.id, updated_at: new Date().toISOString() })
+            .eq("id", resolvedTenantId)
+            .is("discord_guild_id", null);
+          if (!linkError) {
+            return new Response(JSON.stringify({ guilds: [guildToLink], auto_linked: true, source: "bot_guild_diff" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
       }
 
       if (allowStoredReconnect) {
@@ -449,12 +489,6 @@ serve(async (req) => {
         }
       }
 
-      const claimedByOthers = new Set(
-        (claimedRows || [])
-          .filter((r: any) => r.id !== resolvedTenantId)
-          .map((r: any) => r.discord_guild_id)
-          .filter(Boolean)
-      );
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
       // Privacy: servers already claimed by other tenants are excluded above.
