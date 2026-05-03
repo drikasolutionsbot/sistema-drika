@@ -110,6 +110,16 @@ serve(async (req) => {
       return Array.isArray(userGuilds) ? userGuilds.map(mapGuild) : [];
     };
 
+    const fetchBotGuilds = async () => {
+      if (!botToken) return [] as Array<{ id: string; name: string; icon: string | null }>;
+      const botGuildsRes = await fetchWithRetry("https://discord.com/api/v10/users/@me/guilds?limit=200", {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (!botGuildsRes.ok) return [] as Array<{ id: string; name: string; icon: string | null }>;
+      const botGuilds = await botGuildsRes.json();
+      return Array.isArray(botGuilds) ? botGuilds.map(mapGuild) : [];
+    };
+
     const filterGuildsWithBotPresent = async (guilds: Array<{ id: string; name: string; icon: string | null }>) => {
       const checks = await Promise.all(guilds.map(async (guild) => {
         try {
@@ -148,8 +158,7 @@ serve(async (req) => {
     }
 
     if (action === "list_all") {
-      const userGuilds = await fetchUserGuilds();
-      const guildList = await filterGuildsWithBotPresent(userGuilds);
+      const guildList = await fetchBotGuilds();
       return new Response(JSON.stringify({ guilds: guildList }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
