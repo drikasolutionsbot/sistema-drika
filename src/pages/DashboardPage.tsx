@@ -250,10 +250,12 @@ const DashboardPage = () => {
   };
 
   const appendGuildToInvite = (inviteUrl: string) => {
-    if (!tenant?.discord_guild_id) return inviteUrl;
+    const reconnectGuildId = getPreferredReconnectGuildId();
+    const targetGuildId = tenant?.discord_guild_id || reconnectGuildId;
+    if (!targetGuildId) return inviteUrl;
     try {
       const url = new URL(inviteUrl);
-      url.searchParams.set("guild_id", tenant.discord_guild_id);
+      url.searchParams.set("guild_id", targetGuildId);
       return url.toString();
     } catch {
       return inviteUrl;
@@ -315,7 +317,7 @@ const DashboardPage = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: guild.id } },
+        body: { ...getDiscordRequestBody(), updates: { discord_guild_id: guild.id } },
       });
 
       if (error) throw error;
