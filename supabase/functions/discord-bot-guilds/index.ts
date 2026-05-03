@@ -167,6 +167,16 @@ serve(async (req) => {
     // Sempre usar o bot externo 24h (token único para todos os tenants)
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
+    const fetchBotIdentity = async () => {
+      if (!botToken) return null;
+      const botRes = await fetchWithRetry("https://discord.com/api/v10/users/@me", {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (!botRes.ok) return null;
+      const bot = await botRes.json();
+      return bot?.id && /^\d{17,20}$/.test(bot.id) ? { id: bot.id, username: bot.username } : null;
+    };
+
     if (!botToken && action !== "invite_url") {
       return new Response(JSON.stringify({ guilds: [], auto_linked: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -358,8 +368,9 @@ serve(async (req) => {
 
     if (action === "invite_url") {
       const fallbackClientId = "1483943198882664579";
+      const botIdentity = await fetchBotIdentity();
       const configuredClientId = (Deno.env.get("DISCORD_BOT_CLIENT_ID") || fallbackClientId).trim();
-      const clientId = /^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId;
+      const clientId = botIdentity?.id || (/^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId);
       const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
 
       if (resolvedTenantId) {
