@@ -422,7 +422,7 @@ const DashboardPage = () => {
       try {
         await refetch();
 
-        if (tenant?.discord_guild_id) {
+        if (tenantRef.current?.discord_guild_id) {
           stopPolling();
           setWaitingForBot(false);
           clearPreferredReconnectGuildId();
