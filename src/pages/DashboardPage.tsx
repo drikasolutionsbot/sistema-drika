@@ -378,6 +378,8 @@ const DashboardPage = () => {
     if (autoError || !autoData || Array.isArray(autoData)) return false;
 
     if (autoData.auto_linked) {
+      if (linkingInProgressRef.current) return true;
+      linkingInProgressRef.current = true;
       stopPolling();
       setWaitingForBot(false);
       await refetch();
