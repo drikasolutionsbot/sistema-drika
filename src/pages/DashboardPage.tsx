@@ -345,10 +345,7 @@ const DashboardPage = () => {
   }, [tenantId, refetch, clearPreferredReconnectGuildId, stopPolling]);
 
   const tryBackendAutoLink = useCallback(async () => {
-    await refetch();
-
-    // Use ref to get freshest tenant after refetch
-    const freshTenant = tenantRef.current;
+    const freshTenant = await refetch();
 
     if (freshTenant?.discord_guild_id) {
       stopPolling();
