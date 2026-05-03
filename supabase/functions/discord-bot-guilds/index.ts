@@ -568,10 +568,41 @@ serve(async (req) => {
         }
       }
 
-      // Edge function NÃO faz auto-link — apenas retorna candidatos.
-      // O bot-externo (guildCreate event) vincula com segurança usando ownerDiscordId.
-      // O dashboard faz polling e detecta quando discord_guild_id foi setado.
-      const autoLinked = false;
+      // Auto-link seguro: quando há exatamente 1 guild novo E um pending_bot_invite
+      // recente para este tenant, vincula automaticamente. Cobre email/token users
+      // onde o bot-externo guildCreate pode não ter conseguido resolver o owner.
+      let autoLinked = false;
+
+      if (finalGuilds.length === 1 && pendingInvite && baselineGuildIds.length > 0) {
+        const candidateGuild = finalGuilds[0];
+        const storedBaseline = Array.isArray((pendingInvite.details as any)?.baseline_guild_ids)
+          ? (pendingInvite.details as any).baseline_guild_ids
+          : [];
+        const isNewGuild = !storedBaseline.includes(candidateGuild.id) && !baselineGuildIds.includes(candidateGuild.id);
+
+        if (isNewGuild) {
+          const { error: linkError } = await admin
+            .from("tenants")
+            .update({ discord_guild_id: candidateGuild.id, updated_at: new Date().toISOString() })
+            .eq("id", resolvedTenantId)
+            .is("discord_guild_id", null);
+
+          if (!linkError) {
+            autoLinked = true;
+            // Clean up the pending invite
+            await admin.from("tenant_audit_logs").insert({
+              tenant_id: resolvedTenantId,
+              action: "auto_link_server",
+              entity_type: "servidor",
+              entity_id: candidateGuild.id,
+              entity_name: candidateGuild.name,
+              actor_discord_id: resolvedDiscordUserId,
+              actor_name: "Edge Function",
+              details: { source: "edge_function_polling" },
+            }).then(() => undefined, () => undefined);
+          }
+        }
+      }
 
       return new Response(JSON.stringify({ guilds: finalGuilds, auto_linked: autoLinked }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
