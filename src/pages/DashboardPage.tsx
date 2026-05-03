@@ -343,9 +343,9 @@ const DashboardPage = () => {
   }, [tenantId, refetch, clearPreferredReconnectGuildId, stopPolling]);
 
   const tryBackendAutoLink = useCallback(async () => {
-    await refetch();
+    const freshTenant = await refetch();
 
-    if (tenant?.discord_guild_id) {
+    if (freshTenant?.discord_guild_id) {
       stopPolling();
       setWaitingForBot(false);
       clearPreferredReconnectGuildId();
@@ -394,7 +394,7 @@ const DashboardPage = () => {
     }
 
     return false;
-  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch, tenant?.discord_guild_id]);
+  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch]);
 
   const startPollingForGuildConnection = useCallback(() => {
     if (!tenantId) return;
@@ -415,9 +415,9 @@ const DashboardPage = () => {
       }
 
       try {
-        await refetch();
+        const freshTenant = await refetch();
 
-        if (tenant?.discord_guild_id) {
+        if (freshTenant?.discord_guild_id) {
           stopPolling();
           setWaitingForBot(false);
           clearPreferredReconnectGuildId();
@@ -455,7 +455,7 @@ const DashboardPage = () => {
     }, 5000);
 
     void tryBackendAutoLink();
-  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch, tenant?.discord_guild_id, clearPreferredReconnectGuildId]);
+  }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch, clearPreferredReconnectGuildId]);
 
   useEffect(() => {
     if (!waitingForBot) return;
