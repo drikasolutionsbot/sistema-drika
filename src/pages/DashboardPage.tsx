@@ -319,7 +319,8 @@ const DashboardPage = () => {
   }, [getDiscordRequestBody]);
 
   const autoLinkGuild = useCallback(async (guild: { id: string; name: string }) => {
-    if (!tenantId) return false;
+    if (!tenantId || linkingInProgressRef.current) return false;
+    linkingInProgressRef.current = true;
 
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
