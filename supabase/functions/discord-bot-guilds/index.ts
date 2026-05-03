@@ -375,6 +375,7 @@ serve(async (req) => {
 
       if (resolvedTenantId) {
         let auditDiscordUserId = resolvedDiscordUserId;
+        const inviteBaselineGuilds = botToken ? await fetchBotGuilds() : [];
 
         if (!auditDiscordUserId) {
           const { data: tenantOwner } = await admin
@@ -397,6 +398,7 @@ serve(async (req) => {
             actor_name: "Sistema",
             details: {
               source: "dashboard_invite",
+              baseline_guild_ids: inviteBaselineGuilds.map((guild) => guild.id),
               expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
             },
           })
