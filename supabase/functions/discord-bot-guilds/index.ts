@@ -408,6 +408,38 @@ serve(async (req) => {
         });
       }
 
+      if (allowStoredReconnect) {
+        const { data: lastDisconnectLog } = await admin
+          .from("tenant_audit_logs")
+          .select("entity_id, entity_name")
+          .eq("tenant_id", resolvedTenantId)
+          .eq("action", "disconnect_server")
+          .not("entity_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const previousGuildId = lastDisconnectLog?.entity_id;
+        if (previousGuildId && /^\d{17,20}$/.test(previousGuildId)) {
+          const claimedByOther = (claimedRows || []).some((row: any) => row.id !== resolvedTenantId && row.discord_guild_id === previousGuildId);
+          if (!claimedByOther) {
+            const guild = await verifyBotGuild(previousGuildId);
+            if (guild) {
+              const { error: reconnectError } = await admin
+                .from("tenants")
+                .update({ discord_guild_id: previousGuildId, updated_at: new Date().toISOString() })
+                .eq("id", resolvedTenantId)
+                .is("discord_guild_id", null);
+              if (!reconnectError) {
+                return new Response(JSON.stringify({ guilds: [guild], auto_linked: true, source: "stored_reconnect" }), {
+                  headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+              }
+            }
+          }
+        }
+      }
+
       const claimedByOthers = new Set(
         (claimedRows || [])
           .filter((r: any) => r.id !== resolvedTenantId)
