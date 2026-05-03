@@ -50,7 +50,8 @@ const DashboardPage = () => {
   const [guilds, setGuilds] = useState<{ id: string; name: string; icon: string | null }[]>([]);
   const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
-  
+  const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   // Members state
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
