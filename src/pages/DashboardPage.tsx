@@ -363,6 +363,7 @@ const DashboardPage = () => {
       body: {
         ...getDiscordRequestBody(),
         baseline_guild_ids: Array.from(guildsBeforeInviteRef.current),
+        allow_stored_reconnect: true,
       },
     });
 
@@ -441,6 +442,8 @@ const DashboardPage = () => {
         // keep polling
       }
     }, 5000);
+
+    void tryBackendAutoLink();
   }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch, tenant?.discord_guild_id, clearPreferredReconnectGuildId]);
 
   useEffect(() => {
@@ -511,7 +514,7 @@ const DashboardPage = () => {
         localStorage.setItem(disconnectedGuildStorageKey, tenant.discord_guild_id);
       }
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: null } },
+        body: { ...getDiscordRequestBody(), updates: { discord_guild_id: null } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -561,7 +564,7 @@ const DashboardPage = () => {
     setSwitchingGuild(guildId);
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: guildId } },
+        body: { ...getDiscordRequestBody(), updates: { discord_guild_id: guildId } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -671,6 +674,22 @@ const DashboardPage = () => {
                       <Loader2 className="h-4 w-4 animate-spin text-primary" />
                       {t.dashboard.waitingConnection}
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      value={manualGuildId}
+                      onChange={(e) => setManualGuildId(e.target.value.replace(/\D/g, ""))}
+                      placeholder={t.dashboard.pasteServerId}
+                      className="font-mono text-center"
+                    />
+                    <Button
+                      className="w-full"
+                      disabled={!manualGuildId.trim() || switchingGuild !== null}
+                      onClick={() => handleSwitchGuild(manualGuildId.trim())}
+                    >
+                      {switchingGuild === manualGuildId.trim() ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      {t.dashboard.linkById}
+                    </Button>
                   </div>
                   <Button variant="outline" size="sm" className="w-full" onClick={handleCancelBotPolling}>
                     {t.common.cancel}

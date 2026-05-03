@@ -41,6 +41,7 @@ serve(async (req) => {
     let invitePermissions = "8";
     let guildIdFromBody: string | null = null;
     let baselineGuildIds: string[] = [];
+    let allowStoredReconnect = false;
 
     try {
       const body = await req.json();
@@ -52,6 +53,7 @@ serve(async (req) => {
       baselineGuildIds = Array.isArray(body?.baseline_guild_ids)
         ? body.baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
         : [];
+      allowStoredReconnect = body?.allow_stored_reconnect === true;
       if (typeof body?.permissions === "string" && /^\d+$/.test(body.permissions)) {
         invitePermissions = body.permissions;
       }
@@ -120,6 +122,20 @@ serve(async (req) => {
         }
       }));
       return checks.filter(Boolean) as Array<{ id: string; name: string; icon: string | null }>;
+    };
+
+    const verifyBotGuild = async (guildId: string) => {
+      if (!/^\d{17,20}$/.test(guildId)) return null;
+      const guildRes = await fetchWithRetry(`https://discord.com/api/v10/guilds/${guildId}`, {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (!guildRes.ok) return null;
+      const guildData = await guildRes.json();
+      return {
+        id: guildData.id,
+        name: guildData.name,
+        icon: guildData.icon ? `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.png` : null,
+      };
     };
 
     // Sempre usar o bot externo 24h (token único para todos os tenants)
@@ -390,6 +406,38 @@ serve(async (req) => {
         return new Response(JSON.stringify({ guilds: result, auto_linked: baselineGuildIds.length > 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      if (allowStoredReconnect) {
+        const { data: lastDisconnectLog } = await admin
+          .from("tenant_audit_logs")
+          .select("entity_id, entity_name")
+          .eq("tenant_id", resolvedTenantId)
+          .eq("action", "disconnect_server")
+          .not("entity_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const previousGuildId = lastDisconnectLog?.entity_id;
+        if (previousGuildId && /^\d{17,20}$/.test(previousGuildId)) {
+          const claimedByOther = (claimedRows || []).some((row: any) => row.id !== resolvedTenantId && row.discord_guild_id === previousGuildId);
+          if (!claimedByOther) {
+            const guild = await verifyBotGuild(previousGuildId);
+            if (guild) {
+              const { error: reconnectError } = await admin
+                .from("tenants")
+                .update({ discord_guild_id: previousGuildId, updated_at: new Date().toISOString() })
+                .eq("id", resolvedTenantId)
+                .is("discord_guild_id", null);
+              if (!reconnectError) {
+                return new Response(JSON.stringify({ guilds: [guild], auto_linked: true, source: "stored_reconnect" }), {
+                  headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+              }
+            }
+          }
+        }
       }
 
       const claimedByOthers = new Set(
