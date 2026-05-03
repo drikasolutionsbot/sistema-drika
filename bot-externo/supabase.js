@@ -12,93 +12,141 @@ async function getTenantByGuild(guildId) {
   return data;
 }
 
-async function findPendingTenantForOwner(ownerDiscordId) {
-  if (!ownerDiscordId) return null;
-
+async function findPendingTenantForOwner(ownerDiscordId, guildId = null) {
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
-  // 1) Match: pending_bot_invite where actor_discord_id = guild owner
-  const { data: pendingLogs } = await supabase
-    .from("tenant_audit_logs")
-    .select("tenant_id, created_at")
-    .eq("action", "pending_bot_invite")
-    .eq("actor_discord_id", ownerDiscordId)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(10);
+  // ── 1) Match: pending_bot_invite where actor_discord_id = guild owner ──
+  if (ownerDiscordId) {
+    const { data: pendingLogs } = await supabase
+      .from("tenant_audit_logs")
+      .select("tenant_id, created_at")
+      .eq("action", "pending_bot_invite")
+      .eq("actor_discord_id", ownerDiscordId)
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(10);
 
-  const pendingTenantIds = [...new Set((pendingLogs || []).map((row) => row.tenant_id).filter(Boolean))];
+    const pendingTenantIds = [...new Set((pendingLogs || []).map((row) => row.tenant_id).filter(Boolean))];
 
-  if (pendingTenantIds.length > 0) {
-    const { data: tenants } = await supabase
-      .from("tenants")
-      .select("id, name, discord_guild_id")
-      .in("id", pendingTenantIds)
-      .is("discord_guild_id", null);
+    if (pendingTenantIds.length > 0) {
+      const { data: tenants } = await supabase
+        .from("tenants")
+        .select("id, name, discord_guild_id")
+        .in("id", pendingTenantIds)
+        .is("discord_guild_id", null);
 
-    for (const log of pendingLogs || []) {
-      const match = (tenants || []).find((tenant) => tenant.id === log.tenant_id);
-      if (match) return match;
+      for (const log of pendingLogs || []) {
+        const match = (tenants || []).find((tenant) => tenant.id === log.tenant_id);
+        if (match) return match;
+      }
     }
   }
 
-  // 2) Match: tenant where owner_discord_id = guild owner (sem guild vinculada)
-  const { data: directOwnerTenant } = await supabase
-    .from("tenants")
-    .select("id, name, discord_guild_id")
-    .eq("owner_discord_id", ownerDiscordId)
-    .is("discord_guild_id", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // ── 2) Match: tenant where owner_discord_id = guild owner (sem guild vinculada) ──
+  if (ownerDiscordId) {
+    const { data: directOwnerTenant } = await supabase
+      .from("tenants")
+      .select("id, name, discord_guild_id")
+      .eq("owner_discord_id", ownerDiscordId)
+      .is("discord_guild_id", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (directOwnerTenant) return directOwnerTenant;
+    if (directOwnerTenant) return directOwnerTenant;
+  }
 
-  // 3) Match: guild owner has a profile linked to a tenant with pending invite
-  const { data: ownerProfile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("discord_user_id", ownerDiscordId)
-    .maybeSingle();
+  // ── 3) Match: guild owner has a profile linked to a tenant with pending invite ──
+  if (ownerDiscordId) {
+    const { data: ownerProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("discord_user_id", ownerDiscordId)
+      .maybeSingle();
 
-  if (ownerProfile?.id) {
-    const { data: ownerRoles } = await supabase
-      .from("user_roles")
-      .select("tenant_id")
-      .eq("user_id", ownerProfile.id);
-
-    const ownerTenantIds = [...new Set((ownerRoles || []).map((r) => r.tenant_id).filter(Boolean))];
-    if (ownerTenantIds.length > 0) {
-      // Check pending invites for tenants the guild owner belongs to
-      const { data: memberPendingLogs } = await supabase
-        .from("tenant_audit_logs")
+    if (ownerProfile?.id) {
+      const { data: ownerRoles } = await supabase
+        .from("user_roles")
         .select("tenant_id")
-        .eq("action", "pending_bot_invite")
-        .in("tenant_id", ownerTenantIds)
-        .gte("created_at", cutoff)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        .eq("user_id", ownerProfile.id);
 
-      const memberPendingTenantIds = [...new Set((memberPendingLogs || []).map((r) => r.tenant_id))];
-      if (memberPendingTenantIds.length > 0) {
-        const { data: memberTenants } = await supabase
+      const ownerTenantIds = [...new Set((ownerRoles || []).map((r) => r.tenant_id).filter(Boolean))];
+      if (ownerTenantIds.length > 0) {
+        // Check pending invites for tenants the guild owner belongs to
+        const { data: memberPendingLogs } = await supabase
+          .from("tenant_audit_logs")
+          .select("tenant_id")
+          .eq("action", "pending_bot_invite")
+          .in("tenant_id", ownerTenantIds)
+          .gte("created_at", cutoff)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        const memberPendingTenantIds = [...new Set((memberPendingLogs || []).map((r) => r.tenant_id))];
+        if (memberPendingTenantIds.length > 0) {
+          const { data: memberTenants } = await supabase
+            .from("tenants")
+            .select("id, name, discord_guild_id")
+            .in("id", memberPendingTenantIds)
+            .is("discord_guild_id", null)
+            .limit(1);
+
+          if (memberTenants && memberTenants.length === 1) return memberTenants[0];
+        }
+
+        // No pending invite but owner belongs to exactly one unlinked tenant
+        const { data: unlinkedTenants } = await supabase
           .from("tenants")
           .select("id, name, discord_guild_id")
-          .in("id", memberPendingTenantIds)
-          .is("discord_guild_id", null)
-          .limit(1);
+          .in("id", ownerTenantIds)
+          .is("discord_guild_id", null);
 
-        if (memberTenants && memberTenants.length === 1) return memberTenants[0];
+        if (unlinkedTenants && unlinkedTenants.length === 1) return unlinkedTenants[0];
+      }
+    }
+  }
+
+  // ── 4) FALLBACK for email/token users: pending_bot_invite with NULL actor_discord_id ──
+  // For clients registered via email (not Discord OAuth), the pending_bot_invite has no
+  // actor_discord_id. We match by checking that the guild was NOT in the baseline snapshot
+  // and the tenant still has no guild linked. Only match if exactly ONE tenant qualifies.
+  if (guildId) {
+    const { data: nullActorLogs } = await supabase
+      .from("tenant_audit_logs")
+      .select("tenant_id, details")
+      .eq("action", "pending_bot_invite")
+      .is("actor_discord_id", null)
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (nullActorLogs && nullActorLogs.length > 0) {
+      // Filter: guild must NOT be in the baseline snapshot of the invite
+      const candidateTenantIds = [];
+      for (const log of nullActorLogs) {
+        const baseline = Array.isArray(log.details?.baseline_guild_ids)
+          ? log.details.baseline_guild_ids
+          : [];
+        if (!baseline.includes(guildId)) {
+          candidateTenantIds.push(log.tenant_id);
+        }
       }
 
-      // No pending invite but owner belongs to exactly one unlinked tenant
-      const { data: unlinkedTenants } = await supabase
-        .from("tenants")
-        .select("id, name, discord_guild_id")
-        .in("id", ownerTenantIds)
-        .is("discord_guild_id", null);
+      const uniqueTenantIds = [...new Set(candidateTenantIds)];
+      if (uniqueTenantIds.length > 0) {
+        const { data: candidateTenants } = await supabase
+          .from("tenants")
+          .select("id, name, discord_guild_id")
+          .in("id", uniqueTenantIds)
+          .is("discord_guild_id", null);
 
-      if (unlinkedTenants && unlinkedTenants.length === 1) return unlinkedTenants[0];
+        if (candidateTenants && candidateTenants.length === 1) {
+          console.log(`[auto-link] Fallback match for email user: tenant ${candidateTenants[0].name} (${candidateTenants[0].id})`);
+          return candidateTenants[0];
+        } else if (candidateTenants && candidateTenants.length > 1) {
+          console.warn(`[auto-link] Multiple email-user tenants with pending invite — skipping auto-link for safety`);
+        }
+      }
     }
   }
 
