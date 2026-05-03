@@ -131,6 +131,21 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    if ("discord_guild_id" in safeUpdates && !safeUpdates.discord_guild_id && tenantInfo?.discord_guild_id) {
+      await supabase
+        .from("tenant_audit_logs")
+        .insert({
+          tenant_id,
+          action: "disconnect_server",
+          entity_type: "servidor",
+          entity_id: tenantInfo.discord_guild_id,
+          entity_name: data?.name || null,
+          actor_name: "Sistema",
+          details: { source: "update_tenant" },
+        })
+        .then(() => undefined, () => undefined);
+    }
+
     // If name was updated, also rename the Discord guild
     if (safeUpdates.name && data.discord_guild_id) {
       const effectiveBotToken = tenantBotToken;
