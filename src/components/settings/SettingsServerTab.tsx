@@ -210,7 +210,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
       const baselineIds = Array.from(guildsBeforeInviteRef.current);
         const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
-          body: { ...getRequestBody(), baseline_guild_ids: baselineIds },
+          body: { ...getRequestBody(), baseline_guild_ids: baselineIds, allow_stored_reconnect: true },
         });
 
       if (!autoError && autoData && !Array.isArray(autoData) && autoData.auto_linked) {
@@ -299,6 +299,8 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         // silently retry next interval
       }
     }, 5000);
+
+    void tryAutoLink();
   }, [fetchAllBotGuilds, stopPolling, autoLinkGuild, tryAutoLink]);
 
   const handleDisconnect = async () => {
