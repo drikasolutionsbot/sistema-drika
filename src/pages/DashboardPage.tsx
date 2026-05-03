@@ -363,6 +363,7 @@ const DashboardPage = () => {
       body: {
         ...getDiscordRequestBody(),
         baseline_guild_ids: Array.from(guildsBeforeInviteRef.current),
+        allow_stored_reconnect: true,
       },
     });
 
@@ -441,6 +442,8 @@ const DashboardPage = () => {
         // keep polling
       }
     }, 5000);
+
+    void tryBackendAutoLink();
   }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch, tenant?.discord_guild_id, clearPreferredReconnectGuildId]);
 
   useEffect(() => {
@@ -511,7 +514,7 @@ const DashboardPage = () => {
         localStorage.setItem(disconnectedGuildStorageKey, tenant.discord_guild_id);
       }
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: null } },
+        body: { ...getDiscordRequestBody(), updates: { discord_guild_id: null } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
