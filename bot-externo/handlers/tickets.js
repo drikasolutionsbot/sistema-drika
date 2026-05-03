@@ -65,19 +65,20 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
-  // Check existing open tickets
+  // Check existing open tickets (max 3 simultaneous)
+  const MAX_OPEN_TICKETS = 3;
   const existing = await getOpenTickets(tenant.id, userId);
-  let hasRealOpen = false;
+  let realOpenCount = 0;
   for (const t of existing) {
     if (!t.discord_channel_id) continue;
     try {
       const ch = await interaction.client.channels.fetch(t.discord_channel_id);
-      if (ch && !ch.archived) { hasRealOpen = true; break; }
+      if (ch && !ch.archived) { realOpenCount++; }
       else { await closeTicket(t.id, "system"); }
     } catch { await closeTicket(t.id, "system"); }
   }
 
-  if (hasRealOpen) return interaction.editReply({ content: "⚠️ Você já possui um ticket aberto." });
+  if (realOpenCount >= MAX_OPEN_TICKETS) return interaction.editReply({ content: `⚠️ Você já possui ${realOpenCount} tickets abertos (máximo: ${MAX_OPEN_TICKETS}).` });
 
   const storeConfig = await getStoreConfig(tenant.id);
   let parentChannelId = targetChannelId || storeConfig?.ticket_channel_id || interaction.channel.id;
