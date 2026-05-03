@@ -97,6 +97,21 @@ serve(async (req) => {
         throw new Error("ID do servidor inválido. Deve conter 17-20 dígitos.");
       }
 
+      const { data: pendingInvite } = await supabase
+        .from("tenant_audit_logs")
+        .select("id, details")
+        .eq("tenant_id", tenant_id)
+        .eq("action", "pending_bot_invite")
+        .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const pendingBaseline = Array.isArray((pendingInvite?.details as any)?.baseline_guild_ids)
+        ? (pendingInvite?.details as any).baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
+        : [];
+      const appearedAfterDashboardInvite = !!pendingInvite && !pendingBaseline.includes(guildId);
+
       // Check if already claimed by another tenant
       const { data: existingTenant } = await supabase
         .from("tenants")
@@ -104,10 +119,6 @@ serve(async (req) => {
         .eq("discord_guild_id", guildId)
         .neq("id", tenant_id)
         .maybeSingle();
-
-      if (existingTenant) {
-        throw new Error("Este servidor já está vinculado a outra loja.");
-      }
 
       // Verify bot is in the server using tenant's bot token
       if (tenantBotToken) {
@@ -119,6 +130,31 @@ serve(async (req) => {
             throw new Error("O bot não está neste servidor. Adicione o bot primeiro.");
           }
         }
+      }
+
+      if (existingTenant) {
+        if (!appearedAfterDashboardInvite) {
+          throw new Error("Este servidor já está vinculado a outra loja.");
+        }
+
+        const { error: clearClaimError } = await supabase
+          .from("tenants")
+          .update({ discord_guild_id: null, updated_at: new Date().toISOString() })
+          .eq("id", existingTenant.id)
+          .eq("discord_guild_id", guildId);
+
+        if (clearClaimError) {
+          throw new Error("Não foi possível liberar o vínculo antigo deste servidor.");
+        }
+
+        await supabase.from("tenant_audit_logs").insert({
+          tenant_id,
+          action: "reclaim_stale_server_link",
+          entity_type: "servidor",
+          entity_id: guildId,
+          actor_name: "Sistema",
+          details: { previous_tenant_id: existingTenant.id, source: "dashboard_pending_invite" },
+        }).then(() => undefined, () => undefined);
       }
     }
 
