@@ -364,7 +364,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       guildsBeforeInviteRef.current = new Set();
     }
 
-    const preferredGuildId = getPreferredReconnectGuildId();
+    const preferredGuildId = transferMode ? null : getPreferredReconnectGuildId();
     const finalInviteUrl = preferredGuildId ? appendGuildToInvite(inviteUrl, preferredGuildId) : inviteUrl;
     window.open(finalInviteUrl, "_blank", "noopener,noreferrer");
     startPollingForNewGuild();
