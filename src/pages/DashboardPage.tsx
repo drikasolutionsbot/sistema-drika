@@ -10,6 +10,10 @@ import {
   Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
   ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Loader2, Shield,
   BarChart3, Eye, Unplug,
 } from "lucide-react";
@@ -46,7 +50,8 @@ const DashboardPage = () => {
   const [guilds, setGuilds] = useState<{ id: string; name: string; icon: string | null }[]>([]);
   const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
-  
+  const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   // Members state
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -508,7 +513,7 @@ const DashboardPage = () => {
 
   const handleDisconnectServer = async () => {
     if (!tenantId || !tenant?.discord_guild_id) return;
-    if (!confirm(t.dashboard.disconnectServerConfirm)) return;
+    setDisconnecting(true);
     try {
       if (disconnectedGuildStorageKey) {
         localStorage.setItem(disconnectedGuildStorageKey, tenant.discord_guild_id);
@@ -526,6 +531,9 @@ const DashboardPage = () => {
       refetch();
     } catch (err: any) {
       toast.error(err?.message || "Erro ao desconectar servidor.");
+    } finally {
+      setDisconnecting(false);
+      setDisconnectModalOpen(false);
     }
   };
 
@@ -652,7 +660,7 @@ const DashboardPage = () => {
                 <Button variant="outline" className="gap-2 text-sm" onClick={handleAddBot}>
                   <ExternalLink className="h-3.5 w-3.5" /> {t.dashboard.addDrikaBot}
                 </Button>
-                <Button variant="outline" className="gap-2 text-sm text-destructive hover:text-destructive" onClick={handleDisconnectServer}>
+                <Button variant="outline" className="gap-2 text-sm text-destructive hover:text-destructive" onClick={() => setDisconnectModalOpen(true)}>
                   <Unplug className="h-3.5 w-3.5" /> {t.dashboard.disconnectServer}
                 </Button>
               </div>
@@ -952,6 +960,34 @@ const DashboardPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Disconnect Server Modal */}
+      <AlertDialog open={disconnectModalOpen} onOpenChange={setDisconnectModalOpen}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-foreground">
+              <Unplug className="h-5 w-5 text-destructive" />
+              Desconectar servidor
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Tem certeza que deseja desconectar o servidor{" "}
+              <span className="font-semibold text-foreground">{guildInfo?.name || tenant?.name}</span>
+              ? O bot continuará no servidor, mas o painel não estará mais vinculado a ele.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnecting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnectServer}
+              disabled={disconnecting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {disconnecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
