@@ -47,7 +47,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchTenant = async (isRefetch = false) => {
+  const fetchTenant = async (isRefetch = false): Promise<Tenant | null> => {
     if (!isRefetch) setLoading(true);
 
     // Check token session first - use stored data directly (no RLS needed)
@@ -60,10 +60,11 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
             body: { tenant_id: tokenSession.tenant_id },
           });
 
+          let result: Tenant;
           if (!error && data && !data.error) {
-            setTenant(data as Tenant);
+            result = data as Tenant;
           } else {
-            setTenant({
+            result = {
               id: tokenSession.tenant_id,
               name: tokenSession.tenant_name || "Loja",
               discord_guild_id: null,
@@ -91,15 +92,16 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               referred_by_tenant_id: null,
               referral_credits_cents: 0,
               affiliate_active: false,
-            });
+            };
           }
+          setTenant(result);
           setLoading(false);
-          return;
+          return result;
         }
       } catch {}
     }
 
-    if (!user) { setTenant(null); setLoading(false); return; }
+    if (!user) { setTenant(null); setLoading(false); return null; }
 
     // Get user's first tenant via user_roles
     const { data: roleData } = await supabase
@@ -115,11 +117,15 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
         .select("*")
         .eq("id", roleData.tenant_id)
         .single();
-      setTenant(data as Tenant | null);
+      const result = (data as Tenant | null);
+      setTenant(result);
+      setLoading(false);
+      return result;
     } else {
       setTenant(null);
+      setLoading(false);
+      return null;
     }
-    setLoading(false);
   };
 
   useEffect(() => { fetchTenant(); }, [user]);
