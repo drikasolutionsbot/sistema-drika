@@ -361,7 +361,7 @@ serve(async (req) => {
             actor_name: "Sistema",
             details: {
               source: "dashboard_invite",
-              expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+              expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
             },
           })
           .then(() => undefined, () => undefined);
