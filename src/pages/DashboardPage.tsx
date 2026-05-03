@@ -347,7 +347,10 @@ const DashboardPage = () => {
   const tryBackendAutoLink = useCallback(async () => {
     await refetch();
 
-    if (tenant?.discord_guild_id) {
+    // Use ref to get freshest tenant after refetch
+    const freshTenant = tenantRef.current;
+
+    if (freshTenant?.discord_guild_id) {
       stopPolling();
       setWaitingForBot(false);
       clearPreferredReconnectGuildId();
@@ -396,7 +399,7 @@ const DashboardPage = () => {
     }
 
     return false;
-  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch, tenant?.discord_guild_id]);
+  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch]);
 
   const startPollingForGuildConnection = useCallback(() => {
     if (!tenantId) return;
