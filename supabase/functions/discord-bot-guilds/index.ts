@@ -110,6 +110,32 @@ serve(async (req) => {
       return Array.isArray(userGuilds) ? userGuilds.map(mapGuild) : [];
     };
 
+    const fetchBotGuilds = async () => {
+      if (!botToken) return [] as Array<{ id: string; name: string; icon: string | null }>;
+      const allGuilds: any[] = [];
+      let after: string | null = null;
+
+      for (let page = 0; page < 20; page += 1) {
+        const url = new URL("https://discord.com/api/v10/users/@me/guilds");
+        url.searchParams.set("limit", "200");
+        if (after) url.searchParams.set("after", after);
+
+        const botGuildsRes = await fetchWithRetry(url.toString(), {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (!botGuildsRes.ok) break;
+
+        const botGuilds = await botGuildsRes.json();
+        if (!Array.isArray(botGuilds) || botGuilds.length === 0) break;
+        allGuilds.push(...botGuilds);
+        if (botGuilds.length < 200) break;
+        after = botGuilds[botGuilds.length - 1]?.id || null;
+        if (!after) break;
+      }
+
+      return allGuilds.map(mapGuild);
+    };
+
     const filterGuildsWithBotPresent = async (guilds: Array<{ id: string; name: string; icon: string | null }>) => {
       const checks = await Promise.all(guilds.map(async (guild) => {
         try {
@@ -141,6 +167,16 @@ serve(async (req) => {
     // Sempre usar o bot externo 24h (token único para todos os tenants)
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
+    const fetchBotIdentity = async () => {
+      if (!botToken) return null;
+      const botRes = await fetchWithRetry("https://discord.com/api/v10/users/@me", {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+      if (!botRes.ok) return null;
+      const bot = await botRes.json();
+      return bot?.id && /^\d{17,20}$/.test(bot.id) ? { id: bot.id, username: bot.username } : null;
+    };
+
     if (!botToken && action !== "invite_url") {
       return new Response(JSON.stringify({ guilds: [], auto_linked: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -148,8 +184,7 @@ serve(async (req) => {
     }
 
     if (action === "list_all") {
-      const userGuilds = await fetchUserGuilds();
-      const guildList = await filterGuildsWithBotPresent(userGuilds);
+      const guildList = await fetchBotGuilds();
       return new Response(JSON.stringify({ guilds: guildList }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -333,12 +368,14 @@ serve(async (req) => {
 
     if (action === "invite_url") {
       const fallbackClientId = "1483943198882664579";
+      const botIdentity = await fetchBotIdentity();
       const configuredClientId = (Deno.env.get("DISCORD_BOT_CLIENT_ID") || fallbackClientId).trim();
-      const clientId = /^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId;
+      const clientId = botIdentity?.id || (/^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId);
       const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
 
       if (resolvedTenantId) {
         let auditDiscordUserId = resolvedDiscordUserId;
+        const inviteBaselineGuilds = botToken ? await fetchBotGuilds() : [];
 
         if (!auditDiscordUserId) {
           const { data: tenantOwner } = await admin
@@ -361,6 +398,7 @@ serve(async (req) => {
             actor_name: "Sistema",
             details: {
               source: "dashboard_invite",
+              baseline_guild_ids: inviteBaselineGuilds.map((guild) => guild.id),
               expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
             },
           })
@@ -379,7 +417,11 @@ serve(async (req) => {
     }
 
     const userGuilds = await fetchUserGuilds();
-    const mapped = await filterGuildsWithBotPresent(userGuilds);
+    const userMapped = await filterGuildsWithBotPresent(userGuilds);
+    const botMapped = await fetchBotGuilds();
+    const mappedById = new Map<string, { id: string; name: string; icon: string | null }>();
+    [...userMapped, ...botMapped].forEach((guild) => mappedById.set(guild.id, guild));
+    const mapped = Array.from(mappedById.values());
 
     // Busca servidores já vinculados a qualquer tenant
     const { data: claimedRows } = await admin
@@ -406,6 +448,47 @@ serve(async (req) => {
         return new Response(JSON.stringify({ guilds: result, auto_linked: baselineGuildIds.length > 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      const cutoffIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const { data: pendingInvite } = await admin
+        .from("tenant_audit_logs")
+        .select("id, details")
+        .eq("tenant_id", resolvedTenantId)
+        .eq("action", "pending_bot_invite")
+        .gte("created_at", cutoffIso)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const claimedByOthers = new Set(
+        (claimedRows || [])
+          .filter((r: any) => r.id !== resolvedTenantId)
+          .map((r: any) => r.discord_guild_id)
+          .filter(Boolean)
+      );
+
+      const storedBaselineGuildIds = Array.isArray((pendingInvite?.details as any)?.baseline_guild_ids)
+        ? (pendingInvite?.details as any).baseline_guild_ids.filter((id: unknown) => typeof id === "string" && /^\d{17,20}$/.test(id))
+        : [];
+      const effectiveBaselineGuildIds = storedBaselineGuildIds.length > 0 ? storedBaselineGuildIds : baselineGuildIds;
+
+      if (pendingInvite && effectiveBaselineGuildIds.length > 0) {
+        const baselineSet = new Set(effectiveBaselineGuildIds);
+        const botNewGuilds = botMapped.filter((guild: any) => !baselineSet.has(guild.id) && !claimedByOthers.has(guild.id));
+        if (botNewGuilds.length === 1) {
+          const guildToLink = botNewGuilds[0];
+          const { error: linkError } = await admin
+            .from("tenants")
+            .update({ discord_guild_id: guildToLink.id, updated_at: new Date().toISOString() })
+            .eq("id", resolvedTenantId)
+            .is("discord_guild_id", null);
+          if (!linkError) {
+            return new Response(JSON.stringify({ guilds: [guildToLink], auto_linked: true, source: "bot_guild_diff" }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
       }
 
       if (allowStoredReconnect) {
@@ -440,12 +523,6 @@ serve(async (req) => {
         }
       }
 
-      const claimedByOthers = new Set(
-        (claimedRows || [])
-          .filter((r: any) => r.id !== resolvedTenantId)
-          .map((r: any) => r.discord_guild_id)
-          .filter(Boolean)
-      );
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
       // Privacy: servers already claimed by other tenants are excluded above.
