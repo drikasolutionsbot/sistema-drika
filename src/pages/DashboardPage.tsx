@@ -10,6 +10,10 @@ import {
   Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
   ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Loader2, Shield,
   BarChart3, Eye, Unplug,
 } from "lucide-react";
