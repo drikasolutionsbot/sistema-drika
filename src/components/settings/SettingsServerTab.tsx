@@ -158,7 +158,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     setConnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { discord_guild_id: guild.id } },
+        body: { ...getRequestBody(), updates: { discord_guild_id: guild.id } },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -198,9 +198,9 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       }
 
       const baselineIds = Array.from(guildsBeforeInviteRef.current);
-      const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: { ...getRequestBody(), baseline_guild_ids: baselineIds },
-      });
+        const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
+          body: { ...getRequestBody(), baseline_guild_ids: baselineIds },
+        });
 
       if (!autoError && autoData && !Array.isArray(autoData) && autoData.auto_linked) {
         stopPolling();
@@ -353,7 +353,9 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       guildsBeforeInviteRef.current = new Set();
     }
 
-    window.open(inviteUrl, "_blank", "noopener,noreferrer");
+    const preferredGuildId = getPreferredReconnectGuildId();
+    const finalInviteUrl = preferredGuildId ? appendGuildToInvite(inviteUrl, preferredGuildId) : inviteUrl;
+    window.open(finalInviteUrl, "_blank", "noopener,noreferrer");
     startPollingForNewGuild();
   };
 
