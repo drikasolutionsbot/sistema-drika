@@ -568,17 +568,10 @@ serve(async (req) => {
         }
       }
 
-      // Auto-link if only one candidate guild remains
-      let autoLinked = false;
-      if (finalGuilds.length === 1) {
-        const guildToLink = finalGuilds[0];
-        const { error: linkError } = await admin
-          .from("tenants")
-          .update({ discord_guild_id: guildToLink.id, updated_at: new Date().toISOString() })
-          .eq("id", resolvedTenantId)
-          .is("discord_guild_id", null);
-        if (!linkError) autoLinked = true;
-      }
+      // Edge function NÃO faz auto-link — apenas retorna candidatos.
+      // O bot-externo (guildCreate event) vincula com segurança usando ownerDiscordId.
+      // O dashboard faz polling e detecta quando discord_guild_id foi setado.
+      const autoLinked = false;
 
       return new Response(JSON.stringify({ guilds: finalGuilds, auto_linked: autoLinked }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
