@@ -13,6 +13,23 @@ const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
+// Archive checkout thread after delivery (2 min delay, runs on VPS so setTimeout works)
+function scheduleThreadArchive(deliveryResult) {
+  if (!deliveryResult?.should_archive || !deliveryResult?.checkout_thread_id) return;
+  const threadId = deliveryResult.checkout_thread_id;
+  console.log(`[ARCHIVE] Scheduling archive for thread ${threadId} in 2 minutes`);
+  setTimeout(async () => {
+    try {
+      await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true, locked: true }),
+      });
+      console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
+    } catch (e) { console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message); }
+  }, 120000);
+}
+
 const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
 const formatMoney = (cents, currency = "BRL") => {
   const cur = (currency || "BRL").toUpperCase();
