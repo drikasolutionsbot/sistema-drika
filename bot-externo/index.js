@@ -333,6 +333,11 @@ client.on(Events.ClientReady, async () => {
   // Sync identidade global imediatamente e depois a cada 15 segundos
   await syncBotIdentity(true);
   setInterval(syncBotIdentity, 15_000);
+
+  await restoreCheckoutArchiveTimers();
+  setInterval(() => {
+    require("./handlers/checkout").processDueCheckoutThreadArchives();
+  }, 60_000);
 });
 // ── Ao entrar em um novo servidor, registrar os comandos ──
 client.on(Events.GuildCreate, async (guild) => {
