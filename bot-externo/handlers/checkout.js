@@ -1366,7 +1366,7 @@ async function cancelManual(interaction, tenant, orderId) {
 // ── Copy Delivered ──
 async function copyDelivered(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant?.id, tenant_language: tenant?.language });
   if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
