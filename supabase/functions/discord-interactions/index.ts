@@ -2058,8 +2058,15 @@ serve(async (req: Request) => {
         if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
 
-        // Update order to delivered
-        await supabase.from("orders").update({ status: "delivered", updated_at: new Date().toISOString() }).eq("id", orderId);
+        // Update order to delivered and schedule checkout thread archive
+        await supabase.from("orders").update({
+          status: "delivered",
+          updated_at: new Date().toISOString(),
+          checkout_thread_archive_at: order.checkout_thread_id ? new Date(Date.now() + 120000).toISOString() : null,
+          checkout_thread_archived_at: null,
+          checkout_thread_archive_attempts: 0,
+          checkout_thread_archive_error: null,
+        }).eq("id", orderId);
 
         // Update ticket to delivered
         await supabase

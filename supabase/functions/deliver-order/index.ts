@@ -465,9 +465,19 @@ serve(async (req) => {
 
     // 10. Update order status
     const newStatus = isAutoDelivery && stockItems.length > 0 ? "delivered" : "paid";
+    const shouldArchiveCheckoutThread = !!(checkoutThreadId && isAutoDelivery && stockItems.length > 0);
     await supabase
       .from("orders")
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        ...(shouldArchiveCheckoutThread ? {
+          checkout_thread_archive_at: new Date(Date.now() + 120000).toISOString(),
+          checkout_thread_archived_at: null,
+          checkout_thread_archive_attempts: 0,
+          checkout_thread_archive_error: null,
+        } : {}),
+      })
       .eq("id", order_id)
       .eq("tenant_id", tenant_id);
 
@@ -654,7 +664,7 @@ serve(async (req) => {
       items_delivered: stockItems.length,
       dm_channel_id: dmChannelId,
       checkout_thread_id: checkoutThreadId || null,
-      should_archive: !!(checkoutThreadId && isAutoDelivery && stockItems.length > 0),
+      should_archive: shouldArchiveCheckoutThread,
     };
 
     console.log("deliver-order result:", JSON.stringify(result));

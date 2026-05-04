@@ -498,6 +498,7 @@ export const ptBR = {
     currencyUSD: "🇺🇸 Dólar (USD)",
     currencyEUR: "🇪🇺 Euro (EUR)",
     langDefault: "🌐 Padrão da loja",
+    langPtBR: "🇧🇷 Português (Brasil)",
     langEn: "🇺🇸 English (US)",
     langDe: "🇩🇪 Deutsch",
   },

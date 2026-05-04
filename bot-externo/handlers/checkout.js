@@ -13,21 +13,98 @@ const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
-// Archive checkout thread after delivery (2 min delay, runs on VPS so setTimeout works)
-function scheduleThreadArchive(deliveryResult) {
+const CHECKOUT_THREAD_ARCHIVE_DELAY_MS = 120000;
+const checkoutArchiveTimers = new Map();
+
+async function archiveCheckoutThreadNow(threadId, orderId = null) {
+  try {
+    if (orderId) {
+      await supabase.from("orders").update({
+        checkout_thread_archive_attempts: 1,
+        checkout_thread_archive_error: null,
+      }).eq("id", orderId).is("checkout_thread_archived_at", null);
+    }
+
+    const res = await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true, locked: true }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${body}`.trim());
+    }
+
+    if (orderId) {
+      await supabase.from("orders").update({
+        checkout_thread_archived_at: new Date().toISOString(),
+        checkout_thread_archive_error: null,
+      }).eq("id", orderId);
+    }
+
+    console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
+    return true;
+  } catch (e) {
+    console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message);
+    if (orderId) {
+      try {
+        await supabase.from("orders").update({
+          checkout_thread_archive_error: e.message?.slice(0, 500) || "unknown_error",
+        }).eq("id", orderId);
+      } catch {}
+    }
+    return false;
+  }
+}
+
+// Archive checkout thread after delivery (2 min delay, with DB fallback for cron/worker recovery)
+async function scheduleThreadArchive(deliveryResult) {
   if (!deliveryResult?.should_archive || !deliveryResult?.checkout_thread_id) return;
   const threadId = deliveryResult.checkout_thread_id;
-  console.log(`[ARCHIVE] Scheduling archive for thread ${threadId} in 2 minutes`);
-  setTimeout(async () => {
+  const orderId = deliveryResult.order_id || null;
+  const archiveAt = new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString();
+
+  if (orderId) {
     try {
-      await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: true, locked: true }),
-      });
-      console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
-    } catch (e) { console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message); }
-  }, 120000);
+      await supabase.from("orders").update({
+        checkout_thread_archive_at: archiveAt,
+        checkout_thread_archived_at: null,
+        checkout_thread_archive_attempts: 0,
+        checkout_thread_archive_error: null,
+      }).eq("id", orderId);
+    } catch {}
+  }
+
+  if (checkoutArchiveTimers.has(threadId)) clearTimeout(checkoutArchiveTimers.get(threadId));
+  console.log(`[ARCHIVE] Scheduling archive for thread ${threadId} in 2 minutes`);
+  const timer = setTimeout(async () => {
+    checkoutArchiveTimers.delete(threadId);
+    await archiveCheckoutThreadNow(threadId, orderId);
+  }, CHECKOUT_THREAD_ARCHIVE_DELAY_MS);
+  checkoutArchiveTimers.set(threadId, timer);
+}
+
+async function processDueCheckoutThreadArchives() {
+  try {
+    const { data: dueOrders, error } = await supabase
+      .from("orders")
+      .select("id, checkout_thread_id")
+      .eq("status", "delivered")
+      .not("checkout_thread_id", "is", null)
+      .not("checkout_thread_archive_at", "is", null)
+      .is("checkout_thread_archived_at", null)
+      .lte("checkout_thread_archive_at", new Date().toISOString())
+      .lt("checkout_thread_archive_attempts", 10)
+      .limit(25);
+
+    if (error) throw error;
+    for (const order of dueOrders || []) {
+      if (order.checkout_thread_id) await archiveCheckoutThreadNow(order.checkout_thread_id, order.id);
+    }
+  } catch (e) {
+    console.error("[ARCHIVE] Due checkout archive sweep failed:", e.message);
+  }
 }
 
 const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
@@ -1297,7 +1374,15 @@ async function markDelivered(interaction, tenant, orderId) {
 
   if (!order) return;
 
-  await updateOrderStatus(orderId, "delivered");
+  await updateOrderStatus(orderId, "delivered", {
+    checkout_thread_archive_at: new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString(),
+    checkout_thread_archived_at: null,
+    checkout_thread_archive_attempts: 0,
+    checkout_thread_archive_error: null,
+  });
+  if (order.checkout_thread_id) {
+    await scheduleThreadArchive({ should_archive: true, checkout_thread_id: order.checkout_thread_id, order_id: order.id });
+  }
 
   await sendWithIdentity(interaction.channel, tenant, {
     embeds: [new EmbedBuilder().setTitle(tr(L, "delivery_confirmed_title")).setDescription(trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
@@ -1443,5 +1528,6 @@ module.exports = {
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
   markDelivered, cancelManual, copyDelivered,
+  scheduleThreadArchive, processDueCheckoutThreadArchives,
   viewVariations, viewDetails,
 };
