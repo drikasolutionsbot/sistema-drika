@@ -599,6 +599,7 @@ module.exports = {
   deliverStockItems,
   createOrder,
   getOrder,
+  getDeliveredCheckoutThreadsPendingArchive,
   updateOrderStatus,
   getStoreConfig,
   getCategories,
