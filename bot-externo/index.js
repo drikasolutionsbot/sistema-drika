@@ -9,7 +9,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-const { getTenantByGuild, getGlobalBotConfig, getMasterTenantBanners, autoLinkGuildToPendingTenant } = require("./supabase");
+const { getTenantByGuild, getGlobalBotConfig, getMasterTenantBanners, autoLinkGuildToPendingTenant, getDeliveredCheckoutThreadsPendingArchive } = require("./supabase");
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 
@@ -53,6 +53,25 @@ const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
 const memberRoleUpdateHandler = require("./events/memberRoleUpdate");
 const verificationHandler = require("./handlers/verification");
+
+async function restoreCheckoutArchiveTimers() {
+  try {
+    const checkoutHandler = require("./handlers/checkout");
+    const pendingArchives = await getDeliveredCheckoutThreadsPendingArchive();
+    for (const order of pendingArchives) {
+      const archiveAt = new Date(order.checkout_thread_archive_at).getTime();
+      if (!Number.isFinite(archiveAt)) continue;
+      if (archiveAt <= Date.now()) {
+        await checkoutHandler.processDueCheckoutThreadArchives();
+      } else {
+        checkoutHandler.scheduleThreadArchive({ should_archive: true, checkout_thread_id: order.checkout_thread_id, order_id: order.id });
+      }
+    }
+    console.log(`[ARCHIVE] Restored ${pendingArchives.length} pending checkout archive(s)`);
+  } catch (err) {
+    console.error("[ARCHIVE] Failed to restore pending checkout archives:", err.message);
+  }
+}
 
 // ── Status + identidade global polling ──
 let lastAppliedStatus = null;
