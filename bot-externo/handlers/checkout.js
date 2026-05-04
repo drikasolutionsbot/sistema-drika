@@ -1374,7 +1374,15 @@ async function markDelivered(interaction, tenant, orderId) {
 
   if (!order) return;
 
-  await updateOrderStatus(orderId, "delivered");
+  await updateOrderStatus(orderId, "delivered", {
+    checkout_thread_archive_at: new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString(),
+    checkout_thread_archived_at: null,
+    checkout_thread_archive_attempts: 0,
+    checkout_thread_archive_error: null,
+  });
+  if (order.checkout_thread_id) {
+    await scheduleThreadArchive({ should_archive: true, checkout_thread_id: order.checkout_thread_id, order_id: order.id });
+  }
 
   await sendWithIdentity(interaction.channel, tenant, {
     embeds: [new EmbedBuilder().setTitle(tr(L, "delivery_confirmed_title")).setDescription(trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
