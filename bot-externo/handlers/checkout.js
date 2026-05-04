@@ -1008,6 +1008,10 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
           } catch (e) {
             console.error("[POLLING] Automation trigger error:", e.message);
           }
+          // Schedule thread archive from bot side (edge function can't do setTimeout)
+          if (currentOrder?.checkout_thread_id) {
+            scheduleThreadArchive({ should_archive: true, checkout_thread_id: currentOrder.checkout_thread_id });
+          }
           return; // Stop polling - delivery was triggered by the edge function
         }
       }
