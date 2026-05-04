@@ -429,6 +429,20 @@ async function getOrder(orderId) {
   return data;
 }
 
+async function getDeliveredCheckoutThreadsPendingArchive() {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, checkout_thread_id, checkout_thread_archive_at")
+    .eq("status", "delivered")
+    .not("checkout_thread_id", "is", null)
+    .not("checkout_thread_archive_at", "is", null)
+    .is("checkout_thread_archived_at", null)
+    .lt("checkout_thread_archive_attempts", 10)
+    .limit(100);
+  if (error) throw error;
+  return data || [];
+}
+
 async function updateOrderStatus(orderId, status, extraFields = {}) {
   const { data } = await supabase.from("orders").update({ status, updated_at: new Date().toISOString(), ...extraFields }).eq("id", orderId).select().single();
   return data;
