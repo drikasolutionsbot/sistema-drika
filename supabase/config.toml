@@ -95,6 +95,9 @@ verify_jwt = false
 [functions.deliver-order]
 verify_jwt = false
 
+[functions.archive-checkout-threads]
+verify_jwt = false
+
 [functions.discord-interactions]
 verify_jwt = false
 
