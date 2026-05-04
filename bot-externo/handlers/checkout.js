@@ -13,21 +13,65 @@ const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
-// Archive checkout thread after delivery (2 min delay, runs on VPS so setTimeout works)
-function scheduleThreadArchive(deliveryResult) {
+const CHECKOUT_THREAD_ARCHIVE_DELAY_MS = 120000;
+const checkoutArchiveTimers = new Map();
+
+async function archiveCheckoutThreadNow(threadId, orderId = null) {
+  try {
+    const res = await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true, locked: true }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`${res.status} ${body}`.trim());
+    }
+
+    if (orderId) {
+      await supabase.from("orders").update({
+        checkout_thread_archived_at: new Date().toISOString(),
+        checkout_thread_archive_error: null,
+      }).eq("id", orderId);
+    }
+
+    console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
+    return true;
+  } catch (e) {
+    console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message);
+    if (orderId) {
+      await supabase.from("orders").update({
+        checkout_thread_archive_error: e.message?.slice(0, 500) || "unknown_error",
+      }).eq("id", orderId).catch?.(() => {});
+    }
+    return false;
+  }
+}
+
+// Archive checkout thread after delivery (2 min delay, with DB fallback for cron/worker recovery)
+async function scheduleThreadArchive(deliveryResult) {
   if (!deliveryResult?.should_archive || !deliveryResult?.checkout_thread_id) return;
   const threadId = deliveryResult.checkout_thread_id;
+  const orderId = deliveryResult.order_id || null;
+  const archiveAt = new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString();
+
+  if (orderId) {
+    await supabase.from("orders").update({
+      checkout_thread_archive_at: archiveAt,
+      checkout_thread_archived_at: null,
+      checkout_thread_archive_attempts: 0,
+      checkout_thread_archive_error: null,
+    }).eq("id", orderId).catch?.(() => {});
+  }
+
+  if (checkoutArchiveTimers.has(threadId)) clearTimeout(checkoutArchiveTimers.get(threadId));
   console.log(`[ARCHIVE] Scheduling archive for thread ${threadId} in 2 minutes`);
-  setTimeout(async () => {
-    try {
-      await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: true, locked: true }),
-      });
-      console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
-    } catch (e) { console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message); }
-  }, 120000);
+  const timer = setTimeout(async () => {
+    checkoutArchiveTimers.delete(threadId);
+    await archiveCheckoutThreadNow(threadId, orderId);
+  }, CHECKOUT_THREAD_ARCHIVE_DELAY_MS);
+  checkoutArchiveTimers.set(threadId, timer);
 }
 
 const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
