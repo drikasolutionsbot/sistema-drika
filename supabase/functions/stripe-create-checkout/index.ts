@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 // Stripe Checkout: cria uma sessão de checkout para um order existente.
 // Chamado pelo bot externo quando o produto está configurado para Stripe.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -11,7 +12,7 @@ const corsHeaders = {
 
 const SUPPORTED_CURRENCIES = ["BRL", "USD", "EUR"];
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

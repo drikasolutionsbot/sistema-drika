@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang, optionalLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
@@ -397,12 +398,12 @@ async function addTicketStaffToThread(
     }
   }
 
-  const roleBasedStaffIds = (members || [])
+  const roleBasedStaffIds: string[] = (members || [])
     .filter((m: any) => !m?.user?.bot && m?.user?.id && m.user.id !== openerUserId)
     .filter((m: any) => Array.isArray(m.roles) && m.roles.some((roleId: string) => effectiveStaffRoleIds.has(roleId)))
     .map((m: any) => String(m.user.id));
 
-  const staffMemberIds = Array.from(new Set([...roleBasedStaffIds, ...panelStaffUserIds.filter((id: string) => id && id !== openerUserId)]));
+  const staffMemberIds: string[] = Array.from(new Set([...roleBasedStaffIds, ...panelStaffUserIds.filter((id: string) => id && id !== openerUserId)]));
 
   for (const staffUserId of staffMemberIds) {
     const addRes = await fetch(`${DISCORD_API}/channels/${threadId}/thread-members/${staffUserId}`, {
@@ -415,7 +416,7 @@ async function addTicketStaffToThread(
   console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -2284,8 +2285,9 @@ serve(async (req) => {
           return ok();
         }
 
+        const L = await getTenantLang(supabase, ticket.tenant_id);
         const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
-        const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, "Suporte · transcript");
+        const htmlTranscript = generateHtmlTranscript(L, msgs, serverName, ticketName, `${tr(L, "support")} · transcript`);
 
         // Upload to storage for easy access
         let transcriptUrl: string | null = null;
@@ -2479,6 +2481,10 @@ serve(async (req) => {
       // ─── FEEDBACK BUTTON (legacy): opens rating modal ──────
       if (customId.startsWith("feedback_order:")) {
         const orderId = customId.replace("feedback_order:", "");
+        
+        // Fetch order to get tenant_id for language
+        const { data: fbOrder } = await supabase.from("orders").select("tenant_id").eq("id", orderId).single();
+        const L = fbOrder ? await getTenantLang(supabase, fbOrder.tenant_id) : "en";
 
         const { data: existingFb } = await supabase
           .from("order_feedbacks")
