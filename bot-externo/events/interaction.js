@@ -24,6 +24,11 @@ module.exports = async function handleInteraction(client, interaction) {
         const [, orderId, rating] = cid.split(":");
         return feedbackHandler.rateFeedback(interaction, orderId, rating);
       }
+      // copy_delivered button sent in DM — no tenant needed, order has tenant_id
+      if (cid.startsWith("copy_delivered:")) {
+        const orderId = cid.replace("copy_delivered:", "");
+        return checkoutHandler.copyDelivered(interaction, null, orderId);
+      }
     }
     if (interaction.isModalSubmit() && interaction.customId.startsWith("feedback_modal:")) {
       const [, orderId, rating] = interaction.customId.split(":");
