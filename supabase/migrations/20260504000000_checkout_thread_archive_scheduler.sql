@@ -21,7 +21,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url:='https://krudxivcuygykoswjbbx.supabase.co/functions/v1/archive-checkout-threads',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer "}'::jsonb,
+    headers:='{"Content-Type": "application/json"}'::jsonb,
     body:='{}'::jsonb
   ) AS request_id;
   $$
