@@ -21,6 +21,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
 import { GatewayTutorialDialog } from "@/components/payments/GatewayTutorialDialog";
 import { GraduationCap } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
+import type { TranslationKeys } from "@/i18n/translations/pt-BR";
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
 
@@ -41,7 +43,7 @@ async function invokeWithRetry(fnName: string, body: any, retries = 2): Promise<
   }
 }
 
-const providers = [
+const buildProviders = (t: TranslationKeys) => [
   {
     key: "mercadopago",
     name: "Mercado Pago",
@@ -60,10 +62,10 @@ const providers = [
     iconUrl: stripeIcon,
     docsUrl: "https://dashboard.stripe.com/apikeys",
     fields: [
-      { key: "api_key", label: "Secret Key", placeholder: "sk_test_... ou sk_live_..." },
-      { key: "secret_key", label: "Signing Secret (Webhook)", placeholder: "whsec_..." },
+      { key: "api_key", label: "Secret Key", placeholder: t.paymentsPage.stripeSecretPlaceholder },
+      { key: "secret_key", label: "Signing Secret (Webhook)", placeholder: t.paymentsPage.stripeWebhookPlaceholder },
     ],
-    instructions: "Em Desenvolvedores > Chaves de API, copie a Secret Key. Depois, em Webhooks > Adicionar destino, cole a URL abaixo e copie o Signing Secret.",
+    instructions: t.paymentsPage.stripeInstructions,
     isStripe: true,
   },
   {
@@ -130,6 +132,8 @@ interface PaymentProvider {
 const PaymentsPage = () => {
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
+  const providers = buildProviders(t);
 
   const { data: configs = [], isLoading } = useQuery<PaymentProvider[]>({
     queryKey: ["payment-providers", tenantId],
@@ -180,10 +184,10 @@ const PaymentsPage = () => {
       const data = await invokeWithRetry("manage-payment-providers", payload);
       if (data?.error) throw new Error(data.error);
       refetch();
-      toast({ title: "Provedor salvo e ativado!" });
+      toast({ title: t.paymentsPage.providerSaved });
     } catch (err: any) {
       console.error("Erro ao salvar provedor:", err);
-      toast({ title: "Erro ao salvar provedor", description: err.message, variant: "destructive" });
+      toast({ title: t.paymentsPage.errorSaving, description: err.message, variant: "destructive" });
     }
   };
 
@@ -205,15 +209,15 @@ const PaymentsPage = () => {
       queryClient.setQueryData(["payment-providers", tenantId], (old: PaymentProvider[] | undefined) =>
         (old || []).map(p => p.id === providerId ? { ...p, active: currentActive } : p)
       );
-      toast({ title: "Erro ao alternar provedor", description: err.message, variant: "destructive" });
+      toast({ title: t.paymentsPage.errorToggling, description: err.message, variant: "destructive" });
     }
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-display text-2xl font-bold">Pagamentos</h1>
-        <p className="text-muted-foreground">Configure seus provedores de pagamento — PIX e Cartão (Stripe) — em tempo real.</p>
+        <h1 className="font-display text-2xl font-bold">{t.paymentsPage.title}</h1>
+        <p className="text-muted-foreground">{t.paymentsPage.description}</p>
       </div>
 
       {isLoading ? (
@@ -255,8 +259,10 @@ const PaymentsPage = () => {
   );
 };
 
+type ProviderItem = ReturnType<typeof buildProviders>[number];
+
 interface ProviderFormProps {
-  provider: typeof providers[0];
+  provider: ProviderItem;
   config?: PaymentProvider;
   tenantId: string | null;
   onSave: (key: string, api: string, secret: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string }) => void;
@@ -264,6 +270,7 @@ interface ProviderFormProps {
 }
 
 const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: ProviderFormProps) => {
+  const { t } = useLanguage();
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -304,7 +311,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
     } catch {
       setFormState(serverState);
     }
-    setCertFileName(config?.efi_cert_pem ? "Certificado carregado ✓" : null);
+    setCertFileName(config?.efi_cert_pem ? t.paymentsPage.certLoaded : null);
     setTestResult(null);
   }, [tenantId, config?.id]);
 
@@ -344,11 +351,11 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
     ? (provider.key === "stripe"
         ? `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/stripe-webhook`
         : `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/payment-webhook/${provider.key}/${tenantId}`)
-    : "Configure o tenant primeiro";
+    : t.paymentsPage.tenantNotConfigured;
 
   const copyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
-    toast({ title: "Webhook URL copiada!" });
+    toast({ title: t.paymentsPage.copyWebhook });
   };
 
   const handleP12Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -377,10 +384,10 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
       setEfiCertPem(forge.pki.certificateToPem(cert));
       setEfiKeyPem(forge.pki.privateKeyToPem(key));
       setCertFileName(file.name);
-      toast({ title: "Certificado carregado!", description: `${file.name} convertido com sucesso` });
+      toast({ title: t.paymentsPage.certLoadedTitle, description: t.paymentsPage.certLoadedDesc.replace("{name}", file.name) });
     } catch (err: any) {
       console.error("P12 parse error:", err);
-      toast({ title: "Erro ao ler certificado", description: err.message, variant: "destructive" });
+      toast({ title: t.paymentsPage.certError, description: err.message, variant: "destructive" });
     }
   };
 
@@ -398,11 +405,11 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
       if (data?.success) {
         toast({ title: data.message });
       } else {
-        toast({ title: data?.message || "Falha na validação", variant: "destructive" });
+        toast({ title: data?.message || t.paymentsPage.validationFailed, variant: "destructive" });
       }
     } catch (err: any) {
-      setTestResult({ success: false, message: err.message || "Erro na conexão" });
-      toast({ title: "Erro ao testar", variant: "destructive" });
+      setTestResult({ success: false, message: err.message || t.paymentsPage.connectionError });
+      toast({ title: t.paymentsPage.testError, variant: "destructive" });
     } finally {
       setTesting(false);
     }
@@ -442,7 +449,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           {config && (
             <>
               <Badge variant={config.active ? "default" : "secondary"}>
-                {config.active ? "Ativo" : "Inativo"}
+                {config.active ? t.paymentsPage.active : t.paymentsPage.inactive}
               </Badge>
               <Switch checked={config.active} onCheckedChange={() => onToggle(config.id, config.active)} />
             </>
@@ -513,16 +520,16 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
         <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span className="text-sm font-semibold text-foreground">Configuração PIX (Efí)</span>
+            <span className="text-sm font-semibold text-foreground">{t.paymentsPage.pixConfig}</span>
           </div>
 
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Key className="h-3.5 w-3.5 text-muted-foreground" />
-              Chave PIX (cadastrada na Efí)
+              {t.paymentsPage.pixKey}
             </Label>
             <Input
-              placeholder="email@exemplo.com, CPF, CNPJ ou chave aleatória"
+              placeholder={t.paymentsPage.pixKeyPlaceholder}
               value={efiPixKey}
               onChange={e => setEfiPixKey(e.target.value)}
               className="bg-muted border-none font-mono text-sm"
@@ -532,10 +539,10 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-              Certificado mTLS (.p12)
+              {t.paymentsPage.certLabel}
             </Label>
             <p className="text-xs text-muted-foreground">
-              Faça o download do certificado de produção no painel Efí (API &gt; Meus Certificados) e envie aqui. O arquivo <code className="text-primary">.p12</code> será convertido automaticamente.
+              {t.paymentsPage.certDesc}
             </p>
             <div className="flex items-center gap-3">
               <label className="flex-1 cursor-pointer">
@@ -550,7 +557,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
                   ) : (
                     <>
                       <Upload className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Clique para enviar o certificado .p12</span>
+                      <span className="text-sm text-muted-foreground">{t.paymentsPage.clickToUploadCert}</span>
                     </>
                   )}
                 </div>
@@ -584,7 +591,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
       <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <Zap className="h-3.5 w-3.5 text-primary" />
-          Webhook URL
+          {t.paymentsPage.webhookUrlLabel}
         </Label>
         <div className="flex gap-2">
           <Input
@@ -593,12 +600,12 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
             className="bg-muted border-none font-mono text-xs"
           />
           <Button variant="outline" size="sm" onClick={copyWebhook}>
-            <Copy className="h-3.5 w-3.5 mr-1.5" /> Copiar
+            <Copy className="h-3.5 w-3.5 mr-1.5" /> {t.paymentsPage.copy}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground flex items-center gap-1">
           <AlertCircle className="h-3 w-3" />
-          Cole essa URL no painel do {provider.name} para receber notificações de pagamento automaticamente
+          {t.paymentsPage.webhookHint.replace("{name}", provider.name)}
         </p>
       </div>
 
@@ -610,7 +617,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           disabled={testing || !apiKey}
         >
           {testing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
-          Testar Conexão
+          {t.paymentsPage.testConnection}
         </Button>
         <Button
           className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -618,7 +625,7 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           disabled={saving || !apiKey}
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-          Salvar e Ativar
+          {t.paymentsPage.saveAndActivate}
         </Button>
       </div>
 

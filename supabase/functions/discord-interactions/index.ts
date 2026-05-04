@@ -3182,8 +3182,8 @@ async function generatePixInThread(
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         embeds: [{
-          title: "❌ Gateway incompatível",
-          description: `${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`,
+          title: tr(L, "gateway_incompatible"),
+          description: trf(L, "stripe_only_error", { amount: formatMoney(priceCents, orderCurrency) }),
           color: 0xED4245,
         }],
       }),
@@ -3211,15 +3211,15 @@ async function generatePixInThread(
 
       const stripeEmbed = {
         author: { name: order.discord_username || userId },
-        title: "💳 Pagamento via Cartão",
+        title: tr(L, "stripe_payment_title"),
         description: [
-          `**Produto:** \`${orderName}\``,
-          `**Valor:** \`${formatMoney(priceCents, stripeCurrency)}\``,
+          `**${tr(L, "product_label")}:** \`${orderName}\``,
+          `**${tr(L, "value_label")}:** \`${formatMoney(priceCents, stripeCurrency)}\``,
           "",
-          "🔒 Ambiente seguro processado pela **Stripe**.",
-          "Clique no botão abaixo para abrir o checkout e finalizar o pagamento com seu cartão.",
+          tr(L, "stripe_secure_notice"),
+          tr(L, "stripe_payment_instruction"),
           "",
-          "_O pedido será confirmado automaticamente após a aprovação do pagamento._",
+          tr(L, "stripe_auto_confirm_notice"),
         ].join("\n"),
         color: 0x2B2D31,
       };
@@ -3230,7 +3230,7 @@ async function generatePixInThread(
         body: JSON.stringify({
           embeds: [stripeEmbed],
           components: [{ type: 1, components: [
-            { type: 2, style: 5, label: "💳 Pagar com Cartão", url: checkoutUrl },
+            { type: 2, style: 5, label: tr(L, "pay_with_card"), url: checkoutUrl },
             { type: 2, style: 4, label: tr(L, "cancel"), custom_id: `checkout_cancel:${order.id}` },
           ] }],
         }),
@@ -3242,7 +3242,7 @@ async function generatePixInThread(
         fields: [
           { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, stripeCurrency)}\``, inline: false },
           { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-          { name: `**${tr(L, "payment_method_label")}**`, value: "`💳 Stripe (Cartão)`", inline: false },
+          { name: `**${tr(L, "payment_method_label")}**`, value: `\`${tr(L, "stripe_card_label")}\``, inline: false },
         ],
       });
       return;
@@ -3473,21 +3473,22 @@ async function editFollowup(interaction: any, botToken: string, content: string 
 }
 
 // ─── HTML Transcript Generator ──────────────────────────────
-function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: string, status: string): string {
+function generateHtmlTranscript(lang: string, msgs: any[], serverName: string, ticketName: string, status: string): string {
   const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const now = new Date().toLocaleString("pt-BR");
+  const dateLocale = lang === "pt-BR" ? "pt-BR" : (lang === "de" ? "de-DE" : "en-US");
+  const now = new Date().toLocaleString(dateLocale);
 
   let rows = "";
   for (const m of msgs) {
-    const ts = new Date(m.timestamp).toLocaleString("pt-BR");
-    const author = m.author?.username || "Desconhecido";
+    const ts = new Date(m.timestamp).toLocaleString(dateLocale);
+    const author = m.author?.username || tr(lang, "unknown");
     const avatar = m.author?.avatar
       ? `https://cdn.discordapp.com/avatars/${m.author.id}/${m.author.avatar}.png?size=40`
       : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.author?.id || "0") >> 22) % 6}.png`;
     let content = escHtml(m.content || "");
     if (!content && m.embeds?.length) content = "<em>[embed]</em>";
     if (!content && m.attachments?.length) content = m.attachments.map((a: any) => `<a href="${escHtml(a.url)}">${escHtml(a.filename)}</a>`).join(", ");
-    if (!content) content = "<em>[sem conteúdo]</em>";
+    if (!content) content = `<em>${tr(lang, "no_content")}</em>`;
 
     // Convert Discord mentions
     content = content.replace(/&lt;@!?(\d+)&gt;/g, '<span style="color:#7289da;font-weight:600">@user</span>');
@@ -3520,10 +3521,10 @@ function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: str
 <body>
   <div class="header">
     <h1>${escHtml(serverName)} — Transcript</h1>
-    <p>${escHtml(ticketName)} · ${escHtml(status)} · Gerado em ${now}</p>
+    <p>${escHtml(ticketName)} · ${escHtml(status)} · ${tr(lang, "generated_at")} ${now}</p>
   </div>
   <div class="messages">${rows}</div>
-  <div class="footer">Transcript gerado automaticamente por Drika Hub</div>
+  <div class="footer">${tr(lang, "auto_generated_by")}</div>
 </body>
 </html>`;
 }
@@ -3560,28 +3561,28 @@ async function sendTicketLog(
   }
 
   const closedAt = new Date();
-  const closedTs = Math.floor(closedAt.getTime() / 1000);
+  const L = await getTenantLang(supabase, ticket.tenant_id);
   const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
-  const statusLabel = action === "deleted" ? "Deletado" : "Fechado";
+  const statusLabel = action === "deleted" ? tr(L, "deleted") : tr(L, "closed");
 
   // Generate HTML transcript
   const htmlTranscript = msgs.length > 0
-    ? generateHtmlTranscript(msgs, serverName, ticketName, `Suporte · ${statusLabel.toLowerCase()} esperando resposta...`)
+    ? generateHtmlTranscript(L, msgs, serverName, ticketName, `${tr(L, "support")} · ${statusLabel.toLowerCase()}...`)
     : "";
 
   if (sc?.ticket_logs_channel_id) {
     // Compact log embed matching reference style
     const logEmbed: any = {
-      title: `Ticket - ${statusLabel}`,
+      title: `${tr(L, "order_label")} - ${statusLabel}`,
       color: action === "deleted" ? 0xED4245 : 0x2B2D31,
       fields: [
-        { name: "👤 Moderador", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: false },
+        { name: tr(L, "moderator_label"), value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: false },
       ],
       timestamp: closedAt.toISOString(),
     };
 
     if (ticket.product_name) {
-      logEmbed.fields.push({ name: "📦 Produto", value: ticket.product_name, inline: false });
+      logEmbed.fields.push({ name: `📦 ${tr(L, "product_label")}`, value: ticket.product_name, inline: false });
     }
 
     // Send embed + transcript as single message with button
@@ -3621,7 +3622,7 @@ async function sendTicketLog(
           components: [{
             type: 2,
             style: 5,
-            label: "Ver transcript",
+            label: tr(L, "view_transcript"),
             emoji: { name: "📜" },
             url: transcriptUrl,
           }],
@@ -3633,7 +3634,7 @@ async function sendTicketLog(
           components: [{
             type: 2,
             style: 2,
-            label: "Ver transcript",
+            label: tr(L, "view_transcript"),
             emoji: { name: "📜" },
             custom_id: `transcript_view_${ticket.id}`,
           }],
@@ -3670,7 +3671,7 @@ async function sendTicketLog(
       const dmBlob = new Blob([htmlTranscript], { type: "text/html" });
       dmFormData.append("files[0]", dmBlob, `transcript-${ticket.id.slice(0, 8)}.html`);
       dmFormData.append("payload_json", JSON.stringify({
-        content: "📜 Aqui está o transcript do seu ticket encerrado.",
+        content: tr(L, "dm_transcript_msg"),
       }));
 
       await fetch(`${DISCORD_API}/channels/${dmCh.id}/messages`, {

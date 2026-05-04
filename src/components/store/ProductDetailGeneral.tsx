@@ -8,21 +8,7 @@ import { List, Zap, Shield, Wallet, Languages } from "lucide-react";
 import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-
-const PROVIDER_LABELS: Record<string, string> = {
-  pushinpay: "PushinPay",
-  efi: "Efí (Gerencianet)",
-  abacatepay: "AbacatePay",
-  mercadopago: "Mercado Pago",
-  misticpay: "MisticPay",
-  stripe: "Stripe (Cartão)",
-};
-
-const CURRENCIES: { value: string; label: string }[] = [
-  { value: "BRL", label: "🇧🇷 Real (BRL)" },
-  { value: "USD", label: "🇺🇸 Dólar (USD)" },
-  { value: "EUR", label: "🇪🇺 Euro (EUR)" },
-];
+import { useLanguage } from "@/i18n/LanguageContext";
 
 interface Category {
   id: string;
@@ -62,6 +48,7 @@ interface ProductDetailGeneralProps {
 const CURRENCY_SYMBOLS: Record<string, string> = { BRL: "R$", USD: "$", EUR: "€" };
 
 const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: Partial<Product>) => void }) => {
+  const { t } = useLanguage();
   const symbol = CURRENCY_SYMBOLS[product.currency || "BRL"] || product.currency || "R$";
   const centsToStr = (c?: number | null) =>
     c == null || c === 0 ? "" : (c / 100).toString().replace(".", ",");
@@ -88,12 +75,12 @@ const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: P
 
   return (
     <section className="space-y-5">
-      <h3 className="text-base font-bold text-foreground">Preço</h3>
-      <p className="text-xs text-muted-foreground">Valor exibido no embed do produto. Não afeta variações.</p>
+      <h3 className="text-base font-bold text-foreground">{t.productGeneral.price}</h3>
+      <p className="text-xs text-muted-foreground">{t.productGeneral.priceDesc}</p>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-sm font-bold">Preço ({symbol})</Label>
+          <Label className="text-sm font-bold">{t.productGeneral.priceLabel.replace("{symbol}", symbol)}</Label>
           <Input
             type="text"
             inputMode="decimal"
@@ -109,7 +96,7 @@ const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: P
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-sm font-bold">Preço Comparativo ({symbol})</Label>
+          <Label className="text-sm font-bold">{t.productGeneral.comparePrice.replace("{symbol}", symbol)}</Label>
           <Input
             type="text"
             inputMode="decimal"
@@ -120,7 +107,7 @@ const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: P
               const cents = parseToCents(v);
               onChange({ compare_price_cents: cents });
             }}
-            placeholder="Opcional"
+            placeholder={t.productGeneral.comparePricePlaceholder}
             className="bg-muted border-border"
           />
         </div>
@@ -131,8 +118,18 @@ const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: P
 
 export const ProductDetailGeneral = ({ product, onChange, categories = [] }: ProductDetailGeneralProps) => {
   const { tenantId } = useTenant();
+  const { t } = useLanguage();
   const { roles, loading: rolesLoading } = useDiscordRoles();
   const [activeProviders, setActiveProviders] = useState<string[]>([]);
+
+  const PROVIDER_LABELS: Record<string, string> = {
+    pushinpay: t.gatewayNames.pushinpay,
+    efi: t.gatewayNames.efi,
+    abacatepay: t.gatewayNames.abacatepay,
+    mercadopago: t.gatewayNames.mercadopago,
+    misticpay: t.gatewayNames.misticpay,
+    stripe: t.gatewayNames.stripe,
+  };
   const nameMaxLen = 256;
   const descMaxLen = 4096;
 
@@ -158,13 +155,13 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
 
   return (
     <div className="space-y-8">
-      {/* Section: Informações Básicas */}
+      {/* Section: Basic Info */}
       <section className="space-y-5">
-        <h3 className="text-base font-bold text-foreground">Informações Básicas</h3>
+        <h3 className="text-base font-bold text-foreground">{t.productGeneral.basicInfo}</h3>
 
         <div className="space-y-2">
           <Label className="text-sm font-bold">
-            Nome do Produto{" "}
+            {t.productGeneral.productName}{" "}
             <span className="font-normal text-muted-foreground">
               ({(product.name || "").length}/{nameMaxLen})
             </span>
@@ -180,7 +177,7 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
 
         <div className="space-y-2">
           <Label className="text-sm font-bold">
-            Descrição{" "}
+            {t.productGeneral.description}{" "}
             <span className="font-normal text-muted-foreground">
               ({(product.description || "").length}/{descMaxLen})
             </span>
@@ -190,20 +187,20 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             onChange={(e) => {
               if (e.target.value.length <= descMaxLen) onChange({ description: e.target.value });
             }}
-            placeholder="Digite a descrição do produto..."
+            placeholder={t.productGeneral.descriptionPlaceholder}
             className="bg-muted border-border min-h-[140px] resize-y"
           />
         </div>
       </section>
 
-      {/* Section: Preço */}
+      {/* Section: Price */}
       <PriceSection product={product} onChange={onChange} />
 
-      {/* Section: Tipo de Entrega */}
+      {/* Section: Delivery Type */}
       <section className="space-y-3">
         <div>
-          <p className="text-sm font-bold">Tipo de Entrega</p>
-          <p className="text-xs text-muted-foreground">Escolha entre entrega manual ou automática</p>
+          <p className="text-sm font-bold">{t.productGeneral.deliveryType}</p>
+          <p className="text-xs text-muted-foreground">{t.productGeneral.deliveryTypeDesc}</p>
         </div>
         <div className="flex gap-2">
           {/* Manual */}
@@ -217,10 +214,10 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             }`}
           >
             <List className="h-5 w-5 text-foreground" />
-            <span className="text-xs font-semibold text-foreground">Manual</span>
+            <span className="text-xs font-semibold text-foreground">{t.productGeneral.manual}</span>
           </button>
 
-          {/* Automática */}
+          {/* Automatic */}
           <button
             type="button"
             onClick={() => onChange({ auto_delivery: true })}
@@ -231,29 +228,29 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             }`}
           >
             <Zap className="h-5 w-5 text-foreground" />
-            <span className="text-xs font-semibold text-foreground">Automática</span>
+            <span className="text-xs font-semibold text-foreground">{t.productGeneral.automatic}</span>
           </button>
         </div>
       </section>
 
-      {/* Section: Cargo ao Comprar */}
+      {/* Section: Role on Purchase */}
       <section className="space-y-3">
         <div>
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-foreground" />
-            <p className="text-sm font-bold">Cargo ao Comprar</p>
+            <p className="text-sm font-bold">{t.productGeneral.roleOnPurchase}</p>
           </div>
-          <p className="text-xs text-muted-foreground">Cargo do Discord que o cliente recebe automaticamente ao comprar este produto</p>
+          <p className="text-xs text-muted-foreground">{t.productGeneral.roleOnPurchaseDesc}</p>
         </div>
         <Select
           value={product.role_id || "none"}
           onValueChange={(val) => onChange({ role_id: val === "none" ? null : val })}
         >
           <SelectTrigger className="bg-muted border-border w-full max-w-sm">
-            <SelectValue placeholder="Nenhum cargo" />
+            <SelectValue placeholder={t.productGeneral.noRole} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Nenhum cargo</SelectItem>
+            <SelectItem value="none">{t.productGeneral.noRole}</SelectItem>
             {roles.map((role) => (
               <SelectItem key={role.id} value={role.id}>
                 <span className="flex items-center gap-2">
@@ -269,15 +266,15 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
         </Select>
       </section>
 
-      {/* Section: Gateway de Pagamento */}
+      {/* Section: Payment Gateway */}
       <section className="space-y-3">
         <div>
           <div className="flex items-center gap-2">
             <Wallet className="h-4 w-4 text-foreground" />
-            <p className="text-sm font-bold">Gateway de Pagamento</p>
+            <p className="text-sm font-bold">{t.productGeneral.paymentGateway}</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Escolha por qual gateway este produto será cobrado. Deixe em "Padrão" para usar o gateway principal da loja.
+            {t.productGeneral.paymentGatewayDesc}
           </p>
         </div>
         <Select
@@ -285,10 +282,10 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
           onValueChange={(val) => onChange({ payment_provider_key: val === "default" ? null : val })}
         >
           <SelectTrigger className="bg-muted border-border w-full max-w-sm">
-            <SelectValue placeholder="Padrão da loja" />
+            <SelectValue placeholder={t.productGeneral.storeDefault} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="default">Padrão da loja</SelectItem>
+            <SelectItem value="default">{t.productGeneral.storeDefault}</SelectItem>
             {activeProviders.map((key) => (
               <SelectItem key={key} value={key}>
                 {PROVIDER_LABELS[key] || key}
@@ -298,20 +295,20 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
         </Select>
         {activeProviders.length === 0 && (
           <p className="text-xs text-muted-foreground italic">
-            Nenhum gateway ativo. Configure em Pagamentos.
+            {t.productGeneral.noActiveGateway}
           </p>
         )}
       </section>
 
-      {/* Section: Moeda do Produto */}
+      {/* Section: Currency */}
       <section className="space-y-3">
         <div>
           <div className="flex items-center gap-2">
             <Wallet className="h-4 w-4 text-foreground" />
-            <p className="text-sm font-bold">Moeda</p>
+            <p className="text-sm font-bold">{t.productGeneral.currency}</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Selecione a moeda de cobrança. <strong>Real (BRL)</strong> funciona em todos os gateways. <strong>Dólar (USD)</strong> e <strong>Euro (EUR)</strong> funcionam apenas com <strong>Stripe (Cartão)</strong>.
+            {t.productGeneral.currencyDesc}
           </p>
         </div>
         <Select
@@ -319,27 +316,25 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
           onValueChange={(val) => onChange({ currency: val })}
         >
           <SelectTrigger className="bg-muted border-border w-full max-w-sm">
-            <SelectValue placeholder="Real (BRL)" />
+            <SelectValue placeholder={t.productGeneral.currencyBRL} />
           </SelectTrigger>
           <SelectContent>
-            {CURRENCIES.map((c) => (
-              <SelectItem key={c.value} value={c.value}>
-                {c.label}
-              </SelectItem>
-            ))}
+            <SelectItem value="BRL">{t.productGeneral.currencyBRL}</SelectItem>
+            <SelectItem value="USD">{t.productGeneral.currencyUSD}</SelectItem>
+            <SelectItem value="EUR">{t.productGeneral.currencyEUR}</SelectItem>
           </SelectContent>
         </Select>
       </section>
 
-      {/* Section: Idioma do Produto */}
+      {/* Section: Product Language */}
       <section className="space-y-3">
         <div>
           <div className="flex items-center gap-2">
             <Languages className="h-4 w-4 text-foreground" />
-            <p className="text-sm font-bold">Idioma do Produto</p>
+            <p className="text-sm font-bold">{t.productGeneral.productLanguage}</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Define o idioma de TODAS as mensagens enviadas ao cliente deste produto (embed na loja, DMs de pagamento, entrega, feedback). Deixe em "Padrão da loja" para usar o idioma global.
+            {t.productGeneral.productLanguageDesc}
           </p>
         </div>
         <Select
@@ -347,25 +342,25 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
           onValueChange={(val) => onChange({ language: val === "default" ? null : val })}
         >
           <SelectTrigger className="bg-muted border-border w-full max-w-sm">
-            <SelectValue placeholder="Padrão da loja" />
+            <SelectValue placeholder={t.productGeneral.langDefault} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="default">🌐 Padrão da loja</SelectItem>
-            <SelectItem value="pt-BR">🇧🇷 Português (Brasil)</SelectItem>
-            <SelectItem value="en">🇺🇸 English (US)</SelectItem>
-            <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
+            <SelectItem value="default">{t.productGeneral.langDefault}</SelectItem>
+            <SelectItem value="pt-BR">{t.productGeneral.langPtBR}</SelectItem>
+            <SelectItem value="en">{t.productGeneral.langEn}</SelectItem>
+            <SelectItem value="de">{t.productGeneral.langDe}</SelectItem>
           </SelectContent>
         </Select>
       </section>
 
-      {/* Section: Imagens */}
+      {/* Section: Images */}
       <section className="space-y-5">
-        <h3 className="text-base font-bold text-foreground">Imagens</h3>
+        <h3 className="text-base font-bold text-foreground">{t.productGeneral.images}</h3>
 
         {tenantId && (
           <div className="space-y-6">
             <ProductImageUpload
-              label="Ícone do Produto"
+              label={t.productGeneral.productIcon}
               hint=""
               currentUrl={product.icon_url || null}
               onUploaded={(url) => onChange({ icon_url: url })}
@@ -376,7 +371,7 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             />
 
             <ProductImageUpload
-              label="Banner do Produto"
+              label={t.productGeneral.productBanner}
               hint=""
               currentUrl={product.banner_url || null}
               onUploaded={(url) => onChange({ banner_url: url })}

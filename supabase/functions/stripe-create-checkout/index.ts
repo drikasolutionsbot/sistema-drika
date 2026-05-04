@@ -34,16 +34,21 @@ serve(async (req) => {
       .single();
     if (orderErr || !order) throw new Error("Order not found");
 
-    // Carrega produto p/ pegar moeda
+    // Carrega produto p/ pegar moeda e idioma
     let currency = "BRL";
+    let language = "pt-BR";
     if (order.product_id) {
       const { data: prod } = await supabase
         .from("products")
-        .select("currency")
+        .select("currency, language")
         .eq("id", order.product_id)
         .single();
+      
       if (prod?.currency && SUPPORTED_CURRENCIES.includes(prod.currency)) {
         currency = prod.currency;
+      }
+      if (prod?.language) {
+        language = prod.language;
       }
     }
 
@@ -55,17 +60,27 @@ serve(async (req) => {
       .eq("provider_key", "stripe")
       .maybeSingle();
     if (provErr) throw provErr;
-    if (!provider || !provider.active) throw new Error("Stripe não configurado/ativo para este tenant");
+    if (!provider || !provider.active) throw new Error("Stripe not configured or inactive for this tenant");
 
     const stripeSecretKey = provider.api_key_encrypted;
-    if (!stripeSecretKey) throw new Error("Stripe Secret Key ausente");
+    if (!stripeSecretKey) throw new Error("Stripe Secret Key missing");
+
+    // Mapeia idioma para locale do Stripe
+    let stripeLocale = "auto";
+    if (language === "pt-BR") stripeLocale = "pt-BR";
+    else if (language === "en") stripeLocale = "en";
+    else if (language === "de") stripeLocale = "de";
+
+    // Tradução básica para fallback
+    const fallbackName = language === "en" ? "Order" : (language === "de" ? "Bestellung" : "Pedido");
 
     // Cria Checkout Session via REST API da Stripe (form-encoded)
     const params = new URLSearchParams();
     params.append("mode", "payment");
     params.append("payment_method_types[]", "card");
+    params.append("locale", stripeLocale);
     params.append("line_items[0][price_data][currency]", currency.toLowerCase());
-    params.append("line_items[0][price_data][product_data][name]", order.product_name || "Pedido");
+    params.append("line_items[0][price_data][product_data][name]", order.product_name || fallbackName);
     params.append("line_items[0][price_data][unit_amount]", String(order.total_cents));
     params.append("line_items[0][quantity]", "1");
     params.append("client_reference_id", order.id);
