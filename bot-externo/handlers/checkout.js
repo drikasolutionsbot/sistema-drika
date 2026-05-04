@@ -1520,5 +1520,6 @@ module.exports = {
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
   markDelivered, cancelManual, copyDelivered,
+  scheduleThreadArchive, processDueCheckoutThreadArchives,
   viewVariations, viewDetails,
 };
