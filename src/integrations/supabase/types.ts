@@ -999,6 +999,10 @@ export type Database = {
       orders: {
         Row: {
           affiliate_id: string | null
+          checkout_thread_archive_at: string | null
+          checkout_thread_archive_attempts: number
+          checkout_thread_archive_error: string | null
+          checkout_thread_archived_at: string | null
           checkout_thread_id: string | null
           coupon_id: string | null
           created_at: string
@@ -1020,6 +1024,10 @@ export type Database = {
         }
         Insert: {
           affiliate_id?: string | null
+          checkout_thread_archive_at?: string | null
+          checkout_thread_archive_attempts?: number
+          checkout_thread_archive_error?: string | null
+          checkout_thread_archived_at?: string | null
           checkout_thread_id?: string | null
           coupon_id?: string | null
           created_at?: string
@@ -1041,6 +1049,10 @@ export type Database = {
         }
         Update: {
           affiliate_id?: string | null
+          checkout_thread_archive_at?: string | null
+          checkout_thread_archive_attempts?: number
+          checkout_thread_archive_error?: string | null
+          checkout_thread_archived_at?: string | null
           checkout_thread_id?: string | null
           coupon_id?: string | null
           created_at?: string
