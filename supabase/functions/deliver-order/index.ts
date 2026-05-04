@@ -404,16 +404,7 @@ serve(async (req) => {
         });
       } catch {}
 
-      // Archive after 2 minutes
-      setTimeout(async () => {
-        try {
-          await fetch(`${DISCORD_API}/channels/${checkoutThreadId}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ archived: true, locked: true }),
-          });
-        } catch {}
-      }, 120000);
+      // NOTE: archiving is handled by the VPS bot via setTimeout after this function returns
     } else if (checkoutThreadId && (!isAutoDelivery || (isAutoDelivery && stockItems.length === 0))) {
       // Manual delivery OR auto-delivery with no stock: keep thread open with staff notification
       const isOutOfStock = isAutoDelivery && stockItems.length === 0;
@@ -662,6 +653,8 @@ serve(async (req) => {
       delivery_type: isAutoDelivery ? "automatic" : "manual",
       items_delivered: stockItems.length,
       dm_channel_id: dmChannelId,
+      checkout_thread_id: checkoutThreadId || null,
+      should_archive: !!(checkoutThreadId && isAutoDelivery && stockItems.length > 0),
     };
 
     console.log("deliver-order result:", JSON.stringify(result));
