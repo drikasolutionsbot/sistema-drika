@@ -474,7 +474,8 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   // ── Free product: deliver immediately ──
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
-    await deliverOrder(order.id, tenant.id);
+    const freeDeliveryResult = await deliverOrder(order.id, tenant.id);
+    scheduleThreadArchive(freeDeliveryResult);
     return interaction.editReply({ content: trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }) });
   }
 
