@@ -18,6 +18,13 @@ const checkoutArchiveTimers = new Map();
 
 async function archiveCheckoutThreadNow(threadId, orderId = null) {
   try {
+    if (orderId) {
+      await supabase.from("orders").update({
+        checkout_thread_archive_attempts: 1,
+        checkout_thread_archive_error: null,
+      }).eq("id", orderId).is("checkout_thread_archived_at", null);
+    }
+
     const res = await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
       method: "PATCH",
       headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
@@ -41,9 +48,11 @@ async function archiveCheckoutThreadNow(threadId, orderId = null) {
   } catch (e) {
     console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message);
     if (orderId) {
-      await supabase.from("orders").update({
-        checkout_thread_archive_error: e.message?.slice(0, 500) || "unknown_error",
-      }).eq("id", orderId).catch?.(() => {});
+      try {
+        await supabase.from("orders").update({
+          checkout_thread_archive_error: e.message?.slice(0, 500) || "unknown_error",
+        }).eq("id", orderId);
+      } catch {}
     }
     return false;
   }
@@ -57,12 +66,14 @@ async function scheduleThreadArchive(deliveryResult) {
   const archiveAt = new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString();
 
   if (orderId) {
-    await supabase.from("orders").update({
-      checkout_thread_archive_at: archiveAt,
-      checkout_thread_archived_at: null,
-      checkout_thread_archive_attempts: 0,
-      checkout_thread_archive_error: null,
-    }).eq("id", orderId).catch?.(() => {});
+    try {
+      await supabase.from("orders").update({
+        checkout_thread_archive_at: archiveAt,
+        checkout_thread_archived_at: null,
+        checkout_thread_archive_attempts: 0,
+        checkout_thread_archive_error: null,
+      }).eq("id", orderId);
+    } catch {}
   }
 
   if (checkoutArchiveTimers.has(threadId)) clearTimeout(checkoutArchiveTimers.get(threadId));
@@ -72,6 +83,28 @@ async function scheduleThreadArchive(deliveryResult) {
     await archiveCheckoutThreadNow(threadId, orderId);
   }, CHECKOUT_THREAD_ARCHIVE_DELAY_MS);
   checkoutArchiveTimers.set(threadId, timer);
+}
+
+async function processDueCheckoutThreadArchives() {
+  try {
+    const { data: dueOrders, error } = await supabase
+      .from("orders")
+      .select("id, checkout_thread_id")
+      .eq("status", "delivered")
+      .not("checkout_thread_id", "is", null)
+      .not("checkout_thread_archive_at", "is", null)
+      .is("checkout_thread_archived_at", null)
+      .lte("checkout_thread_archive_at", new Date().toISOString())
+      .lt("checkout_thread_archive_attempts", 10)
+      .limit(25);
+
+    if (error) throw error;
+    for (const order of dueOrders || []) {
+      if (order.checkout_thread_id) await archiveCheckoutThreadNow(order.checkout_thread_id, order.id);
+    }
+  } catch (e) {
+    console.error("[ARCHIVE] Due checkout archive sweep failed:", e.message);
+  }
 }
 
 const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
