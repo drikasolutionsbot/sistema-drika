@@ -1039,7 +1039,8 @@ async function approveOrder(interaction, tenant, orderId) {
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
   await deletePixMessageByOrder(interaction.client, order);
-  await deliverOrder(orderId, order.tenant_id);
+  const manualDeliveryResult = await deliverOrder(orderId, order.tenant_id);
+  scheduleThreadArchive(manualDeliveryResult);
 
   // Trigger automation
   await triggerAutomation(order.tenant_id, "order_paid", {
