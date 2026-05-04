@@ -1087,7 +1087,7 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
           }
           // Schedule thread archive from bot side (edge function can't do setTimeout)
           if (currentOrder?.checkout_thread_id) {
-            scheduleThreadArchive({ should_archive: true, checkout_thread_id: currentOrder.checkout_thread_id });
+            scheduleThreadArchive({ should_archive: true, checkout_thread_id: currentOrder.checkout_thread_id, order_id: currentOrder.id });
           }
           return; // Stop polling - delivery was triggered by the edge function
         }
