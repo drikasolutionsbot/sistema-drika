@@ -525,12 +525,17 @@ async function triggerAutomation(tenantId, triggerType, triggerData) {
 // ── Deliver Order (via edge function) ──
 async function deliverOrder(orderId, tenantId) {
   try {
-    await fetch(`${process.env.SUPABASE_URL}/functions/v1/deliver-order`, {
+    const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/deliver-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
       body: JSON.stringify({ order_id: orderId, tenant_id: tenantId }),
     });
-  } catch (e) { console.error("Deliver order error:", e.message); }
+    if (res.ok) {
+      const data = await res.json();
+      return data; // { success, checkout_thread_id, should_archive, ... }
+    }
+    return null;
+  } catch (e) { console.error("Deliver order error:", e.message); return null; }
 }
 
 // ── Global Bot Config ──

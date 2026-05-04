@@ -13,6 +13,23 @@ const { sendWithIdentity } = require("./webhookSender");
 const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
 const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
+// Archive checkout thread after delivery (2 min delay, runs on VPS so setTimeout works)
+function scheduleThreadArchive(deliveryResult) {
+  if (!deliveryResult?.should_archive || !deliveryResult?.checkout_thread_id) return;
+  const threadId = deliveryResult.checkout_thread_id;
+  console.log(`[ARCHIVE] Scheduling archive for thread ${threadId} in 2 minutes`);
+  setTimeout(async () => {
+    try {
+      await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true, locked: true }),
+      });
+      console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
+    } catch (e) { console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message); }
+  }, 120000);
+}
+
 const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
 const formatMoney = (cents, currency = "BRL") => {
   const cur = (currency || "BRL").toUpperCase();
@@ -457,7 +474,8 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   // ── Free product: deliver immediately ──
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
-    await deliverOrder(order.id, tenant.id);
+    const freeDeliveryResult = await deliverOrder(order.id, tenant.id);
+    scheduleThreadArchive(freeDeliveryResult);
     return interaction.editReply({ content: trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }) });
   }
 
@@ -990,6 +1008,10 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
           } catch (e) {
             console.error("[POLLING] Automation trigger error:", e.message);
           }
+          // Schedule thread archive from bot side (edge function can't do setTimeout)
+          if (currentOrder?.checkout_thread_id) {
+            scheduleThreadArchive({ should_archive: true, checkout_thread_id: currentOrder.checkout_thread_id });
+          }
           return; // Stop polling - delivery was triggered by the edge function
         }
       }
@@ -1021,7 +1043,8 @@ async function approveOrder(interaction, tenant, orderId) {
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
   await deletePixMessageByOrder(interaction.client, order);
-  await deliverOrder(orderId, order.tenant_id);
+  const manualDeliveryResult = await deliverOrder(orderId, order.tenant_id);
+  scheduleThreadArchive(manualDeliveryResult);
 
   // Trigger automation
   await triggerAutomation(order.tenant_id, "order_paid", {
