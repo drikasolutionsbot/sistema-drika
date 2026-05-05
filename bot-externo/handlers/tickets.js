@@ -207,7 +207,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       let cleaned = 0;
       for (const msg of systemAddMessages.values()) {
         try { await msg.delete(); cleaned++; } catch (delErr) {
-          console.warn(`[TICKET_OPEN] Could not delete system msg ${msg.id} (type ${m.type}):`, delErr.message);
+          console.warn(`[TICKET_OPEN] Could not delete system msg ${msg.id} (type ${msg.type}):`, delErr.message);
         }
       }
       if (cleaned > 0) {
