@@ -196,6 +196,22 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       catch (addErr) { console.warn(`[TICKET_OPEN] failed to add staff ${staffId}:`, addErr.message); }
     }
     console.log(`[TICKET_OPEN] Added ${allStaffIds.length} staff members to ticket thread ${ticketThread.id}`);
+
+    // Clean up "added to thread" system messages to keep ticket clean
+    try {
+      const recentMessages = await ticketThread.messages.fetch({ limit: 50 });
+      const systemAddMessages = recentMessages.filter(
+        (m) => m.type === 22 || m.type === 27 // THREAD_MEMBER_JOIN / THREAD_MEMBERS_UPDATE
+      );
+      for (const msg of systemAddMessages.values()) {
+        try { await msg.delete(); } catch {}
+      }
+      if (systemAddMessages.size > 0) {
+        console.log(`[TICKET_OPEN] Cleaned ${systemAddMessages.size} system messages from thread`);
+      }
+    } catch (cleanErr) {
+      console.warn("[TICKET_OPEN] Failed to clean system messages:", cleanErr.message);
+    }
   } catch (e) { console.error("[TICKET_OPEN] staff auto-add error:", e.message); }
 
   await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketThread.id}>` });
