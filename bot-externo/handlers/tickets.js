@@ -1,7 +1,6 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle,
-  UserSelectMenuBuilder,
 } = require("discord.js");
 const {
   getStoreConfig, createTicket, getOpenTickets, closeTicket,
