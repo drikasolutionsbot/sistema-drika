@@ -313,14 +313,13 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
   try {
     const ch = await interaction.guild.channels.fetch(ticket.discord_channel_id);
 
-    // Check if user is already in the thread
-    const existingMembers = await ch.members.fetch();
-    if (existingMembers.has(selectedUserId)) {
-      return interaction.editReply({ content: `ℹ️ <@${selectedUserId}> já está neste ticket.` });
-    }
-
     if (ch.isThread?.()) {
       return interaction.editReply({ content: "⚠️ Este ticket antigo ainda é um tópico privado; crie novos tickets para usar o modo limpo sem marcações." });
+    }
+
+    const existingOverwrite = ch.permissionOverwrites.cache.get(selectedUserId);
+    if (existingOverwrite?.allow?.has?.("ViewChannel")) {
+      return interaction.editReply({ content: `ℹ️ <@${selectedUserId}> já está neste ticket.` });
     }
 
     await ch.permissionOverwrites.edit(selectedUserId, {
