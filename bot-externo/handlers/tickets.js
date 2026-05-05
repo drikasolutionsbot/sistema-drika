@@ -199,15 +199,19 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
     // Clean up "added to thread" system messages to keep ticket clean
     try {
+      await new Promise((r) => setTimeout(r, 1500)); // wait for Discord to generate system msgs
       const recentMessages = await ticketThread.messages.fetch({ limit: 50 });
       const systemAddMessages = recentMessages.filter(
-        (m) => m.type === 22 || m.type === 27 // THREAD_MEMBER_JOIN / THREAD_MEMBERS_UPDATE
+        (m) => m.system === true || (m.type !== 0 && m.type !== 19 && m.type !== 20)
       );
+      let cleaned = 0;
       for (const msg of systemAddMessages.values()) {
-        try { await msg.delete(); } catch {}
+        try { await msg.delete(); cleaned++; } catch (delErr) {
+          console.warn(`[TICKET_OPEN] Could not delete system msg ${msg.id} (type ${msg.type}):`, delErr.message);
+        }
       }
-      if (systemAddMessages.size > 0) {
-        console.log(`[TICKET_OPEN] Cleaned ${systemAddMessages.size} system messages from thread`);
+      if (cleaned > 0) {
+        console.log(`[TICKET_OPEN] Cleaned ${cleaned} system messages from thread`);
       }
     } catch (cleanErr) {
       console.warn("[TICKET_OPEN] Failed to clean system messages:", cleanErr.message);
