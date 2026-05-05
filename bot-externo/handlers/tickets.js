@@ -1,7 +1,6 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle,
-  PermissionFlagsBits,
   UserSelectMenuBuilder,
 } = require("discord.js");
 const {
@@ -10,15 +9,6 @@ const {
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
 const { applyDrikaCover } = require("../drikaTemplate");
-
-async function fetchGuildMembersForStaff(guild) {
-  try {
-    return await guild.members.fetch();
-  } catch (err) {
-    console.warn("[STAFF_AUTO_ADD] full member fetch failed, using cache:", err.message);
-    return guild.members.cache;
-  }
-}
 
 // ── Check staff permission ──
 async function checkStaffPermission(tenant, interaction) {
