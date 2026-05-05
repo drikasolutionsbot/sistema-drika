@@ -159,11 +159,13 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
     : null;
 
-  const welcomeMsg = await sendWithIdentity(ticketThread, tenant, {
-    content: staffMentionContent,
+  const welcomePayload = {
     embeds: [welcomeEmbed], components: [row1, row2],
     allowedMentions: staffRoleIds.length ? { roles: staffRoleIds } : { parse: [] },
-  });
+  };
+  if (staffMentionContent) welcomePayload.content = staffMentionContent;
+
+  const welcomeMsg = await sendWithIdentity(ticketThread, tenant, welcomePayload);
 
   try { await welcomeMsg.pin(); } catch {}
 
