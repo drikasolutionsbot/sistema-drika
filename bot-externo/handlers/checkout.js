@@ -821,14 +821,14 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   const provider = await getActivePaymentProvider(tenant.id, preferredProviderKey);
 
   if (preferredProviderKey && !provider) {
-    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Gateway indisponível").setDescription("O gateway selecionado neste produto não está ativo ou está sem credenciais. Ajuste o produto em Loja > Geral > Gateway de Pagamento.").setColor(0xED4245))] });
+    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "gateway_unavailable_title")).setDescription(tr(L, "gateway_unavailable_desc")).setColor(0xED4245))] });
   }
 
   if (orderCurrency !== "BRL" && provider?.provider_key !== "stripe") {
-    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Gateway incompatível").setDescription(`${formatMoney(priceCents, orderCurrency)} só pode ser cobrado com Stripe (Cartão). Selecione Stripe no produto ou altere a moeda para BRL.`).setColor(0xED4245))] });
+    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "gateway_incompatible")).setDescription(trf(L, "stripe_only_error", { amount: formatMoney(priceCents, orderCurrency) })).setColor(0xED4245))] });
   }
 
-  const generatingText = provider?.provider_key === "stripe" ? "⏳ Gerando checkout seguro do cartão..." : tr(L, "generating_qr");
+  const generatingText = provider?.provider_key === "stripe" ? tr(L, "generating_stripe_checkout") : tr(L, "generating_qr");
   await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(generatingText).setColor(preEmbedColor))] });
 
   if (provider && amount > 0) {
@@ -880,21 +880,21 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
       const stripeEmbed = new EmbedBuilder()
         .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
-        .setTitle("💳 Pagamento via Cartão")
+        .setTitle(tr(L, "stripe_payment_title"))
         .setDescription([
-          `**Produto:** \`${order.product_name}\``,
-          `**Valor:** \`${formatMoney(priceCents, currency)}\``,
+          `**${tr(L, "product_label")}:** \`${order.product_name}\``,
+          `**${tr(L, "value_label")}:** \`${formatMoney(priceCents, currency)}\``,
           ``,
-          `🔒 Ambiente seguro processado pela **Stripe**.`,
-          `Clique no botão abaixo para abrir o checkout e finalizar o pagamento com seu cartão.`,
+          tr(L, "stripe_secure_notice"),
+          tr(L, "stripe_payment_instruction"),
           ``,
-          `_O pedido será confirmado automaticamente após a aprovação do pagamento._`,
+          tr(L, "stripe_auto_confirm_notice"),
         ].join("\n"))
         .setColor(embedColor);
       if (storeLogo) stripeEmbed.setThumbnail(storeLogo);
 
       const stripeRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel("💳 Pagar com Cartão").setStyle(ButtonStyle.Link).setURL(checkoutUrl),
+        new ButtonBuilder().setLabel(tr(L, "pay_with_card")).setStyle(ButtonStyle.Link).setURL(checkoutUrl),
         new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
       );
 
@@ -912,7 +912,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
         fields: [
           { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, currency)}\``, inline: false },
           { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-          { name: `**${tr(L, "payment_method_label")}**`, value: `\`💳 Stripe (Cartão)\``, inline: false },
+          { name: `**${tr(L, "payment_method_label")}**`, value: `\`${tr(L, "stripe_card_label")}\``, inline: false },
         ],
       });
 
