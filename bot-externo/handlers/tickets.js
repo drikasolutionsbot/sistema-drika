@@ -10,15 +10,6 @@ const {
 const { sendWithIdentity } = require("./webhookSender");
 const { applyDrikaCover } = require("../drikaTemplate");
 
-async function fetchGuildMembersForStaff(guild) {
-  try {
-    return await guild.members.fetch();
-  } catch (err) {
-    console.warn("[STAFF_AUTO_ADD] full member fetch failed, using cache:", err.message);
-    return guild.members.cache;
-  }
-}
-
 // ── Check staff permission ──
 async function checkStaffPermission(tenant, interaction) {
   try {
@@ -113,6 +104,13 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       reason: "Ticket de suporte",
     });
     await ticketThread.members.add(userId);
+    try {
+      await parentCh.permissionOverwrites.edit(userId, {
+        ViewChannel: false,
+      }, { reason: "Ticket: restringir acesso ao usuário pela thread privada" });
+    } catch (permErr) {
+      console.error("[TICKET_OPEN] permission cleanup error:", permErr.message);
+    }
   } catch (err) {
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
   }
@@ -174,49 +172,20 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   try { await welcomeMsg.pin(); } catch {}
 
-  // Auto-add staff members to private thread
+  // Staff access through role permissions on parent channel avoids undeletable Discord system messages.
   try {
-    const guild = interaction.guild;
-    const members = await fetchGuildMembersForStaff(guild);
-    const guildRoles = await guild.roles.fetch();
-
-    // Find roles with ADMINISTRATOR permission
-    const adminRoleIds = new Set([...guildRoles.filter((r) => r.permissions.has("Administrator")).keys()]);
-    const effectiveStaffRoleIds = new Set([...staffRoleIds, ...adminRoleIds]);
-
-    const roleBasedStaffIds = members
-      .filter((m) => !m.user.bot && m.user.id !== userId)
-      .filter((m) => m.roles.cache.some((r) => effectiveStaffRoleIds.has(r.id)))
-      .map((m) => m.user.id);
-
-    const allStaffIds = [...new Set([...roleBasedStaffIds, ...panelStaffUserIds])];
-
-    for (const staffId of allStaffIds) {
-      try { await ticketThread.members.add(staffId); }
-      catch (addErr) { console.warn(`[TICKET_OPEN] failed to add staff ${staffId}:`, addErr.message); }
-    }
-    console.log(`[TICKET_OPEN] Added ${allStaffIds.length} staff members to ticket thread ${ticketThread.id}`);
-
-    // Clean up "added to thread" system messages to keep ticket clean
-    try {
-      await new Promise((r) => setTimeout(r, 1500)); // wait for Discord to generate system msgs
-      const recentMessages = await ticketThread.messages.fetch({ limit: 50 });
-      const systemAddMessages = recentMessages.filter(
-        (m) => m.system === true || (m.type !== 0 && m.type !== 19 && m.type !== 20)
-      );
-      let cleaned = 0;
-      for (const msg of systemAddMessages.values()) {
-        try { await msg.delete(); cleaned++; } catch (delErr) {
-          console.warn(`[TICKET_OPEN] Could not delete system msg ${msg.id} (type ${msg.type}):`, delErr.message);
-        }
+    const parentCh = ticketThread.parent || await interaction.guild.channels.fetch(parentChannelId);
+    for (const roleId of staffRoleIds) {
+      try {
+        await parentCh.permissionOverwrites.edit(roleId, {
+          ViewChannel: true,
+          SendMessagesInThreads: true,
+        }, { reason: "Ticket: permitir equipe acessar threads privadas sem auto-add" });
+      } catch (permErr) {
+        console.warn(`[TICKET_OPEN] failed to grant staff role ${roleId}:`, permErr.message);
       }
-      if (cleaned > 0) {
-        console.log(`[TICKET_OPEN] Cleaned ${cleaned} system messages from thread`);
-      }
-    } catch (cleanErr) {
-      console.warn("[TICKET_OPEN] Failed to clean system messages:", cleanErr.message);
     }
-  } catch (e) { console.error("[TICKET_OPEN] staff auto-add error:", e.message); }
+  } catch (e) { console.error("[TICKET_OPEN] staff permission setup error:", e.message); }
 
   await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketThread.id}>` });
 }
