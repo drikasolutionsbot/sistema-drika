@@ -143,26 +143,23 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
   const panelStaffUserIds = [...new Set((panelStaffRows || []).map((r) => r.discord_user_id).filter((id) => id && id !== userId))];
 
-  const staffMentions = staffRoleIds.map((rid) => `<@&${rid}>`).join(" ");
-  const contentMention = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
-
   const styleMap = { primary: ButtonStyle.Primary, secondary: ButtonStyle.Secondary, success: ButtonStyle.Success, danger: ButtonStyle.Danger, glass: ButtonStyle.Secondary };
   const btnStyle = styleMap[storeConfig?.ticket_embed_button_style || "glass"] || ButtonStyle.Secondary;
 
   const welcomeEmbed = new EmbedBuilder()
     .setTitle("🎫 Ticket de Suporte")
-    .setDescription("Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.".replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8)))
-    .setColor(embedColor);
+    .setDescription(`<@${userId}>\nSeu ticket foi criado com sucesso!\nAguarde atendimento da nossa equipe.`)
+    .setColor(embedColor)
+    .setTimestamp();
 
   if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
   if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
   applyDrikaCover(welcomeEmbed);
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle),
-    new ButtonBuilder().setCustomId(`ticket_rename_${ticket.id}`).setLabel("Renomear").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel("Arquivar").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Deletar").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle).setEmoji("🕐"),
+    new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel("Arquivar").setStyle(ButtonStyle.Secondary).setEmoji("📁"),
+    new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Apagar").setStyle(ButtonStyle.Danger).setEmoji("🗑️"),
   );
 
   const row2 = new ActionRowBuilder().addComponents(
@@ -172,7 +169,6 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   );
 
   const welcomeMsg = await sendWithIdentity(ticketThread, tenant, {
-    content: contentMention, allowedMentions: { users: [userId], roles: staffRoleIds },
     embeds: [welcomeEmbed], components: [row1, row2],
   });
 
