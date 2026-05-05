@@ -149,18 +149,12 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Apagar").setStyle(ButtonStyle.Danger).setEmoji("🗑️"),
   );
 
-  const row2 = new ActionRowBuilder().addComponents(
-    new UserSelectMenuBuilder()
-      .setCustomId(`ticket_assign_${ticket.id}`)
-      .setPlaceholder("Selecione algum membro")
-  );
-
   const staffMentionContent = staffRoleIds.length
     ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
     : null;
 
   const welcomePayload = {
-    embeds: [welcomeEmbed], components: [row1, row2],
+    embeds: [welcomeEmbed], components: [row1],
     allowedMentions: staffRoleIds.length ? { roles: staffRoleIds } : { parse: [] },
   };
   if (staffMentionContent) welcomePayload.content = staffMentionContent;
