@@ -353,11 +353,23 @@ const TicketEmbedConfig = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <DrikaLockedFields
-              title={data.ticket_embed_title}
-              description={data.ticket_embed_description}
-              rows={3}
-            />
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input
+                value={data.ticket_embed_title}
+                onChange={(e) => update("ticket_embed_title", e.target.value)}
+                placeholder="🎫 Ticket de Suporte"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={data.ticket_embed_description}
+                onChange={(e) => update("ticket_embed_description", e.target.value)}
+                placeholder="Seu ticket foi criado com sucesso! Aguarde atendimento."
+                rows={3}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Texto do Botão</Label>
               <ButtonLabelWithEmoji
