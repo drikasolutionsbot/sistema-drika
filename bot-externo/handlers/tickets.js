@@ -73,54 +73,6 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   const storeConfig = await getStoreConfig(tenant.id);
   let parentChannelId = targetChannelId || storeConfig?.ticket_channel_id || interaction.channel.id;
-
-  // If category, find first text channel
-  try {
-    const parentCh = await interaction.guild.channels.fetch(parentChannelId);
-    if (parentCh?.type === ChannelType.GuildCategory) {
-      const textCh = interaction.guild.channels.cache.find((c) => c.parentId === parentChannelId && c.type === ChannelType.GuildText);
-      if (textCh) parentChannelId = textCh.id;
-    }
-  } catch {}
-
-  const ticketSuffix = Date.now().toString(36).slice(-4);
-  const threadName = `ticket-${username}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
-
-  let ticketThread;
-  try {
-    const parentCh = await interaction.guild.channels.fetch(parentChannelId);
-
-    // Ensure the user has permission to send messages inside threads
-    try {
-      await parentCh.permissionOverwrites.edit(userId, {
-        SendMessagesInThreads: true,
-      }, { reason: "Ticket: permitir usuário enviar mensagens na thread" });
-    } catch (permErr) {
-      console.error("[TICKET_OPEN] permission overwrite error:", permErr.message);
-    }
-
-    ticketThread = await parentCh.threads.create({
-      name: threadName, type: ChannelType.PrivateThread, autoArchiveDuration: 10080,
-      reason: "Ticket de suporte",
-    });
-    await ticketThread.members.add(userId);
-    try {
-      await parentCh.permissionOverwrites.edit(userId, {
-        ViewChannel: false,
-      }, { reason: "Ticket: restringir acesso ao usuário pela thread privada" });
-    } catch (permErr) {
-      console.error("[TICKET_OPEN] permission cleanup error:", permErr.message);
-    }
-  } catch (err) {
-    return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
-  }
-
-  const ticket = await createTicket({
-    tenant_id: tenant.id, discord_user_id: userId, discord_username: username,
-    discord_channel_id: ticketThread.id, status: "open",
-  });
-
-  const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
   let staffRoleIds = (storeConfig?.ticket_staff_role_id || "").split(",").map((s) => s.trim()).filter(Boolean);
 
   // Fallback: if no explicit staff roles, use tenant_roles with management permissions
@@ -133,13 +85,46 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     staffRoleIds = [...new Set((fallbackRoles || []).map((r) => r.discord_role_id).filter(Boolean))];
   }
 
-  // Also get panel users with management permissions
-  const { data: panelStaffRows } = await supabase
-    .from("tenant_permissions")
-    .select("discord_user_id")
-    .eq("tenant_id", tenant.id)
-    .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
-  const panelStaffUserIds = [...new Set((panelStaffRows || []).map((r) => r.discord_user_id).filter((id) => id && id !== userId))];
+  const ticketSuffix = Date.now().toString(36).slice(-4);
+  const threadName = `ticket-${username}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+
+  let ticketChannel;
+  try {
+    const baseChannel = await interaction.guild.channels.fetch(parentChannelId);
+    const categoryId = baseChannel?.type === ChannelType.GuildCategory ? baseChannel.id : baseChannel?.parentId || null;
+    const permissionOverwrites = [
+      {
+        id: interaction.guild.roles.everyone.id,
+        deny: ["ViewChannel"],
+      },
+      {
+        id: userId,
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      },
+      ...staffRoleIds.map((roleId) => ({
+        id: roleId,
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks", "ManageMessages"],
+      })),
+    ];
+
+    ticketChannel = await interaction.guild.channels.create({
+      name: threadName,
+      type: ChannelType.GuildText,
+      parent: categoryId,
+      permissionOverwrites,
+      reason: "Ticket de suporte privado sem mensagens de sistema de tópico",
+    });
+  } catch (err) {
+    console.error("[TICKET_OPEN] create private channel error:", err.message);
+    return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
+  }
+
+  const ticket = await createTicket({
+    tenant_id: tenant.id, discord_user_id: userId, discord_username: username,
+    discord_channel_id: ticketChannel.id, status: "open",
+  });
+
+  const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
 
   const styleMap = { primary: ButtonStyle.Primary, secondary: ButtonStyle.Secondary, success: ButtonStyle.Success, danger: ButtonStyle.Danger, glass: ButtonStyle.Secondary };
   const btnStyle = styleMap[storeConfig?.ticket_embed_button_style || "glass"] || ButtonStyle.Secondary;
@@ -166,28 +151,13 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       .setPlaceholder("Selecione algum membro")
   );
 
-  const welcomeMsg = await sendWithIdentity(ticketThread, tenant, {
+  const welcomeMsg = await sendWithIdentity(ticketChannel, tenant, {
     embeds: [welcomeEmbed], components: [row1, row2],
   });
 
   try { await welcomeMsg.pin(); } catch {}
 
-  // Staff access through role permissions on parent channel avoids undeletable Discord system messages.
-  try {
-    const parentCh = ticketThread.parent || await interaction.guild.channels.fetch(parentChannelId);
-    for (const roleId of staffRoleIds) {
-      try {
-        await parentCh.permissionOverwrites.edit(roleId, {
-          ViewChannel: true,
-          SendMessagesInThreads: true,
-        }, { reason: "Ticket: permitir equipe acessar threads privadas sem auto-add" });
-      } catch (permErr) {
-        console.warn(`[TICKET_OPEN] failed to grant staff role ${roleId}:`, permErr.message);
-      }
-    }
-  } catch (e) { console.error("[TICKET_OPEN] staff permission setup error:", e.message); }
-
-  await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketThread.id}>` });
+  await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketChannel.id}>` });
 }
 
 // ── Close Ticket ──
@@ -224,8 +194,15 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
     });
 
     try {
-      await interaction.channel.setArchived(true);
-      await interaction.channel.setLocked(true);
+      if (interaction.channel.isThread?.()) {
+        await interaction.channel.setArchived(true);
+        await interaction.channel.setLocked(true);
+      } else {
+        await interaction.channel.permissionOverwrites.edit(ticket.discord_user_id, {
+          ViewChannel: false,
+          SendMessages: false,
+        }, { reason: "Ticket arquivado" });
+      }
     } catch {}
   } catch (err) {
     console.error("[handleCloseTicket] Error:", err);
@@ -336,14 +313,23 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
   try {
     const ch = await interaction.guild.channels.fetch(ticket.discord_channel_id);
 
-    // Check if user is already in the thread
-    const existingMembers = await ch.members.fetch();
-    if (existingMembers.has(selectedUserId)) {
+    if (ch.isThread?.()) {
+      return interaction.editReply({ content: "⚠️ Este ticket antigo ainda é um tópico privado; crie novos tickets para usar o modo limpo sem marcações." });
+    }
+
+    const existingOverwrite = ch.permissionOverwrites.cache.get(selectedUserId);
+    if (existingOverwrite?.allow?.has?.("ViewChannel")) {
       return interaction.editReply({ content: `ℹ️ <@${selectedUserId}> já está neste ticket.` });
     }
 
-    await ch.members.add(selectedUserId);
-    await ch.send({ content: `👤 <@${selectedUserId}> foi adicionado ao ticket por <@${interaction.user.id}>.` });
+    await ch.permissionOverwrites.edit(selectedUserId, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      AttachFiles: true,
+      EmbedLinks: true,
+    }, { reason: `Ticket: membro adicionado por ${interaction.user.tag}` });
+    await ch.send({ content: `👤 <@${selectedUserId}> foi liberado neste ticket por <@${interaction.user.id}>.` });
   } catch (err) {
     return interaction.editReply({ content: "❌ Não foi possível adicionar o membro ao ticket." });
   }
