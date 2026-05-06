@@ -96,50 +96,42 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
     if (!ticketParent) throw new Error("Canal pai inválido para criar ticket");
 
-    const permissionOverwrites = [
-      {
-        id: interaction.guild.roles.everyone.id,
-        deny: ["ViewChannel"],
-      },
-      {
-        id: userId,
-        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
-      },
-      {
-        id: interaction.client.user.id,
-        allow: ["ViewChannel", "SendMessages", "ManageChannels", "ManageMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
-      },
-      ...staffRoleIds.map((roleId) => ({
-        id: roleId,
-        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks", "ManageMessages"],
-      })),
-    ];
-
-    for (const roleId of staffRoleIds) {
-      try {
-        await ticketParent.permissionOverwrites?.edit?.(roleId, {
-          ViewChannel: true,
-          SendMessages: true,
-          ReadMessageHistory: true,
-        }, { reason: "Ticket: staff acessa tópicos privados por cargo" });
-      } catch (permErr) {
-        console.warn(`[TICKET_OPEN] failed to grant staff role ${roleId}:`, permErr.message);
-      }
-    }
-
-    ticketChannel = await interaction.guild.channels.create({
+    // Create a private thread on the parent text channel
+    ticketChannel = await ticketParent.threads.create({
       name: threadName,
-      type: ChannelType.GuildText,
-      parent: parentCh?.type === ChannelType.GuildCategory ? parentCh.id : ticketParent.parentId,
-      permissionOverwrites,
+      type: ChannelType.PrivateThread,
+      invitable: false,
       reason: "Ticket de suporte",
     });
 
-    if (ticketParent.parentId && ticketChannel.parentId !== ticketParent.parentId) {
-      try { await ticketChannel.setParent(ticketParent.parentId, { lockPermissions: false }); } catch {}
+    // Add customer
+    await ticketChannel.members.add(userId).catch(() => {});
+
+    // Add staff members by resolving role members
+    const staffMemberIds = new Set();
+    for (const roleId of staffRoleIds) {
+      try {
+        const role = await interaction.guild.roles.fetch(roleId);
+        if (role?.members) {
+          role.members.forEach((m) => staffMemberIds.add(m.id));
+        }
+      } catch {}
     }
+    for (const memberId of staffMemberIds) {
+      await ticketChannel.members.add(memberId).catch(() => {});
+    }
+
+    // Delete system "added to thread" messages
+    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const msgs = await ticketChannel.messages.fetch({ limit: 50 });
+      const systemMsgs = msgs.filter((m) => m.type === 27 || m.type === 22);
+      for (const [, msg] of systemMsgs) {
+        await msg.delete().catch(() => {});
+      }
+    } catch {}
   } catch (err) {
-    console.error("[TICKET_OPEN] create ticket channel error:", err.message);
+    console.error("[TICKET_OPEN] create ticket thread error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
   }
 
