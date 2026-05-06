@@ -173,16 +173,13 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   );
 
   const staffMentionContent = staffRoleIds.length
-    ? [
-        ...staffRoleIds.map((roleId) => `<@&${roleId}>`),
-        ...[...staffMemberIds].filter((memberId) => memberId !== userId).map((memberId) => `<@${memberId}>`),
-      ].join(" ")
+    ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
     : null;
 
   const welcomePayload = {
     embeds: [welcomeEmbed], components: [row1],
     allowedMentions: staffRoleIds.length
-      ? { roles: staffRoleIds, users: [...staffMemberIds].filter((memberId) => memberId !== userId) }
+      ? { roles: staffRoleIds }
       : { parse: [] },
   };
   if (staffMentionContent) welcomePayload.content = staffMentionContent;
