@@ -1,6 +1,6 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, MessageType,
+  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
 const {
   getStoreConfig, createTicket, getOpenTickets, closeTicket,
@@ -45,28 +45,6 @@ async function checkStaffPermission(tenant, interaction) {
   } catch (e) {
     console.error("[checkStaffPermission] Error:", e.message);
     return false;
-  }
-}
-
-const THREAD_MEMBER_SYSTEM_MESSAGE_TYPES = new Set([
-  MessageType?.RecipientAdd ?? 1,
-  "RecipientAdd",
-]);
-
-async function deleteThreadMemberSystemMessages(thread, botUserId) {
-  try {
-    const messages = await thread.messages.fetch({ limit: 25 });
-    const systemMessages = messages.filter((msg) =>
-      THREAD_MEMBER_SYSTEM_MESSAGE_TYPES.has(msg.type) &&
-      msg.system === true &&
-      msg.author?.id === botUserId
-    );
-
-    for (const msg of systemMessages.values()) {
-      try { await msg.delete(); } catch {}
-    }
-  } catch (e) {
-    console.warn("[TICKET_OPEN] failed to clean staff add system messages:", e.message);
   }
 }
 
@@ -125,7 +103,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
           SendMessagesInThreads: true,
           ManageThreads: true,
           ReadMessageHistory: true,
-        }, { reason: "Ticket: staff acessa tópicos privados por cargo sem auto-add" });
+        }, { reason: "Ticket: staff acessa tópicos privados por cargo" });
       } catch (permErr) {
         console.warn(`[TICKET_OPEN] failed to grant staff role ${roleId}:`, permErr.message);
       }
@@ -140,25 +118,9 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     });
     await ticketThread.members.add(userId);
 
-    // Add all staff members to the private thread so they can see it
-    for (const roleId of staffRoleIds) {
-      try {
-        const role = await interaction.guild.roles.fetch(roleId);
-        if (!role) continue;
-        // role.members only works if guild members are cached; fetch them
-        const membersWithRole = role.members.size > 0
-          ? role.members
-          : (await interaction.guild.members.fetch()).filter(m => m.roles.cache.has(roleId));
-        for (const [memberId] of membersWithRole) {
-          if (memberId === userId) continue; // already added
-          try { await ticketThread.members.add(memberId); } catch {}
-        }
-      } catch (e) {
-        console.warn(`[TICKET_OPEN] failed to add staff from role ${roleId}:`, e.message);
-      }
-    }
-
-    await deleteThreadMemberSystemMessages(ticketThread, interaction.client.user.id);
+    // Do not auto-add staff members individually: Discord creates visible
+    // "added X to the thread" system messages for every add. Staff access is
+    // handled by the role overwrites above + the role mention below.
   } catch (err) {
     console.error("[TICKET_OPEN] create private thread error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
