@@ -206,6 +206,9 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
                       )}
                     </Button>
                   </div>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Info box */}
