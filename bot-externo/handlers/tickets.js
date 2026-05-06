@@ -87,21 +87,39 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   const ticketSuffix = Date.now().toString(36).slice(-4);
   const threadName = `ticket-${username}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
 
-  let ticketThread;
+  let ticketChannel;
   try {
     const parentCh = await interaction.guild.channels.fetch(parentChannelId);
-    const threadParent = parentCh?.type === ChannelType.GuildCategory
+    const ticketParent = parentCh?.type === ChannelType.GuildCategory
       ? interaction.guild.channels.cache.find((c) => c.parentId === parentChannelId && c.type === ChannelType.GuildText)
       : parentCh;
 
-    if (!threadParent?.threads) throw new Error("Canal pai inválido para criar tópico");
+    if (!ticketParent) throw new Error("Canal pai inválido para criar ticket");
+
+    const permissionOverwrites = [
+      {
+        id: interaction.guild.roles.everyone.id,
+        deny: ["ViewChannel"],
+      },
+      {
+        id: userId,
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      },
+      {
+        id: interaction.client.user.id,
+        allow: ["ViewChannel", "SendMessages", "ManageChannels", "ManageMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      },
+      ...staffRoleIds.map((roleId) => ({
+        id: roleId,
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks", "ManageMessages"],
+      })),
+    ];
 
     for (const roleId of staffRoleIds) {
       try {
-        await threadParent.permissionOverwrites.edit(roleId, {
+        await ticketParent.permissionOverwrites?.edit?.(roleId, {
           ViewChannel: true,
-          SendMessagesInThreads: true,
-          ManageThreads: true,
+          SendMessages: true,
           ReadMessageHistory: true,
         }, { reason: "Ticket: staff acessa tópicos privados por cargo" });
       } catch (permErr) {
@@ -109,26 +127,25 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       }
     }
 
-    ticketThread = await threadParent.threads.create({
+    ticketChannel = await interaction.guild.channels.create({
       name: threadName,
-      type: ChannelType.PrivateThread,
-      autoArchiveDuration: 10080,
-      invitable: false,
+      type: ChannelType.GuildText,
+      parent: parentCh?.type === ChannelType.GuildCategory ? parentCh.id : ticketParent.parentId,
+      permissionOverwrites,
       reason: "Ticket de suporte",
     });
-    await ticketThread.members.add(userId);
 
-    // Do not auto-add staff members individually: Discord creates visible
-    // "added X to the thread" system messages for every add. Staff access is
-    // handled by the role overwrites above + the role mention below.
+    if (ticketParent.parentId && ticketChannel.parentId !== ticketParent.parentId) {
+      try { await ticketChannel.setParent(ticketParent.parentId, { lockPermissions: false }); } catch {}
+    }
   } catch (err) {
-    console.error("[TICKET_OPEN] create private thread error:", err.message);
+    console.error("[TICKET_OPEN] create ticket channel error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
   }
 
   const ticket = await createTicket({
     tenant_id: tenant.id, discord_user_id: userId, discord_username: username,
-    discord_channel_id: ticketThread.id, status: "open",
+    discord_channel_id: ticketChannel.id, status: "open",
   });
 
   const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);
@@ -163,11 +180,11 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   };
   if (staffMentionContent) welcomePayload.content = staffMentionContent;
 
-  const welcomeMsg = await sendWithIdentity(ticketThread, tenant, welcomePayload);
+  const welcomeMsg = await sendWithIdentity(ticketChannel, tenant, welcomePayload);
 
   try { await welcomeMsg.pin(); } catch {}
 
-  await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketThread.id}>` });
+  await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketChannel.id}>` });
 }
 
 // ── Close Ticket ──
