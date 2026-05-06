@@ -1,6 +1,6 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle,
+  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, MessageType,
 } = require("discord.js");
 const {
   getStoreConfig, createTicket, getOpenTickets, closeTicket,
@@ -45,6 +45,28 @@ async function checkStaffPermission(tenant, interaction) {
   } catch (e) {
     console.error("[checkStaffPermission] Error:", e.message);
     return false;
+  }
+}
+
+const THREAD_MEMBER_SYSTEM_MESSAGE_TYPES = new Set([
+  MessageType?.RecipientAdd ?? 1,
+  "RecipientAdd",
+]);
+
+async function deleteThreadMemberSystemMessages(thread, botUserId) {
+  try {
+    const messages = await thread.messages.fetch({ limit: 25 });
+    const systemMessages = messages.filter((msg) =>
+      THREAD_MEMBER_SYSTEM_MESSAGE_TYPES.has(msg.type) &&
+      msg.system === true &&
+      msg.author?.id === botUserId
+    );
+
+    for (const msg of systemMessages.values()) {
+      try { await msg.delete(); } catch {}
+    }
+  } catch (e) {
+    console.warn("[TICKET_OPEN] failed to clean staff add system messages:", e.message);
   }
 }
 
@@ -135,6 +157,8 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
         console.warn(`[TICKET_OPEN] failed to add staff from role ${roleId}:`, e.message);
       }
     }
+
+    await deleteThreadMemberSystemMessages(ticketThread, interaction.client.user.id);
   } catch (err) {
     console.error("[TICKET_OPEN] create private thread error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
