@@ -26,6 +26,13 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyItem = (item: StockItem) => {
+    navigator.clipboard.writeText(item.content);
+    setCopiedId(item.id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
 
   const fetchStock = useCallback(async () => {
     if (!tenantId || !productId) return;
