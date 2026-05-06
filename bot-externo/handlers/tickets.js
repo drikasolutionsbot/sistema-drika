@@ -48,6 +48,15 @@ async function checkStaffPermission(tenant, interaction) {
   }
 }
 
+async function fetchGuildMembersForTicketStaff(guild) {
+  try {
+    return await guild.members.fetch();
+  } catch (err) {
+    console.warn("[TICKET_OPEN] full member fetch failed, using cache:", err.message);
+    return guild.members.cache;
+  }
+}
+
 // ── Open Ticket (from button or command) ──
 async function openTicket(interaction, tenant, targetChannelId = null) {
   await interaction.deferReply({ ephemeral: true });
@@ -88,6 +97,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   const threadName = `ticket-${username}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
 
   let ticketChannel;
+  const staffMemberIds = new Set();
   try {
     const parentCh = await interaction.guild.channels.fetch(parentChannelId);
     const ticketParent = parentCh?.type === ChannelType.GuildCategory
@@ -107,8 +117,8 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     // Add customer
     await ticketChannel.members.add(userId).catch(() => {});
 
-    // Add staff members by resolving role members
-    const staffMemberIds = new Set();
+    // Add staff members by resolving role members from a full guild member fetch.
+    await fetchGuildMembersForTicketStaff(interaction.guild);
     for (const roleId of staffRoleIds) {
       try {
         const role = await interaction.guild.roles.fetch(roleId);
@@ -163,12 +173,17 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   );
 
   const staffMentionContent = staffRoleIds.length
-    ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
+    ? [
+        ...staffRoleIds.map((roleId) => `<@&${roleId}>`),
+        ...[...staffMemberIds].filter((memberId) => memberId !== userId).map((memberId) => `<@${memberId}>`),
+      ].join(" ")
     : null;
 
   const welcomePayload = {
     embeds: [welcomeEmbed], components: [row1],
-    allowedMentions: staffRoleIds.length ? { roles: staffRoleIds } : { parse: [] },
+    allowedMentions: staffRoleIds.length
+      ? { roles: staffRoleIds, users: [...staffMemberIds].filter((memberId) => memberId !== userId) }
+      : { parse: [] },
   };
   if (staffMentionContent) welcomePayload.content = staffMentionContent;
 
