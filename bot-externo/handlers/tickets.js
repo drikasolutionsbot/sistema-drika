@@ -131,21 +131,35 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       await ticketChannel.members.add(memberId).catch(() => {});
     }
 
-    // Delete system "added to thread" messages (two passes to catch late arrivals)
-    const cleanupSystemMessages = async () => {
+    // Delete Discord system "added to thread" messages without touching the staff role mention.
+    // Discord may deliver these with different MessageType values, so match by system flag,
+    // bot author and affected member IDs instead of relying only on numeric types.
+    const memberIdsAddedToThread = new Set([userId, ...staffMemberIds]);
+    const cleanupAddedToThreadMessages = async () => {
       try {
-        const msgs = await ticketChannel.messages.fetch({ limit: 50 });
-        const systemMsgs = msgs.filter((m) => m.type === 27 || m.type === 22);
+        const msgs = await ticketChannel.messages.fetch({ limit: 100 });
+        const systemMsgs = msgs.filter((m) => {
+          const referencedUserId = m.mentions?.users?.first?.()?.id || m.mentions?.users?.firstKey?.();
+          const mentionsAddedMember = referencedUserId && memberIdsAddedToThread.has(referencedUserId);
+          const looksLikeThreadSystemMessage = m.system || [22, 27, 28].includes(Number(m.type));
+          const wasCreatedByThisBot = m.author?.id === interaction.client.user?.id;
+          return looksLikeThreadSystemMessage && wasCreatedByThisBot && mentionsAddedMember;
+        });
         for (const [, msg] of systemMsgs) {
-          await msg.delete().catch(() => {});
+          await msg.delete().catch((err) => {
+            console.warn("[TICKET_OPEN] failed to delete thread system message:", err.message);
+          });
         }
         return systemMsgs.size;
-      } catch { return 0; }
+      } catch (err) {
+        console.warn("[TICKET_OPEN] cleanup thread system messages failed:", err.message);
+        return 0;
+      }
     };
-    await new Promise((r) => setTimeout(r, 2000));
-    await cleanupSystemMessages();
-    await new Promise((r) => setTimeout(r, 2000));
-    await cleanupSystemMessages();
+    for (const delayMs of [1500, 2500, 4000]) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      await cleanupAddedToThreadMessages();
+    }
   } catch (err) {
     console.error("[TICKET_OPEN] create ticket thread error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
