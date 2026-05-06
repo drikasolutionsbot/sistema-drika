@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Plus, Loader2, Trash2, Search, RefreshCw } from "lucide-react";
+import { Package, Plus, Loader2, Trash2, Search, RefreshCw, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
