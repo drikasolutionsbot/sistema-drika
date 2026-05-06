@@ -117,6 +117,24 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       reason: "Ticket de suporte",
     });
     await ticketThread.members.add(userId);
+
+    // Add all staff members to the private thread so they can see it
+    for (const roleId of staffRoleIds) {
+      try {
+        const role = await interaction.guild.roles.fetch(roleId);
+        if (!role) continue;
+        // role.members only works if guild members are cached; fetch them
+        const membersWithRole = role.members.size > 0
+          ? role.members
+          : (await interaction.guild.members.fetch()).filter(m => m.roles.cache.has(roleId));
+        for (const [memberId] of membersWithRole) {
+          if (memberId === userId) continue; // already added
+          try { await ticketThread.members.add(memberId); } catch {}
+        }
+      } catch (e) {
+        console.warn(`[TICKET_OPEN] failed to add staff from role ${roleId}:`, e.message);
+      }
+    }
   } catch (err) {
     console.error("[TICKET_OPEN] create private thread error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
