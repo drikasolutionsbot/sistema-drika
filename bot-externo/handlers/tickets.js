@@ -144,6 +144,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle).setEmoji("🕐"),
+    new ButtonBuilder().setCustomId(`ticket_rename_${ticket.id}`).setLabel("Renomear").setStyle(btnStyle).setEmoji("✏️"),
     new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel("Arquivar").setStyle(ButtonStyle.Secondary).setEmoji("📁"),
     new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Apagar").setStyle(ButtonStyle.Danger).setEmoji("🗑️"),
   );
