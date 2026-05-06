@@ -131,15 +131,21 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       await ticketChannel.members.add(memberId).catch(() => {});
     }
 
-    // Delete system "added to thread" messages
-    await new Promise((r) => setTimeout(r, 1500));
-    try {
-      const msgs = await ticketChannel.messages.fetch({ limit: 50 });
-      const systemMsgs = msgs.filter((m) => m.type === 27 || m.type === 22);
-      for (const [, msg] of systemMsgs) {
-        await msg.delete().catch(() => {});
-      }
-    } catch {}
+    // Delete system "added to thread" messages (two passes to catch late arrivals)
+    const cleanupSystemMessages = async () => {
+      try {
+        const msgs = await ticketChannel.messages.fetch({ limit: 50 });
+        const systemMsgs = msgs.filter((m) => m.type === 27 || m.type === 22);
+        for (const [, msg] of systemMsgs) {
+          await msg.delete().catch(() => {});
+        }
+        return systemMsgs.size;
+      } catch { return 0; }
+    };
+    await new Promise((r) => setTimeout(r, 2000));
+    await cleanupSystemMessages();
+    await new Promise((r) => setTimeout(r, 2000));
+    await cleanupSystemMessages();
   } catch (err) {
     console.error("[TICKET_OPEN] create ticket thread error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
