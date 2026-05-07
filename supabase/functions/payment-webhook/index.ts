@@ -273,6 +273,66 @@ async function handleAbacatePay(body: any, tenantId: string, supabase: any) {
   return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
 }
 
+async function handleLofyPay(body: any, tenantId: string, supabase: any) {
+  // LofyPay webhook payload: { status: "PAID", idTransaction, amount, external_reference, paid_at }
+  const status = (body?.status || "").toString().toUpperCase();
+  const paymentId = body?.idTransaction || body?.id;
+  const extRef = body?.external_reference;
+
+  console.log(`LofyPay webhook: status=${status}, paymentId=${paymentId}, extRef=${extRef}`);
+
+  if (status !== "PAID") return { handled: false, reason: `Status not PAID: ${status}` };
+  if (!paymentId && !extRef) return { handled: false, reason: "No payment ID or external_reference" };
+
+  // Try by external_reference first (most reliable)
+  if (extRef) {
+    const orderId = extRef.replace(/^order_/, "");
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, status")
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (order) {
+      if (order.status === "paid" || order.status === "delivered") {
+        return { handled: false, reason: "Order already processed" };
+      }
+      await supabase
+        .from("orders")
+        .update({ status: "paid", payment_id: String(paymentId || extRef), payment_provider: "lofypay" })
+        .eq("id", order.id)
+        .eq("tenant_id", tenantId);
+      return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
+    }
+  }
+
+  // Fallback: try by payment_id
+  if (paymentId) {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, status")
+      .eq("payment_id", String(paymentId))
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (order) {
+      if (order.status === "paid" || order.status === "delivered") {
+        return { handled: false, reason: "Order already processed" };
+      }
+      await supabase
+        .from("orders")
+        .update({ status: "paid", payment_provider: "lofypay" })
+        .eq("id", order.id)
+        .eq("tenant_id", tenantId);
+      return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
+    }
+  }
+
+  console.error(`LofyPay: No order found for extRef=${extRef}, paymentId=${paymentId} in tenant=${tenantId}`);
+  return { handled: false, reason: "Order not found" };
+}
+
 // ─── Main handler ──────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -351,6 +411,9 @@ serve(async (req) => {
         break;
       case "abacatepay":
         result = await handleAbacatePay(body, tenantId, supabase);
+        break;
+      case "lofypay":
+        result = await handleLofyPay(body, tenantId, supabase);
         break;
       default:
         result = { handled: false, reason: `Unknown provider: ${provider}` };
