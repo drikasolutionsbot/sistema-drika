@@ -399,6 +399,26 @@ async function generateAbacatePayPix(apiKey, amountCents, description, externalR
   return { brcode, payment_id: String(data.id || externalRef) };
 }
 
+// ── LofyPay PIX ──
+async function generateLofyPayPix(apiKey, amountBRL, externalRef, webhookUrl) {
+  const res = await fetch("https://app.lofypay.com/api/v1/gateway/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      "api-key": apiKey,
+      amount: amountBRL,
+      method: "pix",
+      external_reference: externalRef,
+      notification_url: webhookUrl || undefined,
+      client: { name: "Cliente", document: "00000000000", email: "cliente@email.com" },
+    }),
+  });
+  if (!res.ok) throw new Error(`LofyPay error: ${res.status}`);
+  const data = await res.json();
+  if (data.status !== "success") throw new Error(`LofyPay: ${data.message || "Erro desconhecido"}`);
+  return { brcode: data.paymentCode || "", payment_id: data.idTransaction || externalRef };
+}
+
 async function startCheckout(interaction, tenant, productId) {
   await interaction.deferReply({ ephemeral: true });
 
@@ -850,6 +870,9 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     } else if (providerKey === "abacatepay") {
       const r = await generateAbacatePayPix(apiKey, priceCents, order.product_name, externalRef);
       brcode = r.brcode; paymentId = r.payment_id;
+    } else if (providerKey === "lofypay") {
+      const r = await generateLofyPayPix(apiKey, amount, externalRef, webhookUrl);
+      brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "efi") {
       const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
         method: "POST",
@@ -928,6 +951,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       : providerKey === "mercadopago" ? "Pix – Mercado Pago"
       : providerKey === "misticpay" ? "Pix – Mistic Pay"
       : providerKey === "abacatepay" ? "Pix – AbacatePay"
+      : providerKey === "lofypay" ? "Pix – LofyPay"
       : `Pix – ${providerKey}`;
 
     await sendLog(interaction.guild, tenant, {

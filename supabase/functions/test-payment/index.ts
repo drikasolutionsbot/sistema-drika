@@ -123,6 +123,17 @@ async function testMisticPay(clientId: string, clientSecret: string): Promise<{ 
   }
 }
 
+async function testLofyPay(apiKey: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch("https://app.lofypay.com/api/status");
+    if (res.ok) return { success: true, message: "Conexão LofyPay validada! API online." };
+    return { success: false, message: `API LofyPay indisponível (HTTP ${res.status})` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Erro ao conectar LofyPay: ${msg.substring(0, 200)}` };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -151,6 +162,9 @@ serve(async (req) => {
         break;
       case "abacatepay":
         result = await testAbacatePay(api_key);
+        break;
+      case "lofypay":
+        result = await testLofyPay(api_key);
         break;
       default:
         result = { success: false, message: `Provedor desconhecido: ${provider_key}` };

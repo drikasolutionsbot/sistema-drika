@@ -6,6 +6,7 @@ import efiIcon from "@/assets/efi-icon.png";
 import mercadoPagoIcon from "@/assets/mercadopago-icon.png";
 import pushinPayIcon from "@/assets/pushinpay-icon.png";
 import stripeIcon from "@/assets/stripe-icon.png";
+import lofyPayIcon from "@/assets/lofypay-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -114,6 +115,17 @@ const buildProviders = (t: TranslationKeys) => [
       { key: "api_key", label: "API Key", placeholder: "abc_dev_... ou abc_live_..." },
     ],
     instructions: "No painel AbacatePay, acesse Integrar > API Keys e copie sua chave (use abc_live_ em produção).",
+  },
+  {
+    key: "lofypay",
+    name: "LofyPay",
+    color: "bg-cyan-500/10 text-cyan-400",
+    iconUrl: lofyPayIcon,
+    docsUrl: "https://lofypay.com",
+    fields: [
+      { key: "api_key", label: "API Key", placeholder: "SUA_CHAVE_AQUI" },
+    ],
+    instructions: "No painel LofyPay, copie sua API Key para integrar pagamentos PIX.",
   },
 ];
 
@@ -231,7 +243,7 @@ const PaymentsPage = () => {
                 return (
                   <TabsTrigger key={p.key} value={p.key} className="gap-2 text-xs sm:text-sm">
                     <span className="hidden sm:inline">{p.name}</span>
-                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : p.key === "stripe" ? "Stripe" : "Efí"}</span>
+                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : p.key === "stripe" ? "Stripe" : p.key === "lofypay" ? "Lofy" : "Efí"}</span>
                     {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
                   </TabsTrigger>
                 );

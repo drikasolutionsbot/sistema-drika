@@ -209,6 +209,25 @@ serve(async (req) => {
       }
     }
 
+    // ── LofyPay: Check payment status via polling ──
+    if (provider === "lofypay" && paymentId) {
+      try {
+        const res = await fetch("https://app.lofypay.com/api/v1/webhook/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idtransaction: paymentId }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const status = (data?.status || "").toString().toUpperCase();
+          console.log(`LofyPay check for ${paymentId}: ${status}`);
+          if (status === "PAID") isPaid = true;
+        }
+      } catch (e) {
+        console.error("LofyPay polling error:", e);
+      }
+    }
+
     // If paid, update order and trigger delivery
     if (isPaid) {
       await supabase
