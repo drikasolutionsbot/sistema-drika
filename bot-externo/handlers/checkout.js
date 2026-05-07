@@ -951,6 +951,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       : providerKey === "mercadopago" ? "Pix – Mercado Pago"
       : providerKey === "misticpay" ? "Pix – Mistic Pay"
       : providerKey === "abacatepay" ? "Pix – AbacatePay"
+      : providerKey === "lofypay" ? "Pix – LofyPay"
       : `Pix – ${providerKey}`;
 
     await sendLog(interaction.guild, tenant, {
