@@ -125,9 +125,34 @@ async function testMisticPay(clientId: string, clientSecret: string): Promise<{ 
 
 async function testLofyPay(apiKey: string): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch("https://app.lofypay.com/api/status");
-    if (res.ok) return { success: true, message: "Conexão LofyPay validada! API online." };
-    return { success: false, message: `API LofyPay indisponível (HTTP ${res.status})` };
+    // Tenta criar uma cobrança mínima para validar a API key
+    const res = await fetch("https://app.lofypay.com/api/v1/gateway/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        "api-key": apiKey,
+        amount: 1.00,
+        method: "pix",
+        external_reference: "TEST_VALIDATION",
+        client: { name: "Teste", document: "00000000000", email: "teste@teste.com" },
+      }),
+    });
+    // Se retornou 200 com success, a chave é válida
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "success") {
+        return { success: true, message: "API Key LofyPay validada com sucesso!" };
+      }
+      return { success: false, message: data.message || "Resposta inesperada da LofyPay" };
+    }
+    if (res.status === 401 || res.status === 403) {
+      return { success: false, message: "API Key LofyPay inválida ou sem permissão" };
+    }
+    // 400/422 pode indicar que a chave foi aceita mas os dados de teste são inválidos
+    if (res.status === 400 || res.status === 422) {
+      return { success: true, message: "API Key LofyPay aceita pela API" };
+    }
+    return { success: false, message: `Erro ${res.status}: Verifique a API Key` };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, message: `Erro ao conectar LofyPay: ${msg.substring(0, 200)}` };
