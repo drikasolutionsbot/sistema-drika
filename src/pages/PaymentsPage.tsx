@@ -243,7 +243,7 @@ const PaymentsPage = () => {
                 return (
                   <TabsTrigger key={p.key} value={p.key} className="gap-2 text-xs sm:text-sm">
                     <span className="hidden sm:inline">{p.name}</span>
-                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : p.key === "stripe" ? "Stripe" : "Efí"}</span>
+                    <span className="sm:hidden">{p.key === "mercadopago" ? "MP" : p.key === "pushinpay" ? "Pushin" : p.key === "misticpay" ? "Mistic" : p.key === "abacatepay" ? "Abacate" : p.key === "stripe" ? "Stripe" : p.key === "lofypay" ? "Lofy" : "Efí"}</span>
                     {cfg?.active && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
                   </TabsTrigger>
                 );
