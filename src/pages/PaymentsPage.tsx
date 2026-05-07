@@ -6,6 +6,7 @@ import efiIcon from "@/assets/efi-icon.png";
 import mercadoPagoIcon from "@/assets/mercadopago-icon.png";
 import pushinPayIcon from "@/assets/pushinpay-icon.png";
 import stripeIcon from "@/assets/stripe-icon.png";
+import lofyPayIcon from "@/assets/lofypay-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
