@@ -399,6 +399,26 @@ async function generateAbacatePayPix(apiKey, amountCents, description, externalR
   return { brcode, payment_id: String(data.id || externalRef) };
 }
 
+// ── LofyPay PIX ──
+async function generateLofyPayPix(apiKey, amountBRL, externalRef, webhookUrl) {
+  const res = await fetch("https://app.lofypay.com/api/v1/gateway/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      "api-key": apiKey,
+      amount: amountBRL,
+      method: "pix",
+      external_reference: externalRef,
+      notification_url: webhookUrl || undefined,
+      client: { name: "Cliente", document: "00000000000", email: "cliente@email.com" },
+    }),
+  });
+  if (!res.ok) throw new Error(`LofyPay error: ${res.status}`);
+  const data = await res.json();
+  if (data.status !== "success") throw new Error(`LofyPay: ${data.message || "Erro desconhecido"}`);
+  return { brcode: data.paymentCode || "", payment_id: data.idTransaction || externalRef };
+}
+
 async function startCheckout(interaction, tenant, productId) {
   await interaction.deferReply({ ephemeral: true });
 
