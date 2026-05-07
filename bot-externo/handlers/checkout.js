@@ -870,6 +870,9 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     } else if (providerKey === "abacatepay") {
       const r = await generateAbacatePayPix(apiKey, priceCents, order.product_name, externalRef);
       brcode = r.brcode; paymentId = r.payment_id;
+    } else if (providerKey === "lofypay") {
+      const r = await generateLofyPayPix(apiKey, amount, externalRef, webhookUrl);
+      brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "efi") {
       const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
         method: "POST",
