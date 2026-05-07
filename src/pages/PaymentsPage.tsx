@@ -116,6 +116,17 @@ const buildProviders = (t: TranslationKeys) => [
     ],
     instructions: "No painel AbacatePay, acesse Integrar > API Keys e copie sua chave (use abc_live_ em produção).",
   },
+  {
+    key: "lofypay",
+    name: "LofyPay",
+    color: "bg-cyan-500/10 text-cyan-400",
+    iconUrl: lofyPayIcon,
+    docsUrl: "https://lofypay.com",
+    fields: [
+      { key: "api_key", label: "API Key", placeholder: "SUA_CHAVE_AQUI" },
+    ],
+    instructions: "No painel LofyPay, copie sua API Key para integrar pagamentos PIX.",
+  },
 ];
 
 interface PaymentProvider {
