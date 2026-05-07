@@ -605,20 +605,31 @@ const ProviderForm = ({ provider, config, tenantId, onSave, onToggle }: Provider
           <Zap className="h-3.5 w-3.5 text-primary" />
           {t.paymentsPage.webhookUrlLabel}
         </Label>
-        <div className="flex gap-2">
-          <Input
-            readOnly
-            value={webhookUrl}
-            className="bg-muted border-none font-mono text-xs"
-          />
-          <Button variant="outline" size="sm" onClick={copyWebhook}>
-            <Copy className="h-3.5 w-3.5 mr-1.5" /> {t.paymentsPage.copy}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
-          {t.paymentsPage.webhookHint.replace("{name}", provider.name)}
-        </p>
+        {provider.key === "lofypay" ? (
+          <div className="rounded-md bg-cyan-500/10 border border-cyan-500/20 px-3 py-2">
+            <p className="text-xs text-cyan-400 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              Webhook automático — a URL é enviada dinamicamente a cada cobrança PIX. Não é necessário configurar manualmente.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={webhookUrl}
+                className="bg-muted border-none font-mono text-xs"
+              />
+              <Button variant="outline" size="sm" onClick={copyWebhook}>
+                <Copy className="h-3.5 w-3.5 mr-1.5" /> {t.paymentsPage.copy}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              {t.paymentsPage.webhookHint.replace("{name}", provider.name)}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Actions */}
