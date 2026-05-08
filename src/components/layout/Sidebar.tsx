@@ -186,7 +186,7 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
             disabled={!canMoveUp}
             className={cn(
               "p-0.5 rounded transition-colors",
-              canMoveUp ? "text-white/40 hover:text-primary hover:bg-primary/10" : "text-white/10 cursor-not-allowed"
+              canMoveUp ? "text-foreground/40 hover:text-primary hover:bg-primary/10" : "text-foreground/10 cursor-not-allowed"
             )}
           >
             <ChevronUp className="h-3 w-3" />
@@ -196,7 +196,7 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
             disabled={!canMoveDown}
             className={cn(
               "p-0.5 rounded transition-colors",
-              canMoveDown ? "text-white/40 hover:text-primary hover:bg-primary/10" : "text-white/10 cursor-not-allowed"
+              canMoveDown ? "text-foreground/40 hover:text-primary hover:bg-primary/10" : "text-foreground/10 cursor-not-allowed"
             )}
           >
             <ChevronDown className="h-3 w-3" />
@@ -211,7 +211,7 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
           collapsed ? "justify-center w-11 h-11 mx-auto" : "px-3 py-2.5",
           isActive
             ? "bg-primary/12 text-primary border border-primary/20"
-            : "text-white/45 hover:bg-white/[0.06] hover:text-white/80 border border-transparent",
+            : "text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/80 border border-transparent",
           reordering && "cursor-grab"
         )}
       >
@@ -227,7 +227,7 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
         <div className={cn(
           "relative shrink-0 flex items-center justify-center rounded-lg transition-all duration-300",
           collapsed ? "h-7 w-7" : "h-6 w-6",
-          isActive ? "bg-primary/15" : "group-hover:bg-white/[0.06]"
+          isActive ? "bg-primary/15" : "group-hover:bg-foreground/[0.06]"
         )}>
           <item.icon
             className={cn(
@@ -235,7 +235,7 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
               collapsed ? "h-[16px] w-[16px]" : "h-[15px] w-[15px]",
               isActive
                 ? "text-primary drop-shadow-[0_0_6px_hsl(330_100%_71%/0.5)]"
-                : "text-white/40 group-hover:text-white/70"
+                : "text-foreground/40 group-hover:text-foreground/70"
             )}
             strokeWidth={isActive ? 2.2 : 1.8}
           />
@@ -246,7 +246,7 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
         {!collapsed && (
           <span className={cn(
             "truncate transition-colors duration-300 relative z-10",
-            isActive ? "text-primary font-semibold" : "text-white/55 group-hover:text-white/80"
+            isActive ? "text-primary font-semibold" : "text-foreground/55 group-hover:text-foreground/80"
           )}>
             {resolvedLabel}
           </span>
@@ -353,7 +353,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
         {/* Logo */}
         <div className={cn(
-          "relative z-10 flex items-center border-b border-white/[0.06] transition-all duration-300",
+          "relative z-10 flex items-center border-b border-foreground/[0.06] transition-all duration-300",
           collapsed ? "justify-center py-4 px-2" : "gap-3 px-4 py-4"
         )}>
           <Link to="/dashboard" className="group shrink-0">
@@ -362,17 +362,17 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               collapsed ? "h-11 w-11" : "h-9 w-9"
             )}>
               <img src={logo} alt="Drika" className={cn("object-contain relative z-10", collapsed ? "h-6 w-6" : "h-5 w-5")} />
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-foreground/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </div>
           </Link>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-bold leading-tight tracking-wide">
                 <span className="text-gradient-pink">DRIKA</span>{" "}
-                <span className="text-white/90">HUB</span>
+                <span className="text-foreground/90">HUB</span>
               </span>
               {tenant?.discord_guild_id && (
-                <span className="text-[10px] font-mono text-white/25 truncate mt-0.5">
+                <span className="text-[10px] font-mono text-foreground/25 truncate mt-0.5">
                   {tenant.discord_guild_id}
                 </span>
               )}
@@ -411,7 +411,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                         "p-1 rounded-md transition-all duration-200",
                         reorderingGroup === group.key
                           ? "text-primary bg-primary/15"
-                          : "text-white/20 hover:text-white/50 hover:bg-white/5"
+                          : "text-foreground/20 hover:text-foreground/50 hover:bg-foreground/5"
                       )}
                       title={reorderingGroup === group.key ? "Salvar ordem" : "Reordenar"}
                     >
@@ -466,7 +466,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         <button
           onClick={onToggle}
           className={cn(
-            "relative z-10 flex items-center justify-center h-10 border-t border-white/[0.06] text-white/25 hover:text-primary hover:bg-primary/8 transition-all duration-300 group"
+            "relative z-10 flex items-center justify-center h-10 border-t border-foreground/[0.06] text-foreground/25 hover:text-primary hover:bg-primary/8 transition-all duration-300 group"
           )}
         >
           {collapsed ? (
