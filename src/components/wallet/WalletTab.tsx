@@ -88,6 +88,32 @@ export const WalletTab = () => {
     }
   }, [searchParams]);
 
+  // Fetch gateway balance whenever the selected withdrawal gateway changes
+  useEffect(() => {
+    if (!tenantId || !withdrawProvider) {
+      setGatewayBalance({ cents: 0, loading: false, error: null });
+      return;
+    }
+    let cancelled = false;
+    setGatewayBalance({ cents: 0, loading: true, error: null });
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
+          body: { tenant_id: tenantId, provider_key: withdrawProvider },
+        });
+        if (cancelled) return;
+        if (error || (data as any)?.error) {
+          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro" });
+        } else {
+          setGatewayBalance({ cents: (data as any)?.balance_cents ?? 0, loading: false, error: null });
+        }
+      } catch (e: any) {
+        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro" });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId, withdrawProvider]);
+
   const fetchData = async () => {
     setLoading(true);
     const [walletRes, txRes, provRes] = await Promise.all([
