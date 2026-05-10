@@ -19,6 +19,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
