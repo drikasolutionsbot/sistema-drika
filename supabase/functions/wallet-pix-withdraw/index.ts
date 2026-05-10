@@ -259,8 +259,12 @@ Deno.serve(async (req) => {
           description,
         });
       } else if (provider_key === "misticpay") {
+        if (!provider.api_key_encrypted || !provider.secret_key_encrypted) {
+          throw new Error("MisticPay precisa de Client ID (ci) e Client Secret (cs)");
+        }
         result = await withdrawViaMisticPay({
-          apiKey: provider.api_key_encrypted || "",
+          clientId: provider.api_key_encrypted,
+          clientSecret: provider.secret_key_encrypted,
           destinationKey: pix_key,
           destinationKeyType: keyType,
           amountCents: amount_cents,
