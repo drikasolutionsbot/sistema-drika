@@ -89,7 +89,16 @@ async function withdrawViaEfi(opts: {
   return { payment_id: data.e2eId || idEnvio, status: data.status || "EM_PROCESSAMENTO" };
 }
 
-// ─── LofyPay stub — adjust endpoints when integrating ──────────────
+// ─── LofyPay — POST /api/c1/cashout/ (api-key no body, valor em REAIS) ──
+function mapLofyPixKeyType(t: string): string {
+  const v = (t || "").toLowerCase();
+  if (v === "cpf") return "cpf";
+  if (v === "cnpj") return "cnpj";
+  if (v === "email") return "email";
+  if (v === "phone" || v === "telefone" || v === "celular") return "phone";
+  return "random";
+}
+
 async function withdrawViaLofyPay(opts: {
   apiKey: string;
   destinationKey: string;
@@ -97,22 +106,26 @@ async function withdrawViaLofyPay(opts: {
   amountCents: number;
   description?: string;
 }): Promise<{ payment_id: string; status: string }> {
-  const res = await fetch("https://api.lofypay.com/v1/pix/cashout", {
+  const res = await fetch("https://app.lofypay.com/api/c1/cashout/", {
     method: "POST",
-    headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      amount: opts.amountCents,
+      "api-key": opts.apiKey,
+      amount: Number((opts.amountCents / 100).toFixed(2)),
       pix_key: opts.destinationKey,
-      pix_key_type: opts.destinationKeyType,
-      description: opts.description || "Saque carteira",
+      pix_key_type: mapLofyPixKeyType(opts.destinationKeyType),
     }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`LofyPay: ${res.status} ${err}`);
+  const text = await res.text();
+  let data: any = {};
+  try { data = JSON.parse(text); } catch { /* keep raw */ }
+  if (!res.ok || data?.status === "error") {
+    throw new Error(data?.message || data?.error || `LofyPay ${res.status}: ${text.slice(0, 200)}`);
   }
-  const data = await res.json();
-  return { payment_id: data.id || data.transaction_id || crypto.randomUUID(), status: data.status || "processing" };
+  return {
+    payment_id: data.idTransaction || data.id || data.transaction_id || crypto.randomUUID(),
+    status: data.status || "processing",
+  };
 }
 
 // ─── MisticPay stub — adjust endpoints when integrating ──────────────

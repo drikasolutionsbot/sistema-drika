@@ -53,17 +53,20 @@ async function efiBalance(p: any): Promise<{ balance_cents: number; currency: st
   return { balance_cents: Math.round(reais * 100), currency: "BRL", raw: data };
 }
 
-async function lofyBalance(p: any): Promise<{ balance_cents: number; currency: string }> {
-  // Placeholder until LofyPay docs are integrated
-  if (!p.api_key_encrypted) throw new Error("API key LofyPay ausente");
-  // TODO: replace with real endpoint
-  // const r = await fetch("https://api.lofypay.com/v1/balance", { headers: { Authorization: `Bearer ${p.api_key_encrypted}` } });
-  return { balance_cents: 0, currency: "BRL" };
+async function lofyBalance(_p: any): Promise<{ balance_cents: number; currency: string; unsupported: boolean; note: string }> {
+  // LofyPay não expõe endpoint público de saldo. O saque debita do saldo interno da conta LofyPay
+  // — sinalizamos para a UI mostrar "consultar no painel" em vez de R$ 0,00.
+  return {
+    balance_cents: 0,
+    currency: "BRL",
+    unsupported: true,
+    note: "LofyPay não disponibiliza API de saldo. Consulte em app.lofypay.com.",
+  };
 }
 
 async function misticBalance(p: any): Promise<{ balance_cents: number; currency: string }> {
   if (!p.api_key_encrypted) throw new Error("API key MisticPay ausente");
-  // TODO: replace with real endpoint
+  // TODO: replace with real endpoint when MisticPay docs are integrated
   return { balance_cents: 0, currency: "BRL" };
 }
 

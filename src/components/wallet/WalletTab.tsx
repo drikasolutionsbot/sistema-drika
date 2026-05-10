@@ -72,7 +72,7 @@ export const WalletTab = () => {
   const [withdrawProvider, setWithdrawProvider] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null }>({ cents: 0, loading: false, error: null });
+  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
 
   useEffect(() => {
     if (!tenantId) return;
@@ -91,11 +91,11 @@ export const WalletTab = () => {
   // Fetch gateway balance whenever the selected withdrawal gateway changes
   useEffect(() => {
     if (!tenantId || !withdrawProvider) {
-      setGatewayBalance({ cents: 0, loading: false, error: null });
+      setGatewayBalance({ cents: 0, loading: false, error: null, unsupported: false });
       return;
     }
     let cancelled = false;
-    setGatewayBalance({ cents: 0, loading: true, error: null });
+    setGatewayBalance({ cents: 0, loading: true, error: null, unsupported: false });
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -103,12 +103,17 @@ export const WalletTab = () => {
         });
         if (cancelled) return;
         if (error || (data as any)?.error) {
-          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro" });
+          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro", unsupported: false });
         } else {
-          setGatewayBalance({ cents: (data as any)?.balance_cents ?? 0, loading: false, error: null });
+          setGatewayBalance({
+            cents: (data as any)?.balance_cents ?? 0,
+            loading: false,
+            error: null,
+            unsupported: !!(data as any)?.unsupported,
+          });
         }
       } catch (e: any) {
-        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro" });
+        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro", unsupported: false });
       }
     })();
     return () => { cancelled = true; };
@@ -448,6 +453,8 @@ export const WalletTab = () => {
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> consultando…</span>
                   ) : gatewayBalance.error ? (
                     <span className="text-destructive font-medium" title={gatewayBalance.error}>indisponível</span>
+                  ) : gatewayBalance.unsupported ? (
+                    <span className="text-amber-400 font-medium" title="Este gateway não expõe API de saldo">consulte no painel</span>
                   ) : withdrawProvider ? (
                     <span className="font-mono font-semibold text-foreground">{fmt(gatewayBalance.cents)}</span>
                   ) : (
