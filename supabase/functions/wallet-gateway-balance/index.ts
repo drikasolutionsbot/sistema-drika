@@ -46,6 +46,15 @@ async function efiBalance(p: any): Promise<{ balance_cents: number; currency: st
   } as any);
   if (!balRes.ok) {
     const errText = await balRes.text();
+    // 404 normalmente significa que o escopo gn.balance.read não está habilitado
+    // na aplicação Efí — não quebramos a UI, apenas sinalizamos.
+    if (balRes.status === 404 || balRes.status === 403) {
+      return {
+        balance_cents: 0,
+        currency: "BRL",
+        raw: { unsupported: true, note: "Habilite o escopo gn.balance.read na sua aplicação Efí para consultar o saldo." },
+      } as any;
+    }
     throw new Error(`Efí saldo ${balRes.status}: ${errText.slice(0, 200)}`);
   }
   const data = await balRes.json();
