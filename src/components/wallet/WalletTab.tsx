@@ -86,6 +86,7 @@ export const WalletTab = () => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
   const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
+  const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null }>>({});
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
@@ -134,16 +135,20 @@ export const WalletTab = () => {
     return () => { cancelled = true; };
   }, [tenantId, withdrawProvider]);
 
-  // Aggregate balance across all enabled PIX OUT gateways (shown in main wallet "Saldo")
+  // Aggregate + per-provider balances across all enabled PIX OUT gateways
   useEffect(() => {
     if (!tenantId) return;
     const enabled = providers.filter((p) => PIX_OUT_CAPABLE.has(p.provider_key) && p.active && p.pix_out_enabled);
     if (enabled.length === 0) {
       setAggregateBalance({ cents: 0, loading: false, partial: false });
+      setProviderBalances({});
       return;
     }
     let cancelled = false;
     setAggregateBalance({ cents: 0, loading: true, partial: false });
+    setProviderBalances(
+      Object.fromEntries(enabled.map((p) => [p.provider_key, { cents: 0, loading: true, unsupported: false, error: null }]))
+    );
     (async () => {
       let total = 0;
       let partial = false;
@@ -152,10 +157,24 @@ export const WalletTab = () => {
           const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
             body: { tenant_id: tenantId, provider_key: p.provider_key },
           });
-          if (error || (data as any)?.error) { partial = true; return; }
-          if ((data as any)?.unsupported) { partial = true; return; }
-          total += (data as any)?.balance_cents ?? 0;
-        } catch { partial = true; }
+          if (cancelled) return;
+          if (error || (data as any)?.error) {
+            partial = true;
+            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: (data as any)?.error || error?.message || "Erro" } }));
+            return;
+          }
+          if ((data as any)?.unsupported) {
+            partial = true;
+            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: true, error: null } }));
+            return;
+          }
+          const cents = (data as any)?.balance_cents ?? 0;
+          total += cents;
+          setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents, loading: false, unsupported: false, error: null } }));
+        } catch (e: any) {
+          partial = true;
+          if (!cancelled) setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: e?.message || "Erro" } }));
+        }
       }));
       if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial });
     })();
