@@ -62,6 +62,7 @@ const PIX_OUT_CAPABLE = new Set(["efi", "lofypay", "misticpay"]);
 
 export const WalletTab = () => {
   const { tenantId } = useTenant();
+  const [searchParams] = useSearchParams();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [providers, setProviders] = useState<PixOutProvider[]>([]);
