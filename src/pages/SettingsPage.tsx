@@ -523,30 +523,6 @@ const SettingsPage = () => {
                   </Button>
                 </div>
 
-                {/* Full reset */}
-                <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10">
-                      <HardDrive className="h-4 w-4 text-destructive" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Limpeza Total</p>
-                      <p className="text-xs text-muted-foreground">Remove localStorage, sessionStorage e Cache API. Recarrega a página.</p>
-                    </div>
-                  </div>
-                  <Button variant="destructive" size="sm" onClick={async () => {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    if ("caches" in window) {
-                      const names = await caches.keys();
-                      await Promise.all(names.map(n => caches.delete(n)));
-                    }
-                    toast({ title: "Cache total limpo ✅ Recarregando..." });
-                    setTimeout(() => window.location.reload(), 800);
-                  }}>
-                    Limpar Tudo
-                  </Button>
-                </div>
               </div>
             </div>
           </div>
