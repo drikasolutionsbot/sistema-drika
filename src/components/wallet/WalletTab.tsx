@@ -295,6 +295,13 @@ export const WalletTab = () => {
 
   return (
     <div className="space-y-6">
+      {successAnim && (
+        <PixSuccessAnimation
+          amount={successAnim.amount}
+          pixKey={successAnim.pixKey}
+          onClose={() => setSuccessAnim(null)}
+        />
+      )}
       {/* ---- Premium Income Card ---- */}
       <div className="wallet-card-wrapper">
         <div className="wallet-card">
