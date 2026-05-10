@@ -38,6 +38,9 @@ interface Transaction {
   description: string | null;
   status: string;
   pix_key: string | null;
+  provider: string | null;
+  payment_id: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 
@@ -76,6 +79,7 @@ export const WalletTab = () => {
   const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
   const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -598,7 +602,12 @@ export const WalletTab = () => {
         ) : (
           <div className="space-y-2">
             {transactions.map((tx) => (
-              <div key={tx.id} className="wallet-tx-row">
+              <button
+                type="button"
+                key={tx.id}
+                onClick={() => setSelectedTx(tx)}
+                className="wallet-tx-row w-full text-left transition hover:bg-muted/40 hover:border-primary/40 cursor-pointer"
+              >
                 <div className="flex items-center gap-3">
                   <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
                     tx.type === "deposit" ? "bg-emerald-500/15" : "bg-orange-500/15"
@@ -628,7 +637,7 @@ export const WalletTab = () => {
                     {tx.status === "completed" ? "Concluído" : tx.status === "pending" ? "Pendente" : "Rejeitado"}
                   </span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
