@@ -54,8 +54,8 @@ const PIX_KEY_TYPES = [
 
 const SettingsPage = () => {
   const { tenant, tenantId, refetch: refetchTenant } = useTenant();
-  const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") || "profile";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get("tab") || "profile";
   const { user } = useAuth();
 
   // PIX state with draft persistence
