@@ -136,7 +136,7 @@ export const WalletTab = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [tenantId, withdrawProvider]);
+  }, [tenantId, withdrawProvider, balanceRefreshTick]);
 
   // Aggregate + per-provider balances across all enabled PIX OUT gateways
   useEffect(() => {
