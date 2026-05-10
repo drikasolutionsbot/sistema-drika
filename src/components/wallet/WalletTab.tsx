@@ -643,6 +643,77 @@ export const WalletTab = () => {
           </div>
         )}
       </div>
+
+      {/* Transaction Details Dialog */}
+      <Dialog open={!!selectedTx} onOpenChange={(o) => !o && setSelectedTx(null)}>
+        <DialogContent className="max-w-md">
+          {selectedTx && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                    selectedTx.type === "deposit" ? "bg-emerald-500/15" : "bg-orange-500/15"
+                  }`}>
+                    {selectedTx.type === "deposit" ? (
+                      <ArrowDownLeft className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <ArrowUpRight className="h-4 w-4 text-orange-400" />
+                    )}
+                  </div>
+                  {selectedTx.type === "deposit" ? "Depósito recebido" : "Saque PIX"}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 pt-2">
+                <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Valor</div>
+                  <div className={`text-3xl font-black ${selectedTx.type === "deposit" ? "text-emerald-400" : "text-orange-400"}`}>
+                    {selectedTx.type === "deposit" ? "+" : "−"}{fmt(selectedTx.amount_cents)}
+                  </div>
+                  <span className={`wallet-tx-badge mt-2 inline-block ${
+                    selectedTx.status === "completed" ? "completed" : selectedTx.status === "pending" ? "pending" : "rejected"
+                  }`}>
+                    {selectedTx.status === "completed" ? "Concluído" : selectedTx.status === "pending" ? "Pendente" : "Rejeitado"}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 text-sm">
+                  {selectedTx.pix_key && (
+                    <DetailRow label="Chave PIX" value={selectedTx.pix_key} mono />
+                  )}
+                  {selectedTx.provider && (
+                    <DetailRow label="Gateway" value={PROVIDER_LABELS[selectedTx.provider] || selectedTx.provider} />
+                  )}
+                  {selectedTx.payment_id && (
+                    <DetailRow label="ID Pagamento" value={selectedTx.payment_id} mono />
+                  )}
+                  <DetailRow label="ID Transação" value={selectedTx.id} mono />
+                  <DetailRow
+                    label="Criada em"
+                    value={format(new Date(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                  />
+                  {selectedTx.completed_at && (
+                    <DetailRow
+                      label="Concluída em"
+                      value={format(new Date(selectedTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                    />
+                  )}
+                  {selectedTx.description && (
+                    <div className="pt-2 border-t border-border">
+                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Detalhes</div>
+                      <p className="text-sm text-foreground/90 leading-relaxed">{selectedTx.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedTx(null)}>Fechar</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
