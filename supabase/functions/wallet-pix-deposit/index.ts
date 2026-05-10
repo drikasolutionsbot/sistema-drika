@@ -36,18 +36,42 @@ serve(async (req) => {
     // ---------- CREATE PIX deposit ----------
     if (!amount_cents || amount_cents <= 0) throw new Error("Valor inválido");
 
+    // Only credit wallet from gateways that ALSO support automated PIX OUT (saque).
+    // Other gateways (PushinPay, MercadoPago, AbacatePay, etc.) still process sales for
+    // financial reports/charts, but the money does NOT enter the wallet.
+    const PIX_OUT_CAPABLE = ["efi", "lofypay", "misticpay"];
+    const { data: compatible } = await supabase
+      .from("payment_providers")
+      .select("provider_key, pix_out_enabled, active, api_key_encrypted")
+      .eq("tenant_id", tenant_id)
+      .eq("active", true)
+      .in("provider_key", PIX_OUT_CAPABLE);
+
+    const eligible = (compatible || []).find(
+      (p: any) => p.pix_out_enabled && p.api_key_encrypted
+    );
+    if (!eligible) {
+      throw new Error(
+        "Nenhum gateway compatível com PIX OUT está ativo. Habilite Efí, LofyPay ou MisticPay com saída PIX para depositar na carteira."
+      );
+    }
+
     const { data: pix, error: pixErr } = await supabase.functions.invoke("generate-pix", {
       body: {
         tenant_id,
         amount_cents,
         product_name: "Depósito carteira",
         tx_id: `WALLET${Date.now()}`,
+        provider_key: eligible.provider_key,
       },
     });
     if (pixErr) throw pixErr;
     if (pix?.error) throw new Error(pix.error);
     if (pix.method !== "dynamic") {
       throw new Error("Configure um gateway PIX ativo (com valor) para depositar.");
+    }
+    if (!PIX_OUT_CAPABLE.includes(pix.provider)) {
+      throw new Error("Gateway selecionado não é compatível com saque PIX. Carteira não creditada.");
     }
 
     const { data: inserted, error: insErr } = await supabase
