@@ -91,6 +91,26 @@ serve(async (req) => {
       });
     }
 
+    if (action === "toggle_pix_out") {
+      if (!provider_id) throw new Error("Missing provider_id");
+      const { data: current } = await supabase
+        .from("payment_providers")
+        .select("pix_out_enabled")
+        .eq("id", provider_id)
+        .eq("tenant_id", tenant_id)
+        .single();
+      if (!current) throw new Error("Provider not found");
+      const { error } = await supabase
+        .from("payment_providers")
+        .update({ pix_out_enabled: !current.pix_out_enabled })
+        .eq("id", provider_id)
+        .eq("tenant_id", tenant_id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true, pix_out_enabled: !current.pix_out_enabled }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "toggle") {
       if (!provider_id) throw new Error("Missing provider_id");
       const { data: current } = await supabase
