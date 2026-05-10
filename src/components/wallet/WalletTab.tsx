@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import {
   Wallet,
@@ -38,6 +39,9 @@ interface Transaction {
   description: string | null;
   status: string;
   pix_key: string | null;
+  provider: string | null;
+  payment_id: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 
@@ -61,6 +65,13 @@ const PROVIDER_LABELS: Record<string, string> = {
 // Only these gateways have automated PIX OUT support
 const PIX_OUT_CAPABLE = new Set(["efi", "lofypay", "misticpay"]);
 
+const DetailRow = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
+  <div className="flex items-start justify-between gap-3 py-1.5 border-b border-border/50 last:border-0">
+    <span className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">{label}</span>
+    <span className={`text-sm text-foreground text-right break-all ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
+  </div>
+);
+
 export const WalletTab = () => {
   const { tenantId } = useTenant();
   const [searchParams] = useSearchParams();
@@ -76,6 +87,7 @@ export const WalletTab = () => {
   const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
   const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -598,7 +610,12 @@ export const WalletTab = () => {
         ) : (
           <div className="space-y-2">
             {transactions.map((tx) => (
-              <div key={tx.id} className="wallet-tx-row">
+              <button
+                type="button"
+                key={tx.id}
+                onClick={() => setSelectedTx(tx)}
+                className="wallet-tx-row w-full text-left transition hover:bg-muted/40 hover:border-primary/40 cursor-pointer"
+              >
                 <div className="flex items-center gap-3">
                   <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
                     tx.type === "deposit" ? "bg-emerald-500/15" : "bg-orange-500/15"
@@ -628,11 +645,82 @@ export const WalletTab = () => {
                     {tx.status === "completed" ? "Concluído" : tx.status === "pending" ? "Pendente" : "Rejeitado"}
                   </span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
+
+      {/* Transaction Details Dialog */}
+      <Dialog open={!!selectedTx} onOpenChange={(o) => !o && setSelectedTx(null)}>
+        <DialogContent className="max-w-md">
+          {selectedTx && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                    selectedTx.type === "deposit" ? "bg-emerald-500/15" : "bg-orange-500/15"
+                  }`}>
+                    {selectedTx.type === "deposit" ? (
+                      <ArrowDownLeft className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <ArrowUpRight className="h-4 w-4 text-orange-400" />
+                    )}
+                  </div>
+                  {selectedTx.type === "deposit" ? "Depósito recebido" : "Saque PIX"}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 pt-2">
+                <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Valor</div>
+                  <div className={`text-3xl font-black ${selectedTx.type === "deposit" ? "text-emerald-400" : "text-orange-400"}`}>
+                    {selectedTx.type === "deposit" ? "+" : "−"}{fmt(selectedTx.amount_cents)}
+                  </div>
+                  <span className={`wallet-tx-badge mt-2 inline-block ${
+                    selectedTx.status === "completed" ? "completed" : selectedTx.status === "pending" ? "pending" : "rejected"
+                  }`}>
+                    {selectedTx.status === "completed" ? "Concluído" : selectedTx.status === "pending" ? "Pendente" : "Rejeitado"}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 text-sm">
+                  {selectedTx.pix_key && (
+                    <DetailRow label="Chave PIX" value={selectedTx.pix_key} mono />
+                  )}
+                  {selectedTx.provider && (
+                    <DetailRow label="Gateway" value={PROVIDER_LABELS[selectedTx.provider] || selectedTx.provider} />
+                  )}
+                  {selectedTx.payment_id && (
+                    <DetailRow label="ID Pagamento" value={selectedTx.payment_id} mono />
+                  )}
+                  <DetailRow label="ID Transação" value={selectedTx.id} mono />
+                  <DetailRow
+                    label="Criada em"
+                    value={format(new Date(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                  />
+                  {selectedTx.completed_at && (
+                    <DetailRow
+                      label="Concluída em"
+                      value={format(new Date(selectedTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                    />
+                  )}
+                  {selectedTx.description && (
+                    <div className="pt-2 border-t border-border">
+                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Detalhes</div>
+                      <p className="text-sm text-foreground/90 leading-relaxed">{selectedTx.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedTx(null)}>Fechar</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
