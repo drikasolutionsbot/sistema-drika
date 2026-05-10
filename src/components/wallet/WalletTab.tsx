@@ -301,10 +301,16 @@ export const WalletTab = () => {
                   <Wallet className="h-5 w-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">Receita</p>
+                  <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">
+                    Receita {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal text-[10px]">(parcial)</span>}
+                  </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="wallet-amount">
-                      {balanceVisible ? fmt(thisMonth) : "••••••"}
+                      {balanceVisible
+                        ? aggregateBalance.loading
+                          ? "..."
+                          : fmt(aggregateBalance.cents)
+                        : "••••••"}
                     </span>
                     {changePercent !== 0 && (
                       <span className={`wallet-change ${changePercent >= 0 ? "positive" : "negative"}`}>
