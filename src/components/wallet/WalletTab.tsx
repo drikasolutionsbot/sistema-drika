@@ -488,7 +488,14 @@ export const WalletTab = () => {
                   {gatewayBalance.loading ? (
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> consultando…</span>
                   ) : gatewayBalance.error ? (
-                    <span className="text-destructive font-medium" title={gatewayBalance.error}>indisponível</span>
+                    gatewayBalance.stale ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-foreground text-lg sm:text-xl tracking-tight opacity-70">{fmt(gatewayBalance.cents)}</span>
+                        <span className="text-amber-400 text-[10px]" title={gatewayBalance.error}>desatualizado</span>
+                      </span>
+                    ) : (
+                      <span className="text-destructive font-medium" title={gatewayBalance.error}>{gatewayBalance.error}</span>
+                    )
                   ) : gatewayBalance.unsupported ? (
                     <span className="text-amber-400 font-medium" title="Este gateway não expõe API de saldo">consulte no painel</span>
                   ) : withdrawProvider ? (
