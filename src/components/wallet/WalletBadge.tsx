@@ -142,7 +142,7 @@ export const WalletBadge = () => {
             }
           />
           <button
-            onClick={() => navigate("/finance?tab=wallet")}
+            onClick={() => navigate("/settings?tab=wallet")}
             className="flex flex-col items-center justify-center gap-1 rounded-lg border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/15 transition-all p-3 text-center"
           >
             <ArrowUpRight className="h-4 w-4 text-orange-500" />
@@ -155,7 +155,7 @@ export const WalletBadge = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/finance?tab=wallet")}
+            onClick={() => navigate("/settings?tab=wallet")}
             className="w-full justify-center text-xs text-muted-foreground hover:text-foreground"
           >
             Ver carteira completa
