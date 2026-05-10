@@ -396,6 +396,20 @@ serve(async (req) => {
     let result;
     const eventType = body?.action || body?.event || body?.type || "unknown";
 
+    // Helper: extract a payment_id from the webhook body for any provider
+    const extractPaymentId = (): string | null => {
+      const id =
+        body?.data?.id ||
+        body?.id ||
+        body?.payment_id ||
+        body?.transaction_id ||
+        body?.idTransaction ||
+        body?.txid ||
+        body?.pixQrCode?.id ||
+        null;
+      return id ? String(id).toLowerCase() : null;
+    };
+
     switch (provider) {
       case "mercadopago":
         result = await handleMercadoPago(body, tenantId, supabase);
@@ -417,6 +431,31 @@ serve(async (req) => {
         break;
       default:
         result = { handled: false, reason: `Unknown provider: ${provider}` };
+    }
+
+    // ─── Wallet deposit fallback: credit wallet if a pending deposit matches this payment ───
+    if (!result?.handled || result?.order_status === "paid") {
+      try {
+        const pid = extractPaymentId();
+        if (pid) {
+          const { data: walletTx } = await supabase
+            .from("wallet_transactions")
+            .select("id, status, type")
+            .eq("tenant_id", tenantId)
+            .eq("payment_id", pid)
+            .eq("type", "deposit")
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (walletTx) {
+            await supabase.rpc("credit_wallet_deposit", { _tx_id: walletTx.id });
+            console.log(`Wallet deposit credited: tx=${walletTx.id} payment_id=${pid}`);
+            result = { ...(result || {}), wallet_credited: true };
+          }
+        }
+      } catch (e) {
+        console.error("Wallet credit fallback failed:", e);
+      }
     }
 
     // Log webhook
