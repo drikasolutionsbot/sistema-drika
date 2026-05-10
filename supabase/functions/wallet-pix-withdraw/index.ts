@@ -65,6 +65,22 @@ async function withdrawViaEfi(opts: {
   }
   const { access_token } = await tokenRes.json();
 
+  // Ensure webhook is registered for source PIX key (Efí requires it for /envio)
+  try {
+    const supaUrl = Deno.env.get("SUPABASE_URL") || "";
+    const webhookUrl = `${supaUrl}/functions/v1/wallet-pix-deposit-webhook`;
+    await fetch(`https://pix.api.efipay.com.br/v2/gn/webhook/${encodeURIComponent(opts.pixKey)}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "Content-Type": "application/json",
+        "x-skip-mtls-checking": "true",
+      },
+      body: JSON.stringify({ webhookUrl }),
+      ...fetchOpts,
+    } as any);
+  } catch (_) { /* non-fatal */ }
+
   // Send PIX (envio): POST /v3/gn/pix/:idEnvio
   const idEnvio = crypto.randomUUID().replace(/-/g, "").slice(0, 35);
   const sendRes = await fetch(`https://pix.api.efipay.com.br/v3/gn/pix/${idEnvio}`, {
