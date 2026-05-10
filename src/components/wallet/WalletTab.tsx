@@ -254,8 +254,42 @@ export const WalletTab = () => {
         </div>
       </div>
 
+      {/* ---- Quick Actions: PIX IN / OUT ---- */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <WalletDepositDialog
+          onCredited={fetchData}
+          trigger={
+            <button className="group relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all p-4 text-left">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
+                  <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">PIX IN</p>
+                  <p className="text-sm font-semibold text-foreground">Depositar via PIX</p>
+                </div>
+              </div>
+            </button>
+          }
+        />
+        <button
+          onClick={() => document.getElementById("wallet-withdraw-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+          className="group relative overflow-hidden rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all p-4 text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/20">
+              <ArrowUpRight className="h-5 w-5 text-orange-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">PIX OUT</p>
+              <p className="text-sm font-semibold text-foreground">Solicitar Saque</p>
+            </div>
+          </div>
+        </button>
+      </div>
+
       {/* ---- Withdraw Form ---- */}
-      <div className="wallet-section">
+      <div className="wallet-section" id="wallet-withdraw-section">
         <div className="wallet-section-header">
           <div className="wallet-section-icon">
             <ArrowUpRight className="h-4 w-4 text-primary" />
