@@ -84,9 +84,9 @@ export const WalletTab = () => {
   const [withdrawProvider, setWithdrawProvider] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
-  const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
-  const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null }>>({});
+  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean; stale?: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
+  const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean; stale?: boolean }>({ cents: 0, loading: false, partial: false });
+  const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null; stale?: boolean }>>({});
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
@@ -111,7 +111,7 @@ export const WalletTab = () => {
       return;
     }
     let cancelled = false;
-    setGatewayBalance({ cents: 0, loading: true, error: null, unsupported: false });
+    setGatewayBalance((prev) => ({ ...prev, loading: true }));
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -119,17 +119,19 @@ export const WalletTab = () => {
         });
         if (cancelled) return;
         if (error || (data as any)?.error) {
-          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro", unsupported: false });
+          const msg = friendlyBalanceError((data as any)?.error || error?.message);
+          setGatewayBalance((prev) => ({ cents: prev.cents, loading: false, error: msg, unsupported: false, stale: prev.cents > 0 }));
         } else {
           setGatewayBalance({
             cents: (data as any)?.balance_cents ?? 0,
             loading: false,
             error: null,
             unsupported: !!(data as any)?.unsupported,
+            stale: false,
           });
         }
       } catch (e: any) {
-        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro", unsupported: false });
+        if (!cancelled) setGatewayBalance((prev) => ({ cents: prev.cents, loading: false, error: friendlyBalanceError(e?.message), unsupported: false, stale: prev.cents > 0 }));
       }
     })();
     return () => { cancelled = true; };
@@ -145,13 +147,23 @@ export const WalletTab = () => {
       return;
     }
     let cancelled = false;
-    setAggregateBalance({ cents: 0, loading: true, partial: false });
-    setProviderBalances(
-      Object.fromEntries(enabled.map((p) => [p.provider_key, { cents: 0, loading: true, unsupported: false, error: null }]))
+    setAggregateBalance((prev) => ({ ...prev, loading: true }));
+    setProviderBalances((prev) =>
+      Object.fromEntries(enabled.map((p) => {
+        const prior = prev[p.provider_key];
+        return [p.provider_key, {
+          cents: prior?.cents ?? 0,
+          loading: true,
+          unsupported: prior?.unsupported ?? false,
+          error: prior?.error ?? null,
+          stale: prior?.stale ?? false,
+        }];
+      }))
     );
     (async () => {
       let total = 0;
       let partial = false;
+      let anyStale = false;
       await Promise.all(enabled.map(async (p) => {
         try {
           const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -160,26 +172,48 @@ export const WalletTab = () => {
           if (cancelled) return;
           if (error || (data as any)?.error) {
             partial = true;
-            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: (data as any)?.error || error?.message || "Erro" } }));
+            const msg = friendlyBalanceError((data as any)?.error || error?.message);
+            setProviderBalances((prev) => {
+              const prior = prev[p.provider_key];
+              const keep = prior?.cents ?? 0;
+              if (keep > 0) { total += keep; anyStale = true; }
+              return { ...prev, [p.provider_key]: { cents: keep, loading: false, unsupported: false, error: msg, stale: keep > 0 } };
+            });
             return;
           }
           if ((data as any)?.unsupported) {
             partial = true;
-            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: true, error: null } }));
+            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: true, error: null, stale: false } }));
             return;
           }
           const cents = (data as any)?.balance_cents ?? 0;
           total += cents;
-          setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents, loading: false, unsupported: false, error: null } }));
+          setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents, loading: false, unsupported: false, error: null, stale: false } }));
         } catch (e: any) {
           partial = true;
-          if (!cancelled) setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: e?.message || "Erro" } }));
+          if (!cancelled) {
+            const msg = friendlyBalanceError(e?.message);
+            setProviderBalances((prev) => {
+              const prior = prev[p.provider_key];
+              const keep = prior?.cents ?? 0;
+              if (keep > 0) { total += keep; anyStale = true; }
+              return { ...prev, [p.provider_key]: { cents: keep, loading: false, unsupported: false, error: msg, stale: keep > 0 } };
+            });
+          }
         }
       }));
-      if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial });
+      if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial, stale: anyStale });
     })();
     return () => { cancelled = true; };
   }, [tenantId, providers]);
+
+  function friendlyBalanceError(raw?: string | null): string {
+    const s = String(raw || "").toLowerCase();
+    if (s.includes("429") || s.includes("rate") || s.includes("too many")) return "Limite de consultas atingido — tente em alguns segundos";
+    if (/\b5\d\d\b/.test(s) || s.includes("timeout") || s.includes("gateway") || s.includes("unavailable")) return "Gateway indisponível no momento";
+    if (s.includes("network") || s.includes("failed to fetch")) return "Falha de conexão";
+    return raw || "Indisponível";
+  }
 
   const fetchData = async () => {
     setLoading(true);
@@ -344,7 +378,7 @@ export const WalletTab = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">
-                    Receita {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal text-[10px]">(parcial)</span>}
+                    Receita {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal text-[10px]">(parcial)</span>} {aggregateBalance.stale && <span className="text-amber-400/90 normal-case tracking-normal text-[10px]" title="Última consulta falhou — exibindo último valor válido">(desatualizado)</span>}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="wallet-amount">
@@ -401,7 +435,7 @@ export const WalletTab = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                    Saldo {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal">(parcial)</span>}
+                    Saldo {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal">(parcial)</span>} {aggregateBalance.stale && <span className="text-amber-400/90 normal-case tracking-normal" title="Última consulta falhou — exibindo último valor válido">(desatualizado)</span>}
                   </p>
                   <p className="text-sm font-bold text-foreground truncate">
                     {balanceVisible
@@ -454,7 +488,14 @@ export const WalletTab = () => {
                   {gatewayBalance.loading ? (
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> consultando…</span>
                   ) : gatewayBalance.error ? (
-                    <span className="text-destructive font-medium" title={gatewayBalance.error}>indisponível</span>
+                    gatewayBalance.stale ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-foreground text-lg sm:text-xl tracking-tight opacity-70">{fmt(gatewayBalance.cents)}</span>
+                        <span className="text-amber-400 text-[10px]" title={gatewayBalance.error}>desatualizado</span>
+                      </span>
+                    ) : (
+                      <span className="text-destructive font-medium" title={gatewayBalance.error}>{gatewayBalance.error}</span>
+                    )
                   ) : gatewayBalance.unsupported ? (
                     <span className="text-amber-400 font-medium" title="Este gateway não expõe API de saldo">consulte no painel</span>
                   ) : withdrawProvider ? (
@@ -609,8 +650,13 @@ export const WalletTab = () => {
                         <p className="text-sm font-mono font-bold text-foreground">
                           {!bal || bal.loading ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin inline text-muted-foreground" />
+                          ) : bal.error && bal.stale ? (
+                            <span className="inline-flex items-center gap-1" title={bal.error}>
+                              <span className="opacity-70">{balanceVisible ? fmt(bal.cents) : "••••"}</span>
+                              <span className="text-amber-400 text-[9px] font-sans uppercase">desatualizado</span>
+                            </span>
                           ) : bal.error ? (
-                            <span className="text-destructive text-[11px] font-sans" title={bal.error}>indisponível</span>
+                            <span className="text-destructive text-[11px] font-sans" title={bal.error}>{bal.error}</span>
                           ) : bal.unsupported ? (
                             <span className="text-amber-400 text-[11px] font-sans">N/D</span>
                           ) : (
