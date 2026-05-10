@@ -129,21 +129,11 @@ export const WalletBadge = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-2 p-3">
-          <WalletDepositDialog
-            onCredited={fetchWallet}
-            trigger={
-              <button className="flex flex-col items-center justify-center gap-1 rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/15 transition-all p-3 text-center">
-                <ArrowDownLeft className="h-4 w-4 text-emerald-500" />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">PIX IN</span>
-                <span className="text-xs font-semibold text-foreground">Depositar</span>
-              </button>
-            }
-          />
+        {/* Quick Action */}
+        <div className="p-3">
           <button
-            onClick={() => navigate("/settings?tab=wallet")}
-            className="flex flex-col items-center justify-center gap-1 rounded-lg border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/15 transition-all p-3 text-center"
+            onClick={() => navigate("/settings?tab=wallet&section=withdraw")}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/15 transition-all p-3 text-center"
           >
             <ArrowUpRight className="h-4 w-4 text-orange-500" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">PIX OUT</span>

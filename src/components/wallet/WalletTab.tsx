@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const PIX_OUT_CAPABLE = new Set(["efi", "lofypay", "misticpay"]);
 
 export const WalletTab = () => {
   const { tenantId } = useTenant();
+  const [searchParams] = useSearchParams();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [providers, setProviders] = useState<PixOutProvider[]>([]);
@@ -75,6 +77,15 @@ export const WalletTab = () => {
     if (!tenantId) return;
     fetchData();
   }, [tenantId]);
+
+  useEffect(() => {
+    if (searchParams.get("section") === "withdraw") {
+      const t = setTimeout(() => {
+        document.getElementById("wallet-withdraw-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     setLoading(true);
