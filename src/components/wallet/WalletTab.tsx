@@ -255,77 +255,130 @@ export const WalletTab = () => {
       </div>
 
       {/* ---- Quick Actions: PIX IN / OUT ---- */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <WalletDepositDialog
           onCredited={fetchData}
           trigger={
-            <button className="group relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all p-4 text-left">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
+            <button className="group relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-5 text-left transition-all hover:border-emerald-500/50 hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.15)] hover:-translate-y-0.5">
+              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition-all group-hover:bg-emerald-500/20" />
+              <div className="relative flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 ring-1 ring-emerald-500/30 group-hover:scale-110 transition-transform">
                   <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">PIX IN</p>
-                  <p className="text-sm font-semibold text-foreground">Depositar via PIX</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-[0.15em]">PIX IN</p>
+                    <span className="h-1 w-1 rounded-full bg-emerald-400/40" />
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Entrada</p>
+                  </div>
+                  <p className="text-base font-semibold text-foreground leading-tight">Depositar via PIX</p>
+                  <p className="text-xs text-muted-foreground mt-1">Crédito instantâneo após pagamento</p>
                 </div>
+                <ArrowDownLeft className="h-4 w-4 text-emerald-400/40 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
               </div>
             </button>
           }
         />
         <button
           onClick={() => document.getElementById("wallet-withdraw-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
-          className="group relative overflow-hidden rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all p-4 text-left"
+          className="group relative overflow-hidden rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent p-5 text-left transition-all hover:border-orange-500/50 hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.15)] hover:-translate-y-0.5"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/20">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-orange-500/10 blur-2xl transition-all group-hover:bg-orange-500/20" />
+          <div className="relative flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 ring-1 ring-orange-500/30 group-hover:scale-110 transition-transform">
               <ArrowUpRight className="h-5 w-5 text-orange-400" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">PIX OUT</p>
-              <p className="text-sm font-semibold text-foreground">Solicitar Saque</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] font-bold text-orange-400 uppercase tracking-[0.15em]">PIX OUT</p>
+                <span className="h-1 w-1 rounded-full bg-orange-400/40" />
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saída</p>
+              </div>
+              <p className="text-base font-semibold text-foreground leading-tight">Solicitar Saque</p>
+              <p className="text-xs text-muted-foreground mt-1">Processado em até 24h pelo admin</p>
             </div>
+            <ArrowUpRight className="h-4 w-4 text-orange-400/40 group-hover:text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </div>
         </button>
       </div>
 
       {/* ---- Withdraw Form ---- */}
-      <div className="wallet-section" id="wallet-withdraw-section">
-        <div className="wallet-section-header">
-          <div className="wallet-section-icon">
-            <ArrowUpRight className="h-4 w-4 text-primary" />
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur-sm" id="wallet-withdraw-section">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
+        <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-orange-500/5 blur-3xl pointer-events-none" />
+
+        <div className="relative p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/15 ring-1 ring-orange-500/25">
+                <ArrowUpRight className="h-4 w-4 text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-foreground font-display font-semibold text-sm">Solicitar Saque</h3>
+                <p className="text-[11px] text-muted-foreground">Disponível: <span className="font-mono font-semibold text-foreground">{fmt(wallet?.balance_cents ?? 0)}</span></p>
+              </div>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/5 px-2.5 py-1 text-[10px] font-medium text-orange-400 uppercase tracking-wider">
+              <span className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
+              PIX
+            </span>
           </div>
-          <h3 className="text-foreground font-display font-semibold text-sm">Solicitar Saque</h3>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 mt-4">
-          <div className="space-y-2">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Valor (R$)</Label>
-            <Input
-              placeholder="0,00"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              className="wallet-input font-mono text-lg"
-            />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Valor (R$)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono pointer-events-none">R$</span>
+                <Input
+                  placeholder="0,00"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="wallet-input font-mono text-lg pl-10"
+                />
+              </div>
+              <div className="flex gap-1.5 pt-1">
+                {[25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => {
+                      const val = ((wallet?.balance_cents ?? 0) * pct) / 100 / 100;
+                      setWithdrawAmount(val.toFixed(2).replace(".", ","));
+                    }}
+                    className="flex-1 rounded-md border border-border bg-muted/40 hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-400 text-[10px] font-semibold py-1.5 transition-colors text-muted-foreground"
+                  >
+                    {pct === 100 ? "MAX" : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Chave PIX para receber</Label>
+              <Input
+                placeholder="CPF, email, telefone ou chave aleatória"
+                value={withdrawPix}
+                onChange={(e) => setWithdrawPix(e.target.value)}
+                className="wallet-input font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground pt-1 leading-relaxed">
+                A chave precisa estar registrada no banco em seu nome.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave PIX para receber</Label>
-            <Input
-              placeholder="CPF, email, telefone ou chave aleatória"
-              value={withdrawPix}
-              onChange={(e) => setWithdrawPix(e.target.value)}
-              className="wallet-input font-mono"
-            />
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5 pt-5 border-t border-border/60">
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Saques são processados pelo administrador em até 24h.
+            </p>
+            <Button onClick={handleWithdraw} disabled={submitting} size="lg" className="gap-2 gradient-pink border-none text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
+              Solicitar Saque
+            </Button>
           </div>
-        </div>
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-[11px] text-muted-foreground">
-            Saques são processados pelo administrador em até 24h.
-          </p>
-          <Button onClick={handleWithdraw} disabled={submitting} className="gap-2 gradient-pink border-none text-primary-foreground hover:opacity-90">
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
-            Sacar
-          </Button>
         </div>
       </div>
+
 
       {/* ---- Transaction History ---- */}
       <div className="wallet-section">
