@@ -195,6 +195,9 @@ const SettingsPage = () => {
               <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <User className="h-4 w-4" /> Perfil
               </TabsTrigger>
+              <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Wallet className="h-4 w-4" /> Carteira
+              </TabsTrigger>
               <TabsTrigger value="pix" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <QrCode className="h-4 w-4" /> PIX
               </TabsTrigger>
