@@ -207,14 +207,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check wallet balance up front (advisory; debit_wallet_withdrawal will recheck atomically)
-    const { data: wallet } = await supabase
-      .from("wallets").select("balance_cents").eq("tenant_id", tenant_id).maybeSingle();
-    if (!wallet || (wallet as any).balance_cents < amount_cents) {
-      return new Response(JSON.stringify({ error: "insufficient_balance" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Source of truth for wallet funds is the GATEWAY balance (Efí/LofyPay/MisticPay),
+    // not the local `wallets.balance_cents`. Verify the gateway has enough to send.
+    try {
+      const balRes = await supabase.functions.invoke("wallet-gateway-balance", {
+        body: { tenant_id, provider_key },
       });
-    }
+      const balData: any = balRes.data || {};
+      // Only block when the gateway explicitly reports a balance lower than the amount.
+      // If the gateway doesn't expose balance (unsupported), skip the check and let the gateway itself reject.
+      if (!balData.unsupported && typeof balData.balance_cents === "number") {
+        if (balData.balance_cents < amount_cents) {
+          return new Response(JSON.stringify({ error: "insufficient_balance", available_cents: balData.balance_cents }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    } catch { /* non-blocking — gateway will reject if truly insufficient */ }
 
     // Insert tx in 'processing' state (so it doesn't run twice)
     const keyType = body.pix_key_type || detectKeyType(pix_key);
@@ -283,22 +292,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Save payment_id then atomically debit wallet
+    // Save payment_id and mark transaction completed.
+    // We do NOT call debit_wallet_withdrawal anymore: the funds live at the gateway,
+    // not in `wallets.balance_cents`. We only track total_withdrawn_cents for history/UI.
     await supabase
       .from("wallet_transactions")
-      .update({ payment_id: result.payment_id })
+      .update({ payment_id: result.payment_id, status: "completed", completed_at: new Date().toISOString() })
       .eq("id", tx.id);
 
-    const { data: debited, error: rpcErr } = await supabase.rpc("debit_wallet_withdrawal", { _tx_id: tx.id });
-    if (rpcErr || !debited) {
-      // Wallet debit failed (e.g. balance changed). Money already left the gateway — flag for manual reconciliation
+    await supabase
+      .from("wallets")
+      .upsert(
+        { tenant_id, total_withdrawn_cents: amount_cents } as any,
+        { onConflict: "tenant_id", ignoreDuplicates: false } as any,
+      );
+    // upsert won't increment; do an explicit increment via raw update if row exists
+    const { data: w } = await supabase
+      .from("wallets").select("total_withdrawn_cents").eq("tenant_id", tenant_id).maybeSingle();
+    if (w) {
       await supabase
-        .from("wallet_transactions")
-        .update({ status: "rejected", description: "ATENÇÃO: PIX enviado mas saldo não pôde ser debitado. Verificar manualmente." })
-        .eq("id", tx.id);
-      return new Response(JSON.stringify({ error: "debit_failed_after_send", payment_id: result.payment_id, tx_id: tx.id }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        .from("wallets")
+        .update({ total_withdrawn_cents: ((w as any).total_withdrawn_cents || 0) + amount_cents, updated_at: new Date().toISOString() } as any)
+        .eq("tenant_id", tenant_id);
     }
 
     return new Response(JSON.stringify({ ok: true, tx_id: tx.id, payment_id: result.payment_id, status: result.status }), {

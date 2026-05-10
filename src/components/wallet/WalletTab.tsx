@@ -210,8 +210,9 @@ export const WalletTab = () => {
       toast({ title: "Selecione um gateway de saída", variant: "destructive" });
       return;
     }
-    if (wallet && amountCents > wallet.balance_cents) {
-      toast({ title: "Saldo insuficiente", variant: "destructive" });
+    // Check against gateway balance (source of truth) — skip if gateway doesn't expose it.
+    if (!gatewayBalance.unsupported && !gatewayBalance.loading && gatewayBalance.cents > 0 && amountCents > gatewayBalance.cents) {
+      toast({ title: "Saldo insuficiente no gateway", variant: "destructive" });
       return;
     }
 
