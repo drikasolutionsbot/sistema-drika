@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Bot, Palette, LayoutTemplate, Trash2, Database, HardDrive, Plug } from "lucide-react";
+import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Bot, Palette, LayoutTemplate, Trash2, Database, HardDrive, Plug, Wallet } from "lucide-react";
+import { WalletTab } from "@/components/wallet/WalletTab";
 import PaymentsPage from "@/pages/PaymentsPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
