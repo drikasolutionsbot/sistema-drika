@@ -378,7 +378,7 @@ export const WalletTab = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium tracking-wider uppercase">
-                    Receita {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal text-[10px]">(parcial)</span>}
+                    Receita {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal text-[10px]">(parcial)</span>} {aggregateBalance.stale && <span className="text-amber-400/90 normal-case tracking-normal text-[10px]" title="Última consulta falhou — exibindo último valor válido">(desatualizado)</span>}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="wallet-amount">
