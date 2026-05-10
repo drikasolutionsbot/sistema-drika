@@ -65,6 +65,13 @@ const PROVIDER_LABELS: Record<string, string> = {
 // Only these gateways have automated PIX OUT support
 const PIX_OUT_CAPABLE = new Set(["efi", "lofypay", "misticpay"]);
 
+const DetailRow = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
+  <div className="flex items-start justify-between gap-3 py-1.5 border-b border-border/50 last:border-0">
+    <span className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">{label}</span>
+    <span className={`text-sm text-foreground text-right break-all ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
+  </div>
+);
+
 export const WalletTab = () => {
   const { tenantId } = useTenant();
   const [searchParams] = useSearchParams();
