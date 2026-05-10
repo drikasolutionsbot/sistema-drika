@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
         type: "withdrawal",
         amount_cents,
         description: description || "Saque PIX automático",
-        status: "processing",
+        status: "pending",
         pix_key,
         provider: provider_key,
       } as any)
