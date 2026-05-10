@@ -84,9 +84,9 @@ export const WalletTab = () => {
   const [withdrawProvider, setWithdrawProvider] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
-  const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
-  const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null }>>({});
+  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean; stale?: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
+  const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean; stale?: boolean }>({ cents: 0, loading: false, partial: false });
+  const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null; stale?: boolean }>>({});
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
