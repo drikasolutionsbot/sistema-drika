@@ -433,6 +433,31 @@ serve(async (req) => {
         result = { handled: false, reason: `Unknown provider: ${provider}` };
     }
 
+    // ─── Wallet deposit fallback: credit wallet if a pending deposit matches this payment ───
+    if (!result?.handled || result?.order_status === "paid") {
+      try {
+        const pid = extractPaymentId();
+        if (pid) {
+          const { data: walletTx } = await supabase
+            .from("wallet_transactions")
+            .select("id, status, type")
+            .eq("tenant_id", tenantId)
+            .eq("payment_id", pid)
+            .eq("type", "deposit")
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (walletTx) {
+            await supabase.rpc("credit_wallet_deposit", { _tx_id: walletTx.id });
+            console.log(`Wallet deposit credited: tx=${walletTx.id} payment_id=${pid}`);
+            result = { ...(result || {}), wallet_credited: true };
+          }
+        }
+      } catch (e) {
+        console.error("Wallet credit fallback failed:", e);
+      }
+    }
+
     // Log webhook
     try {
       await supabase.from("webhook_logs").insert({
