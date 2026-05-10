@@ -148,7 +148,7 @@ export const WalletTab = () => {
       pix_out_enabled: !!p.pix_out_enabled,
     }));
     setProviders(provs);
-    const firstEnabled = provs.find((p) => p.active && p.pix_out_enabled);
+    const firstEnabled = provs.find((p) => PIX_OUT_CAPABLE.has(p.provider_key) && p.active && p.pix_out_enabled);
     if (firstEnabled && !withdrawProvider) setWithdrawProvider(firstEnabled.provider_key);
     setLoading(false);
   };
@@ -164,7 +164,8 @@ export const WalletTab = () => {
     setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, pix_out_enabled: !current } : p)));
   };
 
-  const enabledProviders = providers.filter((p) => p.active && p.pix_out_enabled);
+  const pixOutProviders = providers.filter((p) => PIX_OUT_CAPABLE.has(p.provider_key));
+  const enabledProviders = pixOutProviders.filter((p) => p.active && p.pix_out_enabled);
 
   const handleWithdraw = async () => {
     const amountCents = Math.round(parseFloat(withdrawAmount.replace(",", ".")) * 100);
@@ -407,12 +408,11 @@ export const WalletTab = () => {
             </p>
           </div>
 
-          {providers.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4">Nenhum gateway configurado. Configure em Pagamentos primeiro.</p>
+          {pixOutProviders.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-4">Nenhum gateway compatível configurado. Configure Efí, LofyPay ou MisticPay em Pagamentos primeiro.</p>
           ) : (
             <div className="space-y-2">
-              {providers.map((p) => {
-                const capable = PIX_OUT_CAPABLE.has(p.provider_key);
+              {pixOutProviders.map((p) => {
                 return (
                   <div key={p.id} className={`flex items-center justify-between rounded-lg border p-3 ${p.active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
                     <div className="flex items-center gap-3 min-w-0">
@@ -420,13 +420,13 @@ export const WalletTab = () => {
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{PROVIDER_LABELS[p.provider_key] || p.provider_key}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {!p.active ? "Gateway inativo" : capable ? "Suporta PIX OUT automático" : "Sem suporte oficial — não recomendado"}
+                          {!p.active ? "Gateway inativo" : "Suporta PIX OUT automático"}
                         </p>
                       </div>
                     </div>
                     <Switch
                       checked={p.pix_out_enabled}
-                      disabled={!p.active || !capable}
+                      disabled={!p.active}
                       onCheckedChange={() => togglePixOut(p.id, p.pix_out_enabled)}
                     />
                   </div>
