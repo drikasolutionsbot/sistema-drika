@@ -563,6 +563,104 @@ export function GatewayTutorialDialog({ open, onOpenChange, gatewayKey }: Props)
         },
       ],
     },
+
+    lofypay: {
+      key: "lofypay",
+      name: "LofyPay",
+      brandColor: "FF1B8D",
+      brandBg: "from-pink-500/20 to-fuchsia-600/10",
+      slides: [
+        {
+          icon: Rocket,
+          title: "Tutorial do LofyPay",
+          subtitle: "PIX automático com saque integrado (PIX OUT)",
+          body: (
+            <div className="space-y-3 text-sm sm:text-base text-foreground/80">
+              <p>O LofyPay é um gateway nacional que suporta tanto cobrança PIX quanto saques automáticos (PIX OUT) — ideal para quem quer movimentar saldo direto pelo painel.</p>
+              <p>Você vai precisar de:</p>
+              <ul className="space-y-1.5 ml-4">
+                <li className="flex gap-2"><Check className="h-4 w-4 text-pink-400 mt-0.5" /> Conta LofyPay aprovada (KYC concluído)</li>
+                <li className="flex gap-2"><Check className="h-4 w-4 text-pink-400 mt-0.5" /> API Key de produção</li>
+                <li className="flex gap-2"><Check className="h-4 w-4 text-pink-400 mt-0.5" /> Saldo disponível para saque (opcional)</li>
+              </ul>
+            </div>
+          ),
+        },
+        {
+          icon: ExternalLink,
+          title: "Passo 1 — Acesse o painel",
+          body: (
+            <div className="space-y-3">
+              <Step n={1}>Abra o painel do LofyPay:</Step>
+              <a href="https://app.lofypay.com" target="_blank" rel="noopener noreferrer" className="block">
+                <div className="rounded-lg border border-pink-500/30 bg-pink-500/10 p-3 hover:bg-pink-500/20 transition flex items-center justify-between">
+                  <span className="font-mono text-sm">app.lofypay.com</span>
+                  <ExternalLink className="h-4 w-4" />
+                </div>
+              </a>
+              <Step n={2}>Faça login com sua conta ou cadastre-se.</Step>
+              <Tip>Conclua o KYC (verificação de documentos) antes de gerar a chave — sem isso o PIX fica bloqueado.</Tip>
+            </div>
+          ),
+        },
+        {
+          icon: KeyRound,
+          title: "Passo 2 — Gere sua API Key",
+          body: (
+            <div className="space-y-3">
+              <Step n={1}>No menu lateral, vá em <strong>"Integrações"</strong> ou <strong>"API"</strong>.</Step>
+              <Step n={2}>Clique em <strong>"Gerar nova API Key"</strong>.</Step>
+              <Step n={3}>
+                Copie a chave gerada:
+                <div className="mt-2">
+                  <CopyableCode value="lofy_live_xxxxxxxxxxxxxxxxxxxxxxxx" label="API Key exemplo" />
+                </div>
+              </Step>
+              <Warn>A API Key é exibida apenas uma vez. Salve em local seguro!</Warn>
+            </div>
+          ),
+        },
+        {
+          icon: Webhook,
+          title: "Passo 3 — Webhook automático",
+          body: (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-100/90 flex gap-2 items-start">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                <div>
+                  <strong>Não precisa configurar nada!</strong> O DRIKA HUB envia a URL do webhook dinamicamente em cada cobrança PIX.
+                </div>
+              </div>
+              <Tip>Cada loja recebe confirmações isoladas — sem risco de conflito entre tenants.</Tip>
+            </div>
+          ),
+        },
+        {
+          icon: Wallet,
+          title: "Passo 4 — Saques PIX (PIX OUT)",
+          body: (
+            <div className="space-y-3">
+              <Step n={1}>O LofyPay é compatível com saques automáticos pela carteira do DRIKA HUB.</Step>
+              <Step n={2}>Após salvar a API Key, vá em <strong>Carteira → Gateways de saída</strong> e ative o LofyPay.</Step>
+              <Step n={3}>O saldo exibido na carteira refletirá o saldo real da sua conta LofyPay.</Step>
+              <Tip>Os saques são processados em segundos pelo PIX, direto da sua conta LofyPay.</Tip>
+            </div>
+          ),
+        },
+        {
+          icon: CheckCircle2,
+          title: "Passo 5 — Finalizar",
+          body: (
+            <div className="space-y-3">
+              <Step n={1}>No card do <strong>LofyPay</strong>, cole a API Key.</Step>
+              <Step n={2}>Clique em <strong>"Testar Conexão"</strong>.</Step>
+              <Step n={3}>Salve e ative o gateway. Pronto! 🎉</Step>
+              <Tip>Pagamentos e saques agora funcionam automaticamente pelo LofyPay.</Tip>
+            </div>
+          ),
+        },
+      ],
+    },
   };
 
   const tutorial = gatewayKey ? tutorials[gatewayKey] : null;
