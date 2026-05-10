@@ -91,11 +91,11 @@ export const WalletTab = () => {
   // Fetch gateway balance whenever the selected withdrawal gateway changes
   useEffect(() => {
     if (!tenantId || !withdrawProvider) {
-      setGatewayBalance({ cents: 0, loading: false, error: null });
+      setGatewayBalance({ cents: 0, loading: false, error: null, unsupported: false });
       return;
     }
     let cancelled = false;
-    setGatewayBalance({ cents: 0, loading: true, error: null });
+    setGatewayBalance({ cents: 0, loading: true, error: null, unsupported: false });
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -103,12 +103,17 @@ export const WalletTab = () => {
         });
         if (cancelled) return;
         if (error || (data as any)?.error) {
-          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro" });
+          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro", unsupported: false });
         } else {
-          setGatewayBalance({ cents: (data as any)?.balance_cents ?? 0, loading: false, error: null });
+          setGatewayBalance({
+            cents: (data as any)?.balance_cents ?? 0,
+            loading: false,
+            error: null,
+            unsupported: !!(data as any)?.unsupported,
+          });
         }
       } catch (e: any) {
-        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro" });
+        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro", unsupported: false });
       }
     })();
     return () => { cancelled = true; };
