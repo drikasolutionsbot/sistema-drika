@@ -1105,6 +1105,7 @@ export type Database = {
           efi_key_pem: string | null
           efi_pix_key: string | null
           id: string
+          pix_out_enabled: boolean
           provider_key: string
           secret_key_encrypted: string | null
           stripe_webhook_secret: string | null
@@ -1119,6 +1120,7 @@ export type Database = {
           efi_key_pem?: string | null
           efi_pix_key?: string | null
           id?: string
+          pix_out_enabled?: boolean
           provider_key: string
           secret_key_encrypted?: string | null
           stripe_webhook_secret?: string | null
@@ -1133,6 +1135,7 @@ export type Database = {
           efi_key_pem?: string | null
           efi_pix_key?: string | null
           id?: string
+          pix_out_enabled?: boolean
           provider_key?: string
           secret_key_encrypted?: string | null
           stripe_webhook_secret?: string | null
@@ -2725,6 +2728,7 @@ export type Database = {
     }
     Functions: {
       credit_wallet_deposit: { Args: { _tx_id: string }; Returns: boolean }
+      debit_wallet_withdrawal: { Args: { _tx_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
