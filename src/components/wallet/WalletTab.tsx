@@ -351,9 +351,17 @@ export const WalletTab = () => {
                 <div className="wallet-stat-icon bg-primary/20">
                   <Wallet className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo</p>
-                  <p className="text-sm font-bold text-foreground">{balanceVisible ? fmt(wallet?.balance_cents ?? 0) : "••••"}</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Saldo {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal">(parcial)</span>}
+                  </p>
+                  <p className="text-sm font-bold text-foreground truncate">
+                    {balanceVisible
+                      ? aggregateBalance.loading
+                        ? "..."
+                        : fmt(aggregateBalance.cents)
+                      : "••••"}
+                  </p>
                 </div>
               </div>
             </div>
