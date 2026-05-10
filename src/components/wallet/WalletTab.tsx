@@ -352,6 +352,49 @@ export const WalletTab = () => {
         </button>
       </div>
 
+      {/* ---- Gateway PIX OUT Config ---- */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur-sm">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        <div className="p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-foreground font-display font-semibold text-sm">Gateways de saída PIX</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Habilite os gateways que você quer usar para enviar PIX automaticamente. Apenas gateways ativos e marcados aqui aparecerão no saque.
+              </p>
+            </div>
+          </div>
+
+          {providers.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-4">Nenhum gateway configurado. Configure em Pagamentos primeiro.</p>
+          ) : (
+            <div className="space-y-2">
+              {providers.map((p) => {
+                const capable = PIX_OUT_CAPABLE.has(p.provider_key);
+                return (
+                  <div key={p.id} className={`flex items-center justify-between rounded-lg border p-3 ${p.active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`h-2 w-2 rounded-full shrink-0 ${p.active ? "bg-emerald-500" : "bg-muted"}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{PROVIDER_LABELS[p.provider_key] || p.provider_key}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {!p.active ? "Gateway inativo" : capable ? "Suporta PIX OUT automático" : "Sem suporte oficial — não recomendado"}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={p.pix_out_enabled}
+                      disabled={!p.active || !capable}
+                      onCheckedChange={() => togglePixOut(p.id, p.pix_out_enabled)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ---- Withdraw Form ---- */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur-sm" id="wallet-withdraw-section">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
@@ -374,60 +417,86 @@ export const WalletTab = () => {
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Valor (R$)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono pointer-events-none">R$</span>
-                <Input
-                  placeholder="0,00"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  className="wallet-input font-mono text-lg pl-10"
-                />
-              </div>
-              <div className="flex gap-1.5 pt-1">
-                {[25, 50, 75, 100].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    onClick={() => {
-                      const val = ((wallet?.balance_cents ?? 0) * pct) / 100 / 100;
-                      setWithdrawAmount(val.toFixed(2).replace(".", ","));
-                    }}
-                    className="flex-1 rounded-md border border-border bg-muted/40 hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-400 text-[10px] font-semibold py-1.5 transition-colors text-muted-foreground"
-                  >
-                    {pct === 100 ? "MAX" : `${pct}%`}
-                  </button>
-                ))}
-              </div>
+          {enabledProviders.length === 0 ? (
+            <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-center">
+              <p className="text-sm text-foreground font-medium">Nenhum gateway de saída habilitado</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Habilite ao menos um gateway compatível acima para sacar.</p>
             </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Chave PIX para receber</Label>
-              <Input
-                placeholder="CPF, email, telefone ou chave aleatória"
-                value={withdrawPix}
-                onChange={(e) => setWithdrawPix(e.target.value)}
-                className="wallet-input font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground pt-1 leading-relaxed">
-                A chave precisa estar registrada no banco em seu nome.
-              </p>
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="space-y-2 mb-4">
+                <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Gateway de saída</Label>
+                <Select value={withdrawProvider} onValueChange={setWithdrawProvider}>
+                  <SelectTrigger className="wallet-input">
+                    <SelectValue placeholder="Selecione o gateway" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {enabledProviders.map((p) => (
+                      <SelectItem key={p.id} value={p.provider_key}>
+                        {PROVIDER_LABELS[p.provider_key] || p.provider_key}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5 pt-5 border-t border-border/60">
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Saques são processados pelo administrador em até 24h.
-            </p>
-            <Button onClick={handleWithdraw} disabled={submitting} size="lg" className="gap-2 gradient-pink border-none text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
-              Solicitar Saque
-            </Button>
-          </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Valor (R$)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-mono pointer-events-none">R$</span>
+                    <Input
+                      placeholder="0,00"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      className="wallet-input font-mono text-lg pl-10"
+                    />
+                  </div>
+                  <div className="flex gap-1.5 pt-1">
+                    {[25, 50, 75, 100].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          const val = ((wallet?.balance_cents ?? 0) * pct) / 100 / 100;
+                          setWithdrawAmount(val.toFixed(2).replace(".", ","));
+                        }}
+                        className="flex-1 rounded-md border border-border bg-muted/40 hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-400 text-[10px] font-semibold py-1.5 transition-colors text-muted-foreground"
+                      >
+                        {pct === 100 ? "MAX" : `${pct}%`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-[10px] uppercase tracking-[0.15em] font-semibold">Chave PIX de destino</Label>
+                  <Input
+                    placeholder="CPF, email, telefone ou chave aleatória"
+                    value={withdrawPix}
+                    onChange={(e) => setWithdrawPix(e.target.value)}
+                    className="wallet-input font-mono"
+                  />
+                  <p className="text-[10px] text-muted-foreground pt-1 leading-relaxed">
+                    O PIX será enviado direto pelo gateway selecionado.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5 pt-5 border-t border-border/60">
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Envio automático — saldo debitado após confirmação do gateway.
+                </p>
+                <Button onClick={handleWithdraw} disabled={submitting} size="lg" className="gap-2 gradient-pink border-none text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/20">
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />}
+                  Enviar PIX
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
 
 
       {/* ---- Transaction History ---- */}
