@@ -201,3 +201,6 @@ verify_jwt = false
 
 [functions.wallet-pix-withdraw]
 verify_jwt = false
+
+[functions.wallet-gateway-balance]
+verify_jwt = false
