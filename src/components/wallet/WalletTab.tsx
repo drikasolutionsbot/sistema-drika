@@ -72,7 +72,7 @@ export const WalletTab = () => {
   const [withdrawProvider, setWithdrawProvider] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null }>({ cents: 0, loading: false, error: null });
+  const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
 
   useEffect(() => {
     if (!tenantId) return;
