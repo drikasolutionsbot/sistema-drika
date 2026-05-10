@@ -31,6 +31,7 @@ function detectKeyType(key: string): string {
 
 // ─── Efí (Gerencianet) — official PIX send via mTLS ──────────────
 async function withdrawViaEfi(opts: {
+  tenantId: string;
   clientId: string;
   clientSecret: string;
   certPem: string;
@@ -65,21 +66,23 @@ async function withdrawViaEfi(opts: {
   }
   const { access_token } = await tokenRes.json();
 
-  // Ensure webhook is registered for source PIX key (Efí requires it for /envio)
-  try {
-    const supaUrl = Deno.env.get("SUPABASE_URL") || "";
-    const webhookUrl = `${supaUrl}/functions/v1/wallet-pix-deposit-webhook`;
-    await fetch(`https://pix.api.efipay.com.br/v2/gn/webhook/${encodeURIComponent(opts.pixKey)}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        "Content-Type": "application/json",
-        "x-skip-mtls-checking": "true",
-      },
-      body: JSON.stringify({ webhookUrl }),
-      ...fetchOpts,
-    } as any);
-  } catch (_) { /* non-fatal */ }
+  // Ensure webhook is registered for the source PIX key (Efí requires it for /envio).
+  // Efí appends /pix to webhook calls; ?ignorar= keeps our route intact.
+  const webhookUrl = `${SUPABASE_URL}/functions/v1/payment-webhook/efi/${opts.tenantId}?ignorar=`;
+  const webhookRes = await fetch(`https://pix.api.efipay.com.br/v2/webhook/${encodeURIComponent(opts.pixKey)}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "Content-Type": "application/json",
+      "x-skip-mtls-checking": "true",
+    },
+    body: JSON.stringify({ webhookUrl }),
+    ...fetchOpts,
+  } as any);
+  if (!webhookRes.ok) {
+    const err = await webhookRes.json().catch(async () => ({ mensagem: await webhookRes.text().catch(() => "") }));
+    throw new Error(err.mensagem || err.detail || `Efí webhook: ${webhookRes.status}`);
+  }
 
   // Send PIX (envio): POST /v3/gn/pix/:idEnvio
   const idEnvio = crypto.randomUUID().replace(/-/g, "").slice(0, 35);
@@ -266,6 +269,7 @@ Deno.serve(async (req) => {
           throw new Error("Efí mTLS credentials incomplete");
         }
         result = await withdrawViaEfi({
+          tenantId: tenant_id,
           clientId: provider.api_key_encrypted,
           clientSecret: provider.secret_key_encrypted,
           certPem: provider.efi_cert_pem,
