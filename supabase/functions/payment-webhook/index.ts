@@ -396,6 +396,20 @@ serve(async (req) => {
     let result;
     const eventType = body?.action || body?.event || body?.type || "unknown";
 
+    // Helper: extract a payment_id from the webhook body for any provider
+    const extractPaymentId = (): string | null => {
+      const id =
+        body?.data?.id ||
+        body?.id ||
+        body?.payment_id ||
+        body?.transaction_id ||
+        body?.idTransaction ||
+        body?.txid ||
+        body?.pixQrCode?.id ||
+        null;
+      return id ? String(id).toLowerCase() : null;
+    };
+
     switch (provider) {
       case "mercadopago":
         result = await handleMercadoPago(body, tenantId, supabase);
