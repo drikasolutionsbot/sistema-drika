@@ -128,30 +128,49 @@ async function withdrawViaLofyPay(opts: {
   };
 }
 
-// ─── MisticPay stub — adjust endpoints when integrating ──────────────
+// ─── MisticPay — POST /api/transactions/withdraw (headers ci/cs) ──────
+function mapMisticPixKeyType(t: string): string {
+  const v = (t || "").toUpperCase();
+  if (v === "CPF") return "CPF";
+  if (v === "CNPJ") return "CNPJ";
+  if (v === "EMAIL") return "EMAIL";
+  if (v === "PHONE" || v === "TELEFONE" || v === "CELULAR") return "TELEFONE";
+  return "CHAVE_ALEATORIA";
+}
+
 async function withdrawViaMisticPay(opts: {
-  apiKey: string;
+  clientId: string;
+  clientSecret: string;
   destinationKey: string;
   destinationKeyType: string;
   amountCents: number;
   description?: string;
 }): Promise<{ payment_id: string; status: string }> {
-  const res = await fetch("https://api.misticpay.com/v1/pix/withdraw", {
+  const res = await fetch("https://api.misticpay.com/api/transactions/withdraw", {
     method: "POST",
-    headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
+    headers: {
+      ci: opts.clientId,
+      cs: opts.clientSecret,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
-      amount: opts.amountCents,
-      pix_key: opts.destinationKey,
-      pix_key_type: opts.destinationKeyType,
+      amount: Number((opts.amountCents / 100).toFixed(2)),
+      pixKey: opts.destinationKey,
+      pixKeyType: mapMisticPixKeyType(opts.destinationKeyType),
       description: opts.description || "Saque carteira",
     }),
   });
+  const text = await res.text();
+  let body: any = {};
+  try { body = JSON.parse(text); } catch { /* keep raw */ }
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`MisticPay: ${res.status} ${err}`);
+    throw new Error(body?.message || body?.error || `MisticPay ${res.status}: ${text.slice(0, 200)}`);
   }
-  const data = await res.json();
-  return { payment_id: data.id || data.transaction_id || crypto.randomUUID(), status: data.status || "processing" };
+  const d = body?.data ?? {};
+  return {
+    payment_id: String(d.transactionId ?? d.jobId ?? crypto.randomUUID()),
+    status: d.status || "QUEUED",
+  };
 }
 
 Deno.serve(async (req) => {
