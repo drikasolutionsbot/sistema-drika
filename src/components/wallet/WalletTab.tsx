@@ -380,6 +380,25 @@ export const WalletTab = () => {
             </div>
           </div>
 
+          {/* Compatible gateways info */}
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <p className="text-[11px] font-semibold text-foreground mb-2 uppercase tracking-wide">Gateways compatíveis com PIX OUT</p>
+            <div className="flex flex-wrap gap-2">
+              {Array.from(PIX_OUT_CAPABLE).map((key) => (
+                <span
+                  key={key}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-foreground"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {PROVIDER_LABELS[key] || key}
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Apenas estes gateways permitem disparar saques PIX automaticamente. Outros gateways só funcionam para entradas.
+            </p>
+          </div>
+
           {providers.length === 0 ? (
             <p className="text-xs text-muted-foreground py-4">Nenhum gateway configurado. Configure em Pagamentos primeiro.</p>
           ) : (
