@@ -486,8 +486,8 @@ export const WalletTab = () => {
               </div>
               <div>
                 <h3 className="text-foreground font-display font-semibold text-sm">Solicitar Saque</h3>
-                <p className="text-[11px] text-muted-foreground">
-                  Disponível no gateway:{" "}
+                <p className="text-[11px] text-muted-foreground flex items-baseline gap-1.5 flex-wrap">
+                  <span>Disponível no gateway:</span>
                   {gatewayBalance.loading ? (
                     <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> consultando…</span>
                   ) : gatewayBalance.error ? (
@@ -495,9 +495,9 @@ export const WalletTab = () => {
                   ) : gatewayBalance.unsupported ? (
                     <span className="text-amber-400 font-medium" title="Este gateway não expõe API de saldo">consulte no painel</span>
                   ) : withdrawProvider ? (
-                    <span className="font-mono font-semibold text-foreground">{fmt(gatewayBalance.cents)}</span>
+                    <span className="font-mono font-bold text-foreground text-lg sm:text-xl tracking-tight">{fmt(gatewayBalance.cents)}</span>
                   ) : (
-                    <span className="font-mono font-semibold text-foreground">{fmt(wallet?.balance_cents ?? 0)}</span>
+                    <span className="font-mono font-bold text-foreground text-lg sm:text-xl tracking-tight">{fmt(wallet?.balance_cents ?? 0)}</span>
                   )}
                 </p>
               </div>
