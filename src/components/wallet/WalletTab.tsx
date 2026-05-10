@@ -19,6 +19,7 @@ import {
 import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import "./wallet-card.css";
+import WalletDepositDialog from "./WalletDepositDialog";
 
 interface WalletData {
   balance_cents: number;
