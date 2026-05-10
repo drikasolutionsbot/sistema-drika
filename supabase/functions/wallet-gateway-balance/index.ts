@@ -64,10 +64,25 @@ async function lofyBalance(_p: any): Promise<{ balance_cents: number; currency: 
   };
 }
 
-async function misticBalance(p: any): Promise<{ balance_cents: number; currency: string }> {
-  if (!p.api_key_encrypted) throw new Error("API key MisticPay ausente");
-  // TODO: replace with real endpoint when MisticPay docs are integrated
-  return { balance_cents: 0, currency: "BRL" };
+async function misticBalance(p: any): Promise<{ balance_cents: number; currency: string; raw?: any }> {
+  if (!p.api_key_encrypted || !p.secret_key_encrypted) {
+    throw new Error("MisticPay precisa de Client ID (ci) e Client Secret (cs)");
+  }
+  const res = await fetch("https://api.misticpay.com/api/users/balance", {
+    method: "GET",
+    headers: {
+      ci: p.api_key_encrypted,
+      cs: p.secret_key_encrypted,
+    },
+  });
+  const text = await res.text();
+  let body: any = {};
+  try { body = JSON.parse(text); } catch { /* keep raw */ }
+  if (!res.ok) {
+    throw new Error(body?.message || `MisticPay saldo ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const reais = Number(body?.data?.balance ?? 0);
+  return { balance_cents: Math.round(reais * 100), currency: "BRL", raw: body?.data };
 }
 
 Deno.serve(async (req) => {
