@@ -650,8 +650,13 @@ export const WalletTab = () => {
                         <p className="text-sm font-mono font-bold text-foreground">
                           {!bal || bal.loading ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin inline text-muted-foreground" />
+                          ) : bal.error && bal.stale ? (
+                            <span className="inline-flex items-center gap-1" title={bal.error}>
+                              <span className="opacity-70">{balanceVisible ? fmt(bal.cents) : "••••"}</span>
+                              <span className="text-amber-400 text-[9px] font-sans uppercase">desatualizado</span>
+                            </span>
                           ) : bal.error ? (
-                            <span className="text-destructive text-[11px] font-sans" title={bal.error}>indisponível</span>
+                            <span className="text-destructive text-[11px] font-sans" title={bal.error}>{bal.error}</span>
                           ) : bal.unsupported ? (
                             <span className="text-amber-400 text-[11px] font-sans">N/D</span>
                           ) : (
