@@ -423,7 +423,18 @@ export const WalletTab = () => {
               </div>
               <div>
                 <h3 className="text-foreground font-display font-semibold text-sm">Solicitar Saque</h3>
-                <p className="text-[11px] text-muted-foreground">Disponível: <span className="font-mono font-semibold text-foreground">{fmt(wallet?.balance_cents ?? 0)}</span></p>
+                <p className="text-[11px] text-muted-foreground">
+                  Disponível no gateway:{" "}
+                  {gatewayBalance.loading ? (
+                    <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> consultando…</span>
+                  ) : gatewayBalance.error ? (
+                    <span className="text-destructive font-medium" title={gatewayBalance.error}>indisponível</span>
+                  ) : withdrawProvider ? (
+                    <span className="font-mono font-semibold text-foreground">{fmt(gatewayBalance.cents)}</span>
+                  ) : (
+                    <span className="font-mono font-semibold text-foreground">{fmt(wallet?.balance_cents ?? 0)}</span>
+                  )}
+                </p>
               </div>
             </div>
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-orange-500/20 bg-orange-500/5 px-2.5 py-1 text-[10px] font-medium text-orange-400 uppercase tracking-wider">
