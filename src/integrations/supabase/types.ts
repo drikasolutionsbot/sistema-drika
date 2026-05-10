@@ -2522,30 +2522,39 @@ export type Database = {
       wallet_transactions: {
         Row: {
           amount_cents: number
+          completed_at: string | null
           created_at: string
           description: string | null
           id: string
+          payment_id: string | null
           pix_key: string | null
+          provider: string | null
           status: string
           tenant_id: string
           type: string
         }
         Insert: {
           amount_cents: number
+          completed_at?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          payment_id?: string | null
           pix_key?: string | null
+          provider?: string | null
           status?: string
           tenant_id: string
           type: string
         }
         Update: {
           amount_cents?: number
+          completed_at?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          payment_id?: string | null
           pix_key?: string | null
+          provider?: string | null
           status?: string
           tenant_id?: string
           type?: string
@@ -2715,6 +2724,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      credit_wallet_deposit: { Args: { _tx_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
