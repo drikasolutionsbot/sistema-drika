@@ -133,29 +133,32 @@ export const WalletTab = () => {
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false })
         .limit(50),
-      supabase
-        .from("payment_providers" as any)
-        .select("id, provider_key, active, pix_out_enabled")
-        .eq("tenant_id", tenantId!),
+      supabase.functions.invoke("manage-payment-providers", {
+        body: { action: "list", tenant_id: tenantId },
+      }),
     ]);
 
     setWallet((walletRes.data as any) ?? { balance_cents: 0, total_earned_cents: 0, total_withdrawn_cents: 0 });
     setTransactions(((txRes.data as any) ?? []) as Transaction[]);
-    const provs = ((provRes.data as any) ?? []) as PixOutProvider[];
+    const rawProvs = Array.isArray(provRes.data) ? provRes.data : [];
+    const provs: PixOutProvider[] = rawProvs.map((p: any) => ({
+      id: p.id,
+      provider_key: p.provider_key,
+      active: !!p.active,
+      pix_out_enabled: !!p.pix_out_enabled,
+    }));
     setProviders(provs);
-    // Auto-select first enabled gateway if not set
     const firstEnabled = provs.find((p) => p.active && p.pix_out_enabled);
     if (firstEnabled && !withdrawProvider) setWithdrawProvider(firstEnabled.provider_key);
     setLoading(false);
   };
 
   const togglePixOut = async (id: string, current: boolean) => {
-    const { error } = await supabase
-      .from("payment_providers" as any)
-      .update({ pix_out_enabled: !current } as any)
-      .eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    const { data, error } = await supabase.functions.invoke("manage-payment-providers", {
+      body: { action: "toggle_pix_out", tenant_id: tenantId, provider_id: id },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "Erro ao salvar", description: error?.message || (data as any)?.error, variant: "destructive" });
       return;
     }
     setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, pix_out_enabled: !current } : p)));
