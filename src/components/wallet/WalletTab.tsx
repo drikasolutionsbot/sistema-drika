@@ -408,32 +408,31 @@ export const WalletTab = () => {
             </p>
           </div>
 
-          {pixOutProviders.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4">Nenhum gateway compatível configurado. Configure Efí, LofyPay ou MisticPay em Pagamentos primeiro.</p>
-          ) : (
-            <div className="space-y-2">
-              {pixOutProviders.map((p) => {
-                return (
-                  <div key={p.id} className={`flex items-center justify-between rounded-lg border p-3 ${p.active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`h-2 w-2 rounded-full shrink-0 ${p.active ? "bg-emerald-500" : "bg-muted"}`} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{PROVIDER_LABELS[p.provider_key] || p.provider_key}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {!p.active ? "Gateway inativo" : "Suporta PIX OUT automático"}
-                        </p>
-                      </div>
+          <div className="space-y-2">
+            {Array.from(PIX_OUT_CAPABLE).map((key) => {
+              const p = pixOutProviders.find((x) => x.provider_key === key);
+              const configured = !!p;
+              const active = !!p?.active;
+              return (
+                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${active ? "bg-emerald-500" : "bg-muted"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{PROVIDER_LABELS[key] || key}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {!configured ? "Não configurado — adicione em Pagamentos" : !active ? "Gateway inativo" : "Suporta PIX OUT automático"}
+                      </p>
                     </div>
-                    <Switch
-                      checked={p.pix_out_enabled}
-                      disabled={!p.active}
-                      onCheckedChange={() => togglePixOut(p.id, p.pix_out_enabled)}
-                    />
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <Switch
+                    checked={!!p?.pix_out_enabled}
+                    disabled={!configured || !active}
+                    onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
