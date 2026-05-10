@@ -218,6 +218,11 @@ const SettingsPage = () => {
           <SettingsProfileTab tenant={tenant} tenantId={tenantId} />
         </TabsContent>
 
+        {/* Wallet Tab */}
+        <TabsContent value="wallet">
+          <WalletTab />
+        </TabsContent>
+
         {/* PIX Tab */}
         <TabsContent value="pix">
           <div className="space-y-6">
