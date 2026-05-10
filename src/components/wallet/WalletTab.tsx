@@ -37,13 +37,35 @@ interface Transaction {
   created_at: string;
 }
 
+interface PixOutProvider {
+  id: string;
+  provider_key: string;
+  active: boolean;
+  pix_out_enabled: boolean;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  efi: "Efí (Gerencianet)",
+  lofypay: "LofyPay",
+  misticpay: "MisticPay",
+  mercadopago: "Mercado Pago",
+  pushinpay: "PushinPay",
+  abacatepay: "AbacatePay",
+  stripe: "Stripe",
+};
+
+// Only these gateways have automated PIX OUT support
+const PIX_OUT_CAPABLE = new Set(["efi", "lofypay", "misticpay"]);
+
 export const WalletTab = () => {
   const { tenantId } = useTenant();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [providers, setProviders] = useState<PixOutProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawPix, setWithdrawPix] = useState("");
+  const [withdrawProvider, setWithdrawProvider] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
 
@@ -54,7 +76,7 @@ export const WalletTab = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [walletRes, txRes] = await Promise.all([
+    const [walletRes, txRes, provRes] = await Promise.all([
       supabase
         .from("wallets" as any)
         .select("balance_cents, total_earned_cents, total_withdrawn_cents")
@@ -66,12 +88,35 @@ export const WalletTab = () => {
         .eq("tenant_id", tenantId!)
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("payment_providers" as any)
+        .select("id, provider_key, active, pix_out_enabled")
+        .eq("tenant_id", tenantId!),
     ]);
 
     setWallet((walletRes.data as any) ?? { balance_cents: 0, total_earned_cents: 0, total_withdrawn_cents: 0 });
     setTransactions(((txRes.data as any) ?? []) as Transaction[]);
+    const provs = ((provRes.data as any) ?? []) as PixOutProvider[];
+    setProviders(provs);
+    // Auto-select first enabled gateway if not set
+    const firstEnabled = provs.find((p) => p.active && p.pix_out_enabled);
+    if (firstEnabled && !withdrawProvider) setWithdrawProvider(firstEnabled.provider_key);
     setLoading(false);
   };
+
+  const togglePixOut = async (id: string, current: boolean) => {
+    const { error } = await supabase
+      .from("payment_providers" as any)
+      .update({ pix_out_enabled: !current } as any)
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, pix_out_enabled: !current } : p)));
+  };
+
+  const enabledProviders = providers.filter((p) => p.active && p.pix_out_enabled);
 
   const handleWithdraw = async () => {
     const amountCents = Math.round(parseFloat(withdrawAmount.replace(",", ".")) * 100);
@@ -83,6 +128,10 @@ export const WalletTab = () => {
       toast({ title: "Informe a chave PIX", variant: "destructive" });
       return;
     }
+    if (!withdrawProvider) {
+      toast({ title: "Selecione um gateway de saída", variant: "destructive" });
+      return;
+    }
     if (wallet && amountCents > wallet.balance_cents) {
       toast({ title: "Saldo insuficiente", variant: "destructive" });
       return;
@@ -90,29 +139,28 @@ export const WalletTab = () => {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("wallet_transactions" as any)
-        .insert({
+      const { data, error } = await supabase.functions.invoke("wallet-pix-withdraw", {
+        body: {
           tenant_id: tenantId,
-          type: "withdrawal",
           amount_cents: amountCents,
-          description: "Saque via PIX",
-          status: "pending",
           pix_key: withdrawPix.trim(),
-        } as any);
-
+          provider_key: withdrawProvider,
+        },
+      });
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).message || (data as any).error);
 
-      toast({ title: "Saque solicitado!", description: "Aguardando aprovação do administrador." });
+      toast({ title: "Saque enviado!", description: "PIX disparado pelo gateway. Saldo debitado." });
       setWithdrawAmount("");
       setWithdrawPix("");
       fetchData();
     } catch (err: any) {
-      toast({ title: "Erro ao solicitar saque", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao sacar", description: err.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const fmt = (cents: number) =>
     (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
