@@ -484,7 +484,8 @@ export const WalletTab = () => {
                         key={pct}
                         type="button"
                         onClick={() => {
-                          const val = ((wallet?.balance_cents ?? 0) * pct) / 100 / 100;
+                          const baseCents = withdrawProvider ? gatewayBalance.cents : (wallet?.balance_cents ?? 0);
+                          const val = (baseCents * pct) / 100 / 100;
                           setWithdrawAmount(val.toFixed(2).replace(".", ","));
                         }}
                         className="flex-1 rounded-md border border-border bg-muted/40 hover:bg-orange-500/10 hover:border-orange-500/30 hover:text-orange-400 text-[10px] font-semibold py-1.5 transition-colors text-muted-foreground"
