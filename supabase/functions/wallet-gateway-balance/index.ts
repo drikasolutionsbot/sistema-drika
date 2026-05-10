@@ -52,7 +52,8 @@ async function efiBalance(p: any): Promise<{ balance_cents: number; currency: st
       return {
         balance_cents: 0,
         currency: "BRL",
-        raw: { unsupported: true, note: "Habilite o escopo gn.balance.read na sua aplicação Efí para consultar o saldo." },
+        unsupported: true,
+        note: "Habilite o escopo gn.balance.read na sua aplicação Efí para consultar o saldo.",
       } as any;
     }
     throw new Error(`Efí saldo ${balRes.status}: ${errText.slice(0, 200)}`);
