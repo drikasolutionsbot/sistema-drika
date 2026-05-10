@@ -21,7 +21,7 @@ import {
 import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import "./wallet-card.css";
-import WalletDepositDialog from "./WalletDepositDialog";
+
 
 interface WalletData {
   balance_cents: number;
@@ -304,34 +304,11 @@ export const WalletTab = () => {
         </div>
       </div>
 
-      {/* ---- Quick Actions: PIX IN / OUT ---- */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <WalletDepositDialog
-          onCredited={fetchData}
-          trigger={
-            <button className="group relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-5 text-left transition-all hover:border-emerald-500/50 hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.15)] hover:-translate-y-0.5">
-              <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition-all group-hover:bg-emerald-500/20" />
-              <div className="relative flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 ring-1 ring-emerald-500/30 group-hover:scale-110 transition-transform">
-                  <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-[0.15em]">PIX IN</p>
-                    <span className="h-1 w-1 rounded-full bg-emerald-400/40" />
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Entrada</p>
-                  </div>
-                  <p className="text-base font-semibold text-foreground leading-tight">Depositar via PIX</p>
-                  <p className="text-xs text-muted-foreground mt-1">Crédito instantâneo após pagamento</p>
-                </div>
-                <ArrowDownLeft className="h-4 w-4 text-emerald-400/40 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-              </div>
-            </button>
-          }
-        />
+      {/* ---- Quick Action: PIX OUT ---- */}
+      <div>
         <button
           onClick={() => document.getElementById("wallet-withdraw-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
-          className="group relative overflow-hidden rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent p-5 text-left transition-all hover:border-orange-500/50 hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.15)] hover:-translate-y-0.5"
+          className="group relative w-full overflow-hidden rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent p-5 text-left transition-all hover:border-orange-500/50 hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.15)] hover:-translate-y-0.5"
         >
           <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-orange-500/10 blur-2xl transition-all group-hover:bg-orange-500/20" />
           <div className="relative flex items-start gap-4">
@@ -345,7 +322,7 @@ export const WalletTab = () => {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saída</p>
               </div>
               <p className="text-base font-semibold text-foreground leading-tight">Solicitar Saque</p>
-              <p className="text-xs text-muted-foreground mt-1">Processado em até 24h pelo admin</p>
+              <p className="text-xs text-muted-foreground mt-1">Processado automaticamente pelo gateway</p>
             </div>
             <ArrowUpRight className="h-4 w-4 text-orange-400/40 group-hover:text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </div>
