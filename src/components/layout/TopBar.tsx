@@ -304,8 +304,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         </div>
       </div>
       <div className="flex items-center gap-1.5 md:gap-3">
-        {/* Plan Badge */}
-        {tenant && <PlanBadge tenant={tenant} />}
+        {/* Plan Badge moved into profile dropdown */}
         {/* Wallet */}
         <WalletBadge />
         {/* Language Switcher */}
