@@ -111,7 +111,7 @@ export const WalletTab = () => {
       return;
     }
     let cancelled = false;
-    setGatewayBalance({ cents: 0, loading: true, error: null, unsupported: false });
+    setGatewayBalance((prev) => ({ ...prev, loading: true }));
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -119,17 +119,19 @@ export const WalletTab = () => {
         });
         if (cancelled) return;
         if (error || (data as any)?.error) {
-          setGatewayBalance({ cents: 0, loading: false, error: (data as any)?.error || error?.message || "Erro", unsupported: false });
+          const msg = friendlyBalanceError((data as any)?.error || error?.message);
+          setGatewayBalance((prev) => ({ cents: prev.cents, loading: false, error: msg, unsupported: false, stale: prev.cents > 0 }));
         } else {
           setGatewayBalance({
             cents: (data as any)?.balance_cents ?? 0,
             loading: false,
             error: null,
             unsupported: !!(data as any)?.unsupported,
+            stale: false,
           });
         }
       } catch (e: any) {
-        if (!cancelled) setGatewayBalance({ cents: 0, loading: false, error: e?.message || "Erro", unsupported: false });
+        if (!cancelled) setGatewayBalance((prev) => ({ cents: prev.cents, loading: false, error: friendlyBalanceError(e?.message), unsupported: false, stale: prev.cents > 0 }));
       }
     })();
     return () => { cancelled = true; };
