@@ -388,92 +388,7 @@ export const WalletTab = () => {
         </div>
       </div>
 
-      {/* ---- Quick Action: PIX OUT ---- */}
-      <div>
-        <button
-          onClick={() => document.getElementById("wallet-withdraw-section")?.scrollIntoView({ behavior: "smooth", block: "center" })}
-          className="group relative w-full overflow-hidden rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent p-5 text-left transition-all hover:border-orange-500/50 hover:shadow-[0_0_40px_-10px_hsl(var(--primary)/0.15)] hover:-translate-y-0.5"
-        >
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-orange-500/10 blur-2xl transition-all group-hover:bg-orange-500/20" />
-          <div className="relative flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 ring-1 ring-orange-500/30 group-hover:scale-110 transition-transform">
-              <ArrowUpRight className="h-5 w-5 text-orange-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-[10px] font-bold text-orange-400 uppercase tracking-[0.15em]">PIX OUT</p>
-                <span className="h-1 w-1 rounded-full bg-orange-400/40" />
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saída</p>
-              </div>
-              <p className="text-base font-semibold text-foreground leading-tight">Solicitar Saque</p>
-              <p className="text-xs text-muted-foreground mt-1">Processado automaticamente pelo gateway</p>
-            </div>
-            <ArrowUpRight className="h-4 w-4 text-orange-400/40 group-hover:text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-          </div>
-        </button>
-      </div>
-
-      {/* ---- Gateway PIX OUT Config ---- */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur-sm">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-        <div className="p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-foreground font-display font-semibold text-sm">Gateways de saída PIX</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Habilite os gateways que você quer usar para enviar PIX automaticamente. Apenas gateways ativos e marcados aqui aparecerão no saque.
-              </p>
-            </div>
-          </div>
-
-          {/* Compatible gateways info */}
-          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
-            <p className="text-[11px] font-semibold text-foreground mb-2 uppercase tracking-wide">Gateways compatíveis com PIX OUT</p>
-            <div className="flex flex-wrap gap-2">
-              {Array.from(PIX_OUT_CAPABLE).map((key) => (
-                <span
-                  key={key}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-foreground"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  {PROVIDER_LABELS[key] || key}
-                </span>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-2">
-              Apenas estes gateways permitem disparar saques PIX automaticamente. Outros gateways só funcionam para entradas.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            {Array.from(PIX_OUT_CAPABLE).map((key) => {
-              const p = pixOutProviders.find((x) => x.provider_key === key);
-              const configured = !!p;
-              const active = !!p?.active;
-              return (
-                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`h-2 w-2 rounded-full shrink-0 ${active ? "bg-emerald-500" : "bg-muted"}`} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{PROVIDER_LABELS[key] || key}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {!configured ? "Não configurado — adicione em Pagamentos" : !active ? "Gateway inativo" : "Suporta PIX OUT automático"}
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={!!p?.pix_out_enabled}
-                    disabled={!configured || !active}
-                    onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ---- Withdraw Form ---- */}
+      {/* ---- Withdraw Form (movido pro lugar dos gateways) ---- */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur-sm" id="wallet-withdraw-section">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-500/40 to-transparent" />
         <div className="absolute -right-20 -top-20 h-48 w-48 rounded-full bg-orange-500/5 blur-3xl pointer-events-none" />
@@ -511,7 +426,7 @@ export const WalletTab = () => {
           {enabledProviders.length === 0 ? (
             <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-center">
               <p className="text-sm text-foreground font-medium">Nenhum gateway de saída habilitado</p>
-              <p className="text-[11px] text-muted-foreground mt-1">Habilite ao menos um gateway compatível acima para sacar.</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Habilite ao menos um gateway compatível abaixo para sacar.</p>
             </div>
           ) : (
             <>
@@ -586,6 +501,66 @@ export const WalletTab = () => {
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* ---- Gateway PIX OUT Config (movido pra baixo) ---- */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card/50 backdrop-blur-sm">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        <div className="p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-foreground font-display font-semibold text-sm">Gateways de saída PIX</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Habilite os gateways que você quer usar para enviar PIX automaticamente. Apenas gateways ativos e marcados aqui aparecerão no saque.
+              </p>
+            </div>
+          </div>
+
+          {/* Compatible gateways info */}
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <p className="text-[11px] font-semibold text-foreground mb-2 uppercase tracking-wide">Gateways compatíveis com PIX OUT</p>
+            <div className="flex flex-wrap gap-2">
+              {Array.from(PIX_OUT_CAPABLE).map((key) => (
+                <span
+                  key={key}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-foreground"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {PROVIDER_LABELS[key] || key}
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Apenas estes gateways permitem disparar saques PIX automaticamente. Outros gateways só funcionam para entradas.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {Array.from(PIX_OUT_CAPABLE).map((key) => {
+              const p = pixOutProviders.find((x) => x.provider_key === key);
+              const configured = !!p;
+              const active = !!p?.active;
+              return (
+                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${active ? "bg-emerald-500" : "bg-muted"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{PROVIDER_LABELS[key] || key}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {!configured ? "Não configurado — adicione em Pagamentos" : !active ? "Gateway inativo" : "Suporta PIX OUT automático"}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!!p?.pix_out_enabled}
+                    disabled={!configured || !active}
+                    onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
