@@ -589,8 +589,10 @@ export const WalletTab = () => {
               const p = pixOutProviders.find((x) => x.provider_key === key);
               const configured = !!p;
               const active = !!p?.active;
+              const enabledForOut = !!p?.pix_out_enabled;
+              const bal = providerBalances[key];
               return (
-                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
+                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 gap-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`h-2 w-2 rounded-full shrink-0 ${active ? "bg-emerald-500" : "bg-muted"}`} />
                     <div className="min-w-0">
@@ -600,11 +602,29 @@ export const WalletTab = () => {
                       </p>
                     </div>
                   </div>
-                  <Switch
-                    checked={!!p?.pix_out_enabled}
-                    disabled={!configured || !active}
-                    onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
-                  />
+                  <div className="flex items-center gap-3 shrink-0">
+                    {enabledForOut && active && (
+                      <div className="text-right">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Saldo</p>
+                        <p className="text-sm font-mono font-bold text-foreground">
+                          {!bal || bal.loading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin inline text-muted-foreground" />
+                          ) : bal.error ? (
+                            <span className="text-destructive text-[11px] font-sans" title={bal.error}>indisponível</span>
+                          ) : bal.unsupported ? (
+                            <span className="text-amber-400 text-[11px] font-sans">N/D</span>
+                          ) : (
+                            balanceVisible ? fmt(bal.cents) : "••••"
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    <Switch
+                      checked={!!p?.pix_out_enabled}
+                      disabled={!configured || !active}
+                      onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
+                    />
+                  </div>
                 </div>
               );
             })}
