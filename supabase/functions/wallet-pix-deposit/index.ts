@@ -23,30 +23,12 @@ serve(async (req) => {
       if (!tx_id) throw new Error("Missing tx_id");
       const { data: tx } = await supabase
         .from("wallet_transactions")
-        .select("id, status, payment_id, provider, amount_cents, tenant_id")
+        .select("id, status")
         .eq("id", tx_id)
         .eq("tenant_id", tenant_id)
         .maybeSingle();
-
       if (!tx) throw new Error("Transação não encontrada");
-      if (tx.status === "completed") {
-        return new Response(JSON.stringify({ status: "completed" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Poll provider
-      const { data: poll } = await supabase.functions.invoke("check-payment-status", {
-        body: { tenant_id, payment_id: tx.payment_id, provider: tx.provider },
-      });
-
-      if (poll?.paid || poll?.status === "paid") {
-        await supabase.rpc("credit_wallet_deposit", { _tx_id: tx.id });
-        return new Response(JSON.stringify({ status: "completed" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ status: "pending" }), {
+      return new Response(JSON.stringify({ status: tx.status }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
