@@ -19,6 +19,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -89,6 +90,7 @@ export const WalletTab = () => {
   const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null; stale?: boolean }>>({});
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [balanceRefreshTick, setBalanceRefreshTick] = useState(0);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -135,7 +137,7 @@ export const WalletTab = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [tenantId, withdrawProvider]);
+  }, [tenantId, withdrawProvider, balanceRefreshTick]);
 
   // Aggregate + per-provider balances across all enabled PIX OUT gateways
   useEffect(() => {
@@ -205,7 +207,7 @@ export const WalletTab = () => {
       if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial, stale: anyStale });
     })();
     return () => { cancelled = true; };
-  }, [tenantId, providers]);
+  }, [tenantId, providers, balanceRefreshTick]);
 
   function friendlyBalanceError(raw?: string | null): string {
     const s = String(raw || "").toLowerCase();
@@ -396,12 +398,23 @@ export const WalletTab = () => {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setBalanceVisible(!balanceVisible)}
-                className="wallet-toggle-eye"
-              >
-                {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setBalanceRefreshTick((t) => t + 1)}
+                  disabled={aggregateBalance.loading}
+                  className="wallet-toggle-eye disabled:opacity-50"
+                  title="Atualizar saldo"
+                  aria-label="Atualizar saldo"
+                >
+                  <RefreshCw className={`h-4 w-4 ${aggregateBalance.loading ? "animate-spin" : ""}`} />
+                </button>
+                <button
+                  onClick={() => setBalanceVisible(!balanceVisible)}
+                  className="wallet-toggle-eye"
+                >
+                  {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {lastMonth > 0 && (
