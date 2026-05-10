@@ -89,6 +89,7 @@ export const WalletTab = () => {
   const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null; stale?: boolean }>>({});
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [balanceRefreshTick, setBalanceRefreshTick] = useState(0);
 
   useEffect(() => {
     if (!tenantId) return;
