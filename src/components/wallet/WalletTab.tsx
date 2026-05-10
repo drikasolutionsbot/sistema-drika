@@ -120,6 +120,34 @@ export const WalletTab = () => {
     return () => { cancelled = true; };
   }, [tenantId, withdrawProvider]);
 
+  // Aggregate balance across all enabled PIX OUT gateways (shown in main wallet "Saldo")
+  useEffect(() => {
+    if (!tenantId) return;
+    const enabled = providers.filter((p) => PIX_OUT_CAPABLE.has(p.provider_key) && p.active && p.pix_out_enabled);
+    if (enabled.length === 0) {
+      setAggregateBalance({ cents: 0, loading: false, partial: false });
+      return;
+    }
+    let cancelled = false;
+    setAggregateBalance({ cents: 0, loading: true, partial: false });
+    (async () => {
+      let total = 0;
+      let partial = false;
+      await Promise.all(enabled.map(async (p) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
+            body: { tenant_id: tenantId, provider_key: p.provider_key },
+          });
+          if (error || (data as any)?.error) { partial = true; return; }
+          if ((data as any)?.unsupported) { partial = true; return; }
+          total += (data as any)?.balance_cents ?? 0;
+        } catch { partial = true; }
+      }));
+      if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial });
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId, providers]);
+
   const fetchData = async () => {
     setLoading(true);
     const [walletRes, txRes, provRes] = await Promise.all([
