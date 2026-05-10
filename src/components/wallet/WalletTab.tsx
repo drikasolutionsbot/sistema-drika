@@ -86,6 +86,7 @@ export const WalletTab = () => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
   const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
+  const [providerBalances, setProviderBalances] = useState<Record<string, { cents: number; loading: boolean; unsupported: boolean; error: string | null }>>({});
   const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
@@ -134,16 +135,20 @@ export const WalletTab = () => {
     return () => { cancelled = true; };
   }, [tenantId, withdrawProvider]);
 
-  // Aggregate balance across all enabled PIX OUT gateways (shown in main wallet "Saldo")
+  // Aggregate + per-provider balances across all enabled PIX OUT gateways
   useEffect(() => {
     if (!tenantId) return;
     const enabled = providers.filter((p) => PIX_OUT_CAPABLE.has(p.provider_key) && p.active && p.pix_out_enabled);
     if (enabled.length === 0) {
       setAggregateBalance({ cents: 0, loading: false, partial: false });
+      setProviderBalances({});
       return;
     }
     let cancelled = false;
     setAggregateBalance({ cents: 0, loading: true, partial: false });
+    setProviderBalances(
+      Object.fromEntries(enabled.map((p) => [p.provider_key, { cents: 0, loading: true, unsupported: false, error: null }]))
+    );
     (async () => {
       let total = 0;
       let partial = false;
@@ -152,10 +157,24 @@ export const WalletTab = () => {
           const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
             body: { tenant_id: tenantId, provider_key: p.provider_key },
           });
-          if (error || (data as any)?.error) { partial = true; return; }
-          if ((data as any)?.unsupported) { partial = true; return; }
-          total += (data as any)?.balance_cents ?? 0;
-        } catch { partial = true; }
+          if (cancelled) return;
+          if (error || (data as any)?.error) {
+            partial = true;
+            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: (data as any)?.error || error?.message || "Erro" } }));
+            return;
+          }
+          if ((data as any)?.unsupported) {
+            partial = true;
+            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: true, error: null } }));
+            return;
+          }
+          const cents = (data as any)?.balance_cents ?? 0;
+          total += cents;
+          setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents, loading: false, unsupported: false, error: null } }));
+        } catch (e: any) {
+          partial = true;
+          if (!cancelled) setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: e?.message || "Erro" } }));
+        }
       }));
       if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial });
     })();
@@ -570,8 +589,10 @@ export const WalletTab = () => {
               const p = pixOutProviders.find((x) => x.provider_key === key);
               const configured = !!p;
               const active = !!p?.active;
+              const enabledForOut = !!p?.pix_out_enabled;
+              const bal = providerBalances[key];
               return (
-                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
+                <div key={key} className={`flex items-center justify-between rounded-lg border p-3 gap-3 ${active ? "border-border bg-muted/20" : "border-border/40 bg-muted/10 opacity-60"}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`h-2 w-2 rounded-full shrink-0 ${active ? "bg-emerald-500" : "bg-muted"}`} />
                     <div className="min-w-0">
@@ -581,11 +602,29 @@ export const WalletTab = () => {
                       </p>
                     </div>
                   </div>
-                  <Switch
-                    checked={!!p?.pix_out_enabled}
-                    disabled={!configured || !active}
-                    onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
-                  />
+                  <div className="flex items-center gap-3 shrink-0">
+                    {enabledForOut && active && (
+                      <div className="text-right">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Saldo</p>
+                        <p className="text-sm font-mono font-bold text-foreground">
+                          {!bal || bal.loading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin inline text-muted-foreground" />
+                          ) : bal.error ? (
+                            <span className="text-destructive text-[11px] font-sans" title={bal.error}>indisponível</span>
+                          ) : bal.unsupported ? (
+                            <span className="text-amber-400 text-[11px] font-sans">N/D</span>
+                          ) : (
+                            balanceVisible ? fmt(bal.cents) : "••••"
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    <Switch
+                      checked={!!p?.pix_out_enabled}
+                      disabled={!configured || !active}
+                      onCheckedChange={() => p && togglePixOut(p.id, p.pix_out_enabled)}
+                    />
+                  </div>
                 </div>
               );
             })}
