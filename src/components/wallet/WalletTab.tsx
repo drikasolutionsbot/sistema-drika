@@ -22,6 +22,7 @@ import {
 import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import "./wallet-card.css";
+import { PixSuccessAnimation } from "./PixSuccessAnimation";
 
 
 interface WalletData {
@@ -74,6 +75,7 @@ export const WalletTab = () => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
   const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
+  const [successAnim, setSuccessAnim] = useState<{ amount: string; pixKey: string } | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -229,7 +231,8 @@ export const WalletTab = () => {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).message || (data as any).error);
 
-      toast({ title: "Saque enviado!", description: "PIX disparado pelo gateway. Saldo debitado." });
+      const displayAmount = (amountCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      setSuccessAnim({ amount: displayAmount, pixKey: withdrawPix.trim() });
       setWithdrawAmount("");
       setWithdrawPix("");
       fetchData();
