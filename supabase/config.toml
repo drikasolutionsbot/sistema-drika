@@ -198,3 +198,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.clear-bot-banner]
 verify_jwt = false
+
+[functions.wallet-pix-withdraw]
+verify_jwt = false
