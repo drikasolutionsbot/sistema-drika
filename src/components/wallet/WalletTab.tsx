@@ -398,12 +398,23 @@ export const WalletTab = () => {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setBalanceVisible(!balanceVisible)}
-                className="wallet-toggle-eye"
-              >
-                {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setBalanceRefreshTick((t) => t + 1)}
+                  disabled={aggregateBalance.loading}
+                  className="wallet-toggle-eye disabled:opacity-50"
+                  title="Atualizar saldo"
+                  aria-label="Atualizar saldo"
+                >
+                  <RefreshCw className={`h-4 w-4 ${aggregateBalance.loading ? "animate-spin" : ""}`} />
+                </button>
+                <button
+                  onClick={() => setBalanceVisible(!balanceVisible)}
+                  className="wallet-toggle-eye"
+                >
+                  {balanceVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             {lastMonth > 0 && (
