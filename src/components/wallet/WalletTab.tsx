@@ -73,6 +73,7 @@ export const WalletTab = () => {
   const [submitting, setSubmitting] = useState(false);
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [gatewayBalance, setGatewayBalance] = useState<{ cents: number; loading: boolean; error: string | null; unsupported: boolean }>({ cents: 0, loading: false, error: null, unsupported: false });
+  const [aggregateBalance, setAggregateBalance] = useState<{ cents: number; loading: boolean; partial: boolean }>({ cents: 0, loading: false, partial: false });
 
   useEffect(() => {
     if (!tenantId) return;
@@ -118,6 +119,34 @@ export const WalletTab = () => {
     })();
     return () => { cancelled = true; };
   }, [tenantId, withdrawProvider]);
+
+  // Aggregate balance across all enabled PIX OUT gateways (shown in main wallet "Saldo")
+  useEffect(() => {
+    if (!tenantId) return;
+    const enabled = providers.filter((p) => PIX_OUT_CAPABLE.has(p.provider_key) && p.active && p.pix_out_enabled);
+    if (enabled.length === 0) {
+      setAggregateBalance({ cents: 0, loading: false, partial: false });
+      return;
+    }
+    let cancelled = false;
+    setAggregateBalance({ cents: 0, loading: true, partial: false });
+    (async () => {
+      let total = 0;
+      let partial = false;
+      await Promise.all(enabled.map(async (p) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
+            body: { tenant_id: tenantId, provider_key: p.provider_key },
+          });
+          if (error || (data as any)?.error) { partial = true; return; }
+          if ((data as any)?.unsupported) { partial = true; return; }
+          total += (data as any)?.balance_cents ?? 0;
+        } catch { partial = true; }
+      }));
+      if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial });
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId, providers]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -322,9 +351,17 @@ export const WalletTab = () => {
                 <div className="wallet-stat-icon bg-primary/20">
                   <Wallet className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Saldo</p>
-                  <p className="text-sm font-bold text-foreground">{balanceVisible ? fmt(wallet?.balance_cents ?? 0) : "••••"}</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Saldo {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal">(parcial)</span>}
+                  </p>
+                  <p className="text-sm font-bold text-foreground truncate">
+                    {balanceVisible
+                      ? aggregateBalance.loading
+                        ? "..."
+                        : fmt(aggregateBalance.cents)
+                      : "••••"}
+                  </p>
                 </div>
               </div>
             </div>
