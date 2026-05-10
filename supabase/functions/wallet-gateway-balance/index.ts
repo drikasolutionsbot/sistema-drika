@@ -39,7 +39,7 @@ async function efiBalance(p: any): Promise<{ balance_cents: number; currency: st
   const { access_token } = await tokenRes.json();
 
   // Efí: GET /v1/gn/saldo  → { "saldo": "123.45" }
-  const balRes = await fetch("https://pix.api.efipay.com.br/v1/gn/saldo", {
+  const balRes = await fetch("https://pix.api.efipay.com.br/v2/gn/saldo", {
     method: "GET",
     headers: { Authorization: `Bearer ${access_token}` },
     client: httpClient,
