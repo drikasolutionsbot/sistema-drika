@@ -206,7 +206,7 @@ export const WalletTab = () => {
       if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial, stale: anyStale });
     })();
     return () => { cancelled = true; };
-  }, [tenantId, providers]);
+  }, [tenantId, providers, balanceRefreshTick]);
 
   function friendlyBalanceError(raw?: string | null): string {
     const s = String(raw || "").toLowerCase();
