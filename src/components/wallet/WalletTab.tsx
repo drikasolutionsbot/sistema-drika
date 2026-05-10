@@ -78,6 +78,15 @@ export const WalletTab = () => {
     fetchData();
   }, [tenantId]);
 
+  useEffect(() => {
+    if (searchParams.get("section") === "withdraw") {
+      const t = setTimeout(() => {
+        document.getElementById("wallet-withdraw-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams]);
+
   const fetchData = async () => {
     setLoading(true);
     const [walletRes, txRes, provRes] = await Promise.all([
