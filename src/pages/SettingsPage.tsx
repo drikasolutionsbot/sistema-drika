@@ -189,7 +189,7 @@ const SettingsPage = () => {
           <p className="text-muted-foreground text-sm mt-1">Personalize seu painel</p>
         </div>
 
-        <Tabs defaultValue={defaultTab} className="relative mt-5">
+        <Tabs value={currentTab} onValueChange={(v) => { const sp = new URLSearchParams(searchParams); sp.set("tab", v); sp.delete("section"); setSearchParams(sp, { replace: true }); }} className="relative mt-5">
           <div className="overflow-x-auto -mx-6 px-6 scrollbar-none">
             <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-auto gap-1 w-max min-w-full sm:w-auto">
               <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
