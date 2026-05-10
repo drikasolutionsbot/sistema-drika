@@ -435,7 +435,7 @@ export const WalletTab = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                    Saldo {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal">(parcial)</span>}
+                    Saldo {aggregateBalance.partial && <span className="text-orange-400/80 normal-case tracking-normal">(parcial)</span>} {aggregateBalance.stale && <span className="text-amber-400/90 normal-case tracking-normal" title="Última consulta falhou — exibindo último valor válido">(desatualizado)</span>}
                   </p>
                   <p className="text-sm font-bold text-foreground truncate">
                     {balanceVisible
