@@ -147,13 +147,23 @@ export const WalletTab = () => {
       return;
     }
     let cancelled = false;
-    setAggregateBalance({ cents: 0, loading: true, partial: false });
-    setProviderBalances(
-      Object.fromEntries(enabled.map((p) => [p.provider_key, { cents: 0, loading: true, unsupported: false, error: null }]))
+    setAggregateBalance((prev) => ({ ...prev, loading: true }));
+    setProviderBalances((prev) =>
+      Object.fromEntries(enabled.map((p) => {
+        const prior = prev[p.provider_key];
+        return [p.provider_key, {
+          cents: prior?.cents ?? 0,
+          loading: true,
+          unsupported: prior?.unsupported ?? false,
+          error: prior?.error ?? null,
+          stale: prior?.stale ?? false,
+        }];
+      }))
     );
     (async () => {
       let total = 0;
       let partial = false;
+      let anyStale = false;
       await Promise.all(enabled.map(async (p) => {
         try {
           const { data, error } = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -162,26 +172,48 @@ export const WalletTab = () => {
           if (cancelled) return;
           if (error || (data as any)?.error) {
             partial = true;
-            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: (data as any)?.error || error?.message || "Erro" } }));
+            const msg = friendlyBalanceError((data as any)?.error || error?.message);
+            setProviderBalances((prev) => {
+              const prior = prev[p.provider_key];
+              const keep = prior?.cents ?? 0;
+              if (keep > 0) { total += keep; anyStale = true; }
+              return { ...prev, [p.provider_key]: { cents: keep, loading: false, unsupported: false, error: msg, stale: keep > 0 } };
+            });
             return;
           }
           if ((data as any)?.unsupported) {
             partial = true;
-            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: true, error: null } }));
+            setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: true, error: null, stale: false } }));
             return;
           }
           const cents = (data as any)?.balance_cents ?? 0;
           total += cents;
-          setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents, loading: false, unsupported: false, error: null } }));
+          setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents, loading: false, unsupported: false, error: null, stale: false } }));
         } catch (e: any) {
           partial = true;
-          if (!cancelled) setProviderBalances((prev) => ({ ...prev, [p.provider_key]: { cents: 0, loading: false, unsupported: false, error: e?.message || "Erro" } }));
+          if (!cancelled) {
+            const msg = friendlyBalanceError(e?.message);
+            setProviderBalances((prev) => {
+              const prior = prev[p.provider_key];
+              const keep = prior?.cents ?? 0;
+              if (keep > 0) { total += keep; anyStale = true; }
+              return { ...prev, [p.provider_key]: { cents: keep, loading: false, unsupported: false, error: msg, stale: keep > 0 } };
+            });
+          }
         }
       }));
-      if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial });
+      if (!cancelled) setAggregateBalance({ cents: total, loading: false, partial, stale: anyStale });
     })();
     return () => { cancelled = true; };
   }, [tenantId, providers]);
+
+  function friendlyBalanceError(raw?: string | null): string {
+    const s = String(raw || "").toLowerCase();
+    if (s.includes("429") || s.includes("rate") || s.includes("too many")) return "Limite de consultas atingido — tente em alguns segundos";
+    if (/\b5\d\d\b/.test(s) || s.includes("timeout") || s.includes("gateway") || s.includes("unavailable")) return "Gateway indisponível no momento";
+    if (s.includes("network") || s.includes("failed to fetch")) return "Falha de conexão";
+    return raw || "Indisponível";
+  }
 
   const fetchData = async () => {
     setLoading(true);
