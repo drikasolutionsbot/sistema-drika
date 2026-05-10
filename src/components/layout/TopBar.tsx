@@ -304,8 +304,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         </div>
       </div>
       <div className="flex items-center gap-1.5 md:gap-3">
-        {/* Plan Badge */}
-        {tenant && <PlanBadge tenant={tenant} />}
+        {/* Plan Badge moved into profile dropdown */}
         {/* Wallet */}
         <WalletBadge />
         {/* Language Switcher */}
@@ -433,6 +432,68 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                 </div>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {tenant && (() => {
+              const isPaid = isPaidPlan(tenant.plan);
+              const planLabel = tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
+              let timeLeft = "";
+              let isExpiring = false;
+              let isExpired = false;
+              if (tenant.plan_expires_at) {
+                const now = new Date();
+                const expires = new Date(tenant.plan_expires_at);
+                const diffMs = expires.getTime() - now.getTime();
+                if (diffMs <= 0) {
+                  timeLeft = t.plan.expired;
+                  isExpired = true;
+                  isExpiring = true;
+                } else {
+                  const days = differenceInDays(expires, now);
+                  const hours = differenceInHours(expires, now) % 24;
+                  const mins = differenceInMinutes(expires, now) % 60;
+                  if (days > 0) timeLeft = `${days}d ${hours}h ${t.plan.remaining}`;
+                  else if (hours > 0) timeLeft = `${hours}h ${mins}m ${t.plan.remaining}`;
+                  else timeLeft = `${mins}m ${t.plan.remaining}`;
+                  isExpiring = days < 2;
+                }
+              }
+              const tone = isExpired
+                ? "border-destructive/30 bg-destructive/10"
+                : isPaid
+                  ? "border-primary/25 bg-primary/5"
+                  : isExpiring
+                    ? "border-destructive/20 bg-destructive/5"
+                    : "border-border bg-muted/40";
+              return (
+                <div className="px-2 pb-2">
+                  <button
+                    onClick={() => {
+                      if (!isPaid || isExpired) {
+                        sessionStorage.setItem("open_upgrade_modal", "true");
+                      }
+                      navigate("/settings");
+                    }}
+                    className={`w-full flex items-center gap-2 rounded-lg border ${tone} px-2.5 py-2 text-left transition-colors hover:bg-accent/40`}
+                  >
+                    <Crown className={`h-4 w-4 shrink-0 ${isExpired ? "text-destructive" : isPaid ? "text-primary" : "text-muted-foreground"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold">{planLabel}</span>
+                        {(!isPaid || isExpired) && (
+                          <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Upgrade</span>
+                        )}
+                      </div>
+                      {timeLeft && (
+                        <div className={`flex items-center gap-1 text-[10px] mt-0.5 ${isExpired || isExpiring ? "text-destructive" : "text-muted-foreground"}`}>
+                          <Clock className="h-2.5 w-2.5" />
+                          <span className="truncate">{timeLeft}</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              );
+            })()}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
