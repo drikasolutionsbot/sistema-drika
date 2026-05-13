@@ -95,7 +95,7 @@ export const DashboardLayout = () => {
           <TopBar onToggleSidebar={toggleSidebar} />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <ErrorBoundary key={location.pathname}>
-              <Outlet />
+              {showFreeLock ? <FreePlanLock feature={lockLabel} /> : <Outlet />}
             </ErrorBoundary>
           </main>
         </div>
