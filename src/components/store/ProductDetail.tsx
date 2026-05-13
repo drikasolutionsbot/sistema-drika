@@ -12,6 +12,7 @@ import { ProductDetailStock } from "./ProductDetailStock";
 import { ProductDetailEmbed, type EmbedConfig } from "./ProductDetailEmbed";
 import { ProductDetailCoupons } from "./ProductDetailCoupons";
 import { PostMessageModal } from "./PostMessageModal";
+import { GlobalMarketplaceSubmitButton } from "./GlobalMarketplaceSubmitButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 interface Category {
@@ -232,6 +233,11 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
             <span className="hidden sm:inline">Postar Mensagem</span>
             <span className="sm:hidden">Postar</span>
           </Button>
+          <GlobalMarketplaceSubmitButton
+            productId={product.id}
+            productName={edited.name}
+            productPriceCents={edited.price_cents}
+          />
         </div>
       </div>
 

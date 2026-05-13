@@ -57,6 +57,7 @@ import GiveawaysPage from "./pages/GiveawaysPage";
 import EmbedsPage from "./pages/EmbedsPage";
 import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
 import AdminBotConfigPage from "./pages/admin/AdminBotConfigPage";
+import AdminGlobalMarketplacePage from "./pages/admin/AdminGlobalMarketplacePage";
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
 import TranscriptPage from "./pages/TranscriptPage";
 import DmTemplatesPage from "./pages/DmTemplatesPage";
@@ -114,6 +115,7 @@ const AppRoutes = () => (
       <Route path="/admin/marketplace" element={<AdminMarketplacePage />} />
       <Route path="/admin/afiliados" element={<AdminAffiliatesPage />} />
       <Route path="/admin/bot-config" element={<AdminBotConfigPage />} />
+      <Route path="/admin/marketplace-global" element={<AdminGlobalMarketplacePage />} />
     </Route>
 
     {/* Dashboard routes */}
