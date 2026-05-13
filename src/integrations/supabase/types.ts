@@ -766,6 +766,60 @@ export type Database = {
           },
         ]
       }
+      global_marketplace_listings: {
+        Row: {
+          category_global: string | null
+          created_at: string
+          discord_channel_id: string | null
+          discord_message_id: string | null
+          global_status: string
+          id: string
+          product_id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          submitted_at: string
+          tenant_id: string
+          total_revenue_cents: number
+          total_sales: number
+          updated_at: string
+        }
+        Insert: {
+          category_global?: string | null
+          created_at?: string
+          discord_channel_id?: string | null
+          discord_message_id?: string | null
+          global_status?: string
+          id?: string
+          product_id: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          submitted_at?: string
+          tenant_id: string
+          total_revenue_cents?: number
+          total_sales?: number
+          updated_at?: string
+        }
+        Update: {
+          category_global?: string | null
+          created_at?: string
+          discord_channel_id?: string | null
+          discord_message_id?: string | null
+          global_status?: string
+          id?: string
+          product_id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          submitted_at?: string
+          tenant_id?: string
+          total_revenue_cents?: number
+          total_sales?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       landing_config: {
         Row: {
           abacatepay_active: boolean
@@ -782,6 +836,11 @@ export type Database = {
           global_bot_banner_force_reapply_at: string | null
           global_bot_banner_url: string | null
           global_bot_status: string
+          global_marketplace_approver_discord_ids: string[]
+          global_marketplace_category_channels: Json
+          global_marketplace_commission_percent: number
+          global_marketplace_guild_id: string | null
+          global_marketplace_payment_provider: string | null
           id: string
           master_plan_name: string
           master_price_cents: number
@@ -817,6 +876,11 @@ export type Database = {
           global_bot_banner_force_reapply_at?: string | null
           global_bot_banner_url?: string | null
           global_bot_status?: string
+          global_marketplace_approver_discord_ids?: string[]
+          global_marketplace_category_channels?: Json
+          global_marketplace_commission_percent?: number
+          global_marketplace_guild_id?: string | null
+          global_marketplace_payment_provider?: string | null
           id?: string
           master_plan_name?: string
           master_price_cents?: number
@@ -852,6 +916,11 @@ export type Database = {
           global_bot_banner_force_reapply_at?: string | null
           global_bot_banner_url?: string | null
           global_bot_status?: string
+          global_marketplace_approver_discord_ids?: string[]
+          global_marketplace_category_channels?: Json
+          global_marketplace_commission_percent?: number
+          global_marketplace_guild_id?: string | null
+          global_marketplace_payment_provider?: string | null
           id?: string
           master_plan_name?: string
           master_price_cents?: number
@@ -1004,19 +1073,23 @@ export type Database = {
           checkout_thread_archive_error: string | null
           checkout_thread_archived_at: string | null
           checkout_thread_id: string | null
+          commission_cents: number
           coupon_id: string | null
           created_at: string
           currency: string
           discord_user_id: string
           discord_username: string | null
           field_id: string | null
+          global_listing_id: string | null
           id: string
+          is_global: boolean
           order_number: number
           payment_id: string | null
           payment_provider: string | null
           pix_message_id: string | null
           product_id: string | null
           product_name: string
+          seller_received_cents: number
           status: Database["public"]["Enums"]["order_status"]
           tenant_id: string
           total_cents: number
@@ -1029,19 +1102,23 @@ export type Database = {
           checkout_thread_archive_error?: string | null
           checkout_thread_archived_at?: string | null
           checkout_thread_id?: string | null
+          commission_cents?: number
           coupon_id?: string | null
           created_at?: string
           currency?: string
           discord_user_id: string
           discord_username?: string | null
           field_id?: string | null
+          global_listing_id?: string | null
           id?: string
+          is_global?: boolean
           order_number?: number
           payment_id?: string | null
           payment_provider?: string | null
           pix_message_id?: string | null
           product_id?: string | null
           product_name: string
+          seller_received_cents?: number
           status?: Database["public"]["Enums"]["order_status"]
           tenant_id: string
           total_cents?: number
@@ -1054,19 +1131,23 @@ export type Database = {
           checkout_thread_archive_error?: string | null
           checkout_thread_archived_at?: string | null
           checkout_thread_id?: string | null
+          commission_cents?: number
           coupon_id?: string | null
           created_at?: string
           currency?: string
           discord_user_id?: string
           discord_username?: string | null
           field_id?: string | null
+          global_listing_id?: string | null
           id?: string
+          is_global?: boolean
           order_number?: number
           payment_id?: string | null
           payment_provider?: string | null
           pix_message_id?: string | null
           product_id?: string | null
           product_name?: string
+          seller_received_cents?: number
           status?: Database["public"]["Enums"]["order_status"]
           tenant_id?: string
           total_cents?: number
