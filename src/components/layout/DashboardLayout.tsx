@@ -53,12 +53,19 @@ export const DashboardLayout = () => {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { isPlanExpired } = useTenant();
+  const { tenant, isPlanExpired } = useTenant();
   const isMobile = useIsMobile();
 
   if (isPlanExpired) {
     return <PlanExpiredPage />;
   }
+
+  // Bloqueio Free: rotas não-permitidas viram tela de upgrade
+  const path = location.pathname;
+  const isFree = !!tenant && !isPaidPlan(tenant.plan);
+  const isLockedRoute = !FREE_ALLOWED_ROUTES.has(path);
+  const showFreeLock = isFree && isLockedRoute;
+  const lockLabel = FREE_LOCK_LABELS[path];
 
   const toggleSidebar = () => {
     if (isMobile) {
