@@ -1582,7 +1582,7 @@ serve(async (req: Request) => {
         // Get tenant guild + ticket config
         const { data: tenant } = await supabase
           .from("tenants")
-          .select("discord_guild_id, name, logo_url")
+          .select("discord_guild_id, name, logo_url, verify_role_id")
           .eq("id", ticketTenantId)
           .single();
 
@@ -1593,7 +1593,7 @@ serve(async (req: Request) => {
 
         const { data: storeConfig } = await supabase
           .from("store_configs")
-          .select("ticket_channel_id, ticket_staff_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
+          .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
           .eq("tenant_id", ticketTenantId)
           .single();
 
@@ -1699,10 +1699,7 @@ serve(async (req: Request) => {
           headers: { Authorization: `Bot ${botToken}` },
         });
 
-        const configuredStaffRoleIds = (storeConfig?.ticket_staff_role_id || "")
-          .split(",")
-          .map((roleId: string) => roleId.trim())
-          .filter(Boolean);
+        const configuredStaffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, tenant);
 
         await addTicketStaffToThread(supabase, botToken, ticketTenantId, guildId, ticketThread.id, userId, configuredStaffRoleIds);
 
@@ -1727,13 +1724,13 @@ serve(async (req: Request) => {
           if (fallbackRolesErr) {
             console.warn("[TICKET_OPEN] failed to load fallback tenant roles:", fallbackRolesErr.message || fallbackRolesErr);
           } else {
-            staffRoleIds = Array.from(
-              new Set(
-                (fallbackTenantRoles || [])
-                  .map((r: any) => r?.discord_role_id)
-                  .filter((rid: string | null) => typeof rid === "string" && rid.trim().length > 0)
-                  .map((rid: string) => rid.trim())
-              )
+            staffRoleIds = filterTicketStaffRoleIds(
+              (fallbackTenantRoles || [])
+                .map((r: any) => r?.discord_role_id)
+                .filter((rid: string | null) => typeof rid === "string" && rid.trim().length > 0)
+                .map((rid: string) => rid.trim()),
+              storeConfig,
+              tenant
             );
 
             if (staffRoleIds.length > 0) {
