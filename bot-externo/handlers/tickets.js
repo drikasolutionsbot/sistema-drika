@@ -57,6 +57,23 @@ async function fetchGuildMembersForTicketStaff(guild) {
   }
 }
 
+function normalizeRoleIds(value) {
+  return String(value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function filterTicketStaffRoleIds(roleIds, storeConfig, tenant) {
+  const excludedRoleIds = new Set([
+    tenant?.verify_role_id,
+    storeConfig?.customer_role_id,
+  ].filter(Boolean).map(String));
+
+  return [...new Set((roleIds || []).map(String).map((s) => s.trim()).filter(Boolean))]
+    .filter((roleId) => !excludedRoleIds.has(roleId));
+}
+
 // ── Open Ticket (from button or command) ──
 async function openTicket(interaction, tenant, targetChannelId = null) {
   await interaction.deferReply({ ephemeral: true });
@@ -81,7 +98,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   const storeConfig = await getStoreConfig(tenant.id);
   let parentChannelId = targetChannelId || storeConfig?.ticket_channel_id || interaction.channel.id;
-  let staffRoleIds = (storeConfig?.ticket_staff_role_id || "").split(",").map((s) => s.trim()).filter(Boolean);
+  let staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, tenant);
 
   // Fallback: if no explicit staff roles, use tenant_roles with management permissions
   if (staffRoleIds.length === 0) {
@@ -90,7 +107,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       .select("discord_role_id")
       .eq("tenant_id", tenant.id)
       .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
-    staffRoleIds = [...new Set((fallbackRoles || []).map((r) => r.discord_role_id).filter(Boolean))];
+    staffRoleIds = filterTicketStaffRoleIds((fallbackRoles || []).map((r) => r.discord_role_id), storeConfig, tenant);
   }
 
   const ticketSuffix = Date.now().toString(36).slice(-4);
