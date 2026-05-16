@@ -189,7 +189,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
-  const tokenSession = sessionStorage.getItem("token_session");
+  const tokenSession = localStorage.getItem("token_session");
   const tokenData = tokenSession ? JSON.parse(tokenSession) : null;
   const avatar = user?.user_metadata?.avatar_url;
   const name = user?.user_metadata?.full_name || user?.user_metadata?.name || tokenData?.tenant_name || t.topbar.user;
@@ -287,7 +287,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   };
 
   const handleLogout = async () => {
-    sessionStorage.removeItem("token_session");
+    localStorage.removeItem("token_session");
     try { await signOut(); } catch (_) {}
     window.location.href = "/login";
   };

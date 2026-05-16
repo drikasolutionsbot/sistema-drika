@@ -83,7 +83,7 @@ const PlanExpiredPage = () => {
   };
 
   const handleLogout = async () => {
-    sessionStorage.removeItem("token_session");
+    localStorage.removeItem("token_session");
     try { await signOut(); } catch {}
     window.location.href = "/login";
   };

@@ -37,7 +37,7 @@ const OnboardingPage = () => {
   const [serverName, setServerName] = useState("");
 
   useEffect(() => {
-    const tokenSession = sessionStorage.getItem("token_session");
+    const tokenSession = localStorage.getItem("token_session");
     if (tokenSession) {
       navigate("/dashboard", { replace: true });
       return;

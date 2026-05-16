@@ -61,7 +61,7 @@ const LoginPage = () => {
         await signOut();
       }
       // Also clear any previous token session
-      sessionStorage.removeItem("token_session");
+      localStorage.removeItem("token_session");
 
       const { data, error } = await supabase.functions.invoke("validate-token", {
         body: { token: token.trim() },
@@ -73,7 +73,7 @@ const LoginPage = () => {
         toast({ title: t.login.invalidToken, description: data?.error || error?.message, variant: "destructive" });
         setValidating(false);
       } else {
-        sessionStorage.setItem("token_session", JSON.stringify({
+        localStorage.setItem("token_session", JSON.stringify({
           tenant_id: data.tenant_id,
           tenant_name: data.tenant_name,
           token: token.trim(),
@@ -95,7 +95,7 @@ const LoginPage = () => {
     setValidating(true);
     try {
       if (user) await signOut();
-      sessionStorage.removeItem("token_session");
+      localStorage.removeItem("token_session");
 
       const { data, error } = await supabase.functions.invoke("login-with-email", {
         body: { email: email.trim(), password },
