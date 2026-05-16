@@ -416,6 +416,24 @@ async function addTicketStaffToThread(
   console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
 }
 
+function normalizeRoleIds(value: any): string[] {
+  return String(value || "")
+    .split(",")
+    .map((roleId: string) => roleId.trim())
+    .filter(Boolean);
+}
+
+function filterTicketStaffRoleIds(roleIds: string[], storeConfig: any, tenant: any): string[] {
+  const excludedRoleIds = new Set(
+    [tenant?.verify_role_id, storeConfig?.customer_role_id]
+      .filter(Boolean)
+      .map((roleId: any) => String(roleId))
+  );
+
+  return Array.from(new Set((roleIds || []).map((roleId: any) => String(roleId).trim()).filter(Boolean)))
+    .filter((roleId: string) => !excludedRoleIds.has(roleId));
+}
+
 serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -609,7 +627,7 @@ serve(async (req: Request) => {
         // Find tenant by guild_id
         const { data: tenant } = await supabase
           .from("tenants")
-          .select("id")
+          .select("id, verify_role_id")
           .eq("discord_guild_id", guildId)
           .single();
 
@@ -663,7 +681,7 @@ serve(async (req: Request) => {
 
         const { data: storeConfig } = await supabase
           .from("store_configs")
-          .select("ticket_channel_id, ticket_staff_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style")
+          .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style")
           .eq("tenant_id", tenant.id)
           .single();
 
@@ -719,7 +737,7 @@ serve(async (req: Request) => {
         if (ticket) {
           const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
           // Build staff mentions so the thread appears for staff
-          const staffRoleIds = (storeConfig?.ticket_staff_role_id || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+          const staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, tenant);
           const staffMentions = staffRoleIds.map((rid: string) => `<@&${rid}>`).join(" ");
           const contentMention = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
 
@@ -1564,7 +1582,7 @@ serve(async (req: Request) => {
         // Get tenant guild + ticket config
         const { data: tenant } = await supabase
           .from("tenants")
-          .select("discord_guild_id, name, logo_url")
+          .select("discord_guild_id, name, logo_url, verify_role_id")
           .eq("id", ticketTenantId)
           .single();
 
@@ -1575,7 +1593,7 @@ serve(async (req: Request) => {
 
         const { data: storeConfig } = await supabase
           .from("store_configs")
-          .select("ticket_channel_id, ticket_staff_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
+          .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_logs_channel_id, ticket_embed_button_label, ticket_embed_button_style")
           .eq("tenant_id", ticketTenantId)
           .single();
 
@@ -1681,10 +1699,7 @@ serve(async (req: Request) => {
           headers: { Authorization: `Bot ${botToken}` },
         });
 
-        const configuredStaffRoleIds = (storeConfig?.ticket_staff_role_id || "")
-          .split(",")
-          .map((roleId: string) => roleId.trim())
-          .filter(Boolean);
+        const configuredStaffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, tenant);
 
         await addTicketStaffToThread(supabase, botToken, ticketTenantId, guildId, ticketThread.id, userId, configuredStaffRoleIds);
 
@@ -1709,13 +1724,13 @@ serve(async (req: Request) => {
           if (fallbackRolesErr) {
             console.warn("[TICKET_OPEN] failed to load fallback tenant roles:", fallbackRolesErr.message || fallbackRolesErr);
           } else {
-            staffRoleIds = Array.from(
-              new Set(
-                (fallbackTenantRoles || [])
-                  .map((r: any) => r?.discord_role_id)
-                  .filter((rid: string | null) => typeof rid === "string" && rid.trim().length > 0)
-                  .map((rid: string) => rid.trim())
-              )
+            staffRoleIds = filterTicketStaffRoleIds(
+              (fallbackTenantRoles || [])
+                .map((r: any) => r?.discord_role_id)
+                .filter((rid: string | null) => typeof rid === "string" && rid.trim().length > 0)
+                .map((rid: string) => rid.trim()),
+              storeConfig,
+              tenant
             );
 
             if (staffRoleIds.length > 0) {
