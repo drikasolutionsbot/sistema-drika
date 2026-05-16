@@ -181,11 +181,23 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       ? { roles: staffRoleIds }
       : { parse: [] },
   };
-  if (staffMentionContent) welcomePayload.content = staffMentionContent;
 
   const welcomeMsg = await sendWithIdentity(ticketChannel, tenant, welcomePayload);
 
   try { await welcomeMsg.pin(); } catch {}
+
+  // Send mention ping as a separate plain message — ensures roles are actually pinged
+  // (webhooks sometimes silently swallow role pings in private threads).
+  if (staffMentionContent) {
+    try {
+      await ticketChannel.send({
+        content: staffMentionContent,
+        allowedMentions: { roles: staffRoleIds },
+      });
+    } catch (e) {
+      console.warn("[TICKET_OPEN] staff mention send failed:", e.message);
+    }
+  }
 
   await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketChannel.id}>` });
 }
