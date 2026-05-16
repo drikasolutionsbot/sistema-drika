@@ -29,7 +29,7 @@ async function checkStaffPermission(tenant, interaction) {
       return member?.permissions?.has?.("ManageMessages") || false;
     }
 
-    const staffRoleIds = staffRoleIdRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(staffRoleIdRaw), storeConfig, tenant);
     if (staffRoleIds.length === 0) return false;
 
     const memberRoles = member?.roles?.cache || member?._roles;
