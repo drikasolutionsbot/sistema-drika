@@ -416,6 +416,24 @@ async function addTicketStaffToThread(
   console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
 }
 
+function normalizeRoleIds(value: any): string[] {
+  return String(value || "")
+    .split(",")
+    .map((roleId: string) => roleId.trim())
+    .filter(Boolean);
+}
+
+function filterTicketStaffRoleIds(roleIds: string[], storeConfig: any, tenant: any): string[] {
+  const excludedRoleIds = new Set(
+    [tenant?.verify_role_id, storeConfig?.customer_role_id]
+      .filter(Boolean)
+      .map((roleId: any) => String(roleId))
+  );
+
+  return Array.from(new Set((roleIds || []).map((roleId: any) => String(roleId).trim()).filter(Boolean)))
+    .filter((roleId: string) => !excludedRoleIds.has(roleId));
+}
+
 serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
