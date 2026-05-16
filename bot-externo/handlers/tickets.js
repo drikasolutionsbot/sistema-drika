@@ -118,17 +118,26 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     await ticketChannel.members.add(userId).catch(() => {});
 
     // Add staff members by resolving role members from a full guild member fetch.
+    console.log(`[TICKET_OPEN] staffRoleIds=${JSON.stringify(staffRoleIds)} guild=${interaction.guild.id}`);
     await fetchGuildMembersForTicketStaff(interaction.guild);
     for (const roleId of staffRoleIds) {
       try {
-        const role = await interaction.guild.roles.fetch(roleId);
-        if (role?.members) {
+        const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
+        if (role?.members?.size) {
           role.members.forEach((m) => staffMemberIds.add(m.id));
+        } else {
+          // Fallback: iterate cached members and check role
+          interaction.guild.members.cache.forEach((m) => {
+            if (m.roles.cache.has(roleId)) staffMemberIds.add(m.id);
+          });
         }
-      } catch {}
+      } catch (e) {
+        console.warn(`[TICKET_OPEN] role ${roleId} resolve failed:`, e.message);
+      }
     }
+    console.log(`[TICKET_OPEN] resolved ${staffMemberIds.size} staff members to add`);
     for (const memberId of staffMemberIds) {
-      await ticketChannel.members.add(memberId).catch(() => {});
+      await ticketChannel.members.add(memberId).catch((e) => console.warn(`[TICKET_OPEN] add ${memberId} failed:`, e.message));
     }
   } catch (err) {
     console.error("[TICKET_OPEN] create ticket thread error:", err.message);
