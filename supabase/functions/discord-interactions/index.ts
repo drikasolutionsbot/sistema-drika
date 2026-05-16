@@ -627,7 +627,7 @@ serve(async (req: Request) => {
         // Find tenant by guild_id
         const { data: tenant } = await supabase
           .from("tenants")
-          .select("id")
+          .select("id, verify_role_id")
           .eq("discord_guild_id", guildId)
           .single();
 
@@ -681,7 +681,7 @@ serve(async (req: Request) => {
 
         const { data: storeConfig } = await supabase
           .from("store_configs")
-          .select("ticket_channel_id, ticket_staff_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style")
+          .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style")
           .eq("tenant_id", tenant.id)
           .single();
 
@@ -737,7 +737,7 @@ serve(async (req: Request) => {
         if (ticket) {
           const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
           // Build staff mentions so the thread appears for staff
-          const staffRoleIds = (storeConfig?.ticket_staff_role_id || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+          const staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, tenant);
           const staffMentions = staffRoleIds.map((rid: string) => `<@&${rid}>`).join(" ");
           const contentMention = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
 
