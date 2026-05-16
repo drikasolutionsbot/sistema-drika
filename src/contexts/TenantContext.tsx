@@ -51,7 +51,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     if (!isRefetch) setLoading(true);
 
     // Check token session first - use stored data directly (no RLS needed)
-    const tokenSessionStr = sessionStorage.getItem("token_session");
+    const tokenSessionStr = localStorage.getItem("token_session");
     if (tokenSessionStr) {
       try {
         const tokenSession = JSON.parse(tokenSessionStr);

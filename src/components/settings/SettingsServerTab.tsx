@@ -92,7 +92,7 @@ const SettingsServerTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
   const getRequestBody = () => {
     const body: any = { tenant_id: tenantId };
-    const tokenSession = sessionStorage.getItem("token_session");
+    const tokenSession = localStorage.getItem("token_session");
     if (tokenSession) {
       try {
         body.token = JSON.parse(tokenSession).token;

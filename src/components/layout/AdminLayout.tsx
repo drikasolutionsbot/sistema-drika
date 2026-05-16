@@ -165,7 +165,7 @@ const SidebarContent = ({
         )}
         <button
           onClick={async () => {
-            sessionStorage.removeItem("token_session");
+            localStorage.removeItem("token_session");
             try { await signOut(); } catch (_) {}
             window.location.href = "/login";
           }}

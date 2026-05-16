@@ -284,7 +284,7 @@ const DashboardPage = () => {
 
   const getDiscordRequestBody = useCallback(() => {
     const body: Record<string, unknown> = { tenant_id: tenantId };
-    const tokenSession = sessionStorage.getItem("token_session");
+    const tokenSession = localStorage.getItem("token_session");
     if (providerToken) {
       body.discord_user_token = providerToken;
     }
@@ -556,7 +556,7 @@ const DashboardPage = () => {
 
     let tokenData: { token?: string } | null = null;
     try {
-      const tokenSession = sessionStorage.getItem("token_session");
+      const tokenSession = localStorage.getItem("token_session");
       tokenData = tokenSession ? JSON.parse(tokenSession) : null;
     } catch {
       tokenData = null;
