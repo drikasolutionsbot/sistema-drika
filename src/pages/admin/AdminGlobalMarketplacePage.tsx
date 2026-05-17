@@ -186,10 +186,25 @@ const AdminGlobalMarketplacePage = () => {
     setChannels(data?.channels || []);
   };
 
+  // Pedidos (vendas globais)
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersFilter, setOrdersFilter] = useState<"paid" | "pending" | "all">("paid");
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const fetchOrders = async (status: string) => {
+    setLoadingOrders(true);
+    const { data } = await supabase.functions.invoke("manage-global-marketplace", {
+      body: { action: "list_orders", status: status === "all" ? undefined : status },
+    });
+    setLoadingOrders(false);
+    if (Array.isArray(data)) setOrders(data);
+  };
+
   useEffect(() => {
     if (tab === "config") fetchConfig();
+    else if (tab === "orders") fetchOrders(ordersFilter);
     else fetchListings(tab);
-  }, [tab]);
+  }, [tab, ordersFilter]);
 
   useEffect(() => { fetchConfig(); }, []);
 
