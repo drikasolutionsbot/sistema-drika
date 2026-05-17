@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Globe, Check, X, ExternalLink, Loader2, Settings } from "lucide-react";
+import { Globe, Check, X, ExternalLink, Loader2, Settings, Plus, Trash2, Hash, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
-const GLOBAL_CATEGORIES = ["Contas", "Serviços", "Bots", "Outros"];
+const DEFAULT_CATEGORIES = ["Contas", "Serviços", "Bots", "Outros"];
 
 interface Listing {
   id: string;
