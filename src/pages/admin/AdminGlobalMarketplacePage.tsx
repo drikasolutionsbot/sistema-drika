@@ -41,6 +41,9 @@ const AdminGlobalMarketplacePage = () => {
 
   // Config
   const [config, setConfig] = useState<any>(null);
+  const [channels, setChannels] = useState<{ id: string; name: string; parent_id: string | null }[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const fetchListings = async (status: string) => {
     setLoading(true);
@@ -58,10 +61,35 @@ const AdminGlobalMarketplacePage = () => {
     setConfig(data);
   };
 
+  const fetchChannels = async (guildId: string) => {
+    if (!guildId || guildId.length < 10) {
+      setChannels([]);
+      return;
+    }
+    setLoadingChannels(true);
+    const { data, error } = await supabase.functions.invoke("discord-channels", {
+      body: { guild_id: guildId },
+    });
+    setLoadingChannels(false);
+    if (error || data?.error) {
+      setChannels([]);
+      toast({ title: "Erro ao listar canais", description: data?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    setChannels(data?.channels || []);
+  };
+
   useEffect(() => {
     if (tab === "config") fetchConfig();
     else fetchListings(tab);
   }, [tab]);
+
+  useEffect(() => {
+    if (config?.global_marketplace_guild_id) {
+      fetchChannels(config.global_marketplace_guild_id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.global_marketplace_guild_id]);
 
   const approve = async () => {
     if (!approveTarget) return;
