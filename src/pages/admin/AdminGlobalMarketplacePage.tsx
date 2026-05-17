@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Globe, Check, X, ExternalLink, Loader2, Settings, Plus, Trash2, Hash, RefreshCw } from "lucide-react";
+import { Globe, Check, X, ExternalLink, Loader2, Settings, Plus, Trash2, Hash, RefreshCw, Sparkles, Store, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -140,6 +141,7 @@ const AdminGlobalMarketplacePage = () => {
   const [rejectTarget, setRejectTarget] = useState<Listing | null>(null);
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [rejectReason, setRejectReason] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<Listing | null>(null);
   const [acting, setActing] = useState(false);
 
   // Config
@@ -227,6 +229,19 @@ const AdminGlobalMarketplacePage = () => {
     fetchListings(tab);
   };
 
+  const removeListing = async () => {
+    if (!removeTarget) return;
+    setActing(true);
+    const { error, data } = await supabase.functions.invoke("manage-global-marketplace", {
+      body: { action: "remove", listing_id: removeTarget.id, reviewer_id: user?.id, reviewer_email: user?.email },
+    });
+    setActing(false);
+    if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
+    toast({ title: "Listagem excluída" });
+    setRemoveTarget(null);
+    fetchListings(tab);
+  };
+
   const saveConfig = async () => {
     setActing(true);
     const { error } = await supabase.functions.invoke("manage-global-marketplace", {
@@ -265,68 +280,133 @@ const AdminGlobalMarketplacePage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {listings.map((l) => (
-                  <div key={l.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
-                    <div className="flex items-start gap-3">
-                      {l.products?.icon_url && (
-                        <img src={l.products.icon_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{l.products?.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">por {l.tenants?.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">R$ {((l.products?.price_cents || 0) / 100).toFixed(2)}</Badge>
-                          <Badge variant="outline" className="text-xs">{l.tenants?.plan}</Badge>
-                          {l.category_global && <Badge variant="outline" className="text-xs">{l.category_global}</Badge>}
+                {listings.map((l) => {
+                  const statusStyle = s === "pending"
+                    ? { ring: "ring-amber-500/30", bar: "from-amber-500 to-orange-500", label: "Pendente", dot: "bg-amber-400" }
+                    : s === "approved"
+                    ? { ring: "ring-emerald-500/30", bar: "from-emerald-500 to-teal-500", label: "Aprovado", dot: "bg-emerald-400" }
+                    : { ring: "ring-rose-500/30", bar: "from-rose-500 to-red-500", label: "Rejeitado", dot: "bg-rose-400" };
+                  return (
+                  <div
+                    key={l.id}
+                    className={`group relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-card/40 shadow-lg hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-300 ring-1 ${statusStyle.ring}`}
+                  >
+                    {/* Status bar */}
+                    <div className={`h-1 w-full bg-gradient-to-r ${statusStyle.bar}`} />
+
+                    {/* Banner blur background */}
+                    {l.products?.banner_url && (
+                      <div
+                        className="absolute inset-0 opacity-10 bg-cover bg-center blur-2xl pointer-events-none"
+                        style={{ backgroundImage: `url(${l.products.banner_url})` }}
+                      />
+                    )}
+
+                    <div className="relative p-5 space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start gap-3">
+                        <div className="relative shrink-0">
+                          {l.products?.icon_url ? (
+                            <img src={l.products.icon_url} alt="" className="h-14 w-14 rounded-xl object-cover ring-2 ring-border/60 shadow-md" />
+                          ) : (
+                            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                              <Store className="h-6 w-6 text-primary" />
+                            </div>
+                          )}
+                          <span className={`absolute -top-1 -right-1 h-3 w-3 rounded-full ${statusStyle.dot} ring-2 ring-card animate-pulse`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-base truncate leading-tight">{l.products?.name}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            por <span className="text-foreground/70 font-medium">{l.tenants?.name}</span>
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <Badge className="text-xs bg-primary/15 text-primary hover:bg-primary/20 border-0 font-bold">
+                              R$ {((l.products?.price_cents || 0) / 100).toFixed(2)}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">{l.tenants?.plan}</Badge>
+                            {l.category_global && (
+                              <Badge variant="outline" className="text-[10px] border-primary/30 text-primary/90">
+                                <Hash className="h-2.5 w-2.5 mr-0.5" />{l.category_global}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    {l.products?.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{l.products.description}</p>
-                    )}
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 space-y-1 text-xs">
-                      <p className="font-semibold text-foreground/80 uppercase tracking-wide text-[10px]">Identificação do vendedor</p>
-                      {l.tenants?.owner_discord_username && (
-                        <p><span className="text-muted-foreground">Discord:</span> {l.tenants.owner_discord_username}{l.tenants.owner_discord_id ? ` (${l.tenants.owner_discord_id})` : ""}</p>
+
+                      {l.products?.description && (
+                        <p className="text-xs text-muted-foreground/90 line-clamp-2 leading-relaxed">{l.products.description}</p>
                       )}
-                      {l.tenants?.email && (<p><span className="text-muted-foreground">Email:</span> {l.tenants.email}</p>)}
-                      {l.tenants?.whatsapp && (<p><span className="text-muted-foreground">WhatsApp:</span> {l.tenants.whatsapp}</p>)}
-                      {l.tenants?.pix_key ? (
-                        <p><span className="text-muted-foreground">PIX{l.tenants.pix_key_type ? ` (${l.tenants.pix_key_type})` : ""}:</span> <span className="font-mono">{l.tenants.pix_key}</span></p>
-                      ) : (
-                        <p className="text-destructive/80">⚠ Sem PIX cadastrado</p>
+
+                      {/* Seller card */}
+                      <div className="rounded-xl border border-border/60 bg-background/40 backdrop-blur-sm p-3 space-y-1.5 text-xs">
+                        <p className="font-bold text-foreground/90 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3 text-primary" /> Identificação do vendedor
+                        </p>
+                        {l.tenants?.owner_discord_username && (
+                          <p><span className="text-muted-foreground">Discord:</span> <span className="font-medium">{l.tenants.owner_discord_username}</span>{l.tenants.owner_discord_id ? <span className="text-muted-foreground/60"> ({l.tenants.owner_discord_id})</span> : ""}</p>
+                        )}
+                        {l.tenants?.email && (<p className="truncate"><span className="text-muted-foreground">Email:</span> {l.tenants.email}</p>)}
+                        {l.tenants?.whatsapp && (<p><span className="text-muted-foreground">WhatsApp:</span> {l.tenants.whatsapp}</p>)}
+                        {l.tenants?.pix_key ? (
+                          <p className="break-all"><span className="text-muted-foreground">PIX{l.tenants.pix_key_type ? ` (${l.tenants.pix_key_type})` : ""}:</span> <span className="font-mono text-emerald-400/90">{l.tenants.pix_key}</span></p>
+                        ) : (
+                          <p className="text-amber-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Sem PIX cadastrado</p>
+                        )}
+                        <p className="text-muted-foreground/70 pt-1 border-t border-border/40 mt-1.5">Tenant: <span className="font-mono">{l.tenant_id.slice(0, 8)}…</span></p>
+                      </div>
+
+                      {l.rejection_reason && (
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex gap-2">
+                          <X className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span><strong>Rejeitado:</strong> {l.rejection_reason}</span>
+                        </div>
                       )}
-                      <p className="text-muted-foreground pt-1">Tenant: <span className="font-mono">{l.tenant_id.slice(0, 8)}…</span></p>
-                    </div>
-                    {l.rejection_reason && (
-                      <p className="text-xs text-destructive">Motivo: {l.rejection_reason}</p>
-                    )}
-                    {s === "approved" && (
-                      <>
-                        <p className="text-xs text-muted-foreground">{l.total_sales} vendas • R$ {(l.total_revenue_cents / 100).toFixed(2)}</p>
-                        <Button size="sm" variant="outline" className="w-full" onClick={async () => {
-                          const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
-                            body: { action: "repost", listing_id: l.id, reviewer_id: user?.id, reviewer_email: user?.email },
-                          });
-                          if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
-                          toast({ title: "Enviado para o Marketplace! 🌍" });
-                        }}>
-                          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Reenviar para o Marketplace
-                        </Button>
-                      </>
-                    )}
-                    {s === "pending" && (
-                      <div className="flex gap-2">
-                        <Button size="sm" className="flex-1" onClick={() => { setApproveTarget(l); setCategory(DEFAULT_CATEGORIES[0]); }}>
-                          <Check className="h-3.5 w-3.5 mr-1" /> Aprovar
-                        </Button>
-                        <Button size="sm" variant="outline" className="flex-1 text-destructive border-destructive/30" onClick={() => setRejectTarget(l)}>
-                          <X className="h-3.5 w-3.5 mr-1" /> Rejeitar
+
+                      {s === "approved" && (
+                        <div className="rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-2.5 text-xs flex items-center justify-between">
+                          <span className="text-emerald-400/90 font-medium">{l.total_sales} vendas</span>
+                          <span className="text-emerald-400 font-bold">R$ {(l.total_revenue_cents / 100).toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-1">
+                        {s === "pending" && (
+                          <>
+                            <Button size="sm" className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white border-0 shadow-md shadow-emerald-500/20" onClick={() => { setApproveTarget(l); setCategory(DEFAULT_CATEGORIES[0]); }}>
+                              <Check className="h-3.5 w-3.5 mr-1" /> Aprovar
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1 text-amber-500 border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-400" onClick={() => setRejectTarget(l)}>
+                              <X className="h-3.5 w-3.5 mr-1" /> Rejeitar
+                            </Button>
+                          </>
+                        )}
+                        {s === "approved" && (
+                          <Button size="sm" variant="outline" className="flex-1 border-primary/30 hover:bg-primary/10 hover:text-primary" onClick={async () => {
+                            const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
+                              body: { action: "repost", listing_id: l.id, reviewer_id: user?.id, reviewer_email: user?.email },
+                            });
+                            if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
+                            toast({ title: "Enviado para o Marketplace! 🌍" });
+                          }}>
+                            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Reenviar
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive shrink-0 px-3"
+                          onClick={() => setRemoveTarget(l)}
+                          title="Excluir listagem"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                    )}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -647,6 +727,32 @@ const AdminGlobalMarketplacePage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmar exclusão */}
+      <AlertDialog open={!!removeTarget} onOpenChange={(o) => !o && setRemoveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" /> Excluir listagem?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong className="text-foreground">{removeTarget?.products?.name}</strong> será removido do Marketplace Global
+              {removeTarget?.global_status === "approved" && " e a mensagem no Discord será apagada"}.
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={acting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); removeListing(); }}
+              disabled={acting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {acting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />} Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
