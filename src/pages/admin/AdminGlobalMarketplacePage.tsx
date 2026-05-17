@@ -29,6 +29,7 @@ const DISCORD_BTN_STYLES: Record<number, string> = {
   2: "bg-[#4E5058] hover:bg-[#6D6F78] text-white",
   3: "bg-[#248046] hover:bg-[#1a6334] text-white",
   4: "bg-[#DA373C] hover:bg-[#a12d31] text-white",
+  5: "bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/20",
 };
 
 function DiscordEmbedPreview({ tpl }: { tpl: any }) {
@@ -41,7 +42,7 @@ function DiscordEmbedPreview({ tpl }: { tpl: any }) {
   if (tpl.show_seller !== false) fields.push({ name: "Vendedor", value: SAMPLE_VARS.seller });
   if (tpl.show_category !== false) fields.push({ name: "Categoria", value: SAMPLE_VARS.category });
 
-  const btnStyle = DISCORD_BTN_STYLES[[1, 2, 3, 4].includes(tpl.button_style) ? tpl.button_style : 1];
+  const btnStyle = DISCORD_BTN_STYLES[[1, 2, 3, 4, 5].includes(tpl.button_style) ? tpl.button_style : 1];
   const btnLabel = tpl.button_label || "Comprar";
   const btnEmoji = tpl.button_emoji || "";
 
@@ -555,6 +556,7 @@ const AdminGlobalMarketplacePage = () => {
                               <SelectItem value="2">Cinza (Secondary)</SelectItem>
                               <SelectItem value="3">Verde (Success)</SelectItem>
                               <SelectItem value="4">Vermelho (Danger)</SelectItem>
+                              <SelectItem value="5">Glass (Transparente)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

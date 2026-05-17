@@ -85,7 +85,7 @@ async function postListingToDiscord(supabase: any, listing_id: string, listing: 
 
     const btn: any = {
       type: 2,
-      style: [1, 2, 3, 4].includes(tpl.button_style) ? tpl.button_style : 1,
+      style: tpl.button_style === 5 ? 2 : ([1, 2, 3, 4].includes(tpl.button_style) ? tpl.button_style : 1),
       label: tpl.button_label || "Comprar",
       custom_id: `gml_buy:${listing_id}`,
     };
