@@ -268,6 +268,7 @@ const AdminGlobalMarketplacePage = () => {
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
           <TabsTrigger value="approved">Aprovados</TabsTrigger>
           <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
+          <TabsTrigger value="orders">💰 Pedidos</TabsTrigger>
           <TabsTrigger value="config"><Settings className="h-3.5 w-3.5 mr-1" /> Configurações</TabsTrigger>
         </TabsList>
 
