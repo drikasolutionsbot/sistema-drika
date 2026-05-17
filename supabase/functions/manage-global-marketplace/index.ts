@@ -144,7 +144,7 @@ serve(async (req) => {
       const { status } = body;
       let query = supabase
         .from("global_marketplace_listings")
-        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name, plan)")
+        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name, plan, email, whatsapp, owner_discord_username, owner_discord_id, pix_key, pix_key_type)")
         .order("submitted_at", { ascending: false });
       if (status) query = query.eq("global_status", status);
       const { data, error } = await query;
@@ -166,7 +166,7 @@ serve(async (req) => {
           rejection_reason: null,
         })
         .eq("id", listing_id)
-        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name)")
+        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name, email, whatsapp, owner_discord_username, owner_discord_id, pix_key, pix_key_type)")
         .single();
       if (error) throw error;
 
@@ -182,7 +182,7 @@ serve(async (req) => {
       if (!listing_id) throw new Error("Missing listing_id");
       const { data: listing, error } = await supabase
         .from("global_marketplace_listings")
-        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name)")
+        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name, email, whatsapp, owner_discord_username, owner_discord_id, pix_key, pix_key_type)")
         .eq("id", listing_id)
         .single();
       if (error) throw error;
