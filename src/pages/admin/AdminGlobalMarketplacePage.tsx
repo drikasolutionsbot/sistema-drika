@@ -181,7 +181,18 @@ const AdminGlobalMarketplacePage = () => {
                       <p className="text-xs text-destructive">Motivo: {l.rejection_reason}</p>
                     )}
                     {s === "approved" && (
-                      <p className="text-xs text-muted-foreground">{l.total_sales} vendas • R$ {(l.total_revenue_cents / 100).toFixed(2)}</p>
+                      <>
+                        <p className="text-xs text-muted-foreground">{l.total_sales} vendas • R$ {(l.total_revenue_cents / 100).toFixed(2)}</p>
+                        <Button size="sm" variant="outline" className="w-full" onClick={async () => {
+                          const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
+                            body: { action: "repost", listing_id: l.id },
+                          });
+                          if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
+                          toast({ title: "Enviado para o Marketplace! 🌍" });
+                        }}>
+                          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Reenviar para o Marketplace
+                        </Button>
+                      </>
                     )}
                     {s === "pending" && (
                       <div className="flex gap-2">
