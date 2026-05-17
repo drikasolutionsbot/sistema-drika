@@ -207,6 +207,43 @@ serve(async (req) => {
       return json(data);
     }
 
+    // ── Admin: listar pedidos globais ──
+    if (action === "list_orders") {
+      const { status } = body; // 'paid' | 'pending' | 'all'
+      let query = supabase
+        .from("orders")
+        .select("id, order_number, status, total_cents, commission_cents, seller_received_cents, discord_username, discord_user_id, product_name, product_id, tenant_id, global_listing_id, created_at, updated_at, payment_provider, payment_id, currency")
+        .eq("is_global", true)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (status === "paid") query = query.in("status", ["paid", "completed", "delivered"]);
+      else if (status === "pending") query = query.eq("status", "pending_payment");
+      else if (status === "cancelled") query = query.in("status", ["cancelled", "expired", "refunded"]);
+      const { data: orders, error } = await query;
+      if (error) throw error;
+
+      // Hidratar com tenant (vendedor) + PIX da listing
+      const tenantIds = [...new Set((orders || []).map((o: any) => o.tenant_id).filter(Boolean))];
+      const listingIds = [...new Set((orders || []).map((o: any) => o.global_listing_id).filter(Boolean))];
+      const [{ data: tenants }, { data: listings }] = await Promise.all([
+        tenantIds.length
+          ? supabase.from("tenants").select("id, name, owner_discord_username, owner_discord_id, email, whatsapp").in("id", tenantIds)
+          : Promise.resolve({ data: [] as any[] }),
+        listingIds.length
+          ? supabase.from("global_marketplace_listings").select("id, seller_pix_key, seller_pix_key_type, category_global").in("id", listingIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const tenantMap = new Map((tenants || []).map((t: any) => [t.id, t]));
+      const listingMap = new Map((listings || []).map((l: any) => [l.id, l]));
+
+      const enriched = (orders || []).map((o: any) => ({
+        ...o,
+        seller: tenantMap.get(o.tenant_id) || null,
+        listing: listingMap.get(o.global_listing_id) || null,
+      }));
+      return json(enriched);
+    }
+
     // ── Admin: aprovar ──
     if (action === "approve") {
       const { listing_id, category_global, reviewer_id, reviewer_email } = body;
