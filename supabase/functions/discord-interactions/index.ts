@@ -3593,6 +3593,83 @@ async function generatePixInThread(
   }
 }
 
+// ─── Generate PIX for global marketplace orders (central gateway) ──
+async function generateGlobalPixInThread(
+  supabase: any,
+  botToken: string,
+  order: any,
+  channelId: string,
+  userId: string,
+) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/generate-global-marketplace-pix`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({ order_id: order.id }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [{ title: "❌ Erro ao gerar PIX", description: data?.error || "Tente novamente em instantes.", color: 0xED4245 }] }),
+      });
+      return;
+    }
+    const brcode: string = data.brcode;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
+    const pixEmbed: any = {
+      author: { name: order.discord_username || userId },
+      title: "💸 PIX gerado — Marketplace Global",
+      description: [
+        "🔒 Ambiente seguro. Pagamento confirmado automaticamente após compensação.",
+        "",
+        "**Código PIX (copia e cola):**",
+        `\`\`\`\n${brcode}\n\`\`\``,
+      ].join("\n"),
+      color: 0xFF1493,
+      image: { url: qrImageUrl },
+      footer: { text: `Drika Hub • Pedido #${order.order_number} • Gateway: ${data.provider}` },
+    };
+    const pixMsgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [pixEmbed],
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 2, label: "Copiar código", emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
+            { type: 2, style: 4, label: "Cancelar", custom_id: `checkout_cancel:${order.id}` },
+          ],
+        }],
+      }),
+    });
+    try {
+      if (pixMsgRes.ok) {
+        const j = await pixMsgRes.json().catch(() => null);
+        if (j?.id) await supabase.from("orders").update({ pix_message_id: j.id }).eq("id", order.id);
+      }
+    } catch {}
+    try {
+      await fetch(`${DISCORD_API}/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `🌍 • ${order.discord_username || userId} • ${order.order_number}` }),
+      });
+    } catch {}
+  } catch (e: any) {
+    console.error("[generateGlobalPixInThread]", e?.message || e);
+    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [{ title: "❌ Erro inesperado", description: String(e?.message || e), color: 0xED4245 }] }),
+    });
+  }
+}
+
 // ─── Send "Pedido solicitado" log when PIX is generated ─────
 async function sendPixGeneratedLog(
   supabase: any,
