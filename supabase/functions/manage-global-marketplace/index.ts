@@ -288,6 +288,7 @@ serve(async (req) => {
         "global_marketplace_approver_discord_ids",
         "global_marketplace_category_channels",
         "global_marketplace_payment_provider",
+        "global_marketplace_embed_template",
       ];
       for (const f of fields) if (config[f] !== undefined) allowed[f] = config[f];
       allowed.updated_at = new Date().toISOString();
