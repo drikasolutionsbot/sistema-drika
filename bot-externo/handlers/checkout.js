@@ -1278,6 +1278,80 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
   setTimeout(poll, 10000);
 }
 
+async function generateGlobalMarketplacePayment(interaction, tenant, order, L) {
+  const channel = interaction.channel;
+  const storeConfig = await getStoreConfig(order.tenant_id);
+  const embedColor = await resolveOrderColor(order, storeConfig);
+
+  await sendWithIdentity(channel, tenant, {
+    embeds: [applyDrikaCover(new EmbedBuilder().setDescription("Gerando QR Code PIX do Marketplace Global...").setColor(embedColor))],
+  });
+
+  const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-global-marketplace-pix`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+    body: JSON.stringify({ order_id: order.id }),
+  });
+  const pixData = await pixRes.json().catch(() => ({}));
+  if (!pixRes.ok || pixData.error) {
+    return sendWithIdentity(channel, tenant, {
+      embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Erro ao gerar PIX").setDescription(pixData.error || "Gateway global indisponível.").setColor(0xED4245))],
+    });
+  }
+
+  const brcode = pixData.brcode || "";
+  const providerKey = pixData.provider || "global";
+  const sellerName = storeConfig?.store_title || tenant?.name || "Marketplace Global";
+  const sellerLogo = storeConfig?.store_logo_url || tenant?.logo_url;
+  const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
+  const { date: paymentDate, time: paymentTime } = formatDateTime();
+  const pixFooterText = resolvePixFooter(storeConfig, {
+    storeName: sellerName,
+    productName: order.product_name,
+    orderNumber: order.order_number,
+    timeoutMin,
+    date: paymentDate,
+    time: paymentTime,
+    lang: L,
+    username: order.discord_username || "",
+  });
+
+  const pixEmbed = new EmbedBuilder()
+    .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
+    .setTitle(tr(L, "pix_created_title"))
+    .setDescription([
+      tr(L, "secure_environment_title"), `${tr(L, "secure_environment_desc")}\n`,
+      tr(L, "instant_payment_title"), `${tr(L, "instant_payment_desc")}\n`,
+      `**${tr(L, "pix_copy_code_label")}**`, `\`\`\`\n${brcode}\n\`\`\``,
+    ].join("\n"))
+    .setColor(embedColor)
+    .setImage(qrImageUrl)
+    .setFooter({ text: pixFooterText, iconURL: sellerLogo || undefined });
+  if (sellerLogo) pixEmbed.setThumbnail(sellerLogo);
+
+  const pixRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel(tr(L, "pix_copy_code_label")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
+  );
+
+  const pixSentMsg = await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+  if (pixSentMsg?.id) await supabase.from("orders").update({ pix_message_id: pixSentMsg.id }).eq("id", order.id);
+
+  await sendLog(interaction.guild, tenant, {
+    title: tr(L, "order_requested_log_title"),
+    description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+    fields: [
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 Pix – Marketplace Global (${providerKey})\``, inline: false },
+    ],
+    storeConfig,
+  });
+
+  startPaymentPolling(order.id, order.tenant_id, channel, tenant, timeoutMin);
+}
+
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
