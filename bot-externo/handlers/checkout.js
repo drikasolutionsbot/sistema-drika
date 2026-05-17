@@ -969,6 +969,10 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     }
   }
 
+  if (order.is_global) {
+    return generateGlobalMarketplacePayment(interaction, tenant, order, L);
+  }
+
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
