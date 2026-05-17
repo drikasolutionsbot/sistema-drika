@@ -23,7 +23,7 @@ serve(async (req) => {
     // Get order
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("id, status, payment_id, payment_provider, tenant_id, total_cents, product_name")
+      .select("id, status, payment_id, payment_provider, tenant_id, total_cents, product_name, is_global, global_listing_id")
       .eq("id", order_id)
       .eq("tenant_id", tenant_id)
       .single();
@@ -44,14 +44,39 @@ serve(async (req) => {
       });
     }
 
-    // Get provider credentials
-    const { data: providerConfig } = await supabase
-      .from("payment_providers")
-      .select("api_key_encrypted, secret_key_encrypted, efi_cert_pem, efi_key_pem, efi_pix_key")
-      .eq("tenant_id", tenant_id)
-      .eq("provider_key", provider)
-      .eq("active", true)
-      .single();
+    // Resolve credentials: global orders use central gateway in landing_config,
+    // regular tenant orders use payment_providers row for that tenant.
+    let providerConfig: any = null;
+    if (order.is_global) {
+      const { data: lc } = await supabase
+        .from("landing_config")
+        .select("efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key")
+        .limit(1)
+        .maybeSingle();
+      if (lc) {
+        providerConfig = {
+          // map landing_config columns to the same shape used below
+          api_key_encrypted:
+            provider === "efi" ? lc.efi_client_id :
+            provider === "pushinpay" ? lc.pushinpay_api_key :
+            provider === "abacatepay" ? lc.abacatepay_api_key :
+            null,
+          secret_key_encrypted: provider === "efi" ? lc.efi_client_secret : null,
+          efi_cert_pem: lc.efi_cert_pem,
+          efi_key_pem: lc.efi_key_pem,
+          efi_pix_key: lc.efi_pix_key,
+        };
+      }
+    } else {
+      const { data: pc } = await supabase
+        .from("payment_providers")
+        .select("api_key_encrypted, secret_key_encrypted, efi_cert_pem, efi_key_pem, efi_pix_key")
+        .eq("tenant_id", tenant_id)
+        .eq("provider_key", provider)
+        .eq("active", true)
+        .single();
+      providerConfig = pc;
+    }
 
     if (!providerConfig) {
       return new Response(JSON.stringify({ status: "pending_payment", changed: false, reason: "Provider not configured" }), {
