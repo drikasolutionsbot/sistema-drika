@@ -778,6 +778,152 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   }, timeout);
 }
 
+// ── Global Marketplace Purchase ──
+async function startGlobalMarketplaceCheckout(interaction, listingId) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const { data: listing, error } = await supabase
+    .from("global_marketplace_listings")
+    .select("id, tenant_id, product_id, global_status, products(*), tenants:tenant_id(*)")
+    .eq("id", listingId)
+    .maybeSingle();
+
+  if (error) throw error;
+  const product = Array.isArray(listing?.products) ? listing.products[0] : listing?.products;
+  const sellerTenant = Array.isArray(listing?.tenants) ? listing.tenants[0] : listing?.tenants;
+
+  if (!listing || listing.global_status !== "approved") {
+    return interaction.editReply({ content: "❌ Este produto não está mais disponível no marketplace global." });
+  }
+  if (!product || !product.active) {
+    return interaction.editReply({ content: "❌ Produto indisponível." });
+  }
+  if (!product.price_cents || product.price_cents < 100) {
+    return interaction.editReply({ content: "❌ Preço inválido. Preço mínimo: R$ 1,00." });
+  }
+
+  const fields = await getProductFields(product.id, listing.tenant_id);
+  if (fields.length > 0) {
+    let totalStock = 0;
+    for (const field of fields) totalStock += await countStock(product.id, listing.tenant_id, field.id) || 0;
+    if (totalStock <= 0) return interaction.editReply({ content: "❌ Produto esgotado." });
+  } else {
+    const stockCount = await countStock(product.id, listing.tenant_id);
+    if (stockCount !== null && stockCount <= 0) return interaction.editReply({ content: "❌ Produto esgotado." });
+  }
+
+  const { data: lc } = await supabase
+    .from("landing_config")
+    .select("global_marketplace_commission_percent")
+    .limit(1)
+    .maybeSingle();
+  const commissionPct = Math.max(0, Math.min(100, lc?.global_marketplace_commission_percent ?? 2));
+  const commissionCents = Math.round((product.price_cents * commissionPct) / 100);
+  const sellerCents = product.price_cents - commissionCents;
+
+  const order = await createOrder({
+    tenant_id: listing.tenant_id,
+    product_id: product.id,
+    product_name: product.name,
+    discord_user_id: interaction.user.id,
+    discord_username: interaction.user.username,
+    total_cents: product.price_cents,
+    currency: "BRL",
+    status: "pending_payment",
+    is_global: true,
+    global_listing_id: listing.id,
+    commission_cents: commissionCents,
+    seller_received_cents: sellerCents,
+  });
+
+  await triggerAutomation(listing.tenant_id, "order_created", {
+    discord_user_id: interaction.user.id,
+    discord_username: interaction.user.username,
+    order_id: order.id,
+    order_number: order.order_number,
+    product_name: product.name,
+    total_cents: product.price_cents,
+  });
+
+  const channel = interaction.channel;
+  const threadParent = channel?.isThread?.() ? channel.parent : channel;
+  if (!threadParent?.threads?.create) return interaction.editReply({ content: "❌ Não consegui abrir o carrinho neste canal." });
+
+  const safeUsername = String(interaction.user.username || "cliente")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "cliente";
+
+  let checkoutThread;
+  try {
+    checkoutThread = await threadParent.threads.create({
+      name: `carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
+      type: ChannelType.PrivateThread,
+      invitable: false,
+      autoArchiveDuration: 10080,
+      reason: `Marketplace Global #${order.order_number}`,
+    });
+  } catch (privateThreadError) {
+    console.error("[GML] private thread creation failed:", privateThreadError.message);
+    checkoutThread = await threadParent.threads.create({
+      name: `carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
+      type: ChannelType.PublicThread,
+      autoArchiveDuration: 10080,
+      reason: `Marketplace Global #${order.order_number}`,
+    });
+  }
+
+  await checkoutThread.members.add(interaction.user.id).catch(() => {});
+  await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
+
+  const storeConfig = await getStoreConfig(listing.tenant_id);
+  const sellerName = sellerTenant?.name || storeConfig?.store_title || "Marketplace Global";
+  const sellerLogo = storeConfig?.store_logo_url || sellerTenant?.logo_url;
+  const embedColor = resolveProductColor(product, storeConfig);
+  const stockCount = fields.length > 0
+    ? fields.reduce((total, field) => total + (field.stock || 0), 0) || "Disponível"
+    : String(await countStock(product.id, listing.tenant_id) || "Disponível");
+
+  const reviewEmbed = new EmbedBuilder()
+    .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+    .setTitle("🛒 Revisão do pedido")
+    .setDescription([product.auto_delivery ? "⚡ Entrega automática após a confirmação do pagamento" : "", product.description || ""].filter(Boolean).join("\n\n"))
+    .setColor(embedColor)
+    .addFields(
+      { name: "Carrinho", value: `1x ${product.name}`, inline: false },
+      { name: "Preço", value: formatMoney(product.price_cents, "BRL"), inline: true },
+      { name: "Estoque", value: String(stockCount), inline: true },
+      { name: "Tipo", value: "Marketplace Global", inline: true },
+    )
+    .setFooter({ text: `${sellerName} • Pedido #${order.order_number}`, iconURL: sellerLogo || undefined })
+    .setTimestamp();
+  reviewEmbed.setImage(product.banner_url || DRIKA_COVER_URL);
+  if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
+  );
+
+  await sendWithIdentity(checkoutThread, sellerTenant || { name: "DRIKA HUB" }, {
+    content: `<@${interaction.user.id}>`,
+    embeds: [reviewEmbed],
+    components: [row],
+    allowedMentions: { users: [interaction.user.id] },
+  });
+
+  const threadLink = `https://discord.com/channels/${interaction.guild.id}/${checkoutThread.id}`;
+  const linkRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setLabel("Abrir checkout").setStyle(ButtonStyle.Link).setURL(threadLink)
+  );
+
+  await interaction.editReply({ content: "Sua thread de checkout foi criada!", components: [linkRow] });
+}
+
 // ── Lock to prevent duplicate PIX generation ──
 const paymentLocks = new Set();
 
