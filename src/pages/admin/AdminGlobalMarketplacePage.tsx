@@ -556,6 +556,7 @@ const AdminGlobalMarketplacePage = () => {
                               <SelectItem value="2">Cinza (Secondary)</SelectItem>
                               <SelectItem value="3">Verde (Success)</SelectItem>
                               <SelectItem value="4">Vermelho (Danger)</SelectItem>
+                              <SelectItem value="5">Glass (Transparente)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
