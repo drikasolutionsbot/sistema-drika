@@ -15,6 +15,16 @@ const { getTenantByGuild } = require("../supabase");
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
 
+  // ── Global Marketplace buttons are posted in the central HUB and must not
+  // depend on the current guild being linked to the seller tenant.
+  if (interaction.isButton() && interaction.customId?.startsWith("gml_buy:")) {
+    return checkoutHandler.startGlobalMarketplaceCheckout(interaction, interaction.customId.replace("gml_buy:", ""));
+  }
+  if (interaction.isButton()) {
+    const handledGlobalOrder = await checkoutHandler.tryHandleGlobalOrderButton(interaction);
+    if (handledGlobalOrder) return;
+  }
+
   // ── DM interactions: handle feedback buttons/modals (no guild needed) ──
   if (!guildId) {
     if (interaction.isButton()) {

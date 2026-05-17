@@ -778,6 +778,152 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   }, timeout);
 }
 
+// ── Global Marketplace Purchase ──
+async function startGlobalMarketplaceCheckout(interaction, listingId) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const { data: listing, error } = await supabase
+    .from("global_marketplace_listings")
+    .select("id, tenant_id, product_id, global_status, products(*), tenants:tenant_id(*)")
+    .eq("id", listingId)
+    .maybeSingle();
+
+  if (error) throw error;
+  const product = Array.isArray(listing?.products) ? listing.products[0] : listing?.products;
+  const sellerTenant = Array.isArray(listing?.tenants) ? listing.tenants[0] : listing?.tenants;
+
+  if (!listing || listing.global_status !== "approved") {
+    return interaction.editReply({ content: "❌ Este produto não está mais disponível no marketplace global." });
+  }
+  if (!product || !product.active) {
+    return interaction.editReply({ content: "❌ Produto indisponível." });
+  }
+  if (!product.price_cents || product.price_cents < 100) {
+    return interaction.editReply({ content: "❌ Preço inválido. Preço mínimo: R$ 1,00." });
+  }
+
+  const fields = await getProductFields(product.id, listing.tenant_id);
+  if (fields.length > 0) {
+    let totalStock = 0;
+    for (const field of fields) totalStock += await countStock(product.id, listing.tenant_id, field.id) || 0;
+    if (totalStock <= 0) return interaction.editReply({ content: "❌ Produto esgotado." });
+  } else {
+    const stockCount = await countStock(product.id, listing.tenant_id);
+    if (stockCount !== null && stockCount <= 0) return interaction.editReply({ content: "❌ Produto esgotado." });
+  }
+
+  const { data: lc } = await supabase
+    .from("landing_config")
+    .select("global_marketplace_commission_percent")
+    .limit(1)
+    .maybeSingle();
+  const commissionPct = Math.max(0, Math.min(100, lc?.global_marketplace_commission_percent ?? 2));
+  const commissionCents = Math.round((product.price_cents * commissionPct) / 100);
+  const sellerCents = product.price_cents - commissionCents;
+
+  const order = await createOrder({
+    tenant_id: listing.tenant_id,
+    product_id: product.id,
+    product_name: product.name,
+    discord_user_id: interaction.user.id,
+    discord_username: interaction.user.username,
+    total_cents: product.price_cents,
+    currency: "BRL",
+    status: "pending_payment",
+    is_global: true,
+    global_listing_id: listing.id,
+    commission_cents: commissionCents,
+    seller_received_cents: sellerCents,
+  });
+
+  await triggerAutomation(listing.tenant_id, "order_created", {
+    discord_user_id: interaction.user.id,
+    discord_username: interaction.user.username,
+    order_id: order.id,
+    order_number: order.order_number,
+    product_name: product.name,
+    total_cents: product.price_cents,
+  });
+
+  const channel = interaction.channel;
+  const threadParent = channel?.isThread?.() ? channel.parent : channel;
+  if (!threadParent?.threads?.create) return interaction.editReply({ content: "❌ Não consegui abrir o carrinho neste canal." });
+
+  const safeUsername = String(interaction.user.username || "cliente")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "cliente";
+
+  let checkoutThread;
+  try {
+    checkoutThread = await threadParent.threads.create({
+      name: `carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
+      type: ChannelType.PrivateThread,
+      invitable: false,
+      autoArchiveDuration: 10080,
+      reason: `Marketplace Global #${order.order_number}`,
+    });
+  } catch (privateThreadError) {
+    console.error("[GML] private thread creation failed:", privateThreadError.message);
+    checkoutThread = await threadParent.threads.create({
+      name: `carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
+      type: ChannelType.PublicThread,
+      autoArchiveDuration: 10080,
+      reason: `Marketplace Global #${order.order_number}`,
+    });
+  }
+
+  await checkoutThread.members.add(interaction.user.id).catch(() => {});
+  await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
+
+  const storeConfig = await getStoreConfig(listing.tenant_id);
+  const sellerName = sellerTenant?.name || storeConfig?.store_title || "Marketplace Global";
+  const sellerLogo = storeConfig?.store_logo_url || sellerTenant?.logo_url;
+  const embedColor = resolveProductColor(product, storeConfig);
+  const stockCount = fields.length > 0
+    ? fields.reduce((total, field) => total + (field.stock || 0), 0) || "Disponível"
+    : String(await countStock(product.id, listing.tenant_id) || "Disponível");
+
+  const reviewEmbed = new EmbedBuilder()
+    .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+    .setTitle("🛒 Revisão do pedido")
+    .setDescription([product.auto_delivery ? "⚡ Entrega automática após a confirmação do pagamento" : "", product.description || ""].filter(Boolean).join("\n\n"))
+    .setColor(embedColor)
+    .addFields(
+      { name: "Carrinho", value: `1x ${product.name}`, inline: false },
+      { name: "Preço", value: formatMoney(product.price_cents, "BRL"), inline: true },
+      { name: "Estoque", value: String(stockCount), inline: true },
+      { name: "Tipo", value: "Marketplace Global", inline: true },
+    )
+    .setFooter({ text: `${sellerName} • Pedido #${order.order_number}`, iconURL: sellerLogo || undefined })
+    .setTimestamp();
+  reviewEmbed.setImage(product.banner_url || DRIKA_COVER_URL);
+  if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
+  );
+
+  await sendWithIdentity(checkoutThread, sellerTenant || { name: "DRIKA HUB" }, {
+    content: `<@${interaction.user.id}>`,
+    embeds: [reviewEmbed],
+    components: [row],
+    allowedMentions: { users: [interaction.user.id] },
+  });
+
+  const threadLink = `https://discord.com/channels/${interaction.guild.id}/${checkoutThread.id}`;
+  const linkRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setLabel("Abrir checkout").setStyle(ButtonStyle.Link).setURL(threadLink)
+  );
+
+  await interaction.editReply({ content: "Sua thread de checkout foi criada!", components: [linkRow] });
+}
+
 // ── Lock to prevent duplicate PIX generation ──
 const paymentLocks = new Set();
 
@@ -821,6 +967,10 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
         return interaction.followUp({ content: tr(L, "product_out_of_stock"), ephemeral: true });
       }
     }
+  }
+
+  if (order.is_global) {
+    return generateGlobalMarketplacePayment(interaction, tenant, order, L);
   }
 
   const channel = interaction.channel;
@@ -1126,6 +1276,101 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
 
   // Start polling after 10 seconds (give webhook a chance first)
   setTimeout(poll, 10000);
+}
+
+async function generateGlobalMarketplacePayment(interaction, tenant, order, L) {
+  const channel = interaction.channel;
+  const storeConfig = await getStoreConfig(order.tenant_id);
+  const embedColor = await resolveOrderColor(order, storeConfig);
+
+  await sendWithIdentity(channel, tenant, {
+    embeds: [applyDrikaCover(new EmbedBuilder().setDescription("Gerando QR Code PIX do Marketplace Global...").setColor(embedColor))],
+  });
+
+  const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-global-marketplace-pix`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+    body: JSON.stringify({ order_id: order.id }),
+  });
+  const pixData = await pixRes.json().catch(() => ({}));
+  if (!pixRes.ok || pixData.error) {
+    return sendWithIdentity(channel, tenant, {
+      embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Erro ao gerar PIX").setDescription(pixData.error || "Gateway global indisponível.").setColor(0xED4245))],
+    });
+  }
+
+  const brcode = pixData.brcode || "";
+  const providerKey = pixData.provider || "global";
+  const sellerName = storeConfig?.store_title || tenant?.name || "Marketplace Global";
+  const sellerLogo = storeConfig?.store_logo_url || tenant?.logo_url;
+  const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
+  const { date: paymentDate, time: paymentTime } = formatDateTime();
+  const pixFooterText = resolvePixFooter(storeConfig, {
+    storeName: sellerName,
+    productName: order.product_name,
+    orderNumber: order.order_number,
+    timeoutMin,
+    date: paymentDate,
+    time: paymentTime,
+    lang: L,
+    username: order.discord_username || "",
+  });
+
+  const pixEmbed = new EmbedBuilder()
+    .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
+    .setTitle(tr(L, "pix_created_title"))
+    .setDescription([
+      tr(L, "secure_environment_title"), `${tr(L, "secure_environment_desc")}\n`,
+      tr(L, "instant_payment_title"), `${tr(L, "instant_payment_desc")}\n`,
+      `**${tr(L, "pix_copy_code_label")}**`, `\`\`\`\n${brcode}\n\`\`\``,
+    ].join("\n"))
+    .setColor(embedColor)
+    .setImage(qrImageUrl)
+    .setFooter({ text: pixFooterText, iconURL: sellerLogo || undefined });
+  if (sellerLogo) pixEmbed.setThumbnail(sellerLogo);
+
+  const pixRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel(tr(L, "pix_copy_code_label")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
+  );
+
+  const pixSentMsg = await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+  if (pixSentMsg?.id) await supabase.from("orders").update({ pix_message_id: pixSentMsg.id }).eq("id", order.id);
+
+  await sendLog(interaction.guild, tenant, {
+    title: tr(L, "order_requested_log_title"),
+    description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+    fields: [
+      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
+      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 Pix – Marketplace Global (${providerKey})\``, inline: false },
+    ],
+    storeConfig,
+  });
+
+  startPaymentPolling(order.id, order.tenant_id, channel, tenant, timeoutMin);
+}
+
+async function tryHandleGlobalOrderButton(interaction) {
+  const customId = interaction.customId || "";
+  const prefixes = ["checkout_pay:", "checkout_cancel:", "copy_pix:", "approve_order:", "reject_order:", "cancel_order:"];
+  const prefix = prefixes.find((p) => customId.startsWith(p));
+  if (!prefix) return false;
+
+  const orderId = customId.replace(prefix, "");
+  const order = await getOrder(orderId).catch(() => null);
+  if (!order?.is_global) return false;
+
+  const { data: tenant } = await supabase.from("tenants").select("*").eq("id", order.tenant_id).maybeSingle();
+  const sellerTenant = tenant || { id: order.tenant_id, name: "Marketplace Global" };
+
+  if (prefix === "checkout_pay:") await goToPayment(interaction, sellerTenant, orderId);
+  else if (prefix === "checkout_cancel:" || prefix === "cancel_order:") await cancelOrder(interaction, sellerTenant, orderId);
+  else if (prefix === "copy_pix:") await copyPix(interaction, sellerTenant, orderId);
+  else if (prefix === "approve_order:") await approveOrder(interaction, sellerTenant, orderId);
+  else if (prefix === "reject_order:") await rejectOrder(interaction, sellerTenant, orderId);
+  return true;
 }
 
 // ── Approve Order ──
@@ -1547,7 +1792,7 @@ async function viewDetails(interaction, tenant, productId) {
 }
 
 module.exports = {
-  startCheckout, selectVariation, processPurchase,
+  startCheckout, startGlobalMarketplaceCheckout, tryHandleGlobalOrderButton, selectVariation, processPurchase,
   goToPayment, approveOrder, rejectOrder, cancelOrder,
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
