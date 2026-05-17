@@ -141,6 +141,7 @@ const AdminGlobalMarketplacePage = () => {
   const [rejectTarget, setRejectTarget] = useState<Listing | null>(null);
   const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [rejectReason, setRejectReason] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<Listing | null>(null);
   const [acting, setActing] = useState(false);
 
   // Config
