@@ -137,11 +137,40 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
               </p>
             </div>
 
-            {status === "not_submitted" && (
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>• Aprovação manual feita pela equipe Drika</p>
-                <p>• Pagamento via PIX centralizado, split automático</p>
-                <p>• Entrega usa o mesmo fluxo da sua loja</p>
+            {(status === "not_submitted" || status === "rejected") && (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wide text-primary">
+                    Chave PIX para receber o repasse
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    A cada venda, o admin enviará 98% do valor manualmente para esta chave. Ela ficará visível apenas para a equipe Drika.
+                  </p>
+                  <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                        <SelectItem value="cnpj">CNPJ</SelectItem>
+                        <SelectItem value="email">E-mail</SelectItem>
+                        <SelectItem value="phone">Celular</SelectItem>
+                        <SelectItem value="random">Aleatória</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={pixKey}
+                      onChange={(e) => setPixKey(e.target.value)}
+                      placeholder="Cole ou digite sua chave PIX"
+                      maxLength={200}
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>• Aprovação manual feita pela equipe Drika</p>
+                  <p>• Repasse de 98% via PIX após cada venda confirmada</p>
+                  <p>• Entrega usa o mesmo fluxo da sua loja</p>
+                </div>
               </div>
             )}
 
