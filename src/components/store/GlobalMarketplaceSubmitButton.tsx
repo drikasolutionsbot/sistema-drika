@@ -32,6 +32,8 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
   const [listing, setListing] = useState<Listing | null>(null);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pixKey, setPixKey] = useState("");
+  const [pixKeyType, setPixKeyType] = useState<string>("cpf");
   const paid = isPaidPlan(tenant?.plan);
 
   const refresh = async () => {
