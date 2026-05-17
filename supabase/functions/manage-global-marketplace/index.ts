@@ -23,7 +23,26 @@ function hexToInt(hex?: string): number {
   return Number.isFinite(n) ? n : 0xFF1493;
 }
 
-async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string }> {
+async function logAudit(
+  supabase: any,
+  params: { admin_user_id?: string | null; admin_email?: string | null; action: string; listing_id: string; details: Record<string, any> }
+) {
+  try {
+    await supabase.from("admin_audit_logs").insert({
+      admin_user_id: params.admin_user_id || null,
+      admin_email: params.admin_email || null,
+      action: params.action,
+      entity_type: "global_marketplace_listing",
+      entity_id: params.listing_id,
+      entity_name: params.details?.product_name || null,
+      details: params.details || {},
+    });
+  } catch (e) {
+    console.warn("[audit] falha ao registrar log:", e);
+  }
+}
+
+async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string; channel_id?: string; message_id?: string }> {
   try {
     const { data: cfg } = await supabase
       .from("landing_config")
@@ -88,7 +107,7 @@ async function postListingToDiscord(supabase: any, listing_id: string, listing: 
       .from("global_marketplace_listings")
       .update({ discord_channel_id: channelId, discord_message_id: msg.id })
       .eq("id", listing_id);
-    return { ok: true };
+    return { ok: true, channel_id: channelId, message_id: msg.id };
   } catch (e: any) {
     console.error("[postListing] erro:", e);
     return { ok: false, error: e.message || String(e) };
@@ -174,7 +193,7 @@ serve(async (req) => {
 
     // ── Admin: aprovar ──
     if (action === "approve") {
-      const { listing_id, category_global, reviewer_id } = body;
+      const { listing_id, category_global, reviewer_id, reviewer_email } = body;
       if (!listing_id || !category_global) throw new Error("Missing listing_id or category_global");
       const { data, error } = await supabase
         .from("global_marketplace_listings")
@@ -191,14 +210,30 @@ serve(async (req) => {
       if (error) throw error;
 
       // Postar embed no canal Discord da categoria
-      await postListingToDiscord(supabase, listing_id, data, category_global);
+      const posted = await postListingToDiscord(supabase, listing_id, data, category_global);
 
-      return json(data);
+      await logAudit(supabase, {
+        admin_user_id: reviewer_id,
+        admin_email: reviewer_email,
+        action: "marketplace_listing_approved",
+        listing_id,
+        details: {
+          product_name: data?.products?.name,
+          tenant_id: data?.tenant_id,
+          tenant_name: data?.tenants?.name,
+          category_global,
+          discord_post: posted.ok
+            ? { ok: true, channel_id: posted.channel_id, message_id: posted.message_id }
+            : { ok: false, error: posted.error },
+        },
+      });
+
+      return json({ ...data, discord_post: posted });
     }
 
     // ── Admin: reenviar para o Discord ──
     if (action === "repost") {
-      const { listing_id } = body;
+      const { listing_id, reviewer_id, reviewer_email } = body;
       if (!listing_id) throw new Error("Missing listing_id");
       const { data: listing, error } = await supabase
         .from("global_marketplace_listings")
@@ -219,13 +254,30 @@ serve(async (req) => {
       }
 
       const posted = await postListingToDiscord(supabase, listing_id, listing, listing.category_global);
+
+      await logAudit(supabase, {
+        admin_user_id: reviewer_id,
+        admin_email: reviewer_email,
+        action: "marketplace_listing_reposted",
+        listing_id,
+        details: {
+          product_name: listing?.products?.name,
+          tenant_id: listing?.tenant_id,
+          tenant_name: listing?.tenants?.name,
+          category_global: listing.category_global,
+          discord_post: posted.ok
+            ? { ok: true, channel_id: posted.channel_id, message_id: posted.message_id }
+            : { ok: false, error: posted.error },
+        },
+      });
+
       if (!posted.ok) return json({ error: posted.error || "Falha ao postar no Discord" }, 400);
       return json({ success: true });
     }
 
     // ── Admin: rejeitar ──
     if (action === "reject") {
-      const { listing_id, reason, reviewer_id } = body;
+      const { listing_id, reason, reviewer_id, reviewer_email } = body;
       if (!listing_id) throw new Error("Missing listing_id");
       const { data, error } = await supabase
         .from("global_marketplace_listings")
@@ -236,20 +288,61 @@ serve(async (req) => {
           reviewed_at: new Date().toISOString(),
         })
         .eq("id", listing_id)
-        .select().single();
+        .select("*, products(name)").single();
       if (error) throw error;
+
+      await logAudit(supabase, {
+        admin_user_id: reviewer_id,
+        admin_email: reviewer_email,
+        action: "marketplace_listing_rejected",
+        listing_id,
+        details: {
+          product_name: data?.products?.name,
+          tenant_id: data?.tenant_id,
+          reason: reason || "Sem motivo informado",
+        },
+      });
+
       return json(data);
     }
 
     // ── Admin: remover do marketplace ──
     if (action === "remove") {
-      const { listing_id } = body;
+      const { listing_id, reviewer_id, reviewer_email } = body;
       if (!listing_id) throw new Error("Missing listing_id");
+      const { data: existing } = await supabase
+        .from("global_marketplace_listings")
+        .select("tenant_id, discord_channel_id, discord_message_id, products(name)")
+        .eq("id", listing_id).maybeSingle();
       const { error } = await supabase
         .from("global_marketplace_listings")
         .update({ global_status: "removed" })
         .eq("id", listing_id);
       if (error) throw error;
+
+      // Tenta apagar mensagem do Discord se existir
+      let discordDelete: any = { skipped: true };
+      const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+      if (botToken && existing?.discord_channel_id && existing?.discord_message_id) {
+        const r = await fetch(`https://discord.com/api/v10/channels/${existing.discord_channel_id}/messages/${existing.discord_message_id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bot ${botToken}` },
+        }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) } as any));
+        discordDelete = r.ok ? { ok: true } : { ok: false, status: r.status };
+      }
+
+      await logAudit(supabase, {
+        admin_user_id: reviewer_id,
+        admin_email: reviewer_email,
+        action: "marketplace_listing_removed",
+        listing_id,
+        details: {
+          product_name: (existing as any)?.products?.name,
+          tenant_id: existing?.tenant_id,
+          discord_delete: discordDelete,
+        },
+      });
+
       return json({ success: true });
     }
 

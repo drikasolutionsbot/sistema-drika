@@ -97,11 +97,15 @@ const AdminGlobalMarketplacePage = () => {
     if (!approveTarget) return;
     setActing(true);
     const { error, data } = await supabase.functions.invoke("manage-global-marketplace", {
-      body: { action: "approve", listing_id: approveTarget.id, category_global: category, reviewer_id: user?.id },
+      body: { action: "approve", listing_id: approveTarget.id, category_global: category, reviewer_id: user?.id, reviewer_email: user?.email },
     });
     setActing(false);
     if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
-    toast({ title: "Produto aprovado! 🌍" });
+    if (data?.discord_post && !data.discord_post.ok) {
+      toast({ title: "Aprovado, mas falhou ao postar no Discord", description: data.discord_post.error, variant: "destructive" });
+    } else {
+      toast({ title: "Produto aprovado e postado no Discord! 🌍" });
+    }
     setApproveTarget(null);
     fetchListings(tab);
   };
@@ -110,7 +114,7 @@ const AdminGlobalMarketplacePage = () => {
     if (!rejectTarget) return;
     setActing(true);
     const { error } = await supabase.functions.invoke("manage-global-marketplace", {
-      body: { action: "reject", listing_id: rejectTarget.id, reason: rejectReason, reviewer_id: user?.id },
+      body: { action: "reject", listing_id: rejectTarget.id, reason: rejectReason, reviewer_id: user?.id, reviewer_email: user?.email },
     });
     setActing(false);
     if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -199,7 +203,7 @@ const AdminGlobalMarketplacePage = () => {
                         <p className="text-xs text-muted-foreground">{l.total_sales} vendas • R$ {(l.total_revenue_cents / 100).toFixed(2)}</p>
                         <Button size="sm" variant="outline" className="w-full" onClick={async () => {
                           const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
-                            body: { action: "repost", listing_id: l.id },
+                            body: { action: "repost", listing_id: l.id, reviewer_id: user?.id, reviewer_email: user?.email },
                           });
                           if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
                           toast({ title: "Enviado para o Marketplace! 🌍" });
