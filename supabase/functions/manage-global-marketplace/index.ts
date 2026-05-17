@@ -13,11 +13,21 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+function applyVars(tpl: string, vars: Record<string, string>): string {
+  return (tpl || "").replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
+function hexToInt(hex?: string): number {
+  if (!hex) return 0xFF1493;
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  return Number.isFinite(n) ? n : 0xFF1493;
+}
+
 async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const { data: cfg } = await supabase
       .from("landing_config")
-      .select("global_marketplace_category_channels")
+      .select("global_marketplace_category_channels, global_marketplace_embed_template")
       .maybeSingle();
     const channels = (cfg?.global_marketplace_category_channels || {}) as Record<string, string>;
     const channelId = channels[category_global];
@@ -26,32 +36,42 @@ async function postListingToDiscord(supabase: any, listing_id: string, listing: 
     if (!channelId) return { ok: false, error: `Sem canal configurado para "${category_global}"` };
     if (!botToken) return { ok: false, error: "DISCORD_BOT_TOKEN ausente" };
 
+    const tpl = (cfg?.global_marketplace_embed_template || {}) as any;
     const p: any = listing.products || {};
     const seller = listing.tenants?.name || "Vendedor";
     const priceBRL = ((p.price_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const vars = {
+      product_name: p.name || "Produto",
+      product_description: p.description || "",
+      price: priceBRL,
+      seller,
+      category: category_global,
+    };
+
+    const fields: any[] = [];
+    if (tpl.show_price !== false) fields.push({ name: "Preço", value: priceBRL, inline: true });
+    if (tpl.show_seller !== false) fields.push({ name: "Vendedor", value: seller, inline: true });
+    if (tpl.show_category !== false) fields.push({ name: "Categoria", value: category_global, inline: true });
+
     const embed: any = {
-      title: p.name || "Produto",
-      description: p.description || "",
-      color: 0xFF1493,
-      fields: [
-        { name: "Preço", value: priceBRL, inline: true },
-        { name: "Vendedor", value: seller, inline: true },
-        { name: "Categoria", value: category_global, inline: true },
-      ],
-      footer: { text: "Marketplace Global • DRIKA HUB" },
+      title: applyVars(tpl.title || "{product_name}", vars),
+      description: applyVars(tpl.description || "{product_description}", vars),
+      color: hexToInt(tpl.color),
+      fields,
+      footer: { text: applyVars(tpl.footer || "Marketplace Global • DRIKA HUB", vars) },
       timestamp: new Date().toISOString(),
     };
-    if (p.icon_url) embed.thumbnail = { url: p.icon_url };
-    if (p.banner_url) embed.image = { url: p.banner_url };
+    if (tpl.show_thumbnail !== false && p.icon_url) embed.thumbnail = { url: p.icon_url };
+    if (tpl.show_banner !== false && p.banner_url) embed.image = { url: p.banner_url };
 
-    const components = [{
-      type: 1,
-      components: [{
-        type: 2, style: 1, label: "Comprar",
-        custom_id: `gml_buy:${listing_id}`,
-        emoji: { name: "🛒" },
-      }],
-    }];
+    const btn: any = {
+      type: 2,
+      style: [1, 2, 3, 4].includes(tpl.button_style) ? tpl.button_style : 1,
+      label: tpl.button_label || "Comprar",
+      custom_id: `gml_buy:${listing_id}`,
+    };
+    if (tpl.button_emoji) btn.emoji = { name: tpl.button_emoji };
+    const components = [{ type: 1, components: [btn] }];
 
     const resp = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
@@ -251,7 +271,7 @@ serve(async (req) => {
     if (action === "get_config") {
       const { data, error } = await supabase
         .from("landing_config")
-        .select("global_marketplace_commission_percent, global_marketplace_guild_id, global_marketplace_approver_discord_ids, global_marketplace_category_channels, global_marketplace_payment_provider")
+        .select("global_marketplace_commission_percent, global_marketplace_guild_id, global_marketplace_approver_discord_ids, global_marketplace_category_channels, global_marketplace_payment_provider, global_marketplace_embed_template")
         .order("created_at", { ascending: true })
         .limit(1).single();
       if (error) throw error;
@@ -268,6 +288,7 @@ serve(async (req) => {
         "global_marketplace_approver_discord_ids",
         "global_marketplace_category_channels",
         "global_marketplace_payment_provider",
+        "global_marketplace_embed_template",
       ];
       for (const f of fields) if (config[f] !== undefined) allowed[f] = config[f];
       allowed.updated_at = new Date().toISOString();
