@@ -891,6 +891,147 @@ serve(async (req: Request) => {
     };
 
     try {
+      // ─── BUY GLOBAL MARKETPLACE LISTING ─────────────────
+      if (customId.startsWith("gml_buy:")) {
+        const listingId = customId.replace("gml_buy:", "");
+        await respondDeferred(interaction, botToken);
+
+        const { data: listing } = await supabase
+          .from("global_marketplace_listings")
+          .select("id, tenant_id, product_id, global_status, products(id, name, description, icon_url, banner_url, price_cents, currency, language, active, embed_config, auto_delivery, type, tenant_id)")
+          .eq("id", listingId)
+          .maybeSingle();
+
+        if (!listing || listing.global_status !== "approved") {
+          await editFollowup(interaction, botToken, "❌ Este produto não está mais disponível no marketplace global.");
+          return ok();
+        }
+        const product: any = listing.products;
+        if (!product || !product.active) {
+          await editFollowup(interaction, botToken, "❌ Produto indisponível.");
+          return ok();
+        }
+        if (!product.price_cents || product.price_cents < 100) {
+          await editFollowup(interaction, botToken, "❌ Preço inválido. Preço mínimo: R$ 1,00.");
+          return ok();
+        }
+
+        const sellerTenantId = listing.tenant_id;
+
+        // Stock check (against seller's tenant)
+        const { count: productStock } = await supabase
+          .from("product_stock_items")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", product.id)
+          .eq("tenant_id", sellerTenantId)
+          .eq("delivered", false);
+        if (productStock !== null && productStock !== undefined && productStock <= 0) {
+          await editFollowup(interaction, botToken, "❌ Produto esgotado.");
+          return ok();
+        }
+
+        // Commission split from landing_config (default 2%)
+        const { data: lc } = await supabase
+          .from("landing_config")
+          .select("global_marketplace_commission_percent")
+          .limit(1)
+          .maybeSingle();
+        const commissionPct = Math.max(0, Math.min(100, (lc as any)?.global_marketplace_commission_percent ?? 2));
+        const commissionCents = Math.round((product.price_cents * commissionPct) / 100);
+        const sellerCents = product.price_cents - commissionCents;
+
+        const { data: order, error: orderErr } = await supabase
+          .from("orders")
+          .insert({
+            tenant_id: sellerTenantId,
+            product_id: product.id,
+            product_name: product.name,
+            discord_user_id: userId,
+            discord_username: username,
+            total_cents: product.price_cents,
+            currency: "BRL",
+            status: "pending_payment",
+            is_global: true,
+            global_listing_id: listing.id,
+            commission_cents: commissionCents,
+            seller_received_cents: sellerCents,
+          })
+          .select()
+          .single();
+        if (orderErr || !order) {
+          console.error("[gml_buy] order insert failed:", orderErr);
+          await editFollowup(interaction, botToken, "❌ Erro ao criar pedido.");
+          return ok();
+        }
+
+        // Private thread on the global marketplace channel
+        const threadName = `🌍-${username || userId}-${order.order_number}`.substring(0, 100);
+        const threadRes = await fetch(`${DISCORD_API}/channels/${interaction.channel_id}/threads`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: threadName, type: 12, auto_archive_duration: 1440 }),
+        });
+        if (!threadRes.ok) {
+          const t = await threadRes.text();
+          console.error("[gml_buy] thread create failed:", t);
+          await editFollowup(interaction, botToken, "❌ Não consegui criar a thread privada de checkout.");
+          return ok();
+        }
+        const thread = await threadRes.json();
+        await supabase.from("orders").update({ checkout_thread_id: thread.id }).eq("id", order.id);
+
+        await fetch(`${DISCORD_API}/channels/${thread.id}/thread-members/${userId}`, {
+          method: "PUT",
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+
+        const reviewEmbed: any = {
+          author: { name: username || userId },
+          title: "🛒 Revisão do pedido",
+          description: [
+            product.auto_delivery ? "⚡ Entrega automática após a confirmação do pagamento\n" : "",
+            product.description || "",
+          ].filter(Boolean).join("\n"),
+          color: 0xFF1493,
+          fields: [
+            { name: "Carrinho", value: `1x ${product.name}`, inline: false },
+            { name: "Preço", value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`, inline: true },
+            { name: "Tipo", value: "Marketplace Global", inline: true },
+          ],
+          footer: { text: `Drika Hub • Pedido #${order.order_number}` },
+        };
+        if (product.banner_url) reviewEmbed.image = { url: product.banner_url };
+        if (product.icon_url) reviewEmbed.thumbnail = { url: product.icon_url };
+
+        await fetch(`${DISCORD_API}/channels/${thread.id}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: `<@${userId}>`,
+            embeds: [reviewEmbed],
+            components: [{
+              type: 1,
+              components: [
+                { type: 2, style: 3, label: "Ir para o pagamento", emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
+                { type: 2, style: 4, label: "Cancelar", emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
+              ],
+            }],
+            allowed_mentions: { users: [userId] },
+          }),
+        });
+
+        const threadLink = `https://discord.com/channels/${interaction.guild_id}/${thread.id}`;
+        await editFollowup(interaction, botToken, {
+          content: "Sua thread de checkout foi criada!",
+          embeds: [],
+          components: [{
+            type: 1,
+            components: [{ type: 2, style: 5, label: "Abrir checkout", url: threadLink }],
+          }],
+        });
+        return ok();
+      }
+
       // ─── BUY PRODUCT ─────────────────────────────────────
       if (customId.startsWith("buy_product:")) {
         const productId = customId.replace("buy_product:", "");
@@ -1389,8 +1530,12 @@ serve(async (req: Request) => {
           }),
         });
 
-        // Generate PIX
-        await generatePixInThread(supabase, botToken, order, channelId, userId);
+        // Generate PIX (global orders use central gateway from landing_config)
+        if (order.is_global) {
+          await generateGlobalPixInThread(supabase, botToken, order, channelId, userId);
+        } else {
+          await generatePixInThread(supabase, botToken, order, channelId, userId);
+        }
         return ok();
       }
 
@@ -3445,6 +3590,83 @@ async function generatePixInThread(
   // Log: Pedido solicitado (static pix) — only if no gateway log was sent above
   if (!activeProvider || amountBRL <= 0) {
     await sendPixGeneratedLog(supabase, botToken, order, "static_pix");
+  }
+}
+
+// ─── Generate PIX for global marketplace orders (central gateway) ──
+async function generateGlobalPixInThread(
+  supabase: any,
+  botToken: string,
+  order: any,
+  channelId: string,
+  userId: string,
+) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/generate-global-marketplace-pix`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({ order_id: order.id }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [{ title: "❌ Erro ao gerar PIX", description: data?.error || "Tente novamente em instantes.", color: 0xED4245 }] }),
+      });
+      return;
+    }
+    const brcode: string = data.brcode;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
+    const pixEmbed: any = {
+      author: { name: order.discord_username || userId },
+      title: "💸 PIX gerado — Marketplace Global",
+      description: [
+        "🔒 Ambiente seguro. Pagamento confirmado automaticamente após compensação.",
+        "",
+        "**Código PIX (copia e cola):**",
+        `\`\`\`\n${brcode}\n\`\`\``,
+      ].join("\n"),
+      color: 0xFF1493,
+      image: { url: qrImageUrl },
+      footer: { text: `Drika Hub • Pedido #${order.order_number} • Gateway: ${data.provider}` },
+    };
+    const pixMsgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [pixEmbed],
+        components: [{
+          type: 1,
+          components: [
+            { type: 2, style: 2, label: "Copiar código", emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
+            { type: 2, style: 4, label: "Cancelar", custom_id: `checkout_cancel:${order.id}` },
+          ],
+        }],
+      }),
+    });
+    try {
+      if (pixMsgRes.ok) {
+        const j = await pixMsgRes.json().catch(() => null);
+        if (j?.id) await supabase.from("orders").update({ pix_message_id: j.id }).eq("id", order.id);
+      }
+    } catch {}
+    try {
+      await fetch(`${DISCORD_API}/channels/${channelId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `🌍 • ${order.discord_username || userId} • ${order.order_number}` }),
+      });
+    } catch {}
+  } catch (e: any) {
+    console.error("[generateGlobalPixInThread]", e?.message || e);
+    await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [{ title: "❌ Erro inesperado", description: String(e?.message || e), color: 0xED4245 }] }),
+    });
   }
 }
 
