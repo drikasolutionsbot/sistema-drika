@@ -261,6 +261,41 @@ serve(async (req) => {
         .eq("id", order_id)
         .eq("tenant_id", tenant_id);
 
+      // For global marketplace orders, bump listing stats and register split.
+      if (order.is_global && order.global_listing_id) {
+        try {
+          const { data: lc } = await supabase
+            .from("landing_config")
+            .select("global_marketplace_commission_percent")
+            .limit(1)
+            .maybeSingle();
+          const commissionPct = Math.max(0, Math.min(100, lc?.global_marketplace_commission_percent ?? 2));
+          const commissionCents = Math.round((order.total_cents * commissionPct) / 100);
+          const sellerCents = order.total_cents - commissionCents;
+          await supabase
+            .from("orders")
+            .update({ commission_cents: commissionCents, seller_received_cents: sellerCents })
+            .eq("id", order_id);
+
+          const { data: lst } = await supabase
+            .from("global_marketplace_listings")
+            .select("total_sales, total_revenue_cents")
+            .eq("id", order.global_listing_id)
+            .maybeSingle();
+          if (lst) {
+            await supabase
+              .from("global_marketplace_listings")
+              .update({
+                total_sales: (lst.total_sales || 0) + 1,
+                total_revenue_cents: (lst.total_revenue_cents || 0) + order.total_cents,
+              })
+              .eq("id", order.global_listing_id);
+          }
+        } catch (e) {
+          console.error("[global-paid] failed to update listing stats:", e);
+        }
+      }
+
       // Log webhook equivalent
       try {
         await supabase.from("webhook_logs").insert({
