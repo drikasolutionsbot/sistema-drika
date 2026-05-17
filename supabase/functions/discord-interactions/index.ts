@@ -1530,8 +1530,12 @@ serve(async (req: Request) => {
           }),
         });
 
-        // Generate PIX
-        await generatePixInThread(supabase, botToken, order, channelId, userId);
+        // Generate PIX (global orders use central gateway from landing_config)
+        if (order.is_global) {
+          await generateGlobalPixInThread(supabase, botToken, order, channelId, userId);
+        } else {
+          await generatePixInThread(supabase, botToken, order, channelId, userId);
+        }
         return ok();
       }
 
