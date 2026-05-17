@@ -23,7 +23,26 @@ function hexToInt(hex?: string): number {
   return Number.isFinite(n) ? n : 0xFF1493;
 }
 
-async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string }> {
+async function logAudit(
+  supabase: any,
+  params: { admin_user_id?: string | null; admin_email?: string | null; action: string; listing_id: string; details: Record<string, any> }
+) {
+  try {
+    await supabase.from("admin_audit_logs").insert({
+      admin_user_id: params.admin_user_id || null,
+      admin_email: params.admin_email || null,
+      action: params.action,
+      entity_type: "global_marketplace_listing",
+      entity_id: params.listing_id,
+      entity_name: params.details?.product_name || null,
+      details: params.details || {},
+    });
+  } catch (e) {
+    console.warn("[audit] falha ao registrar log:", e);
+  }
+}
+
+async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string; channel_id?: string; message_id?: string }> {
   try {
     const { data: cfg } = await supabase
       .from("landing_config")
