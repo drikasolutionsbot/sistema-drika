@@ -20,6 +20,10 @@ module.exports = async function handleInteraction(client, interaction) {
   if (interaction.isButton() && interaction.customId?.startsWith("gml_buy:")) {
     return checkoutHandler.startGlobalMarketplaceCheckout(interaction, interaction.customId.replace("gml_buy:", ""));
   }
+  if (interaction.isButton()) {
+    const handledGlobalOrder = await checkoutHandler.tryHandleGlobalOrderButton(interaction);
+    if (handledGlobalOrder) return;
+  }
 
   // ── DM interactions: handle feedback buttons/modals (no guild needed) ──
   if (!guildId) {
