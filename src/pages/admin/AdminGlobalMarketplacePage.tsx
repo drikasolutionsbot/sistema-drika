@@ -401,7 +401,10 @@ const AdminGlobalMarketplacePage = () => {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {(Object.keys(config?.global_marketplace_category_channels || {}).length > 0
+                    ? Object.keys(config.global_marketplace_category_channels)
+                    : DEFAULT_CATEGORIES
+                  ).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
