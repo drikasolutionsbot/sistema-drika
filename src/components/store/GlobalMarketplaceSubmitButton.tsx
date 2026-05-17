@@ -53,9 +53,20 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
 
   const submit = async () => {
     if (!tenantId) return;
+    const trimmed = pixKey.trim();
+    if (!trimmed) {
+      toast({ title: "Informe sua chave PIX", description: "Ela será usada pelo admin para o repasse da venda.", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
-      body: { action: "submit", tenant_id: tenantId, product_id: productId },
+      body: {
+        action: "submit",
+        tenant_id: tenantId,
+        product_id: productId,
+        seller_pix_key: trimmed,
+        seller_pix_key_type: pixKeyType,
+      },
     });
     setSubmitting(false);
     if (error || data?.error) {
@@ -64,6 +75,7 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
     }
     toast({ title: "Enviado para análise! 🌍", description: "Você será notificado quando for revisado." });
     setOpen(false);
+    setPixKey("");
     refresh();
   };
 
