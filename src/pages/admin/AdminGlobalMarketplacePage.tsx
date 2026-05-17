@@ -42,7 +42,7 @@ function DiscordEmbedPreview({ tpl }: { tpl: any }) {
   if (tpl.show_seller !== false) fields.push({ name: "Vendedor", value: SAMPLE_VARS.seller });
   if (tpl.show_category !== false) fields.push({ name: "Categoria", value: SAMPLE_VARS.category });
 
-  const btnStyle = DISCORD_BTN_STYLES[[1, 2, 3, 4].includes(tpl.button_style) ? tpl.button_style : 1];
+  const btnStyle = DISCORD_BTN_STYLES[[1, 2, 3, 4, 5].includes(tpl.button_style) ? tpl.button_style : 1];
   const btnLabel = tpl.button_label || "Comprar";
   const btnEmoji = tpl.button_emoji || "";
 
