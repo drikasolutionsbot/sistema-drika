@@ -84,6 +84,8 @@ const AdminGlobalMarketplacePage = () => {
     else fetchListings(tab);
   }, [tab]);
 
+  useEffect(() => { fetchConfig(); }, []);
+
   useEffect(() => {
     if (config?.global_marketplace_guild_id) {
       fetchChannels(config.global_marketplace_guild_id);
