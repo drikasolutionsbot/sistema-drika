@@ -1771,7 +1771,7 @@ async function viewDetails(interaction, tenant, productId) {
 }
 
 module.exports = {
-  startCheckout, selectVariation, processPurchase,
+  startCheckout, startGlobalMarketplaceCheckout, selectVariation, processPurchase,
   goToPayment, approveOrder, rejectOrder, cancelOrder,
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
