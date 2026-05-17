@@ -177,6 +177,20 @@ const AdminGlobalMarketplacePage = () => {
                     {l.products?.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2">{l.products.description}</p>
                     )}
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-2.5 space-y-1 text-xs">
+                      <p className="font-semibold text-foreground/80 uppercase tracking-wide text-[10px]">Identificação do vendedor</p>
+                      {l.tenants?.owner_discord_username && (
+                        <p><span className="text-muted-foreground">Discord:</span> {l.tenants.owner_discord_username}{l.tenants.owner_discord_id ? ` (${l.tenants.owner_discord_id})` : ""}</p>
+                      )}
+                      {l.tenants?.email && (<p><span className="text-muted-foreground">Email:</span> {l.tenants.email}</p>)}
+                      {l.tenants?.whatsapp && (<p><span className="text-muted-foreground">WhatsApp:</span> {l.tenants.whatsapp}</p>)}
+                      {l.tenants?.pix_key ? (
+                        <p><span className="text-muted-foreground">PIX{l.tenants.pix_key_type ? ` (${l.tenants.pix_key_type})` : ""}:</span> <span className="font-mono">{l.tenants.pix_key}</span></p>
+                      ) : (
+                        <p className="text-destructive/80">⚠ Sem PIX cadastrado</p>
+                      )}
+                      <p className="text-muted-foreground pt-1">Tenant: <span className="font-mono">{l.tenant_id.slice(0, 8)}…</span></p>
+                    </div>
                     {l.rejection_reason && (
                       <p className="text-xs text-destructive">Motivo: {l.rejection_reason}</p>
                     )}
