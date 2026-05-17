@@ -241,15 +241,7 @@ const AdminGlobalMarketplacePage = () => {
                 )}
               </div>
 
-              <div>
-                <Label>Discord IDs aprovadores (separados por vírgula)</Label>
-                <Textarea
-                  value={(config.global_marketplace_approver_discord_ids || []).join(", ")}
-                  onChange={(e) => setConfig({ ...config, global_marketplace_approver_discord_ids: e.target.value.split(",").map((s: string) => s.trim()).filter(Boolean) })}
-                  placeholder="111..., 222..."
-                  rows={2}
-                />
-              </div>
+
 
               <div>
                 <Label>Categorias e canais de envio</Label>
