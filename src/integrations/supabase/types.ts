@@ -854,6 +854,7 @@ export type Database = {
           global_marketplace_approver_discord_ids: string[]
           global_marketplace_category_channels: Json
           global_marketplace_commission_percent: number
+          global_marketplace_embed_template: Json
           global_marketplace_guild_id: string | null
           global_marketplace_payment_provider: string | null
           id: string
@@ -894,6 +895,7 @@ export type Database = {
           global_marketplace_approver_discord_ids?: string[]
           global_marketplace_category_channels?: Json
           global_marketplace_commission_percent?: number
+          global_marketplace_embed_template?: Json
           global_marketplace_guild_id?: string | null
           global_marketplace_payment_provider?: string | null
           id?: string
@@ -934,6 +936,7 @@ export type Database = {
           global_marketplace_approver_discord_ids?: string[]
           global_marketplace_category_channels?: Json
           global_marketplace_commission_percent?: number
+          global_marketplace_embed_template?: Json
           global_marketplace_guild_id?: string | null
           global_marketplace_payment_provider?: string | null
           id?: string
