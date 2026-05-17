@@ -104,10 +104,75 @@ serve(async (req) => {
           rejection_reason: null,
         })
         .eq("id", listing_id)
-        .select().single();
+        .select("*, products(name, icon_url, banner_url, price_cents, description, type), tenants:tenant_id(name)")
+        .single();
       if (error) throw error;
 
-      // TODO: postar embed no canal Discord da categoria (próxima iteração)
+      // Postar embed no canal Discord da categoria
+      try {
+        const { data: cfg } = await supabase
+          .from("landing_config")
+          .select("global_marketplace_category_channels")
+          .maybeSingle();
+        const channels = (cfg?.global_marketplace_category_channels || {}) as Record<string, string>;
+        const channelId = channels[category_global];
+        const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+
+        if (!channelId) {
+          console.warn(`[approve] Sem canal configurado para categoria "${category_global}"`);
+        } else if (!botToken) {
+          console.error("[approve] DISCORD_BOT_TOKEN ausente");
+        } else {
+          const p: any = (data as any).products || {};
+          const seller = (data as any).tenants?.name || "Vendedor";
+          const priceBRL = ((p.price_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          const embed: any = {
+            title: p.name || "Produto",
+            description: p.description || "",
+            color: 0xFF1493,
+            fields: [
+              { name: "Preço", value: priceBRL, inline: true },
+              { name: "Vendedor", value: seller, inline: true },
+              { name: "Categoria", value: category_global, inline: true },
+            ],
+            footer: { text: "Marketplace Global • DRIKA HUB" },
+            timestamp: new Date().toISOString(),
+          };
+          if (p.icon_url) embed.thumbnail = { url: p.icon_url };
+          if (p.banner_url) embed.image = { url: p.banner_url };
+
+          const components = [{
+            type: 1,
+            components: [{
+              type: 2, style: 1, label: "Comprar",
+              custom_id: `gml_buy:${(data as any).id}`,
+              emoji: { name: "🛒" },
+            }],
+          }];
+
+          const resp = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bot ${botToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ embeds: [embed], components, allowed_mentions: { parse: [] } }),
+          });
+          if (!resp.ok) {
+            const txt = await resp.text();
+            console.error(`[approve] Falha ao postar no canal ${channelId}: ${resp.status} ${txt}`);
+          } else {
+            const msg = await resp.json();
+            await supabase
+              .from("global_marketplace_listings")
+              .update({ discord_channel_id: channelId, discord_message_id: msg.id })
+              .eq("id", listing_id);
+          }
+        }
+      } catch (e) {
+        console.error("[approve] Erro ao postar embed Discord:", e);
+      }
+
       return json(data);
     }
 
