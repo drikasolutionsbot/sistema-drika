@@ -107,7 +107,7 @@ async function postListingToDiscord(supabase: any, listing_id: string, listing: 
       .from("global_marketplace_listings")
       .update({ discord_channel_id: channelId, discord_message_id: msg.id })
       .eq("id", listing_id);
-    return { ok: true };
+    return { ok: true, channel_id: channelId, message_id: msg.id };
   } catch (e: any) {
     console.error("[postListing] erro:", e);
     return { ok: false, error: e.message || String(e) };
