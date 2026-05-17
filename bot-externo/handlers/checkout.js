@@ -1352,6 +1352,27 @@ async function generateGlobalMarketplacePayment(interaction, tenant, order, L) {
   startPaymentPolling(order.id, order.tenant_id, channel, tenant, timeoutMin);
 }
 
+async function tryHandleGlobalOrderButton(interaction) {
+  const customId = interaction.customId || "";
+  const prefixes = ["checkout_pay:", "checkout_cancel:", "copy_pix:", "approve_order:", "reject_order:", "cancel_order:"];
+  const prefix = prefixes.find((p) => customId.startsWith(p));
+  if (!prefix) return false;
+
+  const orderId = customId.replace(prefix, "");
+  const order = await getOrder(orderId).catch(() => null);
+  if (!order?.is_global) return false;
+
+  const { data: tenant } = await supabase.from("tenants").select("*").eq("id", order.tenant_id).maybeSingle();
+  const sellerTenant = tenant || { id: order.tenant_id, name: "Marketplace Global" };
+
+  if (prefix === "checkout_pay:") await goToPayment(interaction, sellerTenant, orderId);
+  else if (prefix === "checkout_cancel:" || prefix === "cancel_order:") await cancelOrder(interaction, sellerTenant, orderId);
+  else if (prefix === "copy_pix:") await copyPix(interaction, sellerTenant, orderId);
+  else if (prefix === "approve_order:") await approveOrder(interaction, sellerTenant, orderId);
+  else if (prefix === "reject_order:") await rejectOrder(interaction, sellerTenant, orderId);
+  return true;
+}
+
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
