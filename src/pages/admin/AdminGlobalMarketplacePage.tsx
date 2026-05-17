@@ -14,6 +14,108 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const DEFAULT_CATEGORIES = ["Contas", "Serviços", "Bots", "Outros"];
 
+const SAMPLE_VARS = {
+  product_name: "Conta Premium Steam",
+  product_description: "Conta verificada com 50+ jogos. Entrega imediata após pagamento.",
+  price: "R$ 49,90",
+  seller: "LojaExemplo",
+  category: "Contas",
+};
+const applyVars = (s: string, v: Record<string, string>) =>
+  String(s ?? "").replace(/\{(\w+)\}/g, (_, k) => v[k] ?? `{${k}}`);
+
+const DISCORD_BTN_STYLES: Record<number, string> = {
+  1: "bg-[#5865F2] hover:bg-[#4752c4] text-white",
+  2: "bg-[#4E5058] hover:bg-[#6D6F78] text-white",
+  3: "bg-[#248046] hover:bg-[#1a6334] text-white",
+  4: "bg-[#DA373C] hover:bg-[#a12d31] text-white",
+};
+
+function DiscordEmbedPreview({ tpl }: { tpl: any }) {
+  const color = tpl.color || "#FF1493";
+  const title = applyVars(tpl.title || "{product_name}", SAMPLE_VARS);
+  const description = applyVars(tpl.description || "{product_description}", SAMPLE_VARS);
+  const footer = applyVars(tpl.footer || "Marketplace Global • DRIKA HUB", SAMPLE_VARS);
+  const fields: { name: string; value: string }[] = [];
+  if (tpl.show_price !== false) fields.push({ name: "Preço", value: SAMPLE_VARS.price });
+  if (tpl.show_seller !== false) fields.push({ name: "Vendedor", value: SAMPLE_VARS.seller });
+  if (tpl.show_category !== false) fields.push({ name: "Categoria", value: SAMPLE_VARS.category });
+
+  const btnStyle = DISCORD_BTN_STYLES[[1, 2, 3, 4].includes(tpl.button_style) ? tpl.button_style : 1];
+  const btnLabel = tpl.button_label || "Comprar";
+  const btnEmoji = tpl.button_emoji || "";
+
+  const now = new Date();
+  const timestamp = now.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className="rounded-md bg-[#313338] p-3 font-[system-ui,sans-serif]" translate="no">
+      {/* Mensagem do bot */}
+      <div className="flex gap-3">
+        <div className="h-10 w-10 rounded-full bg-[#FF1493] shrink-0 flex items-center justify-center text-white text-xs font-bold">DH</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-white text-sm font-medium">DRIKA HUB</span>
+            <span className="text-[10px] bg-[#5865F2] text-white px-1 rounded">APP</span>
+            <span className="text-[10px] text-[#949ba4]">hoje às {now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+          {/* Embed */}
+          <div className="flex rounded overflow-hidden bg-[#2B2D31] max-w-[520px]">
+            <div className="w-1 shrink-0" style={{ background: color }} />
+            <div className="flex-1 p-3 min-w-0">
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0">
+                  {title && <div className="text-white text-[15px] font-semibold mb-1 break-words">{title}</div>}
+                  {description && <div className="text-[#dbdee1] text-sm mb-2 whitespace-pre-wrap break-words">{description}</div>}
+                  {fields.length > 0 && (
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 mb-2">
+                      {fields.map((f) => (
+                        <div key={f.name} className="min-w-0">
+                          <div className="text-white text-xs font-semibold">{f.name}</div>
+                          <div className="text-[#dbdee1] text-sm">{f.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {tpl.show_thumbnail !== false && (
+                  <div className="h-16 w-16 shrink-0 rounded bg-[#1e1f22] flex items-center justify-center text-[10px] text-[#949ba4]">
+                    ícone
+                  </div>
+                )}
+              </div>
+              {tpl.show_banner !== false && (
+                <div className="mt-2 h-32 rounded bg-[#1e1f22] flex items-center justify-center text-xs text-[#949ba4]">
+                  banner do produto
+                </div>
+              )}
+              {footer && (
+                <div className="mt-2 text-[11px] text-[#949ba4] flex items-center gap-1">
+                  <span>{footer}</span>
+                  <span>•</span>
+                  <span>{timestamp}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Botão */}
+          <div className="mt-2">
+            <button
+              type="button"
+              disabled
+              className={`inline-flex items-center gap-1.5 px-3 h-8 rounded text-sm font-medium cursor-default ${btnStyle}`}
+            >
+              {btnEmoji && <span>{btnEmoji}</span>}
+              <span>{btnLabel}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 interface Listing {
   id: string;
   product_id: string;
