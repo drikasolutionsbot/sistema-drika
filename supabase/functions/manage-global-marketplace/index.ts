@@ -13,6 +13,68 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { data: cfg } = await supabase
+      .from("landing_config")
+      .select("global_marketplace_category_channels")
+      .maybeSingle();
+    const channels = (cfg?.global_marketplace_category_channels || {}) as Record<string, string>;
+    const channelId = channels[category_global];
+    const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+
+    if (!channelId) return { ok: false, error: `Sem canal configurado para "${category_global}"` };
+    if (!botToken) return { ok: false, error: "DISCORD_BOT_TOKEN ausente" };
+
+    const p: any = listing.products || {};
+    const seller = listing.tenants?.name || "Vendedor";
+    const priceBRL = ((p.price_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const embed: any = {
+      title: p.name || "Produto",
+      description: p.description || "",
+      color: 0xFF1493,
+      fields: [
+        { name: "Preço", value: priceBRL, inline: true },
+        { name: "Vendedor", value: seller, inline: true },
+        { name: "Categoria", value: category_global, inline: true },
+      ],
+      footer: { text: "Marketplace Global • DRIKA HUB" },
+      timestamp: new Date().toISOString(),
+    };
+    if (p.icon_url) embed.thumbnail = { url: p.icon_url };
+    if (p.banner_url) embed.image = { url: p.banner_url };
+
+    const components = [{
+      type: 1,
+      components: [{
+        type: 2, style: 1, label: "Comprar",
+        custom_id: `gml_buy:${listing_id}`,
+        emoji: { name: "🛒" },
+      }],
+    }];
+
+    const resp = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [embed], components, allowed_mentions: { parse: [] } }),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      console.error(`[postListing] ${resp.status} ${txt}`);
+      return { ok: false, error: `Discord ${resp.status}: ${txt.slice(0, 200)}` };
+    }
+    const msg = await resp.json();
+    await supabase
+      .from("global_marketplace_listings")
+      .update({ discord_channel_id: channelId, discord_message_id: msg.id })
+      .eq("id", listing_id);
+    return { ok: true };
+  } catch (e: any) {
+    console.error("[postListing] erro:", e);
+    return { ok: false, error: e.message || String(e) };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
