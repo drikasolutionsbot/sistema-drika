@@ -778,6 +778,8 @@ export type Database = {
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          seller_pix_key: string | null
+          seller_pix_key_type: string | null
           submitted_at: string
           tenant_id: string
           total_revenue_cents: number
@@ -795,6 +797,8 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          seller_pix_key?: string | null
+          seller_pix_key_type?: string | null
           submitted_at?: string
           tenant_id: string
           total_revenue_cents?: number
@@ -812,6 +816,8 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          seller_pix_key?: string | null
+          seller_pix_key_type?: string | null
           submitted_at?: string
           tenant_id?: string
           total_revenue_cents?: number
