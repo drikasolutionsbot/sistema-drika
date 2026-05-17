@@ -128,6 +128,8 @@ interface Listing {
   submitted_at: string;
   total_sales: number;
   total_revenue_cents: number;
+  seller_pix_key: string | null;
+  seller_pix_key_type: string | null;
   products: { name: string; icon_url: string | null; banner_url: string | null; price_cents: number; description: string | null; type: string };
   tenants: { name: string; plan: string; email?: string | null; whatsapp?: string | null; owner_discord_username?: string | null; owner_discord_id?: string | null; pix_key?: string | null; pix_key_type?: string | null };
 }
