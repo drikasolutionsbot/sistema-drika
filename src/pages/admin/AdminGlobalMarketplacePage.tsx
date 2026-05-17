@@ -203,7 +203,7 @@ const AdminGlobalMarketplacePage = () => {
                         <p className="text-xs text-muted-foreground">{l.total_sales} vendas • R$ {(l.total_revenue_cents / 100).toFixed(2)}</p>
                         <Button size="sm" variant="outline" className="w-full" onClick={async () => {
                           const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
-                            body: { action: "repost", listing_id: l.id },
+                            body: { action: "repost", listing_id: l.id, reviewer_id: user?.id, reviewer_email: user?.email },
                           });
                           if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
                           toast({ title: "Enviado para o Marketplace! 🌍" });
