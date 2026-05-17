@@ -458,6 +458,13 @@ const AdminGlobalMarketplacePage = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Prévia ao vivo do embed/botão */}
+                    <div className="pt-3 border-t border-border/40">
+                      <Label className="text-sm font-semibold">Prévia ao vivo</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Assim que vai aparecer no Discord.</p>
+                      <DiscordEmbedPreview tpl={tpl} />
+                    </div>
                   </div>
                 );
               })()}
