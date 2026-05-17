@@ -271,7 +271,7 @@ serve(async (req) => {
     if (action === "get_config") {
       const { data, error } = await supabase
         .from("landing_config")
-        .select("global_marketplace_commission_percent, global_marketplace_guild_id, global_marketplace_approver_discord_ids, global_marketplace_category_channels, global_marketplace_payment_provider")
+        .select("global_marketplace_commission_percent, global_marketplace_guild_id, global_marketplace_approver_discord_ids, global_marketplace_category_channels, global_marketplace_payment_provider, global_marketplace_embed_template")
         .order("created_at", { ascending: true })
         .limit(1).single();
       if (error) throw error;
