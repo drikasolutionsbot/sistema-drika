@@ -348,11 +348,9 @@ const AdminGlobalMarketplacePage = () => {
                         )}
                         {l.tenants?.email && (<p className="truncate"><span className="text-muted-foreground">Email:</span> {l.tenants.email}</p>)}
                         {l.tenants?.whatsapp && (<p><span className="text-muted-foreground">WhatsApp:</span> {l.tenants.whatsapp}</p>)}
-                        {l.tenants?.pix_key ? (
-                          <p className="break-all"><span className="text-muted-foreground">PIX{l.tenants.pix_key_type ? ` (${l.tenants.pix_key_type})` : ""}:</span> <span className="font-mono text-emerald-400/90">{l.tenants.pix_key}</span></p>
-                        ) : (
-                          <p className="text-amber-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Sem PIX cadastrado</p>
-                        )}
+                        <p className="text-emerald-400/90 flex items-center gap-1 text-[11px]">
+                          <Sparkles className="h-3 w-3" /> Repasse automático via gateway do marketplace
+                        </p>
                         <p className="text-muted-foreground/70 pt-1 border-t border-border/40 mt-1.5">Tenant: <span className="font-mono">{l.tenant_id.slice(0, 8)}…</span></p>
                       </div>
 
