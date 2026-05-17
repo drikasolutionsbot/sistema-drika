@@ -25,7 +25,7 @@ interface Listing {
   total_sales: number;
   total_revenue_cents: number;
   products: { name: string; icon_url: string | null; banner_url: string | null; price_cents: number; description: string | null; type: string };
-  tenants: { name: string; plan: string };
+  tenants: { name: string; plan: string; email?: string | null; whatsapp?: string | null; owner_discord_username?: string | null; owner_discord_id?: string | null; pix_key?: string | null; pix_key_type?: string | null };
 }
 
 const AdminGlobalMarketplacePage = () => {
