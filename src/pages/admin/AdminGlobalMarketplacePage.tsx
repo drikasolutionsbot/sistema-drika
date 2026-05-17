@@ -569,6 +569,21 @@ const AdminGlobalMarketplacePage = () => {
                 )}
               </div>
 
+              <div>
+                <Label>Gateway PIX</Label>
+                <Select
+                  value={config.global_marketplace_payment_provider || ""}
+                  onValueChange={(v) => setConfig({ ...config, global_marketplace_payment_provider: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Escolha o gateway" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="efi">Efí</SelectItem>
+                    <SelectItem value="pushinpay">PushinPay</SelectItem>
+                    <SelectItem value="abacatepay">AbacatePay</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {(() => {
                 const tpl = config.global_marketplace_embed_template || {};
                 const setTpl = (patch: any) => setConfig({ ...config, global_marketplace_embed_template: { ...tpl, ...patch } });
@@ -652,21 +667,6 @@ const AdminGlobalMarketplacePage = () => {
                   </div>
                 );
               })()}
-
-              <div>
-                <Label>Gateway PIX</Label>
-                <Select
-                  value={config.global_marketplace_payment_provider || ""}
-                  onValueChange={(v) => setConfig({ ...config, global_marketplace_payment_provider: v })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Escolha o gateway" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="efi">Efí</SelectItem>
-                    <SelectItem value="pushinpay">PushinPay</SelectItem>
-                    <SelectItem value="abacatepay">AbacatePay</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
               <Button onClick={saveConfig} disabled={acting}>
                 {acting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null} Salvar configurações
