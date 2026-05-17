@@ -127,8 +127,18 @@ serve(async (req) => {
 
     // ── Submit produto pra aprovação ──
     if (action === "submit") {
-      const { tenant_id, product_id } = body;
+      const { tenant_id, product_id, seller_pix_key, seller_pix_key_type } = body;
       if (!tenant_id || !product_id) throw new Error("Missing tenant_id or product_id");
+
+      // Valida chave PIX informada pelo vendedor (necessária para o repasse manual)
+      const pixKey = typeof seller_pix_key === "string" ? seller_pix_key.trim() : "";
+      const pixType = typeof seller_pix_key_type === "string" ? seller_pix_key_type.trim() : "";
+      if (!pixKey || pixKey.length > 200) {
+        return json({ error: "Informe sua chave PIX para receber o repasse" }, 400);
+      }
+      if (!["cpf", "cnpj", "email", "phone", "random"].includes(pixType)) {
+        return json({ error: "Tipo de chave PIX inválido" }, 400);
+      }
 
       // Valida plano pago
       const { data: tenant } = await supabase
@@ -159,7 +169,13 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from("global_marketplace_listings")
-        .insert({ tenant_id, product_id, global_status: "pending" })
+        .insert({
+          tenant_id,
+          product_id,
+          global_status: "pending",
+          seller_pix_key: pixKey,
+          seller_pix_key_type: pixType,
+        })
         .select().single();
       if (error) throw error;
       return json(data);

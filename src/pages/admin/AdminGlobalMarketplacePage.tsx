@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Globe, Check, X, ExternalLink, Loader2, Settings, Plus, Trash2, Hash, RefreshCw, Sparkles, Store, AlertTriangle } from "lucide-react";
+import { Globe, Check, X, ExternalLink, Loader2, Settings, Plus, Trash2, Hash, RefreshCw, Sparkles, Store, AlertTriangle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -128,6 +128,8 @@ interface Listing {
   submitted_at: string;
   total_sales: number;
   total_revenue_cents: number;
+  seller_pix_key: string | null;
+  seller_pix_key_type: string | null;
   products: { name: string; icon_url: string | null; banner_url: string | null; price_cents: number; description: string | null; type: string };
   tenants: { name: string; plan: string; email?: string | null; whatsapp?: string | null; owner_discord_username?: string | null; owner_discord_id?: string | null; pix_key?: string | null; pix_key_type?: string | null };
 }
@@ -348,9 +350,32 @@ const AdminGlobalMarketplacePage = () => {
                         )}
                         {l.tenants?.email && (<p className="truncate"><span className="text-muted-foreground">Email:</span> {l.tenants.email}</p>)}
                         {l.tenants?.whatsapp && (<p><span className="text-muted-foreground">WhatsApp:</span> {l.tenants.whatsapp}</p>)}
-                        <p className="text-emerald-400/90 flex items-center gap-1 text-[11px]">
-                          <Sparkles className="h-3 w-3" /> Repasse automático via gateway do marketplace
-                        </p>
+                        {l.seller_pix_key ? (
+                          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2 mt-1 space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/90 flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" /> PIX para repasse (98%)
+                              {l.seller_pix_key_type && <span className="text-emerald-300/70 normal-case font-medium">· {l.seller_pix_key_type}</span>}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <code className="flex-1 font-mono text-[11px] break-all text-emerald-300/95">{l.seller_pix_key}</code>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 shrink-0 text-emerald-400 hover:bg-emerald-500/10"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(l.seller_pix_key || "");
+                                  toast({ title: "Chave PIX copiada" });
+                                }}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-amber-500 flex items-center gap-1 text-[11px]">
+                            <AlertTriangle className="h-3 w-3" /> Vendedor não informou chave PIX
+                          </p>
+                        )}
                         <p className="text-muted-foreground/70 pt-1 border-t border-border/40 mt-1.5">Tenant: <span className="font-mono">{l.tenant_id.slice(0, 8)}…</span></p>
                       </div>
 

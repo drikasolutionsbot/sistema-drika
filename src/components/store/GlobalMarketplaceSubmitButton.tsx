@@ -3,6 +3,9 @@ import { Globe, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { isPaidPlan } from "@/lib/plans";
@@ -29,6 +32,8 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
   const [listing, setListing] = useState<Listing | null>(null);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pixKey, setPixKey] = useState("");
+  const [pixKeyType, setPixKeyType] = useState<string>("cpf");
   const paid = isPaidPlan(tenant?.plan);
 
   const refresh = async () => {
@@ -48,9 +53,20 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
 
   const submit = async () => {
     if (!tenantId) return;
+    const trimmed = pixKey.trim();
+    if (!trimmed) {
+      toast({ title: "Informe sua chave PIX", description: "Ela será usada pelo admin para o repasse da venda.", variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("manage-global-marketplace", {
-      body: { action: "submit", tenant_id: tenantId, product_id: productId },
+      body: {
+        action: "submit",
+        tenant_id: tenantId,
+        product_id: productId,
+        seller_pix_key: trimmed,
+        seller_pix_key_type: pixKeyType,
+      },
     });
     setSubmitting(false);
     if (error || data?.error) {
@@ -59,6 +75,7 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
     }
     toast({ title: "Enviado para análise! 🌍", description: "Você será notificado quando for revisado." });
     setOpen(false);
+    setPixKey("");
     refresh();
   };
 
@@ -120,11 +137,40 @@ export const GlobalMarketplaceSubmitButton = ({ productId, productName, productP
               </p>
             </div>
 
-            {status === "not_submitted" && (
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>• Aprovação manual feita pela equipe Drika</p>
-                <p>• Pagamento via PIX centralizado, split automático</p>
-                <p>• Entrega usa o mesmo fluxo da sua loja</p>
+            {(status === "not_submitted" || status === "rejected") && (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wide text-primary">
+                    Chave PIX para receber o repasse
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    A cada venda, o admin enviará 98% do valor manualmente para esta chave. Ela ficará visível apenas para a equipe Drika.
+                  </p>
+                  <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cpf">CPF</SelectItem>
+                        <SelectItem value="cnpj">CNPJ</SelectItem>
+                        <SelectItem value="email">E-mail</SelectItem>
+                        <SelectItem value="phone">Celular</SelectItem>
+                        <SelectItem value="random">Aleatória</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={pixKey}
+                      onChange={(e) => setPixKey(e.target.value)}
+                      placeholder="Cole ou digite sua chave PIX"
+                      maxLength={200}
+                      className="h-9 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>• Aprovação manual feita pela equipe Drika</p>
+                  <p>• Repasse de 98% via PIX após cada venda confirmada</p>
+                  <p>• Entrega usa o mesmo fluxo da sua loja</p>
+                </div>
               </div>
             )}
 
