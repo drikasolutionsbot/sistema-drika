@@ -382,6 +382,82 @@ const AdminGlobalMarketplacePage = () => {
                 )}
               </div>
 
+              {(() => {
+                const tpl = config.global_marketplace_embed_template || {};
+                const setTpl = (patch: any) => setConfig({ ...config, global_marketplace_embed_template: { ...tpl, ...patch } });
+                return (
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Modal do produto no Discord</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Personalize o embed enviado ao canal. Variáveis: <code className="text-[10px]">{"{product_name}"}</code>, <code className="text-[10px]">{"{product_description}"}</code>, <code className="text-[10px]">{"{price}"}</code>, <code className="text-[10px]">{"{seller}"}</code>, <code className="text-[10px]">{"{category}"}</code>.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Título</Label>
+                        <Input value={tpl.title ?? "{product_name}"} onChange={(e) => setTpl({ title: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Cor (hex)</Label>
+                        <Input type="color" value={tpl.color ?? "#FF1493"} onChange={(e) => setTpl({ color: e.target.value })} className="h-10 p-1" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Descrição</Label>
+                      <Textarea rows={2} value={tpl.description ?? "{product_description}"} onChange={(e) => setTpl({ description: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Rodapé</Label>
+                      <Input value={tpl.footer ?? ""} onChange={(e) => setTpl({ footer: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                      {[
+                        ["show_price", "Preço"],
+                        ["show_seller", "Vendedor"],
+                        ["show_category", "Categoria"],
+                        ["show_thumbnail", "Ícone"],
+                        ["show_banner", "Banner"],
+                      ].map(([k, lbl]) => (
+                        <label key={k} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={tpl[k as string] !== false}
+                            onChange={(e) => setTpl({ [k as string]: e.target.checked })}
+                          />
+                          {lbl}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="pt-2 border-t border-border/40">
+                      <Label className="text-sm font-semibold">Botão de compra</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                        <div>
+                          <Label className="text-xs">Texto</Label>
+                          <Input value={tpl.button_label ?? "Comprar"} onChange={(e) => setTpl({ button_label: e.target.value })} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Emoji</Label>
+                          <Input value={tpl.button_emoji ?? "🛒"} onChange={(e) => setTpl({ button_emoji: e.target.value })} placeholder="🛒" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Estilo</Label>
+                          <Select value={String(tpl.button_style ?? 1)} onValueChange={(v) => setTpl({ button_style: parseInt(v) })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Azul (Primary)</SelectItem>
+                              <SelectItem value="2">Cinza (Secondary)</SelectItem>
+                              <SelectItem value="3">Verde (Success)</SelectItem>
+                              <SelectItem value="4">Vermelho (Danger)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div>
                 <Label>Gateway PIX</Label>
                 <Select
