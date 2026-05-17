@@ -35,7 +35,7 @@ const AdminGlobalMarketplacePage = () => {
   const [loading, setLoading] = useState(false);
   const [approveTarget, setApproveTarget] = useState<Listing | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Listing | null>(null);
-  const [category, setCategory] = useState(GLOBAL_CATEGORIES[0]);
+  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [rejectReason, setRejectReason] = useState("");
   const [acting, setActing] = useState(false);
 
@@ -155,7 +155,7 @@ const AdminGlobalMarketplacePage = () => {
                     )}
                     {s === "pending" && (
                       <div className="flex gap-2">
-                        <Button size="sm" className="flex-1" onClick={() => { setApproveTarget(l); setCategory(GLOBAL_CATEGORIES[0]); }}>
+                        <Button size="sm" className="flex-1" onClick={() => { setApproveTarget(l); setCategory(DEFAULT_CATEGORIES[0]); }}>
                           <Check className="h-3.5 w-3.5 mr-1" /> Aprovar
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 text-destructive border-destructive/30" onClick={() => setRejectTarget(l)}>
@@ -207,7 +207,7 @@ const AdminGlobalMarketplacePage = () => {
               <div>
                 <Label>Mapeamento categoria → canal Discord</Label>
                 <div className="space-y-2 mt-2">
-                  {GLOBAL_CATEGORIES.map((cat) => (
+                  {DEFAULT_CATEGORIES.map((cat) => (
                     <div key={cat} className="flex items-center gap-2">
                       <Badge variant="outline" className="w-24 justify-center">{cat}</Badge>
                       <Input
@@ -262,7 +262,7 @@ const AdminGlobalMarketplacePage = () => {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {GLOBAL_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {DEFAULT_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
