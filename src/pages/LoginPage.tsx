@@ -113,7 +113,7 @@ const LoginPage = () => {
         return;
       }
 
-      sessionStorage.setItem(
+      localStorage.setItem(
         "token_session",
         JSON.stringify({
           tenant_id: data.tenant_id,
