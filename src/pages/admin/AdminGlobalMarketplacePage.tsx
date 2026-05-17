@@ -229,6 +229,19 @@ const AdminGlobalMarketplacePage = () => {
     fetchListings(tab);
   };
 
+  const removeListing = async () => {
+    if (!removeTarget) return;
+    setActing(true);
+    const { error, data } = await supabase.functions.invoke("manage-global-marketplace", {
+      body: { action: "remove", listing_id: removeTarget.id, reviewer_id: user?.id, reviewer_email: user?.email },
+    });
+    setActing(false);
+    if (error || data?.error) return toast({ title: "Erro", description: error?.message || data?.error, variant: "destructive" });
+    toast({ title: "Listagem excluída" });
+    setRemoveTarget(null);
+    fetchListings(tab);
+  };
+
   const saveConfig = async () => {
     setActing(true);
     const { error } = await supabase.functions.invoke("manage-global-marketplace", {
