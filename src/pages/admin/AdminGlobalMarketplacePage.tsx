@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Globe, Check, X, ExternalLink, Loader2, Settings } from "lucide-react";
+import { Globe, Check, X, ExternalLink, Loader2, Settings, Plus, Trash2, Hash, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
-const GLOBAL_CATEGORIES = ["Contas", "Serviços", "Bots", "Outros"];
+const DEFAULT_CATEGORIES = ["Contas", "Serviços", "Bots", "Outros"];
 
 interface Listing {
   id: string;
@@ -35,12 +35,15 @@ const AdminGlobalMarketplacePage = () => {
   const [loading, setLoading] = useState(false);
   const [approveTarget, setApproveTarget] = useState<Listing | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Listing | null>(null);
-  const [category, setCategory] = useState(GLOBAL_CATEGORIES[0]);
+  const [category, setCategory] = useState(DEFAULT_CATEGORIES[0]);
   const [rejectReason, setRejectReason] = useState("");
   const [acting, setActing] = useState(false);
 
   // Config
   const [config, setConfig] = useState<any>(null);
+  const [channels, setChannels] = useState<{ id: string; name: string; parent_id: string | null }[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const fetchListings = async (status: string) => {
     setLoading(true);
@@ -58,10 +61,37 @@ const AdminGlobalMarketplacePage = () => {
     setConfig(data);
   };
 
+  const fetchChannels = async (guildId: string) => {
+    if (!guildId || guildId.length < 10) {
+      setChannels([]);
+      return;
+    }
+    setLoadingChannels(true);
+    const { data, error } = await supabase.functions.invoke("discord-channels", {
+      body: { guild_id: guildId },
+    });
+    setLoadingChannels(false);
+    if (error || data?.error) {
+      setChannels([]);
+      toast({ title: "Erro ao listar canais", description: data?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    setChannels(data?.channels || []);
+  };
+
   useEffect(() => {
     if (tab === "config") fetchConfig();
     else fetchListings(tab);
   }, [tab]);
+
+  useEffect(() => { fetchConfig(); }, []);
+
+  useEffect(() => {
+    if (config?.global_marketplace_guild_id) {
+      fetchChannels(config.global_marketplace_guild_id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.global_marketplace_guild_id]);
 
   const approve = async () => {
     if (!approveTarget) return;
@@ -155,7 +185,7 @@ const AdminGlobalMarketplacePage = () => {
                     )}
                     {s === "pending" && (
                       <div className="flex gap-2">
-                        <Button size="sm" className="flex-1" onClick={() => { setApproveTarget(l); setCategory(GLOBAL_CATEGORIES[0]); }}>
+                        <Button size="sm" className="flex-1" onClick={() => { setApproveTarget(l); setCategory(DEFAULT_CATEGORIES[0]); }}>
                           <Check className="h-3.5 w-3.5 mr-1" /> Aprovar
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 text-destructive border-destructive/30" onClick={() => setRejectTarget(l)}>
@@ -187,11 +217,28 @@ const AdminGlobalMarketplacePage = () => {
 
               <div>
                 <Label>Discord Guild ID (servidor da dona)</Label>
-                <Input
-                  value={config.global_marketplace_guild_id || ""}
-                  onChange={(e) => setConfig({ ...config, global_marketplace_guild_id: e.target.value })}
-                  placeholder="123456789012345678"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={config.global_marketplace_guild_id || ""}
+                    onChange={(e) => setConfig({ ...config, global_marketplace_guild_id: e.target.value })}
+                    placeholder="123456789012345678"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fetchChannels(config.global_marketplace_guild_id)}
+                    disabled={loadingChannels || !config.global_marketplace_guild_id}
+                    title="Recarregar canais"
+                  >
+                    {loadingChannels ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {channels.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {channels.length} canais sincronizados do servidor.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -205,25 +252,117 @@ const AdminGlobalMarketplacePage = () => {
               </div>
 
               <div>
-                <Label>Mapeamento categoria → canal Discord</Label>
-                <div className="space-y-2 mt-2">
-                  {GLOBAL_CATEGORIES.map((cat) => (
+                <Label>Categorias e canais de envio</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Cada categoria recebe os anúncios aprovados no canal escolhido.
+                </p>
+                <div className="space-y-2">
+                  {Object.entries(config.global_marketplace_category_channels || {}).length === 0 && !loadingChannels && (
+                    <p className="text-xs text-muted-foreground italic">Nenhuma categoria criada ainda.</p>
+                  )}
+                  {Object.entries(config.global_marketplace_category_channels || {}).map(([cat, channelId]) => (
                     <div key={cat} className="flex items-center gap-2">
-                      <Badge variant="outline" className="w-24 justify-center">{cat}</Badge>
-                      <Input
-                        placeholder="Channel ID"
-                        value={config.global_marketplace_category_channels?.[cat] || ""}
-                        onChange={(e) => setConfig({
+                      <Badge variant="outline" className="min-w-24 justify-center">{cat}</Badge>
+                      <Select
+                        value={(channelId as string) || ""}
+                        onValueChange={(v) => setConfig({
                           ...config,
                           global_marketplace_category_channels: {
                             ...(config.global_marketplace_category_channels || {}),
-                            [cat]: e.target.value,
+                            [cat]: v,
                           },
                         })}
-                      />
+                        disabled={channels.length === 0}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder={channels.length === 0 ? "Defina o Guild ID primeiro" : "Escolha um canal"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {channels.map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              <span className="flex items-center gap-1"><Hash className="h-3 w-3" />{ch.name}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const next = { ...(config.global_marketplace_category_channels || {}) };
+                          delete next[cat];
+                          setConfig({ ...config, global_marketplace_category_channels: next });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   ))}
                 </div>
+
+                <div className="flex gap-2 mt-3">
+                  <Input
+                    placeholder="Nova categoria (ex: Contas, Bots, Serviços...)"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const name = newCategoryName.trim();
+                        if (!name) return;
+                        setConfig({
+                          ...config,
+                          global_marketplace_category_channels: {
+                            ...(config.global_marketplace_category_channels || {}),
+                            [name]: "",
+                          },
+                        });
+                        setNewCategoryName("");
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const name = newCategoryName.trim();
+                      if (!name) return;
+                      setConfig({
+                        ...config,
+                        global_marketplace_category_channels: {
+                          ...(config.global_marketplace_category_channels || {}),
+                          [name]: "",
+                        },
+                      });
+                      setNewCategoryName("");
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar
+                  </Button>
+                </div>
+
+                {DEFAULT_CATEGORIES.some((c) => !(config.global_marketplace_category_channels || {})[c]) && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    <span className="text-xs text-muted-foreground self-center">Sugestões:</span>
+                    {DEFAULT_CATEGORIES.filter((c) => !(config.global_marketplace_category_channels || {})[c]).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setConfig({
+                          ...config,
+                          global_marketplace_category_channels: {
+                            ...(config.global_marketplace_category_channels || {}),
+                            [c]: "",
+                          },
+                        })}
+                        className="text-xs px-2 py-0.5 rounded-full border border-border hover:bg-muted transition-colors"
+                      >
+                        + {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -262,7 +401,10 @@ const AdminGlobalMarketplacePage = () => {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {GLOBAL_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {(Object.keys(config?.global_marketplace_category_channels || {}).length > 0
+                    ? Object.keys(config.global_marketplace_category_channels)
+                    : DEFAULT_CATEGORIES
+                  ).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
