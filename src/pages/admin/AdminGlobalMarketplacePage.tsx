@@ -186,10 +186,25 @@ const AdminGlobalMarketplacePage = () => {
     setChannels(data?.channels || []);
   };
 
+  // Pedidos (vendas globais)
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersFilter, setOrdersFilter] = useState<"paid" | "pending" | "all">("paid");
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const fetchOrders = async (status: string) => {
+    setLoadingOrders(true);
+    const { data } = await supabase.functions.invoke("manage-global-marketplace", {
+      body: { action: "list_orders", status: status === "all" ? undefined : status },
+    });
+    setLoadingOrders(false);
+    if (Array.isArray(data)) setOrders(data);
+  };
+
   useEffect(() => {
     if (tab === "config") fetchConfig();
+    else if (tab === "orders") fetchOrders(ordersFilter);
     else fetchListings(tab);
-  }, [tab]);
+  }, [tab, ordersFilter]);
 
   useEffect(() => { fetchConfig(); }, []);
 
@@ -268,6 +283,7 @@ const AdminGlobalMarketplacePage = () => {
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
           <TabsTrigger value="approved">Aprovados</TabsTrigger>
           <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
+          <TabsTrigger value="orders">💰 Pedidos</TabsTrigger>
           <TabsTrigger value="config"><Settings className="h-3.5 w-3.5 mr-1" /> Configurações</TabsTrigger>
         </TabsList>
 
@@ -434,6 +450,143 @@ const AdminGlobalMarketplacePage = () => {
             )}
           </TabsContent>
         ))}
+
+        <TabsContent value="orders" className="mt-4 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex gap-2">
+              {(["paid", "pending", "all"] as const).map((f) => (
+                <Button
+                  key={f}
+                  size="sm"
+                  variant={ordersFilter === f ? "default" : "outline"}
+                  onClick={() => setOrdersFilter(f)}
+                >
+                  {f === "paid" ? "✅ Pagos" : f === "pending" ? "⏳ Pendentes" : "Todos"}
+                </Button>
+              ))}
+            </div>
+            <Button size="sm" variant="outline" onClick={() => fetchOrders(ordersFilter)} disabled={loadingOrders}>
+              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingOrders ? "animate-spin" : ""}`} /> Atualizar
+            </Button>
+          </div>
+
+          {/* Resumo */}
+          {orders.length > 0 && (() => {
+            const paid = orders.filter((o) => ["paid", "completed", "delivered"].includes(o.status));
+            const gross = paid.reduce((s, o) => s + (o.total_cents || 0), 0);
+            const commission = paid.reduce((s, o) => s + (o.commission_cents || 0), 0);
+            const sellers = paid.reduce((s, o) => s + (o.seller_received_cents || 0), 0);
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Faturamento bruto</p>
+                  <p className="text-2xl font-bold mt-1">R$ {(gross / 100).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{paid.length} pedido(s) pago(s)</p>
+                </div>
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Sua comissão (taxa)</p>
+                  <p className="text-2xl font-bold mt-1 text-emerald-400">R$ {(commission / 100).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{config?.global_marketplace_commission_percent ?? 2}% do total</p>
+                </div>
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-amber-400 font-bold">A repassar aos vendedores</p>
+                  <p className="text-2xl font-bold mt-1 text-amber-400">R$ {(sellers / 100).toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">via PIX informado pela loja</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {loadingOrders ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Globe className="h-12 w-12 mx-auto opacity-20 mb-2" />
+              <p>Nenhum pedido encontrado</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {orders.map((o) => {
+                const isPaid = ["paid", "completed", "delivered"].includes(o.status);
+                const statusLabel = isPaid ? "✅ Pago" : o.status === "pending_payment" ? "⏳ Aguardando pagamento" : `❌ ${o.status}`;
+                const statusColor = isPaid ? "border-emerald-500/30 bg-emerald-500/5" : o.status === "pending_payment" ? "border-amber-500/30 bg-amber-500/5" : "border-rose-500/30 bg-rose-500/5";
+                const pix = o.listing?.seller_pix_key;
+                const pixType = o.listing?.seller_pix_key_type;
+                return (
+                  <div key={o.id} className={`rounded-xl border ${statusColor} p-4 space-y-3`}>
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] font-mono">#{o.order_number}</Badge>
+                          <Badge className={isPaid ? "bg-emerald-500/20 text-emerald-300 border-0" : "bg-amber-500/20 text-amber-300 border-0"}>{statusLabel}</Badge>
+                          {o.listing?.category_global && <Badge variant="outline" className="text-[10px]"><Hash className="h-2.5 w-2.5 mr-0.5" />{o.listing.category_global}</Badge>}
+                          <span className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString("pt-BR")}</span>
+                        </div>
+                        <p className="font-bold mt-1.5 truncate">{o.product_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Comprador: <span className="font-medium text-foreground/80">{o.discord_username || o.discord_user_id}</span>
+                          {o.discord_user_id && <span className="text-muted-foreground/60"> ({o.discord_user_id})</span>}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</p>
+                        <p className="text-xl font-bold">R$ {((o.total_cents || 0) / 100).toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <div className="rounded-lg bg-background/50 border border-border/60 p-2.5">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Vendedor (loja)</p>
+                        <p className="font-medium mt-0.5 truncate">{o.seller?.name || "—"}</p>
+                        {o.seller?.owner_discord_username && (
+                          <p className="text-muted-foreground truncate">{o.seller.owner_discord_username}</p>
+                        )}
+                      </div>
+                      <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-2.5">
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-400/90 font-bold">Sua taxa ({config?.global_marketplace_commission_percent ?? 2}%)</p>
+                        <p className="font-bold text-emerald-400 text-base mt-0.5">R$ {((o.commission_cents || 0) / 100).toFixed(2)}</p>
+                        <p className="text-muted-foreground text-[10px]">fica com você</p>
+                      </div>
+                      <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-2.5">
+                        <p className="text-[10px] uppercase tracking-wider text-amber-400/90 font-bold">Repassar à loja</p>
+                        <p className="font-bold text-amber-400 text-base mt-0.5">R$ {((o.seller_received_cents || 0) / 100).toFixed(2)}</p>
+                        <p className="text-muted-foreground text-[10px]">enviar via PIX</p>
+                      </div>
+                    </div>
+
+                    {isPaid && (
+                      pix ? (
+                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 flex items-center justify-between gap-3 flex-wrap">
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase tracking-wider text-emerald-400/90 font-bold flex items-center gap-1">
+                              <Sparkles className="h-3 w-3" /> PIX da loja {pixType ? `(${pixType})` : ""}
+                            </p>
+                            <p className="font-mono text-sm mt-0.5 break-all">{pix}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(pix);
+                              toast({ title: "PIX copiado!" });
+                            }}
+                          >
+                            <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3 text-xs flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                          <span>A loja não cadastrou chave PIX. Contate o vendedor antes de repassar.</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="config" className="mt-4">
           {!config ? (
