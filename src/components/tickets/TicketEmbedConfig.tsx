@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import ImageUploadField from "@/components/customization/ImageUploadField";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { DiscordButtonStylePicker, getDiscordButtonStyles, type DiscordButtonStyle } from "@/components/discord/DiscordButtonStylePicker";
-import ButtonLabelWithEmoji from "@/components/discord/ButtonLabelWithEmoji";
+import ButtonLabelWithEmoji, { parseEmojiFromLabel } from "@/components/discord/ButtonLabelWithEmoji";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -604,7 +604,25 @@ const TicketEmbedConfig = () => {
                     color: isGlass ? undefined : btnStyle.textColor,
                   }}
                 >
-                  {data.ticket_embed_button_label}
+                  {(() => {
+                    const parsed = parseEmojiFromLabel(data.ticket_embed_button_label);
+                    return (
+                      <span className="flex items-center gap-1.5">
+                        {parsed.emoji && (
+                          parsed.isCustom && parsed.customId ? (
+                            <img
+                              src={`https://cdn.discordapp.com/emojis/${parsed.customId}.${parsed.animated ? "gif" : "png"}`}
+                              alt="emoji"
+                              className="h-4 w-4 object-contain shrink-0"
+                            />
+                          ) : (
+                            <span className="text-sm leading-none mr-0.5">{parsed.emoji}</span>
+                          )
+                        )}
+                        <span>{parsed.cleanLabel}</span>
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             );

@@ -111,7 +111,8 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   }
 
   const ticketSuffix = Date.now().toString(36).slice(-4);
-  const threadName = `ticket-${username}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+  const safeUsername = username.toLowerCase().replace(/[^a-z0-9-_]/g, "");
+  const threadName = `🔄 • ticket-${safeUsername}-${ticketSuffix}`.substring(0, 100);
 
   let ticketChannel;
   const staffMemberIds = new Set();
@@ -242,6 +243,19 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
 
     try {
       if (interaction.channel.isThread?.()) {
+        try {
+          const currentName = interaction.channel.name;
+          let newName = currentName;
+          if (currentName.startsWith("🔄 • ")) {
+            newName = currentName.replace("🔄 • ", "🔒 • ");
+          } else if (!currentName.startsWith("🔒 • ")) {
+            newName = `🔒 • ${currentName}`;
+          }
+          await interaction.channel.setName(newName.substring(0, 100));
+        } catch (renameErr) {
+          console.error("Failed to rename thread on closure:", renameErr.message);
+        }
+
         await interaction.channel.setArchived(true);
         await interaction.channel.setLocked(true);
       } else {

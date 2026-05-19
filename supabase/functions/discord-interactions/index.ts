@@ -635,6 +635,13 @@ serve(async (req: Request) => {
 
         // Simulate ticket_open button click by redirecting logic
         await respondDeferred(interaction, botToken);
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "⠋ Abrindo ticket...",
+            description: "Aguarde enquanto preparamos seu canal de atendimento.",
+            color: 0x5865F2,
+          }]
+        });
 
         const { data: existingTickets } = await supabase
           .from("tickets")
@@ -710,7 +717,7 @@ serve(async (req: Request) => {
         }
 
         const ticketSuffix = Date.now().toString(36).slice(-4);
-        const threadName = `ticket-${username || userId}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+        const threadName = `🔄 • ticket-${username || userId}-${ticketSuffix}`.substring(0, 100);
         const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -763,7 +770,27 @@ serve(async (req: Request) => {
           await addTicketStaffToThread(supabase, botToken, tenant.id, guildId, ticketThread.id, userId, staffRoleIds);
         }
 
-        await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketThread.id}>`);
+        const threadLink = `https://discord.com/channels/${guildId || interaction.guild_id}/${ticketThread.id}`;
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "🎫 Ticket Aberto!",
+            description: `Seu canal de atendimento foi criado com sucesso!\n\n👉 **Acesse:** <#${ticketThread.id}>`,
+            color: 0x57F287,
+          }],
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Ir para o ticket",
+                  url: threadLink,
+                },
+              ],
+            },
+          ],
+        });
         return ok();
       }
 
@@ -1038,6 +1065,13 @@ serve(async (req: Request) => {
 
         // Defer with ephemeral (only the user sees it)
         await respondDeferred(interaction, botToken);
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "⠋ Criando carrinho...",
+            description: "Aguarde enquanto preparamos sua compra.",
+            color: 0x5865F2,
+          }]
+        });
 
         const product = await resolveProductFromCustomId(supabase, productId, interaction.guild_id);
 
@@ -1181,6 +1215,13 @@ serve(async (req: Request) => {
 
         // Use deferred ephemeral reply (type 5) so processPurchase can send a NEW checkout message
         await respondDeferred(interaction, botToken);
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "⠋ Criando carrinho...",
+            description: "Aguarde enquanto preparamos sua compra.",
+            color: 0x5865F2,
+          }]
+        });
 
         const product = await resolveProductFromCustomId(supabase, productId, interaction.guild_id);
         if (!product) { await editFollowup(interaction, botToken, tr("pt-BR", "product_not_found")); return ok(); }
@@ -1723,6 +1764,13 @@ serve(async (req: Request) => {
         const targetChannelId = lastUnderscore > 0 ? afterPrefix.substring(lastUnderscore + 1) : null;
 
         await respondDeferred(interaction, botToken);
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "⠋ Abrindo ticket...",
+            description: "Aguarde enquanto preparamos seu canal de atendimento.",
+            color: 0x5865F2,
+          }]
+        });
 
         // Get tenant guild + ticket config
         const { data: tenant } = await supabase
@@ -1822,7 +1870,7 @@ serve(async (req: Request) => {
 
         // Create private thread
         const ticketSuffix = Date.now().toString(36).slice(-4);
-        const threadName = `ticket-${username || userId}-${ticketSuffix}`.toLowerCase().replace(/[^a-z0-9-_]/g, "").substring(0, 100);
+        const threadName = `🔄 • ticket-${username || userId}-${ticketSuffix}`.substring(0, 100);
         const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -1995,7 +2043,27 @@ serve(async (req: Request) => {
           } catch (e) { console.error("Pin error:", e); }
         }
 
-        await editFollowup(interaction, botToken, `✅ Ticket criado! Acesse <#${ticketThread.id}>`);
+        const threadLink = `https://discord.com/channels/${guildId || interaction.guild_id}/${ticketThread.id}`;
+        await editFollowup(interaction, botToken, {
+          embeds: [{
+            title: "🎫 Ticket Aberto!",
+            description: `Seu canal de atendimento foi criado com sucesso!\n\n👉 **Acesse:** <#${ticketThread.id}>`,
+            color: 0x57F287,
+          }],
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Ir para o ticket",
+                  url: threadLink,
+                },
+              ],
+            },
+          ],
+        });
         return ok();
       }
 
@@ -2554,11 +2622,35 @@ serve(async (req: Request) => {
             }),
           });
 
-          await fetch(`${DISCORD_API}/channels/${channelId}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ archived: true, locked: true }),
-          });
+          try {
+            const chanRes = await fetch(`${DISCORD_API}/channels/${channelId}`, {
+              headers: { Authorization: `Bot ${botToken}` }
+            });
+            if (chanRes.ok) {
+              const chanData = await chanRes.json();
+              const currentName = chanData.name || "";
+              const newName = currentName.startsWith("🔄 • ") 
+                ? currentName.replace("🔄 • ", "🔒 • ") 
+                : `🔒 • ${currentName}`;
+              await fetch(`${DISCORD_API}/channels/${channelId}`, {
+                method: "PATCH",
+                headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newName.substring(0, 100), archived: true, locked: true }),
+              });
+            } else {
+              await fetch(`${DISCORD_API}/channels/${channelId}`, {
+                method: "PATCH",
+                headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ archived: true, locked: true }),
+              });
+            }
+          } catch {
+            await fetch(`${DISCORD_API}/channels/${channelId}`, {
+              method: "PATCH",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ archived: true, locked: true }),
+            });
+          }
         }
 
         return ok();
@@ -3092,7 +3184,7 @@ async function processPurchase(
   }
 
   // ─── Create private thread for checkout ───────────────────
-  const threadName = `${tr(Lreview, "cart_thread_prefix")}-${username || userId}-${order.order_number}`.substring(0, 100);
+  const threadName = `🔄 • ${tr(Lreview, "cart_thread_prefix")}-${username || userId}-${order.order_number}`.substring(0, 100);
 
   const createThreadRes = await fetch(`${DISCORD_API}/channels/${channelId}/threads`, {
     method: "POST",
@@ -3234,9 +3326,14 @@ async function processPurchase(
   // Tell the user to go to the thread with a link button
   const guildIdForLink = interaction.guild_id;
   const threadLink = `https://discord.com/channels/${guildIdForLink}/${checkoutThread.id}`;
+  const embedColorVal = await resolveProductEmbedColor(product, tenantId);
   await editFollowup(interaction, botToken, {
-    content: tr(Lreview, "cart_created"),
-    embeds: [],
+    embeds: [{
+      title: `🛒 ${tr(Lreview, "cart_opened_log_title") || "Carrinho Criado!"}`,
+      description: `${tr(Lreview, "cart_created") || "Seu carrinho foi criado com sucesso!"}\n\n👉 **Acesse:** <#${checkoutThread.id}>`,
+      color: embedColorVal,
+      image: product.banner_url ? { url: product.banner_url } : undefined,
+    }],
     components: [
       {
         type: 1,

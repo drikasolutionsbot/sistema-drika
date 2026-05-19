@@ -5,6 +5,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 import { type EmbedConfig, DEFAULT_EMBED } from "./ProductDetailEmbed";
+import { parseEmojiFromLabel } from "@/components/discord/ButtonLabelWithEmoji";
 
 const DISCORD_LABELS: Record<string, Record<string, string>> = {
   "pt-BR": { buy: "🛒 Comprar", buy_plain: "comprar", price: "Valor à vista", stock: "Restam", auto: "⚡ Entrega Automática!", manual: "📦 Entrega Manual", available: "✅ Disponível • Compre agora!", unavailable: "❌ Indisponível" },
@@ -275,7 +276,24 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
                 >
                   {(() => {
                     const label = embedConfig?.buy_button_label?.trim();
-                    return localizedOrCustom(label, L.buy);
+                    const text = localizedOrCustom(label, L.buy);
+                    const parsed = parseEmojiFromLabel(text);
+                    return (
+                      <span className="flex items-center gap-1.5">
+                        {parsed.emoji && (
+                          parsed.isCustom && parsed.customId ? (
+                            <img
+                              src={`https://cdn.discordapp.com/emojis/${parsed.customId}.${parsed.animated ? "gif" : "png"}`}
+                              alt="emoji"
+                              className="h-4 w-4 object-contain shrink-0"
+                            />
+                          ) : (
+                            <span className="text-sm leading-none mr-0.5">{parsed.emoji}</span>
+                          )
+                        )}
+                        <span>{parsed.cleanLabel}</span>
+                      </span>
+                    );
                   })()}
                 </button>
               </>

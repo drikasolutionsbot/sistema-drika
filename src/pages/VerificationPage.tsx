@@ -14,7 +14,7 @@ import DrikaLockedFields from "@/components/customization/DrikaLockedFields";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { DiscordButtonStylePicker, type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
-import ButtonLabelWithEmoji from "@/components/discord/ButtonLabelWithEmoji";
+import ButtonLabelWithEmoji, { parseEmojiFromLabel } from "@/components/discord/ButtonLabelWithEmoji";
 
 interface VerifyConfig {
   verify_enabled: boolean;
@@ -509,13 +509,30 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
                 const isGlass = style === "glass";
                 const isLink = style === "link";
                 const styleConfig = getDiscordButtonStyles(style);
+                const parsed = parseEmojiFromLabel(config.verify_button_label || "Verificar");
+                const buttonContent = (
+                  <span className="flex items-center gap-1.5">
+                    {parsed.emoji && (
+                      parsed.isCustom && parsed.customId ? (
+                        <img
+                          src={`https://cdn.discordapp.com/emojis/${parsed.customId}.${parsed.animated ? "gif" : "png"}`}
+                          alt="emoji"
+                          className="h-4 w-4 object-contain shrink-0"
+                        />
+                      ) : (
+                        <span className="text-sm leading-none mr-0.5">{parsed.emoji}</span>
+                      )
+                    )}
+                    <span>{parsed.cleanLabel}</span>
+                  </span>
+                );
                 
                 if (isGlass) {
                   return (
                     <button
                       className="text-white text-xs font-medium px-4 py-1.5 rounded flex items-center gap-1.5 cursor-default border border-white/10 bg-white/10 backdrop-blur-sm"
                     >
-                      {config.verify_button_label || "Verificar"}
+                      {buttonContent}
                     </button>
                   );
                 }
@@ -523,7 +540,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
                 if (isLink) {
                   return (
                     <button className="text-[#00AFF4] text-xs font-medium px-4 py-1.5 rounded flex items-center gap-1.5 cursor-default underline bg-transparent">
-                      {config.verify_button_label || "Verificar"}
+                      {buttonContent}
                     </button>
                   );
                 }
@@ -536,7 +553,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
                       color: styleConfig.textColor,
                     }}
                   >
-                    {config.verify_button_label || "Verificar"}
+                    {buttonContent}
                   </button>
                 );
               })()}

@@ -605,7 +605,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let checkoutThread;
   try {
     checkoutThread = await threadParent.threads.create({
-      name: `${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
+      name: `🔄 • ${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
       type: ChannelType.PrivateThread,
       invitable: false,
       autoArchiveDuration: 10080,
@@ -614,7 +614,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   } catch (privateThreadError) {
     console.error("[CHECKOUT] private thread creation failed:", privateThreadError.message);
     checkoutThread = await threadParent.threads.create({
-      name: `${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
+      name: `🔄 • ${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
       type: ChannelType.PublicThread,
       autoArchiveDuration: 10080,
       reason: `Checkout #${order.order_number}`,
@@ -861,7 +861,7 @@ async function startGlobalMarketplaceCheckout(interaction, listingId) {
   let checkoutThread;
   try {
     checkoutThread = await threadParent.threads.create({
-      name: `carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
+      name: `🔄 • carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
       type: ChannelType.PrivateThread,
       invitable: false,
       autoArchiveDuration: 10080,
@@ -870,7 +870,7 @@ async function startGlobalMarketplaceCheckout(interaction, listingId) {
   } catch (privateThreadError) {
     console.error("[GML] private thread creation failed:", privateThreadError.message);
     checkoutThread = await threadParent.threads.create({
-      name: `carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
+      name: `🔄 • carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
       type: ChannelType.PublicThread,
       autoArchiveDuration: 10080,
       reason: `Marketplace Global #${order.order_number}`,
