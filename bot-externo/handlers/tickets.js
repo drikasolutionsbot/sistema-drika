@@ -1,6 +1,6 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
-  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle,
+  ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, UserSelectMenuBuilder,
 } = require("discord.js");
 const {
   getStoreConfig, createTicket, getOpenTickets, closeTicket,
@@ -189,13 +189,17 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Apagar").setStyle(ButtonStyle.Danger).setEmoji("🗑️"),
   );
 
+  const row2 = new ActionRowBuilder().addComponents(
+    new UserSelectMenuBuilder().setCustomId(`ticket_assign_${ticket.id}`).setPlaceholder("Selecione algum membro").setMinValues(1).setMaxValues(1),
+  );
+
   const staffMentionContent = staffRoleIds.length
     ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
     : null;
 
   const welcomePayload = {
     content: staffMentionContent || undefined,
-    embeds: [welcomeEmbed], components: [row1],
+    embeds: [welcomeEmbed], components: [row1, row2],
     allowedMentions: staffRoleIds.length
       ? { roles: staffRoleIds }
       : { parse: [] },
