@@ -18,9 +18,11 @@ const formatDateTime = (dateObj = new Date()) => ({
 });
 // ── Helper ──
 function outOfStockPayload(productId, tenantId, fieldId = null) {
+  // We cannot put tenantId in customId because it exceeds 100 characters max limit (UUIDs are 36 chars each).
+  // Tenant is resolved in interaction.js from guild_id anyway.
   const customId = fieldId 
-    ? `notify_restock:${productId}:${tenantId}:${fieldId}` 
-    : `notify_restock:${productId}:${tenantId}`;
+    ? `notify_restock:${productId}:${fieldId}` 
+    : `notify_restock:${productId}`;
     
   return {
     content: "❌ | Este produto está sem estoque. Aguarde um reabastecimento!",

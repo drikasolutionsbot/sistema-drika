@@ -64,8 +64,8 @@ module.exports = async function handleInteraction(client, interaction) {
     if (customId.startsWith("notify_restock:")) {
       const parts = customId.split(":");
       const productId = parts[1];
-      const tenantId = parts[2];
-      const fieldId = parts[3] || null;
+      const fieldId = parts[2] || null;
+      const tenantId = tenant.id; // Tenant is already resolved above
       
       const { addRestockNotification } = require("../supabase");
       await addRestockNotification(tenantId, productId, interaction.user.id, fieldId);
