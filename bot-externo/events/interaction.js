@@ -60,8 +60,22 @@ module.exports = async function handleInteraction(client, interaction) {
   // ── Buttons ──
   if (interaction.isButton()) {
     const customId = interaction.customId;
-
     // Checkout buttons
+    if (customId.startsWith("notify_restock:")) {
+      const parts = customId.split(":");
+      const productId = parts[1];
+      const tenantId = parts[2];
+      const fieldId = parts[3] || null;
+      
+      const { addRestockNotification } = require("../supabase");
+      await addRestockNotification(tenantId, productId, interaction.user.id, fieldId);
+      
+      return interaction.reply({
+        content: "✅ | Notificações ativadas com sucesso.",
+        ephemeral: true
+      });
+    }
+
     if (customId.startsWith("buy_product:")) return checkoutHandler.startCheckout(interaction, tenant, customId.replace("buy_product:", ""));
     if (customId.startsWith("checkout_pay:")) return checkoutHandler.goToPayment(interaction, tenant, customId.replace("checkout_pay:", ""));
     if (customId.startsWith("checkout_cancel:")) return checkoutHandler.cancelOrder(interaction, tenant, customId.replace("checkout_cancel:", ""));

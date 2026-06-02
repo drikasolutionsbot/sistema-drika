@@ -9,7 +9,7 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-const { getTenantByGuild, getGlobalBotConfig, getMasterTenantBanners, autoLinkGuildToPendingTenant, getDeliveredCheckoutThreadsPendingArchive } = require("./supabase");
+const { getTenantByGuild, getGlobalBotConfig } = require("./supabase");
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 
@@ -51,35 +51,10 @@ const sorteioCommand = require("./commands/sorteio");
 const interactionHandler = require("./events/interaction");
 const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
-const memberRoleUpdateHandler = require("./events/memberRoleUpdate");
 const verificationHandler = require("./handlers/verification");
 
-async function restoreCheckoutArchiveTimers() {
-  try {
-    const checkoutHandler = require("./handlers/checkout");
-    const pendingArchives = await getDeliveredCheckoutThreadsPendingArchive();
-    for (const order of pendingArchives) {
-      const archiveAt = new Date(order.checkout_thread_archive_at).getTime();
-      if (!Number.isFinite(archiveAt)) continue;
-      if (archiveAt <= Date.now()) {
-        await checkoutHandler.processDueCheckoutThreadArchives();
-      } else {
-        checkoutHandler.scheduleThreadArchive({ should_archive: true, checkout_thread_id: order.checkout_thread_id, order_id: order.id });
-      }
-    }
-    console.log(`[ARCHIVE] Restored ${pendingArchives.length} pending checkout archive(s)`);
-  } catch (err) {
-    console.error("[ARCHIVE] Failed to restore pending checkout archives:", err.message);
-  }
-}
-
-// ── Status + identidade global polling ──
+// ── Status polling ──
 let lastAppliedStatus = null;
-let lastAppliedUserBannerUrl = undefined;
-let lastAppliedApplicationCoverUrl = undefined;
-let lastAppliedGuildProfileBannerUrl = undefined;
-let lastSeenForceReapplyAt = undefined;
-let lastAppliedMasterBannersFingerprint = undefined;
 
 function normalizeStatus(rawStatus) {
   const fallback = "/panel";
@@ -93,201 +68,21 @@ function normalizeStatus(rawStatus) {
   return (firstLine || fallback).slice(0, 128);
 }
 
-async function fetchImageBuffer(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Falha ao baixar banner: ${response.status} ${response.statusText}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  return {
-    buffer: Buffer.from(arrayBuffer),
-    contentType: response.headers.get("content-type") || "image/png",
-  };
-}
-
-function toBase64DataUri(imageAsset) {
-  if (!imageAsset?.buffer) return null;
-  return `data:${imageAsset.contentType || "image/png"};base64,${imageAsset.buffer.toString("base64")}`;
-}
-
-async function updateBotUserBanner(imageAsset) {
-  const banner = imageAsset ? toBase64DataUri(imageAsset) : null;
-
-  await rest.patch(Routes.user(), {
-    body: { banner },
-  });
-}
-
-async function updateBotGuildProfileBanner(guildId, imageAsset) {
-  const banner = imageAsset ? toBase64DataUri(imageAsset) : null;
-  const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ banner }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`${response.status} ${errorText}`);
-  }
-
-  // 🔍 Verifica se o Discord realmente persistiu o banner (bots podem ter restrição silenciosa)
-  const responseBody = await response.json().catch(() => null);
-  const persistedBanner = responseBody?.banner;
-  return { persistedBanner, hadInput: !!banner };
-}
-
-// Cache simples de assets baixados (evita refetch a cada poll)
-const bannerAssetCache = new Map();
-async function getBannerAsset(url) {
-  if (!url) return null;
-  if (bannerAssetCache.has(url)) return bannerAssetCache.get(url);
-  const asset = await fetchImageBuffer(url);
-  bannerAssetCache.set(url, asset);
-  return asset;
-}
-
-async function syncGuildProfileBannerForAllGuilds(globalAsset, masterBannersByGuild = {}) {
-  const guilds = [...client.guilds.cache.values()];
-  let syncedCount = 0;
-  let masterOverrides = 0;
-  let persistedCount = 0;
-  let ignoredByDiscord = 0;
-
-  for (const guild of guilds) {
-    try {
-      // Master tenants têm banner exclusivo por guild — sobrepõe o global
-      const masterUrl = masterBannersByGuild[guild.id];
-      let assetToApply = globalAsset;
-      if (masterUrl) {
-        try {
-          assetToApply = await getBannerAsset(masterUrl);
-          masterOverrides += 1;
-        } catch (mErr) {
-          console.error(`⚠️ Falha ao baixar banner Master da guild ${guild.id}:`, mErr.message);
-        }
-      }
-
-      const { persistedBanner, hadInput } = await updateBotGuildProfileBanner(guild.id, assetToApply);
-      syncedCount += 1;
-      if (hadInput) {
-        if (persistedBanner) persistedCount += 1;
-        else ignoredByDiscord += 1;
-      }
-    } catch (guildErr) {
-      console.error(`❌ Falha ao aplicar banner do perfil do bot no servidor ${guild.name} (${guild.id}):`, guildErr?.message || guildErr);
-    }
-  }
-
-  if (masterOverrides > 0) {
-    console.log(`👑 ${masterOverrides} servidor(es) Master receberam banner exclusivo do tenant.`);
-  }
-
-  if (globalAsset && ignoredByDiscord > 0) {
-    console.warn(
-      `⚠️ Discord aceitou o PATCH mas NÃO persistiu o banner em ${ignoredByDiscord}/${syncedCount} servidor(es). ` +
-      `Persistidos com sucesso: ${persistedCount}.`
-    );
-  }
-
-  return syncedCount;
-}
-
-async function syncBotIdentity(forceGuildProfileBanner = false) {
+async function syncBotStatus() {
   try {
     const config = await getGlobalBotConfig();
     const status = normalizeStatus(config?.global_bot_status);
-    const bannerUrl = config?.global_bot_banner_url?.trim() || null;
-    const forceReapplyAt = config?.global_bot_banner_force_reapply_at || null;
 
-    // Detecta clique do botão "Aplicar banner em todas as áreas" no painel admin
-    let manualForceTriggered = false;
-    if (forceReapplyAt && forceReapplyAt !== lastSeenForceReapplyAt) {
-      if (lastSeenForceReapplyAt !== undefined) {
-        manualForceTriggered = true;
-        console.log(`🔁 Reaplicação manual do banner solicitada via painel (${forceReapplyAt}).`);
-      }
-      lastSeenForceReapplyAt = forceReapplyAt;
-    }
+    if (status === lastAppliedStatus) return;
 
-    const forceAll = forceGuildProfileBanner || manualForceTriggered;
-
-    if (status !== lastAppliedStatus) {
-      client.user.setPresence({
-        activities: [{ name: status, type: ActivityType.Playing }],
-        status: "online",
-      });
-      lastAppliedStatus = status;
-      console.log(`🔄 Status atualizado: "${status}"`);
-    }
-
-    // Master tenants: banner por guild
-    const masterBannersByGuild = await getMasterTenantBanners();
-    const masterFingerprint = JSON.stringify(masterBannersByGuild);
-    const masterChanged = masterFingerprint !== lastAppliedMasterBannersFingerprint;
-
-    const shouldUpdateUserBanner = forceAll || bannerUrl !== lastAppliedUserBannerUrl;
-    const shouldUpdateApplicationCover = forceAll || bannerUrl !== lastAppliedApplicationCoverUrl;
-    const shouldUpdateGuildProfileBanner =
-      forceAll || bannerUrl !== lastAppliedGuildProfileBannerUrl || masterChanged;
-
-    if (shouldUpdateUserBanner || shouldUpdateApplicationCover || shouldUpdateGuildProfileBanner) {
-      const bannerAsset = bannerUrl ? await fetchImageBuffer(bannerUrl) : null;
-
-      if (shouldUpdateUserBanner) {
-        try {
-          await updateBotUserBanner(bannerAsset);
-          lastAppliedUserBannerUrl = bannerUrl;
-          console.log(
-            bannerUrl
-              ? "🖼️ Banner do usuário do bot atualizado:"
-              : "🖼️ Banner do usuário do bot removido.",
-            bannerUrl || ""
-          );
-        } catch (bannerErr) {
-          console.error("❌ Falha ao aplicar banner do usuário do bot:", bannerErr?.message || bannerErr);
-          console.error("   Detalhes:", bannerErr?.code, bannerErr?.rawError);
-        }
-      }
-
-      if (shouldUpdateApplicationCover) {
-        try {
-          const application = await client.application?.fetch();
-          if (!application?.edit) {
-            throw new Error("Aplicação do bot não disponível para edição");
-          }
-
-          await application.edit({ coverImage: bannerAsset?.buffer || null });
-          lastAppliedApplicationCoverUrl = bannerUrl;
-          console.log(
-            bannerUrl
-              ? "🖼️ Capa do aplicativo do bot atualizada:"
-              : "🖼️ Capa do aplicativo do bot removida.",
-            bannerUrl || ""
-          );
-        } catch (coverErr) {
-          console.error("❌ Falha ao aplicar capa do aplicativo do bot:", coverErr?.message || coverErr);
-          console.error("   Detalhes:", coverErr?.code, coverErr?.rawError);
-        }
-      }
-
-      if (shouldUpdateGuildProfileBanner) {
-        const syncedCount = await syncGuildProfileBannerForAllGuilds(bannerAsset, masterBannersByGuild);
-        lastAppliedGuildProfileBannerUrl = bannerUrl;
-        lastAppliedMasterBannersFingerprint = masterFingerprint;
-        console.log(
-          bannerUrl
-            ? `🖼️ Banner do perfil do bot aplicado em ${syncedCount} servidor(es).`
-            : `🖼️ Banner do perfil do bot removido em ${syncedCount} servidor(es).`
-        );
-      }
-    }
+    client.user.setPresence({
+      activities: [{ name: status, type: ActivityType.Playing }],
+      status: "online",
+    });
+    lastAppliedStatus = status;
+    console.log(`🔄 Status atualizado: "${status}"`);
   } catch (err) {
-    console.error("Erro ao sincronizar identidade do bot:", err.message);
+    console.error("Erro ao sincronizar status do bot:", err.message);
   }
 }
 
@@ -330,14 +125,13 @@ client.on(Events.ClientReady, async () => {
     }
   }
 
-  // Sync identidade global imediatamente e depois a cada 15 segundos
-  await syncBotIdentity(true);
-  setInterval(syncBotIdentity, 15_000);
+  // Sync status immediately and then every 15 seconds
+  await syncBotStatus();
+  setInterval(syncBotStatus, 15_000);
 
-  await restoreCheckoutArchiveTimers();
-  setInterval(() => {
-    require("./handlers/checkout").processDueCheckoutThreadArchives();
-  }, 60_000);
+  // Inicia listener de realtime do Supabase para enviar DMs de reabastecimento
+  const { initRealtimeListeners } = require("./handlers/realtime");
+  initRealtimeListeners(client);
 });
 // ── Ao entrar em um novo servidor, registrar os comandos ──
 client.on(Events.GuildCreate, async (guild) => {
@@ -364,44 +158,6 @@ client.on(Events.GuildCreate, async (guild) => {
   ];
 
   try {
-    const resolveOwnerDiscordId = async () => {
-      if (guild.ownerId) return guild.ownerId;
-
-      try {
-        const owner = await guild.fetchOwner();
-        if (owner?.id) return owner.id;
-      } catch (ownerError) {
-        console.error(`Erro ao resolver owner do servidor ${guild.name}:`, ownerError.message);
-      }
-
-      try {
-        await guild.fetch();
-        if (guild.ownerId) return guild.ownerId;
-      } catch (guildError) {
-        console.error(`Erro ao atualizar dados do servidor ${guild.name}:`, guildError.message);
-      }
-
-      return null;
-    };
-
-    const ownerDiscordId = await resolveOwnerDiscordId();
-    let linkedTenant = null;
-
-    linkedTenant = await autoLinkGuildToPendingTenant({
-      guildId: guild.id,
-      guildName: guild.name,
-      ownerDiscordId,
-    });
-
-    if (!linkedTenant) {
-      console.log(`⚠️ Nenhum tenant pendente encontrado para ${guild.name} (owner: ${ownerDiscordId || 'desconhecido'})`);
-    }
-
-    if (linkedTenant) {
-      console.log(`🔗 Servidor ${guild.name} vinculado automaticamente ao tenant ${linkedTenant.name}`);
-      tenantCache.delete(guild.id);
-    }
-
     await rest.put(Routes.applicationGuildCommands(client.user.id, guild.id), {
       body: commands,
     });
@@ -461,8 +217,6 @@ client.on(Events.GuildMemberAdd, async (member) => {
 });
 
 client.on(Events.MessageCreate, async (message) => {
-  // DEBUG: Log every message event to verify the event fires
-  console.log(`[DEBUG] MessageCreate: guild=${message.guild?.name || 'DM'} | author=${message.author.username} | bot=${message.author.bot} | content="${(message.content || '').slice(0, 80)}"`);
   try {
     await protectionHandler.onMessage(client, message);
   } catch (err) {
@@ -503,15 +257,6 @@ client.on(Events.GuildRoleDelete, async (role) => {
     await protectionHandler.onRoleDelete(client, role);
   } catch (err) {
     console.error("Erro na proteção (role delete):", err);
-  }
-});
-
-// ── Member Update (sincroniza staff em tickets quando ganha cargo) ──
-client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
-  try {
-    await memberRoleUpdateHandler(client, oldMember, newMember);
-  } catch (err) {
-    console.error("Erro no GuildMemberUpdate:", err);
   }
 });
 

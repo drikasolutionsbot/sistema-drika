@@ -10,138 +10,31 @@ const {
   getActivePaymentProvider, triggerAutomation, deliverOrder, supabase,
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
-const { DRIKA_COVER_URL, applyDrikaCover } = require("../drikaTemplate");
-const { tr, trf, normLang, resolveOrderLang } = require("../i18n");
 
-const CHECKOUT_THREAD_ARCHIVE_DELAY_MS = 120000;
-const checkoutArchiveTimers = new Map();
-
-async function archiveCheckoutThreadNow(threadId, orderId = null) {
-  try {
-    if (orderId) {
-      await supabase.from("orders").update({
-        checkout_thread_archive_attempts: 1,
-        checkout_thread_archive_error: null,
-      }).eq("id", orderId).is("checkout_thread_archived_at", null);
-    }
-
-    const res = await fetch(`https://discord.com/api/v10/channels/${threadId}`, {
-      method: "PATCH",
-      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ archived: true, locked: true }),
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`${res.status} ${body}`.trim());
-    }
-
-    if (orderId) {
-      await supabase.from("orders").update({
-        checkout_thread_archived_at: new Date().toISOString(),
-        checkout_thread_archive_error: null,
-      }).eq("id", orderId);
-    }
-
-    console.log(`[ARCHIVE] Thread ${threadId} archived successfully`);
-    return true;
-  } catch (e) {
-    console.error(`[ARCHIVE] Failed to archive thread ${threadId}:`, e.message);
-    if (orderId) {
-      try {
-        await supabase.from("orders").update({
-          checkout_thread_archive_error: e.message?.slice(0, 500) || "unknown_error",
-        }).eq("id", orderId);
-      } catch {}
-    }
-    return false;
-  }
-}
-
-// Archive checkout thread after delivery (2 min delay, with DB fallback for cron/worker recovery)
-async function scheduleThreadArchive(deliveryResult) {
-  if (!deliveryResult?.should_archive || !deliveryResult?.checkout_thread_id) return;
-  const threadId = deliveryResult.checkout_thread_id;
-  const orderId = deliveryResult.order_id || null;
-  const archiveAt = new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString();
-
-  if (orderId) {
-    try {
-      await supabase.from("orders").update({
-        checkout_thread_archive_at: archiveAt,
-        checkout_thread_archived_at: null,
-        checkout_thread_archive_attempts: 0,
-        checkout_thread_archive_error: null,
-      }).eq("id", orderId);
-    } catch {}
-  }
-
-  if (checkoutArchiveTimers.has(threadId)) clearTimeout(checkoutArchiveTimers.get(threadId));
-  console.log(`[ARCHIVE] Scheduling archive for thread ${threadId} in 2 minutes`);
-  const timer = setTimeout(async () => {
-    checkoutArchiveTimers.delete(threadId);
-    await archiveCheckoutThreadNow(threadId, orderId);
-  }, CHECKOUT_THREAD_ARCHIVE_DELAY_MS);
-  checkoutArchiveTimers.set(threadId, timer);
-}
-
-async function processDueCheckoutThreadArchives() {
-  try {
-    const { data: dueOrders, error } = await supabase
-      .from("orders")
-      .select("id, checkout_thread_id")
-      .eq("status", "delivered")
-      .not("checkout_thread_id", "is", null)
-      .not("checkout_thread_archive_at", "is", null)
-      .is("checkout_thread_archived_at", null)
-      .lte("checkout_thread_archive_at", new Date().toISOString())
-      .lt("checkout_thread_archive_attempts", 10)
-      .limit(25);
-
-    if (error) throw error;
-    for (const order of dueOrders || []) {
-      if (order.checkout_thread_id) await archiveCheckoutThreadNow(order.checkout_thread_id, order.id);
-    }
-  } catch (e) {
-    console.error("[ARCHIVE] Due checkout archive sweep failed:", e.message);
-  }
-}
-
-const CURRENCY_LOCALES = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
-const formatMoney = (cents, currency = "BRL") => {
-  const cur = (currency || "BRL").toUpperCase();
-  const locale = CURRENCY_LOCALES[cur] || "en-US";
-  try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency: cur }).format((cents || 0) / 100);
-  } catch {
-    return `${cur} ${((cents || 0) / 100).toFixed(2)}`;
-  }
-};
-// Mantido por compatibilidade
-const formatBRL = (cents) => formatMoney(cents, "BRL");
-const PIX_PROVIDER_KEYS = new Set(["mercadopago", "pushinpay", "efi", "misticpay", "abacatepay"]);
-
-// ── Delete PIX QR Code message after payment is resolved (paid/canceled/expired) ──
-async function deletePixMessage(channel, order) {
-  try {
-    if (!channel || !order?.pix_message_id) return;
-    await channel.messages.delete(order.pix_message_id).catch(() => {});
-  } catch {}
-}
-
-// ── Delete PIX QR Code by client + order (resolves checkout thread by id) ──
-async function deletePixMessageByOrder(client, order) {
-  try {
-    if (!client || !order?.pix_message_id || !order?.checkout_thread_id) return;
-    const ch = await client.channels.fetch(order.checkout_thread_id).catch(() => null);
-    if (!ch) return;
-    await ch.messages.delete(order.pix_message_id).catch(() => {});
-  } catch {}
-}
+const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
   date: dateObj.toLocaleDateString("pt-BR"),
   time: dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
 });
+// ── Helper ──
+function outOfStockPayload(productId, tenantId, fieldId = null) {
+  const customId = fieldId 
+    ? `notify_restock:${productId}:${tenantId}:${fieldId}` 
+    : `notify_restock:${productId}:${tenantId}`;
+    
+  return {
+    content: "❌ | Este produto está sem estoque. Aguarde um reabastecimento!",
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(customId)
+          .setLabel("Ativar Notificações")
+          .setEmoji("🔔")
+          .setStyle(ButtonStyle.Secondary)
+      )
+    ]
+  };
+}
 
 // ── Log helper ──
 async function sendLog(guild, tenant, { title, description, color, fields: extraFields, storeConfig: sc, components: rawComponents }) {
@@ -152,7 +45,7 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       return;
     }
 
-    const storeName = storeConfig?.store_title || tenant.name || tr("en", "store_default");
+    const storeName = storeConfig?.store_title || tenant.name || "Loja";
     const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
     const embedColor = color || parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
     const { date, time } = formatDateTime();
@@ -163,11 +56,11 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       return;
     }
 
+    // Build embed as plain JSON (no Discord.js dependency for reliability)
     const embed = {
       title,
       description,
       color: embedColor,
-      image: { url: DRIKA_COVER_URL },
       footer: { text: `${storeName} | ${date}, ${time}`, icon_url: storeLogo || undefined },
       timestamp: new Date().toISOString(),
     };
@@ -175,10 +68,14 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
 
     const body = { embeds: [embed] };
 
-    if (rawComponents && Array.isArray(rawComponents)) {
-      body.components = rawComponents.map(c => typeof c.toJSON === "function" ? c.toJSON() : c);
+    // Convert Discord.js components to JSON if needed
+    if (rawComponents) {
+      if (Array.isArray(rawComponents)) {
+        body.components = rawComponents.map(c => typeof c.toJSON === "function" ? c.toJSON() : c);
+      }
     }
 
+    // PRIMARY: Direct REST API call (proven reliable, same as expire-pending-orders cron)
     const res = await fetch(`https://discord.com/api/v10/channels/${storeConfig.logs_channel_id}/messages`, {
       method: "POST",
       headers: {
@@ -196,41 +93,6 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
     }
   } catch (err) {
     console.error(`Failed to send log [${title}]:`, err.message);
-  }
-}
-
-async function canManuallyApproveOrder(interaction, tenant) {
-  try {
-    let member = interaction.member;
-    if (!member?.permissions && interaction.guild) {
-      try {
-        member = await interaction.guild.members.fetch(interaction.user.id);
-      } catch {}
-    }
-
-    if (member?.permissions?.has?.(PermissionFlagsBits.Administrator)) return true;
-
-    const storeConfig = await getStoreConfig(tenant.id);
-    const staffRoleIdRaw = storeConfig?.ticket_staff_role_id;
-    if (!staffRoleIdRaw) {
-      return member?.permissions?.has?.(PermissionFlagsBits.ManageMessages) || false;
-    }
-
-    const staffRoleIds = staffRoleIdRaw.split(",").map((s) => s.trim()).filter(Boolean);
-    if (staffRoleIds.length === 0) return false;
-
-    const memberRoles = member?.roles?.cache || member?._roles;
-    if (memberRoles?.has) {
-      return staffRoleIds.some((rid) => memberRoles.has(rid));
-    }
-    if (Array.isArray(memberRoles)) {
-      return staffRoleIds.some((rid) => memberRoles.includes(rid));
-    }
-
-    return false;
-  } catch (e) {
-    console.error("Manual approval permission check failed:", e.message);
-    return false;
   }
 }
 
@@ -266,15 +128,6 @@ function getProductEmbedConfig(product) {
   return typeof rawConfig === "object" ? rawConfig : {};
 }
 
-async function fetchGuildMembersForStaff(guild) {
-  try {
-    return await guild.members.fetch();
-  } catch (err) {
-    console.warn("[STAFF_AUTO_ADD] full member fetch failed, using cache:", err.message);
-    return guild.members.cache;
-  }
-}
-
 // Resolve embed color for a product: product color > store color > fallback
 function resolveProductColor(product, storeConfig) {
   const embedConfig = getProductEmbedConfig(product);
@@ -308,8 +161,7 @@ function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
 
 function resolvePixFooter(storeConfig, context) {
   const storeFooter = storeConfig?.purchase_embed_footer || "";
-  const lang = context.lang || "pt-BR";
-  const fallback = `${context.storeName} – ${trf(lang, "payment_expires_in", { minutes: context.timeoutMin })}.\n• ${tr(lang, "today_at")} ${context.time}`;
+  const fallback = `${context.storeName} – Pagamento expira em ${context.timeoutMin} minutos.\n• Hoje às ${context.time}`;
   return applyFooterTemplate(storeFooter || fallback, context);
 }
 
@@ -358,72 +210,11 @@ async function generatePushinPayPix(apiKey, amountCents, webhook) {
   return { brcode: data.qr_code || "", payment_id: data.id };
 }
 
-// ── MisticPay PIX ──
-async function generateMisticPayPix(clientId, clientSecret, amountBRL, externalRef, webhookUrl) {
-  const res = await fetch("https://api.misticpay.com/api/transactions/create", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "ci": clientId, "cs": clientSecret },
-    body: JSON.stringify({
-      amount: amountBRL,
-      payerName: "Cliente",
-      payerDocument: "00000000000",
-      transactionId: externalRef,
-      description: "Pagamento PIX",
-      projectWebhook: webhookUrl,
-    }),
-  });
-  if (!res.ok) throw new Error(`MisticPay error: ${res.status}`);
-  const json = await res.json();
-  const data = json.data || json;
-  return { brcode: data.copyPaste || data.qrCode || "", payment_id: String(data.transactionId || externalRef) };
-}
-
-// ── AbacatePay PIX ──
-async function generateAbacatePayPix(apiKey, amountCents, description, externalRef) {
-  const res = await fetch("https://api.abacatepay.com/v1/pixQrCode/create", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      amount: amountCents,
-      expiresIn: 900,
-      description: (description || "Pagamento PIX").substring(0, 140),
-      externalId: externalRef,
-    }),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`AbacatePay error: ${res.status} ${text.slice(0, 200)}`);
-  let json = {};
-  try { json = JSON.parse(text); } catch {}
-  const data = json?.data || json;
-  const brcode = data.brCode || data.brcode || data.qrCode || data.pixCopyPaste || data.pixCopiaECola || "";
-  return { brcode, payment_id: String(data.id || externalRef) };
-}
-
-// ── LofyPay PIX ──
-async function generateLofyPayPix(apiKey, amountBRL, externalRef, webhookUrl) {
-  const res = await fetch("https://app.lofypay.com/api/v1/gateway/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      "api-key": apiKey,
-      amount: amountBRL,
-      method: "pix",
-      external_reference: externalRef,
-      notification_url: webhookUrl || undefined,
-      client: { name: "Cliente", document: "00000000000", email: "cliente@email.com" },
-    }),
-  });
-  if (!res.ok) throw new Error(`LofyPay error: ${res.status}`);
-  const data = await res.json();
-  if (data.status !== "success") throw new Error(`LofyPay: ${data.message || "Erro desconhecido"}`);
-  return { brcode: data.paymentCode || "", payment_id: data.idTransaction || externalRef };
-}
-
+// ── Start Checkout (from buy_product button) ──
 async function startCheckout(interaction, tenant, productId) {
   await interaction.deferReply({ ephemeral: true });
 
   console.log(`[CHECKOUT] startCheckout productId=${productId} tenantId=${tenant.id}`);
-  let L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const productIdCandidates = String(productId || "")
     .split(/[:|,;\/\s]+/)
@@ -448,32 +239,30 @@ async function startCheckout(interaction, tenant, productId) {
 
   if (!product) {
     console.error(`[CHECKOUT] Product not found for rawId=${productId} tenantId=${tenant.id}`);
-    return interaction.editReply({ content: tr(L, "product_not_found") });
+    return interaction.editReply({ content: "❌ Produto não encontrado." });
   }
-  L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: product.id, product_language: product.language });
 
-  if (!product.active) return interaction.editReply({ content: tr(L, "product_unavailable") });
+  if (!product.active) return interaction.editReply({ content: "❌ Este produto está indisponível." });
 
   const fields = await getProductFields(product.id, tenant.id);
 
-  // ── Check stock before proceeding (block if stock is 0, regardless of auto_delivery) ──
-  if (fields.length > 0) {
-    let totalStock = 0;
-    for (const f of fields) {
-      const sc = await countStock(product.id, tenant.id, f.id);
-      totalStock += (sc || 0);
-    }
-    if (totalStock <= 0) {
-      return interaction.editReply({
-        content: tr(L, "product_out_of_stock"),
-      });
-    }
-  } else {
-    const sc = await countStock(product.id, tenant.id);
-    if (sc !== null && sc <= 0) {
-      return interaction.editReply({
-        content: tr(L, "product_out_of_stock"),
-      });
+  // ── Check stock before proceeding ──
+  if (product.auto_delivery) {
+    if (fields.length > 0) {
+      // Check if ALL fields have 0 stock
+      let totalStock = 0;
+      for (const f of fields) {
+        const sc = await countStock(product.id, tenant.id, f.id);
+        totalStock += (sc || 0);
+      }
+      if (totalStock <= 0) {
+        return interaction.editReply(outOfStockPayload(product.id, tenant.id));
+      }
+    } else {
+      const sc = await countStock(product.id, tenant.id);
+      if (sc !== null && sc <= 0) {
+        return interaction.editReply(outOfStockPayload(product.id, tenant.id));
+      }
     }
   }
 
@@ -493,19 +282,19 @@ async function startCheckout(interaction, tenant, productId) {
     const options = fields.slice(0, 25).map((f) => ({
       label: f.name,
       value: `buy_field:${productId}:${f.id}`,
-      description: trf(L, "field_option_desc", { price: formatMoney(f.price_cents, product.currency), stock: stockMap[f.id] || 0 }),
+      description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stockMap[f.id] || 0}`,
     }));
 
-    const autoDelivery = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
+    const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
     const embed = new EmbedBuilder()
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
       .setColor(embedColor);
-    embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
+    if (product.banner_url) embed.setImage(product.banner_url);
     if (product.icon_url) embed.setThumbnail(product.icon_url);
 
     const row = new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder(tr(L, "select_variation_placeholder")).addOptions(options)
+      new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder("Clique aqui para ver as opções").addOptions(options)
     );
 
     return interaction.editReply({ embeds: [embed], components: [row] });
@@ -518,23 +307,21 @@ async function startCheckout(interaction, tenant, productId) {
 // ── Select Variation (from dropdown) ──
 async function selectVariation(interaction, tenant, productId, fieldId) {
   await interaction.deferReply({ ephemeral: true });
-  let L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.editReply({ content: tr(L, "product_not_found") });
-  L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: product.id, product_language: product.language });
+  if (!product) return interaction.editReply({ content: "❌ Produto não encontrado." });
 
   const fields = await getProductFields(product.id, tenant.id);
   const field = fields.find((f) => f.id === fieldId);
-  if (!field) return interaction.editReply({ content: tr(L, "variation_not_found") });
+  if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
 
-  // Check stock for this specific field (block regardless of auto_delivery)
-  const sc = await countStock(product.id, tenant.id, fieldId);
-  if (sc !== null && sc <= 0) {
-    return interaction.editReply({
-      content: tr(L, "variation_out_of_stock"),
-    });
+  // Check stock for this specific field
+  if (product.auto_delivery) {
+    const sc = await countStock(product.id, tenant.id, fieldId);
+    if (sc !== null && sc <= 0) {
+      return interaction.editReply(outOfStockPayload(product.id, tenant.id, fieldId));
+    }
   }
 
   await processPurchase(interaction, tenant, product, field.price_cents, field.id, field.name);
@@ -545,20 +332,11 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const orderName = fieldName ? `${product.name} - ${fieldName}` : product.name;
-  const [{ data: freshTenantLang }, { data: freshProductLang }] = await Promise.all([
-    supabase.from("tenants").select("language").eq("id", tenant.id).maybeSingle(),
-    supabase.from("products").select("language").eq("id", product.id).eq("tenant_id", tenant.id).maybeSingle(),
-  ]);
-  const Lreview = normLang(
-    freshProductLang?.language || product.language || freshTenantLang?.language || tenant.language
-  );
-  console.log(`[CHECKOUT][i18n] tenant=${tenant.id} product=${product.id} tenantLang=${freshTenantLang?.language || tenant.language || "null"} productLang=${freshProductLang?.language || product.language || "null"} resolved=${Lreview}`);
 
   const order = await createOrder({
     tenant_id: tenant.id, product_id: product.id, field_id: fieldId,
     product_name: orderName, discord_user_id: userId, discord_username: username,
     total_cents: priceCents, status: "pending_payment",
-    currency: (product.currency || "BRL").toUpperCase(),
   });
 
   // Trigger automation
@@ -571,14 +349,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   // ── Free product: deliver immediately ──
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
-    const freeDeliveryResult = await deliverOrder(order.id, tenant.id);
-    scheduleThreadArchive(freeDeliveryResult);
-    return interaction.editReply({ content: trf(Lreview, "free_order_delivered", { order_number: order.order_number, product: orderName }) });
+    await deliverOrder(order.id, tenant.id);
+    return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
   }
 
-  // ── Create checkout thread ──
+  // ── Create private thread for checkout ──
   const channel = interaction.channel;
-  const threadParent = channel?.isThread?.() ? channel.parent : channel;
   const threadName = `🛒 • ${username} • ${order.order_number}`.substring(0, 100);
 
   const safeUsername = String(username || "cliente")
@@ -590,88 +366,21 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .replace(/^-|-$/g, "")
     .slice(0, 40) || "cliente";
 
-  if (!threadParent?.threads?.create) {
-    return interaction.editReply({ content: tr(Lreview, "cannot_open_cart") });
-  }
-
-  try {
-    await threadParent.permissionOverwrites?.edit?.(userId, {
-      SendMessagesInThreads: true,
-    }, { reason: "Checkout: permitir usuário enviar mensagens na thread" });
-  } catch (permErr) {
-    console.error("[CHECKOUT] permission overwrite error:", permErr.message);
-  }
-
-  let checkoutThread;
-  try {
-    checkoutThread = await threadParent.threads.create({
-      name: `🔄 • ${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
-      type: ChannelType.PrivateThread,
-      invitable: false,
-      autoArchiveDuration: 10080,
-      reason: `Checkout #${order.order_number}`,
-    });
-  } catch (privateThreadError) {
-    console.error("[CHECKOUT] private thread creation failed:", privateThreadError.message);
-    checkoutThread = await threadParent.threads.create({
-      name: `🔄 • ${tr(Lreview, "cart_thread_prefix")}-${safeUsername}-${order.order_number}`,
-      type: ChannelType.PublicThread,
-      autoArchiveDuration: 10080,
-      reason: `Checkout #${order.order_number}`,
-    });
-  }
-
-  await checkoutThread.members.add(userId).catch(() => {});
+  const checkoutThread = await interaction.guild.channels.create({
+    name: `carrinho-${safeUsername}-${order.order_number}`,
+    type: ChannelType.GuildText,
+    permissionOverwrites: [
+      { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+      { id: userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+    ],
+    reason: `Checkout #${order.order_number}`,
+  });
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
 
   // Get store branding
   const storeConfig = await getStoreConfig(tenant.id);
-
-  // ── Auto-add staff to checkout thread (so admins/staff can monitor & confirm manually) ──
-  try {
-    let staffRoleIds = (storeConfig?.ticket_staff_role_id || "")
-      .split(",").map((s) => s.trim()).filter(Boolean);
-
-    // Fallback: tenant_roles with management permissions
-    if (staffRoleIds.length === 0) {
-      const { data: fallbackRoles } = await supabase
-        .from("tenant_roles")
-        .select("discord_role_id")
-        .eq("tenant_id", tenant.id)
-        .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
-      staffRoleIds = [...new Set((fallbackRoles || []).map((r) => r.discord_role_id).filter(Boolean))];
-    }
-
-    // Panel users with management permissions
-    const { data: panelStaffRows } = await supabase
-      .from("tenant_permissions")
-      .select("discord_user_id")
-      .eq("tenant_id", tenant.id)
-      .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
-    const panelStaffUserIds = [...new Set((panelStaffRows || []).map((r) => r.discord_user_id).filter((id) => id && id !== userId))];
-
-    const guild = interaction.guild;
-    const guildRoles = await guild.roles.fetch();
-    const adminRoleIds = new Set([...guildRoles.filter((r) => r.permissions.has("Administrator")).keys()]);
-    const effectiveStaffRoleIds = new Set([...staffRoleIds, ...adminRoleIds]);
-
-    const members = await fetchGuildMembersForStaff(guild);
-    const roleBasedStaffIds = members
-      .filter((m) => !m.user.bot && m.user.id !== userId)
-      .filter((m) => m.roles.cache.some((r) => effectiveStaffRoleIds.has(r.id)))
-      .map((m) => m.user.id);
-
-    const allStaffIds = [...new Set([...roleBasedStaffIds, ...panelStaffUserIds])];
-    for (const staffId of allStaffIds) {
-      try { await checkoutThread.members.add(staffId); }
-      catch (addErr) { console.warn(`[CHECKOUT] failed to add staff ${staffId}:`, addErr.message); }
-    }
-    console.log(`[CHECKOUT] Added ${allStaffIds.length} staff members to checkout thread #${order.order_number}`);
-  } catch (e) {
-    console.error("[CHECKOUT] staff auto-add error:", e.message);
-  }
-  const storeName = storeConfig?.store_title || tenant.name || tr(Lreview, "store_default");
+  const storeName = storeConfig?.store_title || tenant.name || "Loja";
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const productEmbedConfig = getProductEmbedConfig(product);
   const resolvedEmbedHex = resolveHexColor(productEmbedConfig.color, resolveHexColor(storeConfig?.embed_color || "#5865F2"));
@@ -684,7 +393,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // Build checkout embed
   const descLines = [];
-  if (product.auto_delivery) descLines.push(tr(Lreview, "auto_delivery_inline"));
+  if (product.auto_delivery) descLines.push("⚡ **Entrega Automática!**");
   if (product.description) descLines.push(product.description);
 
   const { date: checkoutDate, time: checkoutTime } = formatDateTime();
@@ -700,28 +409,27 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   const reviewEmbed = new EmbedBuilder()
     .setAuthor({ name: username, iconURL: interaction.user.displayAvatarURL() })
-    .setTitle(tr(Lreview, "review_title"))
+    .setTitle("Revisão do Pedido")
     .setColor(embedColor)
     .addFields(
-      { name: tr(Lreview, "cart_label"), value: `1x ${orderName}`, inline: false },
-      { name: tr(Lreview, "price_label"), value: formatMoney(priceCents, product.currency), inline: true },
-      { name: tr(Lreview, "stock_label_emoji"), value: stockCount, inline: true },
+      { name: "🛒 Carrinho", value: `1x ${orderName}`, inline: false },
+      { name: "Valor à vista", value: formatBRL(priceCents), inline: true },
+      { name: "📦 Em estoque", value: stockCount, inline: true },
     )
     .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
     .setTimestamp();
 
   if (descLines.length) reviewEmbed.setDescription(descLines.join("\n\n"));
-  reviewEmbed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
+  if (product.banner_url) reviewEmbed.setImage(product.banner_url);
   if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel(tr(Lreview, "go_to_payment")).setEmoji("✅").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel(tr(Lreview, "edit_quantity")).setEmoji("✏️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel(tr(Lreview, "confirm_manual")).setEmoji("🛠️").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel("Editar Quantidade").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
   );
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel(tr(Lreview, "use_coupon")).setEmoji("🏷️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(Lreview, "cancel")).setEmoji("🗑️").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel("Usar Cupom").setEmoji("🏷️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
   );
 
   await sendWithIdentity(checkoutThread, tenant, {
@@ -733,18 +441,18 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   // Tell user where to go
   const threadLink = `https://discord.com/channels/${interaction.guild.id}/${checkoutThread.id}`;
   const linkRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setLabel(tr(Lreview, "go_to_cart")).setStyle(ButtonStyle.Link).setURL(threadLink)
+    new ButtonBuilder().setLabel("Ir para o carrinho").setStyle(ButtonStyle.Link).setURL(threadLink)
   );
 
-  await interaction.editReply({ content: tr(Lreview, "cart_created"), components: [linkRow] });
+  await interaction.editReply({ content: "✅ | Seu carrinho foi criado com êxito.", components: [linkRow] });
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {
-    title: tr(Lreview, "cart_opened_log_title"),
-    description: trf(Lreview, "cart_opened_log_desc", { user_id: userId }),
+    title: "🛒 Carrinho aberto",
+    description: `Usuário <@${userId}> abriu um carrinho.`,
     fields: [
-      { name: `**${tr(Lreview, "details_label")}**`, value: `\`1x ${orderName} | ${formatMoney(priceCents, product.currency)}\``, inline: false },
-      { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
     storeConfig,
   });
@@ -756,8 +464,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       const current = await getOrder(order.id);
       if (current?.status === "pending_payment") {
         await updateOrderStatus(order.id, "expired");
-        await deletePixMessage(checkoutThread, current);
-        await checkoutThread.send(trf(Lreview, "order_expired_desc2", { order_number: current.order_number, product: current.product_name })).catch(() => {});
+        await checkoutThread.send("⏰ Pedido expirado por falta de pagamento.").catch(() => {});
         setTimeout(() => {
           checkoutThread.setArchived?.(true).catch(() => {});
           checkoutThread.setLocked?.(true).catch(() => {});
@@ -765,12 +472,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
         // ── Send "Pagamento expirado" log via unified helper ──
         await sendLog(interaction.guild, tenant, {
-          title: tr(Lreview, "payment_expired_log_title"),
-          description: trf(Lreview, "payment_expired_log_desc", { user_id: current.discord_user_id }),
+          title: "🍃 Pagamento expirado",
+          description: `Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`,
           color: 0xED4245,
           fields: [
-            { name: `**${tr(Lreview, "details_label")}**`, value: `\`${current.product_name} | ${formatMoney(current.total_cents, current.currency)}\``, inline: false },
-            { name: `**${tr(Lreview, "order_id_label")}**`, value: `\`${current.id}\``, inline: false },
+            { name: "**Detalhes**", value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
+            { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
           ],
         });
       }
@@ -778,252 +485,40 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   }, timeout);
 }
 
-// ── Global Marketplace Purchase ──
-async function startGlobalMarketplaceCheckout(interaction, listingId) {
-  await interaction.deferReply({ ephemeral: true });
-
-  const { data: listing, error } = await supabase
-    .from("global_marketplace_listings")
-    .select("id, tenant_id, product_id, global_status, products(*), tenants:tenant_id(*)")
-    .eq("id", listingId)
-    .maybeSingle();
-
-  if (error) throw error;
-  const product = Array.isArray(listing?.products) ? listing.products[0] : listing?.products;
-  const sellerTenant = Array.isArray(listing?.tenants) ? listing.tenants[0] : listing?.tenants;
-
-  if (!listing || listing.global_status !== "approved") {
-    return interaction.editReply({ content: "❌ Este produto não está mais disponível no marketplace global." });
-  }
-  if (!product || !product.active) {
-    return interaction.editReply({ content: "❌ Produto indisponível." });
-  }
-  if (!product.price_cents || product.price_cents < 100) {
-    return interaction.editReply({ content: "❌ Preço inválido. Preço mínimo: R$ 1,00." });
-  }
-
-  const fields = await getProductFields(product.id, listing.tenant_id);
-  if (fields.length > 0) {
-    let totalStock = 0;
-    for (const field of fields) totalStock += await countStock(product.id, listing.tenant_id, field.id) || 0;
-    if (totalStock <= 0) return interaction.editReply({ content: "❌ Produto esgotado." });
-  } else {
-    const stockCount = await countStock(product.id, listing.tenant_id);
-    if (stockCount !== null && stockCount <= 0) return interaction.editReply({ content: "❌ Produto esgotado." });
-  }
-
-  const { data: lc } = await supabase
-    .from("landing_config")
-    .select("global_marketplace_commission_percent")
-    .limit(1)
-    .maybeSingle();
-  const commissionPct = Math.max(0, Math.min(100, lc?.global_marketplace_commission_percent ?? 2));
-  const commissionCents = Math.round((product.price_cents * commissionPct) / 100);
-  const sellerCents = product.price_cents - commissionCents;
-
-  const order = await createOrder({
-    tenant_id: listing.tenant_id,
-    product_id: product.id,
-    product_name: product.name,
-    discord_user_id: interaction.user.id,
-    discord_username: interaction.user.username,
-    total_cents: product.price_cents,
-    currency: "BRL",
-    status: "pending_payment",
-    is_global: true,
-    global_listing_id: listing.id,
-    commission_cents: commissionCents,
-    seller_received_cents: sellerCents,
-  });
-
-  await triggerAutomation(listing.tenant_id, "order_created", {
-    discord_user_id: interaction.user.id,
-    discord_username: interaction.user.username,
-    order_id: order.id,
-    order_number: order.order_number,
-    product_name: product.name,
-    total_cents: product.price_cents,
-  });
-
-  const channel = interaction.channel;
-  const threadParent = channel?.isThread?.() ? channel.parent : channel;
-  if (!threadParent?.threads?.create) return interaction.editReply({ content: "❌ Não consegui abrir o carrinho neste canal." });
-
-  const safeUsername = String(interaction.user.username || "cliente")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "cliente";
-
-  let checkoutThread;
-  try {
-    checkoutThread = await threadParent.threads.create({
-      name: `🔄 • carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
-      type: ChannelType.PrivateThread,
-      invitable: false,
-      autoArchiveDuration: 10080,
-      reason: `Marketplace Global #${order.order_number}`,
-    });
-  } catch (privateThreadError) {
-    console.error("[GML] private thread creation failed:", privateThreadError.message);
-    checkoutThread = await threadParent.threads.create({
-      name: `🔄 • carrinho-${safeUsername}-${order.order_number}`.substring(0, 100),
-      type: ChannelType.PublicThread,
-      autoArchiveDuration: 10080,
-      reason: `Marketplace Global #${order.order_number}`,
-    });
-  }
-
-  await checkoutThread.members.add(interaction.user.id).catch(() => {});
-  await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
-
-  const storeConfig = await getStoreConfig(listing.tenant_id);
-  const sellerName = sellerTenant?.name || storeConfig?.store_title || "Marketplace Global";
-  const sellerLogo = storeConfig?.store_logo_url || sellerTenant?.logo_url;
-  const embedColor = resolveProductColor(product, storeConfig);
-  const stockCount = fields.length > 0
-    ? fields.reduce((total, field) => total + (field.stock || 0), 0) || "Disponível"
-    : String(await countStock(product.id, listing.tenant_id) || "Disponível");
-
-  const reviewEmbed = new EmbedBuilder()
-    .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-    .setTitle("🛒 Revisão do pedido")
-    .setDescription([product.auto_delivery ? "⚡ Entrega automática após a confirmação do pagamento" : "", product.description || ""].filter(Boolean).join("\n\n"))
-    .setColor(embedColor)
-    .addFields(
-      { name: "Carrinho", value: `1x ${product.name}`, inline: false },
-      { name: "Preço", value: formatMoney(product.price_cents, "BRL"), inline: true },
-      { name: "Estoque", value: String(stockCount), inline: true },
-      { name: "Tipo", value: "Marketplace Global", inline: true },
-    )
-    .setFooter({ text: `${sellerName} • Pedido #${order.order_number}`, iconURL: sellerLogo || undefined })
-    .setTimestamp();
-  reviewEmbed.setImage(product.banner_url || DRIKA_COVER_URL);
-  if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
-  );
-
-  await sendWithIdentity(checkoutThread, sellerTenant || { name: "DRIKA HUB" }, {
-    content: `<@${interaction.user.id}>`,
-    embeds: [reviewEmbed],
-    components: [row],
-    allowedMentions: { users: [interaction.user.id] },
-  });
-
-  const threadLink = `https://discord.com/channels/${interaction.guild.id}/${checkoutThread.id}`;
-  const linkRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setLabel("Abrir checkout").setStyle(ButtonStyle.Link).setURL(threadLink)
-  );
-
-  await interaction.editReply({ content: "Sua thread de checkout foi criada!", components: [linkRow] });
-}
-
-// ── Lock to prevent duplicate PIX generation ──
-const paymentLocks = new Set();
-
 // ── Go to Payment (generate PIX) ──
 async function goToPayment(interaction, tenant, orderId) {
   await interaction.deferUpdate();
 
-  // Prevent multiple clicks from generating multiple PIX
-  if (paymentLocks.has(orderId)) {
-    const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
-    return interaction.followUp({ content: tr(L, "payment_generating_busy"), ephemeral: true });
-  }
-  paymentLocks.add(orderId);
-
-  try {
-    return await _goToPaymentInternal(interaction, tenant, orderId);
-  } finally {
-    // Release lock after 10s to allow retries if something truly failed
-    setTimeout(() => paymentLocks.delete(orderId), 10000);
-  }
-}
-
-async function _goToPaymentInternal(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
-  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: tr(L, "order_not_pending"), ephemeral: true });
-
-  // Block if payment was already generated for this order
-  if (order.payment_id) {
-    return interaction.followUp({ content: tr(L, "pix_already_generated"), ephemeral: true });
-  }
-
-  // ── Validate stock before generating PIX ──
-  if (order.product_id) {
-    const { data: prod } = await supabase.from("products").select("auto_delivery, stock").eq("id", order.product_id).single();
-    if (prod && prod.auto_delivery) {
-      const fieldId = order.field_id;
-      const sc = await countStock(order.product_id, order.tenant_id, fieldId || undefined);
-      if (sc !== null && sc <= 0) {
-        return interaction.followUp({ content: tr(L, "product_out_of_stock"), ephemeral: true });
-      }
-    }
-  }
-
-  if (order.is_global) {
-    return generateGlobalMarketplacePayment(interaction, tenant, order, L);
-  }
+  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
   const priceCents = order.total_cents;
-  const orderCurrency = (order.currency || "BRL").toUpperCase();
-  const amount = priceCents / 100;
+  const amountBRL = priceCents / 100;
   const webhookBaseUrl = `${process.env.SUPABASE_URL}/functions/v1/payment-webhook`;
   let brcode = "";
   let paymentId = "";
 
-  const { data: orderProduct } = order.product_id
-    ? await supabase.from("products").select("payment_provider_key, currency").eq("id", order.product_id).eq("tenant_id", tenant.id).maybeSingle()
-    : { data: null };
-  const preferredProviderKey = orderProduct?.payment_provider_key || null;
-  const provider = await getActivePaymentProvider(tenant.id, preferredProviderKey);
+  const provider = await getActivePaymentProvider(tenant.id);
 
-  if (preferredProviderKey && !provider) {
-    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "gateway_unavailable_title")).setDescription(tr(L, "gateway_unavailable_desc")).setColor(0xED4245))] });
-  }
-
-  if (orderCurrency !== "BRL" && provider?.provider_key !== "stripe") {
-    return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "gateway_incompatible")).setDescription(trf(L, "stripe_only_error", { amount: formatMoney(priceCents, orderCurrency) })).setColor(0xED4245))] });
-  }
-
-  const generatingText = provider?.provider_key === "stripe" ? tr(L, "generating_stripe_checkout") : tr(L, "generating_qr");
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setDescription(generatingText).setColor(preEmbedColor))] });
-
-  if (provider && amount > 0) {
+  if (provider && amountBRL > 0) {
     const providerKey = provider.provider_key;
     const apiKey = provider.api_key_encrypted;
     const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
     const externalRef = `order_${order.id}`;
 
     if (providerKey === "mercadopago") {
-      const r = await generateMercadoPagoPix(apiKey, amount, order.product_name, externalRef, webhookUrl);
+      const r = await generateMercadoPagoPix(apiKey, amountBRL, order.product_name, externalRef, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "pushinpay") {
       const r = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "misticpay") {
-      const secretKey = provider.secret_key_encrypted || "";
-      const r = await generateMisticPayPix(apiKey, secretKey, amount, externalRef, webhookUrl);
-      brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "abacatepay") {
-      const r = await generateAbacatePayPix(apiKey, priceCents, order.product_name, externalRef);
-      brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "lofypay") {
-      const r = await generateLofyPayPix(apiKey, amount, externalRef, webhookUrl);
-      brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "efi") {
+    } else if (providerKey === "efi" || providerKey === "misticpay") {
       const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
@@ -1032,66 +527,6 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       const pixData = await pixRes.json();
       if (pixData.error) throw new Error(pixData.error);
       brcode = pixData.brcode || ""; paymentId = pixData.payment_id || externalRef;
-    } else if (providerKey === "stripe") {
-      // Stripe: gera Checkout Session (link de pagamento por cartão) ao invés de PIX
-      const stripeRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/stripe-create-checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-        body: JSON.stringify({ tenant_id: tenant.id, order_id: order.id }),
-      });
-      const stripeData = await stripeRes.json();
-      if (stripeData.error) throw new Error(stripeData.error);
-      const checkoutUrl = stripeData.checkout_url;
-      const currency = (stripeData.currency || orderCurrency).toUpperCase();
-      paymentId = stripeData.session_id || externalRef;
-
-      await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: "stripe" });
-
-      // Envia embed Stripe com link button
-      const storeConfig = await getStoreConfig(tenant.id);
-      const embedColor = await resolveOrderColor(order, storeConfig);
-      const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
-      const stripeEmbed = new EmbedBuilder()
-        .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
-        .setTitle(tr(L, "stripe_payment_title"))
-        .setDescription([
-          `**${tr(L, "product_label")}:** \`${order.product_name}\``,
-          `**${tr(L, "value_label")}:** \`${formatMoney(priceCents, currency)}\``,
-          ``,
-          tr(L, "stripe_secure_notice"),
-          tr(L, "stripe_payment_instruction"),
-          ``,
-          tr(L, "stripe_auto_confirm_notice"),
-        ].join("\n"))
-        .setColor(embedColor);
-      if (storeLogo) stripeEmbed.setThumbnail(storeLogo);
-
-      const stripeRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel(tr(L, "pay_with_card")).setStyle(ButtonStyle.Link).setURL(checkoutUrl),
-        new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
-      );
-
-      const stripeSentMsg = await sendWithIdentity(channel, tenant, { embeds: [stripeEmbed], components: [stripeRow] });
-      try {
-        if (stripeSentMsg?.id) {
-          await supabase.from("orders").update({ pix_message_id: stripeSentMsg.id }).eq("id", order.id);
-          order.pix_message_id = stripeSentMsg.id;
-        }
-      } catch (e) { console.error("[CHECKOUT] Failed to persist stripe msg id:", e?.message || e); }
-
-      await sendLog(interaction.guild, tenant, {
-        title: tr(L, "order_requested_log_title"),
-        description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
-        fields: [
-          { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, currency)}\``, inline: false },
-          { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-          { name: `**${tr(L, "payment_method_label")}**`, value: `\`${tr(L, "stripe_card_label")}\``, inline: false },
-        ],
-      });
-
-      // Inicia polling como fallback (webhook é o caminho principal)
-      startPaymentPolling(order.id, tenant.id, channel, tenant, (await getStoreConfig(tenant.id))?.payment_timeout_minutes || 30);
-      return;
     }
 
     await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey });
@@ -1100,40 +535,38 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
       : providerKey === "efi" ? "Pix – Efi Bank"
       : providerKey === "mercadopago" ? "Pix – Mercado Pago"
       : providerKey === "misticpay" ? "Pix – Mistic Pay"
-      : providerKey === "abacatepay" ? "Pix – AbacatePay"
-      : providerKey === "lofypay" ? "Pix – LofyPay"
       : `Pix – ${providerKey}`;
 
     await sendLog(interaction.guild, tenant, {
-      title: tr(L, "order_requested_log_title"),
-      description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+      title: "🆕 Pedido solicitado",
+      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
       fields: [
-        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, order.currency)}\``, inline: false },
-        { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-        { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
+        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+        { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
       ],
     });
   } else {
     // Static PIX
     if (!tenant.pix_key) {
-      return sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Error").setDescription(tr(L, "no_payment_method")).setColor(0xED4245))] });
+      return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
     }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), amount, `PED${order.order_number}`);
+    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
 
     const storeConfig = await getStoreConfig(tenant.id);
     const approvalRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel(tr(L, "approve_payment")).setEmoji("✅").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel(tr(L, "reject")).setEmoji("❌").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
     );
 
     await sendLog(interaction.guild, tenant, {
-      title: tr(L, "order_requested_log_title"),
-      description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
+      title: "🆕 Pedido solicitado",
+      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
       fields: [
-        { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(priceCents, order.currency)}\``, inline: false },
-        { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-        { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${tr(L, "static_pix_label")}\``, inline: false },
+        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+        { name: "**Forma de Pagamento**", value: "`💎 Pix – Estático`", inline: false },
       ],
       components: [approvalRow],
       storeConfig,
@@ -1142,7 +575,7 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
 
   // Send PIX embed
   const storeConfig = await getStoreConfig(tenant.id);
-  const storeName = storeConfig?.store_title || tenant.name || tr(L, "store_default");
+  const storeName = storeConfig?.store_title || tenant.name || "Loja";
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
   const embedColor = await resolveOrderColor(order, storeConfig);
@@ -1155,17 +588,16 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
     timeoutMin,
     date: paymentDate,
     time: paymentTime,
-    lang: L,
     username: order.discord_username || "",
   });
 
   const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
-    .setTitle(tr(L, "pix_created_title"))
+    .setAuthor({ name: order.discord_username || "Comprador" })
+    .setTitle("Pagamento via PIX criado")
     .setDescription([
-      tr(L, "secure_environment_title"), `${tr(L, "secure_environment_desc")}\n`,
-      tr(L, "instant_payment_title"), `${tr(L, "instant_payment_desc")}\n`,
-      `**${tr(L, "pix_copy_code_label")}**`, `\`\`\`\n${brcode}\n\`\`\``,
+      "🟢 **Ambiente Seguro**", "Seu pagamento será processado em um ambiente 100% seguro.\n",
+      "🟢 **Pagamento Instantâneo**", "Assim que confirmado, seu pedido será processado imediatamente.\n",
+      "**Código copia e cola**", `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
@@ -1174,18 +606,11 @@ async function _goToPaymentInternal(interaction, tenant, orderId) {
   if (storeLogo) pixEmbed.setThumbnail(storeLogo);
 
   const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel(tr(L, "pix_copy_code_label")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código copia e cola").setEmoji("📋").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setStyle(ButtonStyle.Danger),
   );
 
-  const pixSentMsg = await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
-  // Save the PIX message id so we can delete it once the payment is resolved
-  try {
-    if (pixSentMsg?.id) {
-      await supabase.from("orders").update({ pix_message_id: pixSentMsg.id }).eq("id", order.id);
-      order.pix_message_id = pixSentMsg.id;
-    }
-  } catch (e) { console.error("[CHECKOUT] Failed to persist pix_message_id:", e?.message || e); }
+  await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
 
   // ── Start payment polling for providers without reliable webhooks ──
   if (provider && provider.provider_key) {
@@ -1243,25 +668,20 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               });
 
               // Log: Pagamento confirmado
-              const Lpaid = await resolveOrderLang(supabase, paidOrder);
               const paidTenant = await require("../supabase").getTenantByGuild(null) || tenant;
-              await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || tr(Lpaid, "store_default"), logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
-                title: tr(Lpaid, "payment_confirmed_log_title"),
-                description: trf(Lpaid, "payment_confirmed_log_desc", { user_id: paidOrder.discord_user_id }),
+              await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || "Loja", logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
+                title: "💰 Pagamento confirmado",
+                description: `Usuário <@${paidOrder.discord_user_id}> teve o pagamento confirmado.`,
                 color: 0x57F287,
                 fields: [
-                  { name: `**${tr(Lpaid, "details_label")}**`, value: `\`${paidOrder.product_name} | ${formatMoney(paidOrder.total_cents, paidOrder.currency)}\``, inline: false },
-                  { name: `**${tr(Lpaid, "order_label")}**`, value: `\`#${paidOrder.order_number}\``, inline: true },
-                  { name: `**${tr(Lpaid, "order_id_label")}**`, value: `\`${orderId}\``, inline: false },
+                  { name: "**Detalhes**", value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
+                  { name: "**Pedido**", value: `\`#${paidOrder.order_number}\``, inline: true },
+                  { name: "**ID do Pedido**", value: `\`${orderId}\``, inline: false },
                 ],
               });
             }
           } catch (e) {
             console.error("[POLLING] Automation trigger error:", e.message);
-          }
-          // Schedule thread archive from bot side (edge function can't do setTimeout)
-          if (currentOrder?.checkout_thread_id) {
-            scheduleThreadArchive({ should_archive: true, checkout_thread_id: currentOrder.checkout_thread_id, order_id: currentOrder.id });
           }
           return; // Stop polling - delivery was triggered by the edge function
         }
@@ -1278,119 +698,15 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
   setTimeout(poll, 10000);
 }
 
-async function generateGlobalMarketplacePayment(interaction, tenant, order, L) {
-  const channel = interaction.channel;
-  const storeConfig = await getStoreConfig(order.tenant_id);
-  const embedColor = await resolveOrderColor(order, storeConfig);
-
-  await sendWithIdentity(channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setDescription("Gerando QR Code PIX do Marketplace Global...").setColor(embedColor))],
-  });
-
-  const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-global-marketplace-pix`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-    body: JSON.stringify({ order_id: order.id }),
-  });
-  const pixData = await pixRes.json().catch(() => ({}));
-  if (!pixRes.ok || pixData.error) {
-    return sendWithIdentity(channel, tenant, {
-      embeds: [applyDrikaCover(new EmbedBuilder().setTitle("❌ Erro ao gerar PIX").setDescription(pixData.error || "Gateway global indisponível.").setColor(0xED4245))],
-    });
-  }
-
-  const brcode = pixData.brcode || "";
-  const providerKey = pixData.provider || "global";
-  const sellerName = storeConfig?.store_title || tenant?.name || "Marketplace Global";
-  const sellerLogo = storeConfig?.store_logo_url || tenant?.logo_url;
-  const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
-  const { date: paymentDate, time: paymentTime } = formatDateTime();
-  const pixFooterText = resolvePixFooter(storeConfig, {
-    storeName: sellerName,
-    productName: order.product_name,
-    orderNumber: order.order_number,
-    timeoutMin,
-    date: paymentDate,
-    time: paymentTime,
-    lang: L,
-    username: order.discord_username || "",
-  });
-
-  const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: order.discord_username || tr(L, "buyer_label") })
-    .setTitle(tr(L, "pix_created_title"))
-    .setDescription([
-      tr(L, "secure_environment_title"), `${tr(L, "secure_environment_desc")}\n`,
-      tr(L, "instant_payment_title"), `${tr(L, "instant_payment_desc")}\n`,
-      `**${tr(L, "pix_copy_code_label")}**`, `\`\`\`\n${brcode}\n\`\`\``,
-    ].join("\n"))
-    .setColor(embedColor)
-    .setImage(qrImageUrl)
-    .setFooter({ text: pixFooterText, iconURL: sellerLogo || undefined });
-  if (sellerLogo) pixEmbed.setThumbnail(sellerLogo);
-
-  const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel(tr(L, "pix_copy_code_label")).setEmoji("📋").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel(tr(L, "cancel")).setStyle(ButtonStyle.Danger),
-  );
-
-  const pixSentMsg = await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
-  if (pixSentMsg?.id) await supabase.from("orders").update({ pix_message_id: pixSentMsg.id }).eq("id", order.id);
-
-  await sendLog(interaction.guild, tenant, {
-    title: tr(L, "order_requested_log_title"),
-    description: trf(L, "order_requested_log_desc", { user_id: order.discord_user_id }),
-    fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-      { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 Pix – Marketplace Global (${providerKey})\``, inline: false },
-    ],
-    storeConfig,
-  });
-
-  startPaymentPolling(order.id, order.tenant_id, channel, tenant, timeoutMin);
-}
-
-async function tryHandleGlobalOrderButton(interaction) {
-  const customId = interaction.customId || "";
-  const prefixes = ["checkout_pay:", "checkout_cancel:", "copy_pix:", "approve_order:", "reject_order:", "cancel_order:"];
-  const prefix = prefixes.find((p) => customId.startsWith(p));
-  if (!prefix) return false;
-
-  const orderId = customId.replace(prefix, "");
-  const order = await getOrder(orderId).catch(() => null);
-  if (!order?.is_global) return false;
-
-  const { data: tenant } = await supabase.from("tenants").select("*").eq("id", order.tenant_id).maybeSingle();
-  const sellerTenant = tenant || { id: order.tenant_id, name: "Marketplace Global" };
-
-  if (prefix === "checkout_pay:") await goToPayment(interaction, sellerTenant, orderId);
-  else if (prefix === "checkout_cancel:" || prefix === "cancel_order:") await cancelOrder(interaction, sellerTenant, orderId);
-  else if (prefix === "copy_pix:") await copyPix(interaction, sellerTenant, orderId);
-  else if (prefix === "approve_order:") await approveOrder(interaction, sellerTenant, orderId);
-  else if (prefix === "reject_order:") await rejectOrder(interaction, sellerTenant, orderId);
-  return true;
-}
-
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
+  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
-  const canApprove = await canManuallyApproveOrder(interaction, tenant);
-  if (!canApprove) {
-    return interaction.followUp({ content: tr(L, "no_manual_approve_permission"), ephemeral: true });
-  }
-
-  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
-
-  await updateOrderStatus(orderId, "paid", { payment_provider: "manual_confirmation" });
-  await deletePixMessageByOrder(interaction.client, order);
-  const manualDeliveryResult = await deliverOrder(orderId, order.tenant_id);
-  scheduleThreadArchive(manualDeliveryResult);
+  await updateOrderStatus(orderId, "paid", { payment_provider: "static_pix" });
+  await deliverOrder(orderId, order.tenant_id);
 
   // Trigger automation
   await triggerAutomation(order.tenant_id, "order_paid", {
@@ -1404,40 +720,33 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    const dmApprovedEmbed = new EmbedBuilder()
-      .setTitle(tr(L, "payment_confirmed_title"))
-      .setDescription(trf(L, "payment_confirmed_desc", { order_number: order.order_number, product: order.product_name }))
-      .setColor(dmEmbedColor)
-      .setTimestamp();
-    applyDrikaCover(dmApprovedEmbed);
-    await user.send({ embeds: [dmApprovedEmbed] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
   } catch {}
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
   const approvedEmbed = new EmbedBuilder()
-    .setTitle(tr(L, "order_approved_panel_title"))
-    .setDescription(trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: interaction.user.id }))
+    .setTitle("✅ Pedido Aprovado")
+    .setDescription(`Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
     .setColor(approveEmbedColor)
     .addFields(
-      { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
-      { name: `💰 ${tr(L, "value_label")}`, value: formatMoney(order.total_cents, order.currency), inline: true },
-      { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
+      { name: "📦 Produto", value: order.product_name, inline: true },
+      { name: "💰 Valor", value: formatBRL(order.total_cents), inline: true },
+      { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true },
     )
     .setTimestamp();
-  applyDrikaCover(approvedEmbed);
 
   await interaction.editReply({ embeds: [approvedEmbed], components: [] });
 
   // Log: Pedido aprovado
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "order_approved_log_title"),
-    description: trf(L, "order_approved_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
+    title: "✅ Pedido aprovado",
+    description: `Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>.`,
     color: 0x57F287,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
+      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -1446,40 +755,30 @@ async function approveOrder(interaction, tenant, orderId) {
 async function rejectOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
-  if (!order) return interaction.followUp({ content: tr(L, "order_not_found"), ephemeral: true });
-  if (order.status !== "pending_payment") return interaction.followUp({ content: trf(L, "order_already_processed", { order_number: order.order_number }), ephemeral: true });
+  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
-  await deletePixMessageByOrder(interaction.client, order);
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    const dmRejectedEmbed = new EmbedBuilder()
-      .setTitle(tr(L, "order_rejected_title"))
-      .setDescription(trf(L, "order_rejected_desc", { order_number: order.order_number, product: order.product_name }))
-      .setColor(0xED4245)
-      .setTimestamp();
-    applyDrikaCover(dmRejectedEmbed);
-    await user.send({ embeds: [dmRejectedEmbed] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0xED4245).setTimestamp()] });
   } catch {}
 
-  const rejectedEmbed = new EmbedBuilder().setTitle(tr(L, "order_rejected_panel_title")).setDescription(trf(L, "order_rejected_panel_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(0xED4245).addFields({ name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true }, { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp();
-  applyDrikaCover(rejectedEmbed);
   await interaction.editReply({
-    embeds: [rejectedEmbed],
+    embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
     components: [],
   });
 
   // Log: Pedido recusado
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "order_rejected_log_title"),
-    description: trf(L, "order_rejected_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
+    title: "🚫 Pedido recusado",
+    description: `Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>.`,
     color: 0xED4245,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
+      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -1489,26 +788,24 @@ async function cancelOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
   if (!order) return;
-  const L = await resolveOrderLang(supabase, order);
 
   if (order.status === "pending_payment") {
     await updateOrderStatus(orderId, "canceled");
   }
 
   const channel = interaction.channel;
-  await deletePixMessage(channel, order);
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "purchase_canceled_title")).setDescription(trf(L, "purchase_canceled_desc_archived", { order_number: order.order_number })).setColor(cancelEmbedColor))] });
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
 
   // Log: Pedido cancelado pelo cliente
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "order_canceled_log_title"),
-    description: trf(L, "order_canceled_log_desc", { user_id: order.discord_user_id }),
+    title: "🗑️ Pedido cancelado",
+    description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
     color: 0xED4245,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
     storeConfig: cancelStoreConfig,
   });
@@ -1522,22 +819,19 @@ async function cancelOrder(interaction, tenant, orderId) {
 // ── Copy PIX ──
 async function copyPix(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id });
-  if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
+  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
 
   if (tenant.pix_key) {
-    const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || tr(L, "store_default"), order.total_cents / 100, `PED${order.order_number}`);
-    return interaction.reply({ content: `${tr(L, "pix_copy_code_title")}\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
+    const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
+    return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
   }
-  return interaction.reply({ content: tr(L, "pix_code_above"), ephemeral: true });
+  return interaction.reply({ content: "📋 O código PIX está na mensagem acima.", ephemeral: true });
 }
 
 // ── Coupon Modal ──
 async function showCouponModal(interaction, orderId) {
-  const order = await getOrder(orderId).catch(() => null);
-  const L = await resolveOrderLang(supabase, order || {});
-  const modal = new ModalBuilder().setCustomId(`coupon_modal_${orderId}`).setTitle(tr(L, "use_coupon"));
-  const input = new TextInputBuilder().setCustomId("coupon_code").setLabel(tr(L, "coupon_code_label")).setStyle(TextInputStyle.Short).setPlaceholder(tr(L, "coupon_code_placeholder")).setRequired(true).setMaxLength(50);
+  const modal = new ModalBuilder().setCustomId(`coupon_modal_${orderId}`).setTitle("Usar Cupom");
+  const input = new TextInputBuilder().setCustomId("coupon_code").setLabel("Código do Cupom").setStyle(TextInputStyle.Short).setPlaceholder("Digite o código...").setRequired(true).setMaxLength(50);
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
 }
@@ -1546,14 +840,14 @@ async function showCouponModal(interaction, orderId) {
 async function handleCouponModal(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
   const couponCode = interaction.fields.getTextInputValue("coupon_code").trim().toUpperCase();
+  if (!couponCode) return interaction.editReply({ content: "❌ Código inválido." });
+
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
-  if (!couponCode) return interaction.editReply({ content: tr(L, "invalid_coupon_code") });
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: tr(L, "order_not_found_or_processed") });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
 
   const coupon = await getCoupon(tenant.id, couponCode);
-  if (!coupon) return interaction.editReply({ content: tr(L, "coupon_not_found") });
-  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: tr(L, "coupon_not_valid_for_product") });
+  if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
+  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "❌ Este cupom não é válido para este produto." });
 
   let discount = coupon.type === "percent" ? Math.floor(order.total_cents * coupon.value / 100) : coupon.value;
   const newTotal = Math.max(0, order.total_cents - discount);
@@ -1562,30 +856,28 @@ async function handleCouponModal(interaction, tenant, orderId) {
   await incrementCouponUsage(coupon.id, coupon.used_count);
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "coupon_applied_title")).setDescription(trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatMoney(order.total_cents, order.currency), new_total: formatMoney(newTotal, order.currency), discount: formatMoney(discount, order.currency) })).setColor(0x57F287))],
+    embeds: [new EmbedBuilder().setTitle("🏷️ Cupom Aplicado!").setDescription(`Cupom **${couponCode}** aplicado!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`).setColor(0x57F287)],
   });
 
-  await interaction.editReply({ content: tr(L, "coupon_applied_response") });
+  await interaction.editReply({ content: "✅ Cupom aplicado!" });
 
   // Log: Cupom aplicado
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "coupon_applied_log_title"),
-    description: trf(L, "coupon_applied_log_desc", { user_id: interaction.user.id }),
+    title: "🏷️ Cupom aplicado",
+    description: `Usuário <@${interaction.user.id}> aplicou um cupom.`,
     fields: [
-      { name: `**${tr(L, "coupon") || tr(L, "coupon_code_label")}**`, value: `\`${couponCode}\``, inline: true },
-      { name: `**${tr(L, "discount_label")}**`, value: `\`-${formatMoney(discount, order.currency)}\``, inline: true },
-      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatMoney(newTotal, order.currency)}\``, inline: true },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: "**Cupom**", value: `\`${couponCode}\``, inline: true },
+      { name: "**Desconto**", value: `\`-${formatBRL(discount)}\``, inline: true },
+      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
   });
 }
 
 // ── Quantity Modal ──
 async function showQuantityModal(interaction, orderId) {
-  const order = await getOrder(orderId).catch(() => null);
-  const L = await resolveOrderLang(supabase, order || {});
-  const modal = new ModalBuilder().setCustomId(`quantity_modal_${orderId}`).setTitle(tr(L, "edit_quantity"));
-  const input = new TextInputBuilder().setCustomId("quantity_value").setLabel(tr(L, "quantity")).setStyle(TextInputStyle.Short).setPlaceholder("1").setRequired(true).setMaxLength(3).setValue("1");
+  const modal = new ModalBuilder().setCustomId(`quantity_modal_${orderId}`).setTitle("Editar Quantidade");
+  const input = new TextInputBuilder().setCustomId("quantity_value").setLabel("Quantidade").setStyle(TextInputStyle.Short).setPlaceholder("1").setRequired(true).setMaxLength(3).setValue("1");
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
 }
@@ -1594,10 +886,10 @@ async function showQuantityModal(interaction, orderId) {
 async function handleQuantityModal(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
   const qty = parseInt(interaction.fields.getTextInputValue("quantity_value").trim());
+  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "❌ Quantidade inválida (1-99)." });
+
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
-  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: tr(L, "invalid_quantity") });
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: tr(L, "order_not_found_or_processed") });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1612,20 +904,20 @@ async function handleQuantityModal(interaction, tenant, orderId) {
   await updateOrderStatus(order.id, "pending_payment", { total_cents: newTotal });
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [applyDrikaCover(new EmbedBuilder().setTitle(tr(L, "quantity_updated_title")).setDescription(trf(L, "quantity_updated_desc", { quantity: qty, total: formatMoney(newTotal, order.currency) })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id))))],
+    embeds: [new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
-  await interaction.editReply({ content: trf(L, "quantity_updated_response", { quantity: qty }) });
+  await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
 
   // Log: Quantidade editada
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "quantity_edited_log_title"),
-    description: trf(L, "quantity_edited_log_desc", { user_id: interaction.user.id }),
+    title: "✏️ Quantidade editada",
+    description: `Usuário <@${interaction.user.id}> alterou a quantidade do pedido.`,
     fields: [
-      { name: `**${tr(L, "product_label")}**`, value: `\`${order.product_name}\``, inline: true },
-      { name: `**${tr(L, "quantity")}**`, value: `\`${qty}x\``, inline: true },
-      { name: `**${tr(L, "new_total_label")}**`, value: `\`${formatMoney(newTotal, order.currency)}\``, inline: true },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
+      { name: "**Produto**", value: `\`${order.product_name}\``, inline: true },
+      { name: "**Quantidade**", value: `\`${qty}x\``, inline: true },
+      { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
   });
 }
@@ -1634,43 +926,28 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 async function markDelivered(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
-
-  const canApprove = await canManuallyApproveOrder(interaction, tenant);
-  if (!canApprove) {
-    return interaction.followUp({ content: tr(L, "no_mark_delivered_permission"), ephemeral: true });
-  }
-
   if (!order) return;
 
-  await updateOrderStatus(orderId, "delivered", {
-    checkout_thread_archive_at: new Date(Date.now() + CHECKOUT_THREAD_ARCHIVE_DELAY_MS).toISOString(),
-    checkout_thread_archived_at: null,
-    checkout_thread_archive_attempts: 0,
-    checkout_thread_archive_error: null,
-  });
-  if (order.checkout_thread_id) {
-    await scheduleThreadArchive({ should_archive: true, checkout_thread_id: order.checkout_thread_id, order_id: order.id });
-  }
+  await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle(tr(L, "delivery_confirmed_title")).setDescription(trf(L, "delivery_confirmed_desc", { order_number: order.order_number, user_id: interaction.user.id })).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle(tr(L, "order_delivered_panel_title")).setDescription(trf(L, "order_delivered_panel_desc", { order_number: order.order_number, product: order.product_name })).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("✅ Pedido Entregue").setDescription(`Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
     components: [],
   });
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "manual_delivery_confirmed_log_title"),
-    description: trf(L, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
+    title: "📦 Entrega manual confirmada",
+    description: `Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`,
     color: 0x57F287,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
+      { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -1679,40 +956,29 @@ async function markDelivered(interaction, tenant, orderId) {
 async function cancelManual(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant.id, tenant_language: tenant.language });
-
-  const canApprove = await canManuallyApproveOrder(interaction, tenant);
-  if (!canApprove) {
-    return interaction.followUp({ content: tr(L, "no_cancel_permission"), ephemeral: true });
-  }
-
   if (!order) return;
 
   await updateOrderStatus(orderId, "canceled");
-  await deletePixMessageByOrder(interaction.client, order);
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder()
-      .setTitle(tr(L, "order_canceled_title"))
-      .setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name }))
-      .setColor(0xED4245)] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`).setColor(0xED4245)] });
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle(tr(L, "order_canceled_title")).setDescription(trf(L, "order_canceled_desc", { order_number: order.order_number, product: order.product_name })).setColor(0xED4245)],
+    embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
     components: [],
   });
 
   // Log: Cancelamento manual pelo admin
   await sendLog(interaction.guild, tenant, {
-    title: tr(L, "manual_cancel_log_title"),
-    description: trf(L, "manual_cancel_log_desc", { order_number: order.order_number, user_id: interaction.user.id }),
+    title: "⛔ Cancelamento manual",
+    description: `Pedido **#${order.order_number}** cancelado manualmente por <@${interaction.user.id}>.`,
     color: 0xED4245,
     fields: [
-      { name: `**${tr(L, "details_label")}**`, value: `\`${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
-      { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-      { name: `**${tr(L, "buyer_label")}**`, value: `<@${order.discord_user_id}>`, inline: false },
+      { name: "**Detalhes**", value: `\`${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
+      { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+      { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
   });
 }
@@ -1720,27 +986,25 @@ async function cancelManual(interaction, tenant, orderId) {
 // ── Copy Delivered ──
 async function copyDelivered(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  const L = await resolveOrderLang(supabase, order || { tenant_id: tenant?.id, tenant_language: tenant?.language });
-  if (!order) return interaction.reply({ content: tr(L, "order_not_found"), ephemeral: true });
+  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
     .eq("delivered_to", order.discord_user_id).eq("delivered", true)
     .order("delivered_at", { ascending: false }).limit(10);
 
-  if (!items?.length) return interaction.reply({ content: tr(L, "delivered_not_found"), ephemeral: true });
+  if (!items?.length) return interaction.reply({ content: "❌ Nenhum conteúdo entregue encontrado.", ephemeral: true });
   const content = items.map((i) => i.content).join("\n");
-  return interaction.reply({ content: trf(L, "delivered_copy_response", { content }), ephemeral: true });
+  return interaction.reply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\``, ephemeral: true });
 }
 
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
-  const { data: product } = await supabase.from("products").select("name, tenant_id, language, currency").eq("id", productId).single();
-  const L = await resolveOrderLang(supabase, { tenant_id: product?.tenant_id || tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
-  if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
+  const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
+  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
 
   const fields = await getProductFields(productId, product.tenant_id);
-  if (!fields.length) return interaction.reply({ content: tr(L, "no_variations"), ephemeral: true });
+  if (!fields.length) return interaction.reply({ content: "Este produto não tem variações.", ephemeral: true });
 
   const storeConfig = await getStoreConfig(product.tenant_id);
   const { data: fullProduct } = await supabase.from("products").select("*").eq("id", productId).single();
@@ -1749,11 +1013,11 @@ async function viewVariations(interaction, tenant, productId) {
   const fieldLines = fields.map((f) => {
     const emoji = f.emoji || "•";
     const desc = f.description ? ` - ${f.description}` : "";
-    return `${emoji} **${f.name}** — ${formatMoney(f.price_cents, product.currency)}${desc}`;
+    return `${emoji} **${f.name}** — ${formatBRL(f.price_cents)}${desc}`;
   });
 
   return interaction.reply({
-    embeds: [new EmbedBuilder().setTitle(trf(L, "variations_of", { product: product.name })).setDescription(fieldLines.join("\n")).setColor(embedColor)],
+    embeds: [new EmbedBuilder().setTitle(`📋 Variações de ${product.name}`).setDescription(fieldLines.join("\n")).setColor(embedColor)],
     ephemeral: true,
   });
 }
@@ -1762,41 +1026,39 @@ async function viewVariations(interaction, tenant, productId) {
 async function viewDetails(interaction, tenant, productId) {
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language, product_id: productId, product_language: product?.language });
-  if (!product) return interaction.reply({ content: tr(L, "product_not_found"), ephemeral: true });
+  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
 
   const fields = await getProductFields(productId, tenant.id);
   const storeConfig = await getStoreConfig(tenant.id);
   const embedColor = resolveProductColor(product, storeConfig);
 
-  const autoDeliveryText = product.auto_delivery ? `${tr(L, "auto_delivery_inline")}\n\n` : "";
+  const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${product.name}`)
-    .setDescription(`${autoDeliveryText}${product.description || tr(L, "no_description")}`)
+    .setDescription(`${autoDeliveryText}${product.description || "Sem descrição."}`)
     .setColor(embedColor)
     .addFields(
-      { name: tr(L, "price_label_md"), value: formatMoney(product.price_cents, product.currency), inline: true },
-      { name: `📦 ${tr(L, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(L, "service_type") : tr(L, "hybrid_type"), inline: true },
+      { name: "💰 Preço", value: formatBRL(product.price_cents), inline: true },
+      { name: "📦 Tipo", value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? "Serviço" : "Híbrido", inline: true },
     );
 
   if (product.show_stock && product.stock !== null) {
-    embed.addFields({ name: `📊 ${tr(L, "stock_label_md")}`, value: trf(L, "stock_count", { stock: product.stock }), inline: true });
+    embed.addFields({ name: "📊 Estoque", value: `${product.stock} disponíveis`, inline: true });
   }
   if (fields.length > 0) {
-    embed.addFields({ name: `📋 ${tr(L, "variations_label")}`, value: trf(L, "variations_count", { count: fields.length }), inline: true });
+    embed.addFields({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
   }
-  embed.setImage(DRIKA_COVER_URL); // Capa fixa Drika
+  if (product.banner_url) embed.setImage(product.banner_url);
   if (product.icon_url) embed.setThumbnail(product.icon_url);
 
   return interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
 module.exports = {
-  startCheckout, startGlobalMarketplaceCheckout, tryHandleGlobalOrderButton, selectVariation, processPurchase,
+  startCheckout, selectVariation, processPurchase,
   goToPayment, approveOrder, rejectOrder, cancelOrder,
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
   markDelivered, cancelManual, copyDelivered,
-  scheduleThreadArchive, processDueCheckoutThreadArchives,
   viewVariations, viewDetails,
 };

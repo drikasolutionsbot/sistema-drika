@@ -265,6 +265,17 @@ async function getGlobalBotConfig() {
   return data;
 }
 
+// ── Restock Notifications ──
+async function addRestockNotification(tenantId, productId, userId, fieldId = null) {
+  const { error } = await supabase.from("restock_notifications").insert({
+    tenant_id: tenantId,
+    product_id: productId,
+    user_id: userId,
+    field_id: fieldId
+  });
+  if (error) console.error("Error adding restock notification:", error.message);
+}
+
 module.exports = {
   supabase,
   getTenantByGuild,
