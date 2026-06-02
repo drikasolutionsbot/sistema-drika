@@ -308,13 +308,69 @@ async function buildProductPayload(
   // Fields (variations) check
   const { data: fields } = await supabase
     .from("product_fields")
-    .select("id")
+    .select("id, name, price_cents")
     .eq("product_id", product_id)
     .eq("tenant_id", tenant_id);
 
+  let finalComponents: any[] = [];
+
+  if (fields && fields.length > 0) {
+    // Get stock for fields
+    const { data: stockItems } = await supabase
+      .from("product_stock_items")
+      .select("field_id")
+      .eq("product_id", product_id)
+      .eq("tenant_id", tenant_id)
+      .eq("delivered", false);
+
+    const stockMap: Record<string, number> = {};
+    if (stockItems) {
+      for (const item of stockItems) {
+        if (item.field_id) {
+          stockMap[item.field_id] = (stockMap[item.field_id] || 0) + 1;
+        }
+      }
+    }
+
+    const currency = (product.currency || "BRL").toUpperCase();
+    const localeMap: Record<string, string> = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
+    
+    const options = fields.slice(0, 25).map((f: any) => {
+      let formattedPrice = "";
+      try {
+        formattedPrice = new Intl.NumberFormat(localeMap[currency] || "pt-BR", { style: "currency", currency }).format((f.price_cents || 0) / 100);
+      } catch {
+        formattedPrice = `${currency} ${((f.price_cents || 0) / 100).toFixed(2)}`;
+      }
+      
+      const stock = stockMap[f.id] || 0;
+      return {
+        label: (f.name || "Opção").slice(0, 100),
+        value: `buy_field:${product_id}:${f.id}`,
+        description: `Valor: ${formattedPrice} | Estoque: ${stock}`.slice(0, 100),
+      };
+    });
+
+    finalComponents = [
+      {
+        type: 1, // ActionRow
+        components: [
+          {
+            type: 3, // StringSelect
+            custom_id: `select_variation:${product_id}`,
+            placeholder: localizedOrCustom("", lang, "select_product_placeholder") || "Selecione um produto...",
+            options: options,
+          }
+        ]
+      }
+    ];
+  } else {
+    finalComponents = [{ type: 1, components: [buyButton] }];
+  }
+
   const payload: Record<string, any> = {
     embeds: [embed],
-    components: [{ type: 1, components: [buyButton] }],
+    components: finalComponents,
   };
 
   return payload;
