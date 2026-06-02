@@ -355,28 +355,20 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
   }
 
-  // ── Create private thread for checkout ──
-  const channel = interaction.channel;
-  const threadName = `🛒 • ${username} • ${order.order_number}`.substring(0, 100);
-
-  const safeUsername = String(username || "cliente")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "cliente";
-
-  const checkoutThread = await interaction.guild.channels.create({
-    name: `carrinho-${safeUsername}-${order.order_number}`,
-    type: ChannelType.GuildText,
-    permissionOverwrites: [
-      { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-    ],
-    reason: `Checkout #${order.order_number}`,
-  });
+  let checkoutThread;
+  try {
+    checkoutThread = await interaction.channel.threads.create({
+      name: `🛒 • ${username} • ${order.order_number}`.substring(0, 100),
+      type: ChannelType.PrivateThread,
+      invitable: false,
+      reason: `Checkout #${order.order_number}`,
+    });
+    // Add customer to the thread
+    await checkoutThread.members.add(userId).catch(() => {});
+  } catch (err) {
+    console.error("[CHECKOUT] create thread error:", err.message);
+    return interaction.editReply({ content: "❌ Erro ao criar o tópico de checkout." });
+  }
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
 
