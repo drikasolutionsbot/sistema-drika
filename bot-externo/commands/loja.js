@@ -1,7 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { getProducts, getCategories, countStock, getStoreConfig } = require("../supabase");
-const { applyDrikaCover } = require("../drikaTemplate");
-const { tr, trf, resolveOrderLang } = require("../i18n");
+const { getProducts, getCategories, countStock, getStoreConfig, getAllProductFields } = require("../supabase");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -10,17 +8,17 @@ module.exports = {
 
   async execute(interaction, tenant) {
     await interaction.deferReply();
-    const L = await resolveOrderLang(require("../supabase").supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
-    const [products, categories, storeConfig] = await Promise.all([
+    const [products, categories, storeConfig, allFields] = await Promise.all([
       getProducts(tenant.id),
       getCategories(tenant.id),
       getStoreConfig(tenant.id),
+      getAllProductFields(tenant.id),
     ]);
 
     if (!products.length) {
       return interaction.editReply({
-        content: tr(L, "no_products_available"),
+        content: "📦 Nenhum produto disponível no momento.",
       });
     }
 
@@ -42,41 +40,60 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setTitle(storeConfig?.store_title || `🛒 ${tenant.name}`)
-      .setDescription(storeConfig?.store_description || tr(L, "store_products_desc"))
+      .setDescription(storeConfig?.store_description || "Confira nossos produtos disponíveis!")
       .setColor(embedColor)
       .setTimestamp();
 
     if (storeConfig?.store_logo_url) embed.setThumbnail(storeConfig.store_logo_url);
     if (storeConfig?.store_banner_url) embed.setImage(storeConfig.store_banner_url);
-    applyDrikaCover(embed);
 
     // Listar produtos
     for (const product of productsWithStock) {
       const price = (product.price_cents / 100).toFixed(2);
-      const stockText = product.show_stock ? ` | ${tr(L, "stock_label_md")}: ${product.stockCount}` : "";
+      const stockText = product.show_stock ? ` | Estoque: ${product.stockCount}` : "";
       const catName = product.category_id ? categoryMap[product.category_id] : null;
       const catTag = catName ? ` [${catName}]` : "";
 
       embed.addFields({
         name: `${product.name}${catTag}`,
-        value: `R$ ${price}${stockText}\n${product.description || tr(L, "no_description")}`,
+        value: `R$ ${price}${stockText}\n${product.description || "Sem descrição"}`,
         inline: true,
       });
     }
 
     // Select menu para escolher produto
-    if (productsWithStock.length <= 25) {
+    const selectOptions = [];
+
+    for (const p of productsWithStock) {
+      const pFields = allFields.filter(f => f.product_id === p.id);
+      
+      if (pFields.length > 0) {
+        // Produto tem campos, adicionar cada campo como uma opção
+        for (const f of pFields) {
+          const fStock = await countStock(p.id, tenant.id, f.id);
+          selectOptions.push({
+            label: `${p.name.slice(0, 50)} - ${f.name}`.slice(0, 100),
+            description: `R$ ${(f.price_cents / 100).toFixed(2)}${p.show_stock ? ` | Estoque: ${fStock}` : ""}`,
+            value: `buy_field:${p.id}:${f.id}`,
+            emoji: f.emoji || (fStock > 0 ? "✅" : "❌"),
+          });
+        }
+      } else {
+        // Produto sem campos
+        selectOptions.push({
+          label: p.name.slice(0, 100),
+          description: `R$ ${(p.price_cents / 100).toFixed(2)}${p.show_stock ? ` | Estoque: ${p.stockCount}` : ""}`,
+          value: p.id,
+          emoji: p.stockCount > 0 ? "✅" : "❌",
+        });
+      }
+    }
+
+    if (selectOptions.length > 0) {
       const selectMenu = new StringSelectMenuBuilder()
         .setCustomId("select_product")
-        .setPlaceholder(tr(L, "select_product_placeholder"))
-        .addOptions(
-          productsWithStock.map((p) => ({
-            label: p.name.slice(0, 100),
-            description: `R$ ${(p.price_cents / 100).toFixed(2)}${p.show_stock ? ` | ${tr(L, "stock_label_md")}: ${p.stockCount}` : ""}`,
-            value: p.id,
-            emoji: p.stockCount > 0 ? "✅" : "❌",
-          }))
-        );
+        .setPlaceholder("Selecione um produto...")
+        .addOptions(selectOptions.slice(0, 25));
 
       const row = new ActionRowBuilder().addComponents(selectMenu);
       return interaction.editReply({ embeds: [embed], components: [row] });

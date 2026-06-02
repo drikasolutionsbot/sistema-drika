@@ -9,47 +9,23 @@ const sorteioCommand = require("../commands/sorteio");
 const checkoutHandler = require("../handlers/checkout");
 const ticketsHandler = require("../handlers/tickets");
 const moderationHandler = require("../handlers/moderation");
-const feedbackHandler = require("../handlers/feedback");
-const { getTenantByGuild } = require("../supabase");
 
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
+  if (!guildId && !interaction.isButton() && !interaction.isModalSubmit()) return;
 
-  // ── Global Marketplace buttons are posted in the central HUB and must not
-  // depend on the current guild being linked to the seller tenant.
-  if (interaction.isButton() && interaction.customId?.startsWith("gml_buy:")) {
-    return checkoutHandler.startGlobalMarketplaceCheckout(interaction, interaction.customId.replace("gml_buy:", ""));
-  }
-  if (interaction.isButton()) {
-    const handledGlobalOrder = await checkoutHandler.tryHandleGlobalOrderButton(interaction);
-    if (handledGlobalOrder) return;
-  }
+  const tenant = guildId ? await client.resolveTenant(guildId) : null;
 
-  // ── DM interactions: handle feedback buttons/modals (no guild needed) ──
-  if (!guildId) {
+  // For DM interactions (buttons), resolve tenant from order
+  if (!tenant && !guildId) {
     if (interaction.isButton()) {
-      const cid = interaction.customId;
-      if (cid.startsWith("feedback_open:")) return feedbackHandler.openFeedback(interaction, cid.replace("feedback_open:", ""));
-      if (cid.startsWith("feedback_rate:")) {
-        const [, orderId, rating] = cid.split(":");
-        return feedbackHandler.rateFeedback(interaction, orderId, rating);
+      const customId = interaction.customId;
+      if (customId.startsWith("cancel_order:") || customId.startsWith("copy_delivered:")) {
+        // These can work without tenant context
       }
-      // copy_delivered button sent in DM — no tenant needed, order has tenant_id
-      if (cid.startsWith("copy_delivered:")) {
-        const orderId = cid.replace("copy_delivered:", "");
-        return checkoutHandler.copyDelivered(interaction, null, orderId);
-      }
-    }
-    if (interaction.isModalSubmit() && interaction.customId.startsWith("feedback_modal:")) {
-      const [, orderId, rating] = interaction.customId.split(":");
-      return feedbackHandler.submitFeedback(interaction, orderId, rating);
     }
     return;
   }
-
-  const cachedTenant = await client.resolveTenant(guildId);
-  const freshTenant = await getTenantByGuild(guildId).catch(() => null);
-  const tenant = freshTenant || cachedTenant;
 
   if (!tenant) {
     if (interaction.isCommand()) {
@@ -138,7 +114,12 @@ module.exports = async function handleInteraction(client, interaction) {
       if (parts.length >= 3) return checkoutHandler.selectVariation(interaction, tenant, parts[1], parts[2]);
     }
     if (interaction.customId === "select_product") {
-      return checkoutHandler.startCheckout(interaction, tenant, interaction.values[0]);
+      const selectedValue = interaction.values[0];
+      if (selectedValue.startsWith("buy_field:")) {
+        const parts = selectedValue.split(":");
+        if (parts.length >= 3) return checkoutHandler.selectVariation(interaction, tenant, parts[1], parts[2]);
+      }
+      return checkoutHandler.startCheckout(interaction, tenant, selectedValue);
     }
   }
 
