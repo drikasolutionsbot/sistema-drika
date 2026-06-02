@@ -118,48 +118,41 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   const staffMemberIds = new Set();
   try {
     const parentCh = await interaction.guild.channels.fetch(parentChannelId);
-    const ticketParent = parentCh?.type === ChannelType.GuildCategory
-      ? interaction.guild.channels.cache.find((c) => c.parentId === parentChannelId && c.type === ChannelType.GuildText)
-      : parentCh;
+    const categoryId = parentCh?.type === ChannelType.GuildCategory ? parentCh.id : parentCh?.parentId;
 
-    if (!ticketParent) throw new Error("Canal pai inválido para criar ticket");
+    const permissionOverwrites = [
+      {
+        id: interaction.guild.id, // @everyone
+        deny: ["ViewChannel"],
+      },
+      {
+        id: userId, // Customer
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      },
+      {
+        id: interaction.client.user.id, // O proprio bot
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "ManageChannels", "ManageMessages"],
+      }
+    ];
 
-    // Create a private thread on the parent text channel
-    ticketChannel = await ticketParent.threads.create({
-      name: threadName,
-      type: ChannelType.PrivateThread,
-      invitable: false,
+    for (const roleId of staffRoleIds) {
+      permissionOverwrites.push({
+        id: roleId,
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      });
+    }
+
+    ticketChannel = await interaction.guild.channels.create({
+      name: `ticket-${safeUsername}-${ticketSuffix}`.substring(0, 100),
+      type: ChannelType.GuildText,
+      parent: categoryId,
+      permissionOverwrites,
       reason: "Ticket de suporte",
     });
 
-    // Add customer
-    await ticketChannel.members.add(userId).catch(() => {});
-
-    // Add staff members by resolving role members from a full guild member fetch.
-    console.log(`[TICKET_OPEN] staffRoleIds=${JSON.stringify(staffRoleIds)} guild=${interaction.guild.id}`);
-    await fetchGuildMembersForTicketStaff(interaction.guild);
-    for (const roleId of staffRoleIds) {
-      try {
-        const role = await interaction.guild.roles.fetch(roleId).catch(() => null);
-        if (role?.members?.size) {
-          role.members.forEach((m) => staffMemberIds.add(m.id));
-        } else {
-          // Fallback: iterate cached members and check role
-          interaction.guild.members.cache.forEach((m) => {
-            if (m.roles.cache.has(roleId)) staffMemberIds.add(m.id);
-          });
-        }
-      } catch (e) {
-        console.warn(`[TICKET_OPEN] role ${roleId} resolve failed:`, e.message);
-      }
-    }
-    console.log(`[TICKET_OPEN] resolved ${staffMemberIds.size} staff members to add`);
-    for (const memberId of staffMemberIds) {
-      await ticketChannel.members.add(memberId).catch((e) => console.warn(`[TICKET_OPEN] add ${memberId} failed:`, e.message));
-    }
   } catch (err) {
-    console.error("[TICKET_OPEN] create ticket thread error:", err.message);
-    return interaction.editReply({ content: "❌ Não foi possível criar o ticket." });
+    console.error("[TICKET_OPEN] create ticket channel error:", err.message);
+    return interaction.editReply({ content: "❌ Não foi possível criar o canal do ticket." });
   }
 
   const ticket = await createTicket({
@@ -195,19 +188,35 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   const staffMentionContent = staffRoleIds.length
     ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
-    : null;
+    : "";
+
+  // Ghost ping para notificar e limpar o canal
+  const ghostContent = `<@${userId}> ${staffMentionContent}`.trim();
+  if (ghostContent) {
+    try {
+      const ghostMsg = await ticketChannel.send({ content: ghostContent });
+      setTimeout(() => ghostMsg.delete().catch(() => {}), 1500);
+    } catch (e) {
+      console.error("[TICKET_OPEN] Ghost ping error:", e.message);
+    }
+  }
 
   const welcomePayload = {
-    content: staffMentionContent || undefined,
     embeds: [welcomeEmbed], components: [row1, row2],
-    allowedMentions: staffRoleIds.length
-      ? { roles: staffRoleIds }
-      : { parse: [] },
   };
 
   const welcomeMsg = await sendWithIdentity(ticketChannel, tenant, welcomePayload);
 
   try { await welcomeMsg.pin(); } catch {}
+
+  // Apagar mensagem de pin do sistema do Discord, se houver
+  setTimeout(async () => {
+    try {
+      const messages = await ticketChannel.messages.fetch({ limit: 5 });
+      const pinMsg = messages.find(m => m.type === 6); // 6 = CHANNEL_PINNED_MESSAGE
+      if (pinMsg) await pinMsg.delete().catch(() => {});
+    } catch (e) {}
+  }, 2000);
 
   await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketChannel.id}>` });
 }
@@ -263,6 +272,14 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
         await interaction.channel.setArchived(true);
         await interaction.channel.setLocked(true);
       } else {
+        try {
+          const currentName = interaction.channel.name;
+          if (!currentName.includes("fechado")) {
+            await interaction.channel.setName(`fechado-${currentName}`.substring(0, 100));
+          }
+        } catch (renameErr) {
+          console.error("Failed to rename channel on closure:", renameErr.message);
+        }
         await interaction.channel.permissionOverwrites.edit(ticket.discord_user_id, {
           ViewChannel: false,
           SendMessages: false,
