@@ -305,4 +305,5 @@ module.exports = {
   triggerAutomation,
   deliverOrder,
   getGlobalBotConfig,
+  addRestockNotification,
 };
