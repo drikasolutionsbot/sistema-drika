@@ -150,6 +150,15 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       reason: "Ticket de suporte",
     });
 
+    // Tentar posicionar logo abaixo do canal de origem
+    if (parentCh && parentCh.type !== ChannelType.GuildCategory) {
+      try {
+        await ticketChannel.setPosition(parentCh.position + 1);
+      } catch (posErr) {
+        console.error("[TICKET_OPEN] Erro ao mudar posicao:", posErr.message);
+      }
+    }
+
   } catch (err) {
     console.error("[TICKET_OPEN] create ticket channel error:", err.message);
     return interaction.editReply({ content: "❌ Não foi possível criar o canal do ticket." });
