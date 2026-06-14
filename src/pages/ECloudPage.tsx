@@ -56,9 +56,8 @@ interface RecentLog {
 
 const PLAN_FEATURES: Record<string, { label: string; limits: string }> = {
   free: { label: "Free", limits: "Recursos básicos" },
-  starter: { label: "Starter", limits: "Até 500 membros" },
-  pro: { label: "Pro", limits: "Membros ilimitados + Prioridade" },
-  business: { label: "Business", limits: "API + Suporte VIP" },
+  pro: { label: "Pro", limits: "Recursos avançados" },
+  master: { label: "Master", limits: "Ilimitado + Recursos VIP" },
 };
 
 const ECloudPage = () => {

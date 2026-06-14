@@ -125,9 +125,16 @@ const AdminClientsPage = () => {
       const updateData: any = { plan: newPlan };
 
       if (newPlan === "pro" || newPlan === "master") {
-        // Activate paid plan: set start to now, expires in 30 days
-        updateData.plan_started_at = now.toISOString();
-        updateData.plan_expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const currentTenant = tenants.find(t => t.id === tenantId);
+        // Só define inicio se não tiver
+        if (!currentTenant?.plan_started_at) {
+          updateData.plan_started_at = now.toISOString();
+        }
+        // ATENÇÃO: Só joga 30 dias se o cliente NÃO tiver um vencimento no futuro.
+        // Isso evita que, ao mudar para Master, o sistema apague os 1000 dias que você deu.
+        if (!currentTenant?.plan_expires_at || new Date(currentTenant.plan_expires_at) < now) {
+          updateData.plan_expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        }
       } else {
         // Downgrade to free/expired: clear dates
         updateData.plan_started_at = null;
