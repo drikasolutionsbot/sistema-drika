@@ -120,6 +120,17 @@ Deno.serve(async (req) => {
           } catch {}
         }
 
+        // Upload backupData to Storage
+        const filePath = `${tenant_id}/${backup.id}.json`;
+        const { error: uploadError } = await supabase.storage
+          .from("backups")
+          .upload(filePath, JSON.stringify(backupData), {
+            contentType: "application/json",
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
         // Update backup record
         await supabase
           .from("ecloud_backups")
@@ -129,7 +140,7 @@ Deno.serve(async (req) => {
             verified_count: verifiedCount,
             orders_count: ordersCount,
             products_count: productsCount,
-            data: backupData,
+            data: { file_path: filePath },
             completed_at: new Date().toISOString(),
           })
           .eq("id", backup.id);
@@ -196,13 +207,26 @@ Deno.serve(async (req) => {
 
     // Get backup data (for export)
     if (action === "get" && body.backup_id) {
-      const { data, error } = await supabase
+      const { data: backupRecord, error } = await supabase
         .from("ecloud_backups")
         .select("*")
         .eq("id", body.backup_id)
         .single();
       if (error) throw error;
-      return json(data);
+
+      // Se o backup usar Storage, baixe o JSON do bucket
+      if (backupRecord?.data?.file_path) {
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from("backups")
+          .download(backupRecord.data.file_path);
+        
+        if (downloadError) throw downloadError;
+        
+        const text = await fileData.text();
+        backupRecord.data = JSON.parse(text);
+      }
+
+      return json(backupRecord);
     }
 
     // Export current data (live, no backup needed)
