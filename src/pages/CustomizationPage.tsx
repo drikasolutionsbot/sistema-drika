@@ -157,7 +157,7 @@ const CustomizationPage = () => {
 
   useEffect(() => {
     checkBotStatus();
-    const iv = setInterval(checkBotStatus, 30000);
+    const iv = setInterval(checkBotStatus, 120000);
     return () => clearInterval(iv);
   }, [checkBotStatus]);
 

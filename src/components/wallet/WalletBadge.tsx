@@ -65,7 +65,7 @@ export const WalletBadge = () => {
     };
 
     load();
-    const interval = setInterval(load, 30_000);
+    const interval = setInterval(load, 300_000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [tenantId]);
 

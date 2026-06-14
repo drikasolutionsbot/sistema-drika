@@ -76,7 +76,7 @@ const SubscriptionPaymentsTab = () => {
 
   // Auto-refresh every 15 seconds to catch confirmed payments
   useEffect(() => {
-    const interval = setInterval(fetchPayments, 15000);
+    const interval = setInterval(fetchPayments, 60000);
     return () => clearInterval(interval);
   }, [fetchPayments]);
 

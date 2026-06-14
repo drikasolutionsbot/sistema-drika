@@ -95,7 +95,7 @@ const ProUpgradeModal = () => {
           setTimeout(() => window.location.reload(), 3000);
         }
       } catch { /* ignore */ }
-    }, 4000);
+    }, 15000);
   };
 
   const generatePix = async (planOverride?: PlanKey) => {

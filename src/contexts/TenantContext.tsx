@@ -133,13 +133,20 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!tenant?.id || tenant.discord_guild_id) return;
 
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void fetchTenant(true);
-      }
-    }, 5000);
+    const channel = supabase
+      .channel(`tenant_${tenant.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tenants", filter: `id=eq.${tenant.id}` },
+        () => {
+          void fetchTenant(true);
+        }
+      )
+      .subscribe();
 
-    return () => window.clearInterval(interval);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [tenant?.id, tenant?.discord_guild_id]);
 
   const isPlanExpired = (() => {

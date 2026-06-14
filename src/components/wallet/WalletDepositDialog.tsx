@@ -46,7 +46,7 @@ const WalletDepositDialog = ({ trigger, onCredited }: Props) => {
         }
       } catch {/* ignore */}
     };
-    pollRef.current = window.setInterval(tick, 4000);
+    pollRef.current = window.setInterval(tick, 15000);
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };

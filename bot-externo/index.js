@@ -125,9 +125,21 @@ client.on(Events.ClientReady, async () => {
     }
   }
 
-  // Sync status immediately and then every 15 seconds
+  // Sync status immediately
   await syncBotStatus();
-  setInterval(syncBotStatus, 15_000);
+
+  // Use Realtime instead of polling
+  const { supabase } = require("./supabase");
+  supabase
+    .channel('global_config_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'landing_config' },
+      () => {
+        syncBotStatus();
+      }
+    )
+    .subscribe();
 
   // Inicia listener de realtime do Supabase para enviar DMs de reabastecimento
   const { initRealtimeListeners } = require("./handlers/realtime");

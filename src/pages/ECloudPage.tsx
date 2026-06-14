@@ -207,7 +207,7 @@ const ECloudPage = () => {
       }
       setLastCheck(new Date());
     };
-    const botInterval = setInterval(checkBot, 30000);
+    const botInterval = setInterval(checkBot, 120000);
     return () => clearInterval(botInterval);
   }, [tenant?.discord_guild_id, tenantId]);
 
