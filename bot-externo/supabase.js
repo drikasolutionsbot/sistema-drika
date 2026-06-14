@@ -6,10 +6,28 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ── In-Memory Cache ──
+const cache = new Map();
+const CACHE_TTL = 60 * 1000; // 1 minuto
+
+async function withCache(key, fetcher) {
+  if (cache.has(key)) {
+    const cached = cache.get(key);
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+  }
+  const data = await fetcher();
+  cache.set(key, { data, timestamp: Date.now() });
+  return data;
+}
+
 // ── Tenant ──
 async function getTenantByGuild(guildId) {
-  const { data } = await supabase.from("tenants").select("*").eq("discord_guild_id", guildId).single();
-  return data;
+  return withCache(`tenant_guild_${guildId}`, async () => {
+    const { data } = await supabase.from("tenants").select("*").eq("discord_guild_id", guildId).single();
+    return data;
+  });
 }
 
 // ── Products ──
@@ -45,22 +63,24 @@ async function fetchProductsFromEdge(tenantId) {
 }
 
 async function getProducts(tenantId, onlyActive = true) {
-  let q = supabase.from("products").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false });
-  if (onlyActive) q = q.eq("active", true);
+  return withCache(`products_${tenantId}_${onlyActive}`, async () => {
+    let q = supabase.from("products").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false });
+    if (onlyActive) q = q.eq("active", true);
 
-  const { data, error } = await q;
-  if (error) {
-    console.error(`[getProducts] Error for tenant ${tenantId}:`, error.message);
-  }
-
-  if ((error || !Array.isArray(data) || data.length === 0) && tenantId) {
-    const fallback = await fetchProductsFromEdge(tenantId);
-    if (fallback.length > 0) {
-      return onlyActive ? fallback.filter((p) => p.active) : fallback;
+    const { data, error } = await q;
+    if (error) {
+      console.error(`[getProducts] Error for tenant ${tenantId}:`, error.message);
     }
-  }
 
-  return data || [];
+    if ((error || !Array.isArray(data) || data.length === 0) && tenantId) {
+      const fallback = await fetchProductsFromEdge(tenantId);
+      if (fallback.length > 0) {
+        return onlyActive ? fallback.filter((p) => p.active) : fallback;
+      }
+    }
+
+    return data || [];
+  });
 }
 
 function extractProductIdCandidates(rawProductId) {
@@ -166,14 +186,18 @@ async function updateOrderStatus(orderId, status, extraFields = {}) {
 
 // ── Store Config ──
 async function getStoreConfig(tenantId) {
-  const { data } = await supabase.from("store_configs").select("*").eq("tenant_id", tenantId).single();
-  return data;
+  return withCache(`store_config_${tenantId}`, async () => {
+    const { data } = await supabase.from("store_configs").select("*").eq("tenant_id", tenantId).single();
+    return data;
+  });
 }
 
 // ── Categories ──
 async function getCategories(tenantId) {
-  const { data } = await supabase.from("categories").select("*").eq("tenant_id", tenantId).order("sort_order", { ascending: true });
-  return data || [];
+  return withCache(`categories_${tenantId}`, async () => {
+    const { data } = await supabase.from("categories").select("*").eq("tenant_id", tenantId).order("sort_order", { ascending: true });
+    return data || [];
+  });
 }
 
 // ── Coupons ──
