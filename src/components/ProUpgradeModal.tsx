@@ -150,7 +150,15 @@ const ProUpgradeModal = () => {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="bg-card/95 backdrop-blur-xl border-primary/20 max-w-md">
+      <DialogContent 
+        className="bg-card/95 backdrop-blur-xl border-primary/20 max-w-md"
+        onInteractOutside={(e) => {
+          if (loading || pixResult?.brcode) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (loading || pixResult?.brcode) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-center text-foreground flex flex-col items-center gap-3">
             <img src={drikaLogo} alt="Drika" className="h-16 w-auto" />

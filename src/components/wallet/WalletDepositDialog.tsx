@@ -94,7 +94,15 @@ const WalletDepositDialog = ({ trigger, onCredited }: Props) => {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-card border-border">
+      <DialogContent 
+        className="sm:max-w-md bg-card border-border"
+        onInteractOutside={(e) => {
+          if (loading || result?.brcode) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (loading || result?.brcode) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowDownLeft className="h-5 w-5 text-emerald-400" />
