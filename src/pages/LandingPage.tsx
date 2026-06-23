@@ -417,6 +417,7 @@ const LandingPage = () => {
     master_price_cents: number;
     pro_plan_name: string;
     master_plan_name: string;
+    show_trial?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -455,7 +456,12 @@ const LandingPage = () => {
           <div className="flex items-center gap-2 sm:gap-4">
             <button onClick={scrollToPlans} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
             <button onClick={() => navigate("/login")} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
-            <button onClick={() => navigate("/signup")} className="text-[11px] sm:text-xs px-3 sm:px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all">Começar</button>
+            <button 
+              onClick={() => (landingConfig?.show_trial ?? true) ? navigate("/signup") : scrollToPlans()} 
+              className="text-[11px] sm:text-xs px-3 sm:px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all"
+            >
+              Começar
+            </button>
           </div>
         </div>
       </nav>
@@ -476,18 +482,29 @@ const LandingPage = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-              <span className="flex items-center justify-center gap-2">
-                <Zap className="h-4 w-4" />
-                Testar Grátis — 4 dias
-              </span>
-            </button>
-            <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
-              <span className="flex items-center justify-center gap-2">
-                <Crown className="h-4 w-4" />
-                Ver Planos
-              </span>
-            </button>
+            {(landingConfig?.show_trial ?? true) ? (
+              <>
+                <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                  <span className="flex items-center justify-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Testar Grátis — 4 dias
+                  </span>
+                </button>
+                <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
+                  <span className="flex items-center justify-center gap-2">
+                    <Crown className="h-4 w-4" />
+                    Ver Planos
+                  </span>
+                </button>
+              </>
+            ) : (
+              <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                <span className="flex items-center justify-center gap-2">
+                  <Crown className="h-4 w-4" />
+                  Ver Planos
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Login link */}
@@ -671,42 +688,44 @@ const LandingPage = () => {
               <p className="text-sm text-white/50">Soluções flexíveis para negócios em crescimento</p>
             </div>
           </ScrollReveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 items-start">
+          <div className={`grid grid-cols-1 ${(landingConfig?.show_trial ?? true) ? "sm:grid-cols-2 md:grid-cols-3" : "sm:grid-cols-2 max-w-2xl mx-auto"} gap-5 items-start`}>
             {/* Trial / Free */}
-            <ScrollReveal>
-              <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-white/20">
-                <span className="inline-flex self-start items-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider">Gratuito</span>
-                <h3 className="text-xl font-extrabold font-display text-white mb-1">Trial</h3>
-                <p className="text-xs text-white/40 mb-5">Teste todas as funcionalidades por 4 dias gratuitamente.</p>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-xs text-white/50">R$</span>
-                  <span className="text-4xl font-extrabold font-display text-white">0</span>
-                  <span className="text-xs text-white/40">/4 dias</span>
-                </div>
-                <ul className="space-y-2.5 mb-6 flex-1">
-                  {[
-                    "Sistema de vendas completo",
-                    "Bot no seu servidor Discord",
-                    "Vendas automáticas via PIX",
-                    "Sistema de tickets",
-                    "Personalização básica",
-                    "Todas as funcionalidades inclusas",
-                  ].map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs text-white/60">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      {f}
+            {(landingConfig?.show_trial ?? true) && (
+              <ScrollReveal>
+                <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-white/20">
+                  <span className="inline-flex self-start items-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider">Gratuito</span>
+                  <h3 className="text-xl font-extrabold font-display text-white mb-1">Trial</h3>
+                  <p className="text-xs text-white/40 mb-5">Teste todas as funcionalidades por 4 dias gratuitamente.</p>
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-xs text-white/50">R$</span>
+                    <span className="text-4xl font-extrabold font-display text-white">0</span>
+                    <span className="text-xs text-white/40">/4 dias</span>
+                  </div>
+                  <ul className="space-y-2.5 mb-6 flex-1">
+                    {[
+                      "Sistema de vendas completo",
+                      "Bot no seu servidor Discord",
+                      "Vendas automáticas via PIX",
+                      "Sistema de tickets",
+                      "Personalização básica",
+                      "Todas as funcionalidades inclusas",
+                    ].map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-xs text-white/60">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        {f}
+                      </li>
+                    ))}
+                    <li className="flex items-start gap-2 text-xs text-white/30">
+                      <Crown className="h-3.5 w-3.5 text-white/20 shrink-0 mt-0.5" />
+                      <span>Marketplace Atacadão <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full ml-1">PRO</span></span>
                     </li>
-                  ))}
-                  <li className="flex items-start gap-2 text-xs text-white/30">
-                    <Crown className="h-3.5 w-3.5 text-white/20 shrink-0 mt-0.5" />
-                    <span>Marketplace Atacadão <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full ml-1">PRO</span></span>
-                  </li>
-                </ul>
-                <button onClick={() => navigate("/signup")} className="w-full py-2.5 rounded-full bg-emerald-500 text-white font-semibold text-sm cursor-pointer border-none hover:bg-emerald-400 transition-all flex items-center justify-center gap-2">
-                  Testar Grátis <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </ScrollReveal>
+                  </ul>
+                  <button onClick={() => navigate("/signup")} className="w-full py-2.5 rounded-full bg-emerald-500 text-white font-semibold text-sm cursor-pointer border-none hover:bg-emerald-400 transition-all flex items-center justify-center gap-2">
+                    Testar Grátis <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </ScrollReveal>
+            )}
 
             {/* Pro / Start */}
             <ScrollReveal delay={0.1}>

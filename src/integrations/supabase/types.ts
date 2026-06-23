@@ -872,6 +872,7 @@ export type Database = {
           pushinpay_api_key: string | null
           referral_bonus_credits_cents: number
           referral_bonus_days: number
+          show_trial: boolean
           stat_products: number
           stat_products_label: string
           stat_sales: number
@@ -913,6 +914,7 @@ export type Database = {
           pushinpay_api_key?: string | null
           referral_bonus_credits_cents?: number
           referral_bonus_days?: number
+          show_trial?: boolean
           stat_products?: number
           stat_products_label?: string
           stat_sales?: number
@@ -954,6 +956,7 @@ export type Database = {
           pushinpay_api_key?: string | null
           referral_bonus_credits_cents?: number
           referral_bonus_days?: number
+          show_trial?: boolean
           stat_products?: number
           stat_products_label?: string
           stat_sales?: number

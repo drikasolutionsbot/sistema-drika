@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { UserPlus, Copy, Check, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -22,6 +22,27 @@ const SignupPage = () => {
   // Token display state
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Config checking state
+  const [trialEnabled, setTrialEnabled] = useState(true);
+  const [checkingConfig, setCheckingConfig] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("landing_config")
+      .select("show_trial")
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data && data.show_trial === false) {
+          setTrialEnabled(false);
+        }
+        setCheckingConfig(false);
+      })
+      .catch(() => {
+        setCheckingConfig(false);
+      });
+  }, []);
 
   const formatWhatsapp = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -102,6 +123,39 @@ const SignupPage = () => {
     window.location.href = "/login";
   };
 
+  // Block signup if trial is disabled in admin
+  if (!checkingConfig && !trialEnabled) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center relative overflow-hidden login-pattern-bg">
+        {/* Backdrop overlay */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10" />
+
+        {/* Modal */}
+        <div className="relative z-20 w-full max-w-md mx-4 animate-fade-in">
+          <div className="rounded-3xl border border-white/10 bg-[#1a1a2e]/95 backdrop-blur-xl p-8 shadow-[0_0_60px_rgba(255,40,73,0.15)] text-center">
+            {/* Logo */}
+            <div className="flex flex-col items-center gap-3 mb-6">
+              <img src={drikaLogo} alt="Drika Solutions" className="h-24 w-auto drop-shadow-[0_0_20px_rgba(255,40,73,0.2)]" />
+            </div>
+
+            <h2 className="text-xl font-bold text-white mb-3">Cadastro Indisponível</h2>
+            <p className="text-sm text-white/60 mb-6 leading-relaxed">
+              O período de testes gratuito (Trial) não está ativo no momento. 
+              Para utilizar as funcionalidades do sistema, por favor, adquira um de nossos planos na página inicial.
+            </p>
+
+            <button
+              onClick={() => navigate("/")}
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-full bg-[#FF2849] hover:bg-[#e52441] text-white font-medium text-base tracking-wide cursor-pointer border-none transition-all"
+            >
+              <span>Ver Planos Disponíveis</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Token display screen — modal over same background
   if (generatedToken) {
     return (
@@ -162,7 +216,7 @@ const SignupPage = () => {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center relative overflow-hidden login-pattern-bg">
-      {loading && (
+      {(loading || checkingConfig) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-12">
             <WifiLoader />

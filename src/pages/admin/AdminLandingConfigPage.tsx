@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Users, TrendingUp, Package, Video, Save, Upload, Link, Loader2, Crown, Sparkles } from "lucide-react";
 import { logAudit } from "@/lib/auditLog";
@@ -28,6 +29,7 @@ const AdminLandingConfigPage = () => {
     master_price_cents: 3090,
     pro_plan_name: "Pro",
     master_plan_name: "Master",
+    show_trial: true,
   });
 
   useEffect(() => {
@@ -52,6 +54,7 @@ const AdminLandingConfigPage = () => {
           master_price_cents: (data as any).master_price_cents || 3090,
           pro_plan_name: (data as any).pro_plan_name || "Pro",
           master_plan_name: (data as any).master_plan_name || "Master",
+          show_trial: (data as any).show_trial !== false,
         });
         setProPriceInput(((data.pro_price_cents || 2690) / 100).toFixed(2));
         setMasterPriceInput((((data as any).master_price_cents || 3090) / 100).toFixed(2));
@@ -79,6 +82,7 @@ const AdminLandingConfigPage = () => {
         master_price_cents: form.master_price_cents,
         pro_plan_name: form.pro_plan_name,
         master_plan_name: form.master_plan_name,
+        show_trial: form.show_trial,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", configId);
@@ -166,6 +170,20 @@ const AdminLandingConfigPage = () => {
           <p className="text-xs text-muted-foreground">
             Personalize o nome e o valor mensal dos planos. Esses dados serão exibidos na landing page e cobrados no checkout via gateway de pagamento configurado.
           </p>
+
+          {/* Trial Toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
+            <div className="space-y-0.5 pr-4">
+              <Label className="text-sm font-semibold">Exibir Plano Trial (Gratuito)</Label>
+              <p className="text-xs text-muted-foreground">
+                Se ativado, o plano Trial (4 dias grátis) e o botão de cadastro gratuito serão exibidos na landing page. Se desativado, apenas os planos pagos (Pro e Master) serão mostrados.
+              </p>
+            </div>
+            <Switch
+              checked={form.show_trial}
+              onCheckedChange={(checked) => setForm((p) => ({ ...p, show_trial: checked }))}
+            />
+          </div>
 
           {/* Pro Plan */}
           <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-4">
