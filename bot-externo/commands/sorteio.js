@@ -57,7 +57,7 @@ module.exports = {
 
     // ── Criar ──
     if (sub === "criar") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Criando sorteio...", ephemeral: true });
 
       try {
         const titulo = interaction.options.getString("titulo");
@@ -91,7 +91,7 @@ module.exports = {
 
     // ── Listar ──
     if (sub === "listar") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Listando sorteios...", ephemeral: true });
 
       try {
         const giveaways = await invokeEdge({ action: "list" });
@@ -121,7 +121,7 @@ module.exports = {
 
     // ── Sortear ──
     if (sub === "sortear") {
-      await interaction.deferReply();
+      await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Realizando sorteio..." });
 
       try {
         const id = interaction.options.getString("id");
@@ -148,7 +148,7 @@ module.exports = {
 
     // ── Cancelar ──
     if (sub === "cancelar") {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Cancelando sorteio...", ephemeral: true });
 
       try {
         const id = interaction.options.getString("id");

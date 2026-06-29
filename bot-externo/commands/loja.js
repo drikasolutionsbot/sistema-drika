@@ -7,7 +7,7 @@ module.exports = {
     .setDescription("Veja os produtos disponíveis na loja"),
 
   async execute(interaction, tenant) {
-    await interaction.deferReply();
+    await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Carregando loja..." });
 
     const [products, categories, storeConfig, allFields] = await Promise.all([
       getProducts(tenant.id),

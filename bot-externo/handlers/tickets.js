@@ -76,7 +76,7 @@ function filterTicketStaffRoleIds(roleIds, storeConfig, tenant) {
 
 // ── Open Ticket (from button or command) ──
 async function openTicket(interaction, tenant, targetChannelId = null) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Aguarde, abrindo ticket...", ephemeral: true });
 
   const userId = interaction.user.id;
   const username = interaction.user.username;
@@ -360,7 +360,7 @@ async function handleRemindTicket(interaction, tenant, ticketId) {
     return interaction.reply({ content: "❌ Apenas membros da equipe podem enviar lembretes.", ephemeral: true });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Enviando lembrete...", ephemeral: true });
   const storeConfig = await getStoreConfig(tenant.id);
 
   const ticket = await getTicketById(ticketId);
@@ -396,7 +396,7 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
     return interaction.reply({ content: "❌ Apenas membros da equipe podem adicionar pessoas ao ticket.", ephemeral: true });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Aguarde, adicionando membro...", ephemeral: true });
 
   const ticket = await getTicketById(ticketId);
   if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });
@@ -438,7 +438,7 @@ async function showRenameModal(interaction, ticketId) {
 
 // ── Rename Modal Submit ──
 async function handleRenameModal(interaction, tenant, ticketId) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Renomeando ticket...", ephemeral: true });
   const newName = interaction.fields.getTextInputValue("new_name").trim();
   if (!newName) return interaction.editReply({ content: "❌ Nome inválido." });
 
@@ -933,7 +933,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
 
 // ── Transcript View Button ──
 async function handleTranscriptView(interaction, tenant, ticketId) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Carregando transcript...", ephemeral: true });
 
   const ticket = await getTicketById(ticketId);
   if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });

@@ -8,7 +8,7 @@ module.exports = {
 
   async execute(interaction, tenant) {
     const sent = Date.now();
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Medindo latência...", ephemeral: true });
     const latency = Date.now() - sent;
     const wsLatency = interaction.client.ws.ping;
 

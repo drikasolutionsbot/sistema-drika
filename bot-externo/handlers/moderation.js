@@ -12,7 +12,7 @@ async function handleClear(interaction, tenant) {
       return interaction.reply({ content: "❌ Você não tem permissão para limpar mensagens.", ephemeral: true });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Limpando mensagens...", ephemeral: true });
 
     const channel = interaction.channel;
     if (!channel || !channel.isTextBased()) {
@@ -81,7 +81,7 @@ async function handleBan(interaction, tenant) {
   const reason = interaction.options.getString("motivo") || "Sem motivo especificado";
   if (!targetUser) return interaction.reply({ content: "❌ Especifique um usuário.", ephemeral: true });
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Aplicando ban...", ephemeral: true });
 
   try {
     await interaction.guild.members.ban(targetUser, { reason, deleteMessageSeconds: 604800 });
@@ -105,7 +105,7 @@ async function handleKick(interaction, tenant) {
   const reason = interaction.options.getString("motivo") || "Sem motivo especificado";
   if (!targetUser) return interaction.reply({ content: "❌ Especifique um usuário.", ephemeral: true });
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "<a:carregadeira:1520106959582527488> Aplicando kick...", ephemeral: true });
 
   try {
     await interaction.guild.members.kick(targetUser, reason);
