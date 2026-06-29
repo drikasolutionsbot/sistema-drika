@@ -438,7 +438,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     new ButtonBuilder().setLabel("Ir para o carrinho").setStyle(ButtonStyle.Link).setURL(threadLink)
   );
 
-  await interaction.editReply({ content: "<:20590check:1520108294268653578> Seu carrinho foi criado com êxito.", components: [linkRow] });
+  await interaction.editReply({ content: "<a:certopreto:1369628807929008228> Seu carrinho foi criado com êxito.", components: [linkRow] });
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {

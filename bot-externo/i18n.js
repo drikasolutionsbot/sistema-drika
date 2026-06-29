@@ -60,7 +60,7 @@ const I18N = {
     confirm_manual: "Confirmar manualmente",
     use_coupon: "Usar Cupom",
     cancel: "Cancelar",
-    cart_created: "<:20590check:1520108294268653578> Seu carrinho foi criado com êxito.",
+    cart_created: "<a:certopreto:1369628807929008228> Seu carrinho foi criado com êxito.",
     go_to_cart: "Ir para o carrinho",
     auto_delivery_inline: "⚡ **Entrega Automática!**",
     cart_opened_log_title: "🛒 Carrinho aberto",
