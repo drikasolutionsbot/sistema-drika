@@ -55,7 +55,7 @@ module.exports = {
     applyDrikaCover(embed);
 
     // Parse button label & emoji
-    const rawLabel = storeConfig?.ticket_embed_button_label || "📩 Abrir Ticket";
+    const rawLabel = storeConfig?.ticket_embed_button_label || "<:mail:1521240067064987669> Abrir Ticket";
     const { emoji, cleanLabel } = parseEmojiFromLabel(rawLabel);
 
     // Use configured button style
