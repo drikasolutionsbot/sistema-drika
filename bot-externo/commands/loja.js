@@ -39,7 +39,7 @@ module.exports = {
     }
 
     const embed = new EmbedBuilder()
-      .setTitle(storeConfig?.store_title || `🛒 ${tenant.name}`)
+      .setTitle(storeConfig?.store_title || `<:car:1521242918290194493> ${tenant.name}`)
       .setDescription(storeConfig?.store_description || "Confira nossos produtos disponíveis!")
       .setColor(embedColor)
       .setTimestamp();

@@ -358,7 +358,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let checkoutThread;
   try {
     checkoutThread = await interaction.channel.threads.create({
-      name: `🛒 • ${username} • ${order.order_number}`.substring(0, 100),
+      name: `<:car:1521242918290194493> • ${username} • ${order.order_number}`.substring(0, 100),
       type: ChannelType.PrivateThread,
       invitable: false,
       reason: `Checkout #${order.order_number}`,
@@ -406,7 +406,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .setTitle("Revisão do Pedido")
     .setColor(embedColor)
     .addFields(
-      { name: "🛒 Carrinho", value: `1x ${orderName}`, inline: false },
+      { name: "<:car:1521242918290194493> Carrinho", value: `1x ${orderName}`, inline: false },
       { name: "Valor à vista", value: formatBRL(priceCents), inline: true },
       { name: "📦 Em estoque", value: stockCount, inline: true },
     )
@@ -442,7 +442,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {
-    title: "🛒 Carrinho aberto",
+    title: "<:car:1521242918290194493> Carrinho aberto",
     description: `Usuário <@${userId}> abriu um carrinho.`,
     fields: [
       { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },

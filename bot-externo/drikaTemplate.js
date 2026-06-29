@@ -10,7 +10,7 @@ const DRIKA_COVER_URL = process.env.DRIKA_COVER_URL || null;
 
 const DRIKA_TEMPLATES = {
   purchase: {
-    title: "🛒 Compra Confirmada",
+    title: "<:car:1521242918290194493> Compra Confirmada",
     description: "Sua compra foi processada com sucesso! Confira os detalhes abaixo.",
   },
   ticket: {

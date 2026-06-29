@@ -38,7 +38,7 @@ function parseEmojiFromLabel(label: string) {
 
 const DEFAULT_PT_TEXTS = new Set([
   "comprar",
-  "🛒 comprar",
+  "<:car:1521242918290194493> comprar",
   "valor à vista",
   "valor a vista",
   "restam",
