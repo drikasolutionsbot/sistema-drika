@@ -227,7 +227,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     } catch (e) {}
   }, 2000);
 
-  await interaction.editReply({ content: `✅ Ticket criado! Acesse <#${ticketChannel.id}>` });
+  await interaction.editReply({ content: `<a:certopreto:1369628807929008228> Ticket criado! Acesse <#${ticketChannel.id}>` });
 }
 
 // ── Close Ticket ──
