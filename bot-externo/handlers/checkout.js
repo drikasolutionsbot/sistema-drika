@@ -25,13 +25,13 @@ function outOfStockPayload(productId, tenantId, fieldId = null) {
     : `notify_restock:${productId}`;
     
   return {
-    content: "❌ | Este produto está sem estoque. Aguarde um reabastecimento!",
+    content: "<:close:1521186425662472212> | Este produto está sem estoque. Aguarde um reabastecimento!",
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(customId)
           .setLabel("Ativar Notificações")
-          .setEmoji("🔔")
+          .setEmoji("<a:bell:1521185744302112789>")
           .setStyle(ButtonStyle.Secondary)
       )
     ]
