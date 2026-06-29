@@ -419,10 +419,10 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o Pagamento").setEmoji("<:check:1521190651146801222>").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel("Editar Quantidade").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel("Editar Quantidade").setEmoji("<:lapis:1521192422753833244>").setStyle(ButtonStyle.Secondary),
   );
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel("Usar Cupom").setEmoji("🏷️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel("Usar Cupom").setEmoji("<:cupon:1521192533932380251>").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("<:trash:1521188625197437188>").setStyle(ButtonStyle.Danger),
   );
 
