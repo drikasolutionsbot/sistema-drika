@@ -185,10 +185,10 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   applyDrikaCover(welcomeEmbed);
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle).setEmoji("1521188814498959481"),
+    new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle).setEmoji("⏰"),
     new ButtonBuilder().setCustomId(`ticket_rename_${ticket.id}`).setLabel("Renomear").setStyle(btnStyle).setEmoji("✏️"),
-    new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel("Arquivar").setStyle(ButtonStyle.Secondary).setEmoji("1521188728058548316"),
-    new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Apagar").setStyle(ButtonStyle.Danger).setEmoji("1521188625197437188"),
+    new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel("Arquivar").setStyle(ButtonStyle.Secondary).setEmoji("📁"),
+    new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel("Apagar").setStyle(ButtonStyle.Danger).setEmoji("🗑️"),
   );
 
   const row2 = new ActionRowBuilder().addComponents(
