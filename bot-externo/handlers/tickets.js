@@ -382,7 +382,7 @@ async function handleRemindTicket(interaction, tenant, ticketId) {
   } catch {}
 
   await sendWithIdentity(interaction.channel, tenant, { content: `🔔 <@${ticket.discord_user_id}>, este é um lembrete sobre seu ticket! Por favor, verifique se há atualizações pendentes.` });
-  await interaction.editReply({ content: `✅ Lembrete enviado para <@${ticket.discord_user_id}>!` });
+  await interaction.editReply({ content: `<:check:1521190651146801222> Lembrete enviado para <@${ticket.discord_user_id}>!` });
 }
 
 // ── Assign User to Ticket ──
@@ -425,7 +425,7 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
     return interaction.editReply({ content: "❌ Não foi possível adicionar o membro ao ticket." });
   }
 
-  await interaction.editReply({ content: `✅ <@${selectedUserId}> adicionado ao ticket!` });
+  await interaction.editReply({ content: `<:check:1521190651146801222> <@${selectedUserId}> adicionado ao ticket!` });
 }
 
 // ── Rename Modal ──
@@ -448,7 +448,7 @@ async function handleRenameModal(interaction, tenant, ticketId) {
   try {
     const ch = await interaction.guild.channels.fetch(ticket.discord_channel_id);
     await ch.setName(newName.substring(0, 100));
-    await interaction.editReply({ content: `✅ Ticket renomeado para: **${newName.substring(0, 100)}**` });
+    await interaction.editReply({ content: `<:check:1521190651146801222> Ticket renomeado para: **${newName.substring(0, 100)}**` });
   } catch {
     await interaction.editReply({ content: "❌ Não foi possível renomear o ticket." });
   }

@@ -91,7 +91,7 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       const errBody = await res.text();
       console.error(`[LOG] REST send failed [${title}]: ${res.status} ${errBody}`);
     } else {
-      console.log(`[LOG] ✅ ${title} sent for tenant ${tenant.id} to channel ${storeConfig.logs_channel_id}`);
+      console.log(`[LOG] <:check:1521190651146801222> ${title} sent for tenant ${tenant.id} to channel ${storeConfig.logs_channel_id}`);
     }
   } catch (err) {
     console.error(`Failed to send log [${title}]:`, err.message);
@@ -352,7 +352,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
     await deliverOrder(order.id, tenant.id);
-    return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
+    return interaction.editReply({ content: `<:check:1521190651146801222> Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
   }
 
   let checkoutThread;
@@ -714,13 +714,13 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("✅ Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("<:check:1521190651146801222> Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
   } catch {}
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
   const approvedEmbed = new EmbedBuilder()
-    .setTitle("✅ Pedido Aprovado")
+    .setTitle("<:check:1521190651146801222> Pedido Aprovado")
     .setDescription(`Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
     .setColor(approveEmbedColor)
     .addFields(
@@ -734,7 +734,7 @@ async function approveOrder(interaction, tenant, orderId) {
 
   // Log: Pedido aprovado
   await sendLog(interaction.guild, tenant, {
-    title: "✅ Pedido aprovado",
+    title: "<:check:1521190651146801222> Pedido aprovado",
     description: `Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>.`,
     color: 0x57F287,
     fields: [
@@ -853,7 +853,7 @@ async function handleCouponModal(interaction, tenant, orderId) {
     embeds: [new EmbedBuilder().setTitle("🏷️ Cupom Aplicado!").setDescription(`Cupom **${couponCode}** aplicado!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`).setColor(0x57F287)],
   });
 
-  await interaction.editReply({ content: "✅ Cupom aplicado!" });
+  await interaction.editReply({ content: "<:check:1521190651146801222> Cupom aplicado!" });
 
   // Log: Cupom aplicado
   await sendLog(interaction.guild, tenant, {
@@ -901,7 +901,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
     embeds: [new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
-  await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
+  await interaction.editReply({ content: `<:check:1521190651146801222> Quantidade atualizada para ${qty}x!` });
 
   // Log: Quantidade editada
   await sendLog(interaction.guild, tenant, {
@@ -925,11 +925,11 @@ async function markDelivered(interaction, tenant, orderId) {
   await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("✅ Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+    embeds: [new EmbedBuilder().setTitle("<:check:1521190651146801222> Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("✅ Pedido Entregue").setDescription(`Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("<:check:1521190651146801222> Pedido Entregue").setDescription(`Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
     components: [],
   });
 

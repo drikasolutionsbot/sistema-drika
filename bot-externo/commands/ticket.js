@@ -71,6 +71,6 @@ module.exports = {
     const row = new ActionRowBuilder().addComponents(button);
 
     await sendWithIdentity(interaction.channel, tenant, { embeds: [embed], components: [row] });
-    await interaction.editReply({ content: "✅ Painel de tickets enviado!" });
+    await interaction.editReply({ content: "<:check:1521190651146801222> Painel de tickets enviado!" });
   },
 };
