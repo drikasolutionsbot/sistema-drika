@@ -319,18 +319,18 @@ export const ProductDetailEmbed = ({ product, onChange, storeEmbedColor }: Produ
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-sm font-bold">Automática</Label>
-                <Input
+                <ButtonLabelWithEmoji
                   value={config.delivery_auto_text || ""}
-                  onChange={(e) => update("delivery_auto_text", e.target.value)}
-                  className="bg-muted border-border"
+                  onChange={(val) => update("delivery_auto_text", val)}
+                  placeholder="Entrega Automática!"
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-bold">Manual</Label>
-                <Input
+                <ButtonLabelWithEmoji
                   value={config.delivery_manual_text || ""}
-                  onChange={(e) => update("delivery_manual_text", e.target.value)}
-                  className="bg-muted border-border"
+                  onChange={(val) => update("delivery_manual_text", val)}
+                  placeholder="Entrega Manual"
                 />
               </div>
             </div>
