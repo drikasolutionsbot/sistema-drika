@@ -198,9 +198,25 @@ async function buildProductPayload(
   let deliveryLine = "";
   if (showDeliveryBadge) {
     if (product.auto_delivery) {
-      deliveryLine = localizedOrCustom(embedConfig.delivery_auto_text, lang, "delivery_auto") + "\n\n";
+      const rawText = localizedOrCustom(embedConfig.delivery_auto_text, lang, "delivery_auto");
+      
+      // Extract custom emoji if present at the start
+      const customEmojiMatch = rawText.match(/^(<a?:\w+:\d+>)\s*(.*)/);
+      if (customEmojiMatch) {
+        deliveryLine = `${customEmojiMatch[1]}\n\`\`\`diff\n+ ${customEmojiMatch[2]}\n\`\`\`\n\n`;
+      } else {
+        deliveryLine = `\`\`\`diff\n+ ${rawText}\n\`\`\`\n\n`;
+      }
     } else {
-      deliveryLine = localizedOrCustom(embedConfig.delivery_manual_text, lang, "delivery_manual") + "\n\n";
+      const rawText = localizedOrCustom(embedConfig.delivery_manual_text, lang, "delivery_manual");
+      
+      // Extract custom emoji if present at the start
+      const customEmojiMatch = rawText.match(/^(<a?:\w+:\d+>)\s*(.*)/);
+      if (customEmojiMatch) {
+        deliveryLine = `${customEmojiMatch[1]}\n\`\`\`diff\n- ${customEmojiMatch[2]}\n\`\`\`\n\n`;
+      } else {
+        deliveryLine = `\`\`\`diff\n- ${rawText}\n\`\`\`\n\n`;
+      }
     }
   }
 
