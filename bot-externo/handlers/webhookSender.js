@@ -59,6 +59,8 @@ async function sendWithIdentity(channel, tenant, options) {
     console.error("Webhook send failed, falling back to channel.send:", err.message);
     return channel.send(options);
   }
+}
+
 async function editWithIdentity(channel, messageId, options) {
   const webhookChannel = resolveWebhookChannel(channel);
   const cacheKey = webhookChannel?.id || channel?.id;
