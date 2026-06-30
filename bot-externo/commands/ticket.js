@@ -66,7 +66,8 @@ module.exports = {
       .setLabel(cleanLabel)
       .setStyle(btnStyle);
 
-    if (emoji) button.setEmoji(emoji);
+    // Force the custom mail emoji for the ticket open button
+    button.setEmoji({ id: "1521240067064987669", name: "mail" });
 
     const row = new ActionRowBuilder().addComponents(button);
 

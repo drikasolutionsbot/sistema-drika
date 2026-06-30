@@ -102,13 +102,8 @@ Deno.serve(async (req) => {
       custom_id: `ticket_open_${tenant_id}_${channel_id}`,
     };
 
-    if (btnEmoji) {
-      if (isCustom && customId) {
-        ticketButton.emoji = { id: customId, name: customName, animated: !!animated };
-      } else {
-        ticketButton.emoji = { name: btnEmoji };
-      }
-    }
+    // Force the custom mail emoji for the ticket open button
+    ticketButton.emoji = { id: "1521240067064987669", name: "mail", animated: false };
 
     const payload: any = {
       embeds: [embed],
