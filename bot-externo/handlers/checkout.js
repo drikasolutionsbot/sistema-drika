@@ -466,7 +466,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       const current = await getOrder(order.id);
       if (current?.status === "pending_payment") {
         await updateOrderStatus(order.id, "expired");
-        await checkoutThread.send("⏰ Pedido expirado por falta de pagamento.").catch(() => {});
+        await checkoutThread.send("🕐 Pedido expirado por falta de pagamento.").catch(() => {});
         setTimeout(() => {
           checkoutThread.setArchived?.(true).catch(() => {});
           checkoutThread.setLocked?.(true).catch(() => {});
@@ -594,22 +594,19 @@ async function goToPayment(interaction, tenant, orderId) {
   });
 
   const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: "Checkout" })
     .setDescription([
-      `Produto: \`${order.product_name}\``,
-      `Campo: \`${order.field_name || order.product_name}\` • Quantidade: \`${order.quantity || 1}\``,
-      "",
-      "---",
-      "",
-      `Valor: \`${formatBRL(priceCents)}\` • Método: \`PIX\``
+      "<:pix:1521557393471832295> **Pagamento via PIX Criado**\n",
+      "🕐 **Expira em:**",
+      `em ${timeoutMin} minutos\n`,
+      "🪙 **Código Copia e Cola:**",
+      `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
     .setFooter({ text: pixFooterText, iconURL: storeLogo || undefined });
 
   const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("PIX Cópia e Cola").setEmoji("❖").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("🗑️").setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código Copia e Cola").setEmoji("1521556965849829496").setStyle(ButtonStyle.Secondary)
   );
 
   const successEmbed = new EmbedBuilder().setDescription("<:check:1521190651146801222> | QR Code gerado com sucesso!").setColor(0x57F287);
