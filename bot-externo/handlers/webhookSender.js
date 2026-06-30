@@ -59,6 +59,28 @@ async function sendWithIdentity(channel, tenant, options) {
     console.error("Webhook send failed, falling back to channel.send:", err.message);
     return channel.send(options);
   }
+async function editWithIdentity(channel, messageId, options) {
+  const webhookChannel = resolveWebhookChannel(channel);
+  const cacheKey = webhookChannel?.id || channel?.id;
+  const isThreadTarget = channel?.isThread?.();
+
+  try {
+    let webhook = webhookCache.get(cacheKey);
+    if (!webhook) return null;
+
+    return await webhook.editMessage(messageId, {
+      ...options,
+      ...(isThreadTarget ? { threadId: channel.id } : {}),
+    });
+  } catch (err) {
+    console.error("Webhook edit failed:", err.message);
+    // Fallback if it was a normal message
+    try {
+      const msg = await channel.messages.fetch(messageId);
+      if (msg && msg.edit) return await msg.edit(options);
+    } catch (e) {}
+    return null;
+  }
 }
 
-module.exports = { sendWithIdentity };
+module.exports = { sendWithIdentity, editWithIdentity };

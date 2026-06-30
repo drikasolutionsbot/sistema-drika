@@ -9,7 +9,7 @@ const {
   getStoreConfig, getCoupon, incrementCouponUsage,
   getActivePaymentProvider, triggerAutomation, deliverOrder, supabase,
 } = require("../supabase");
-const { sendWithIdentity } = require("./webhookSender");
+const { sendWithIdentity, editWithIdentity } = require("./webhookSender");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
@@ -163,7 +163,7 @@ function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
 
 function resolvePixFooter(storeConfig, context) {
   const storeFooter = storeConfig?.purchase_embed_footer || "";
-  const fallback = `${context.storeName} – Pagamento expira em ${context.timeoutMin} minutos.\n• Hoje às ${context.time}`;
+  const fallback = `${context.storeName} • Hoje às ${context.time}`;
   return applyFooterTemplate(storeFooter || fallback, context);
 }
 
@@ -490,7 +490,7 @@ async function goToPayment(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("<a:carregadeira:1515809475922100426> | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
+  const loadingMsg = await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("<a:carregadeira:1515809475922100426> | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
@@ -586,23 +586,31 @@ async function goToPayment(interaction, tenant, orderId) {
   });
 
   const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: order.discord_username || "Comprador" })
-    .setTitle("Pagamento via PIX criado")
     .setDescription([
-      "🟢 **Ambiente Seguro**", "Seu pagamento será processado em um ambiente 100% seguro.\n",
-      "🟢 **Pagamento Instantâneo**", "Assim que confirmado, seu pedido será processado imediatamente.\n",
-      "**Código copia e cola**", `\`\`\`\n${brcode}\n\`\`\``,
+      "💠 **Pagamento via PIX Criado**\n",
+      "🕐 **Expira em:**",
+      `em ${timeoutMin} minutos\n`,
+      "🪙 **Código Copia e Cola:**",
+      `\`\`\`\n${brcode}\n\`\`\``,
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
     .setFooter({ text: pixFooterText, iconURL: storeLogo || undefined });
 
-  if (storeLogo) pixEmbed.setThumbnail(storeLogo);
-
   const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código copia e cola").setEmoji("📋").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código Copia e Cola").setEmoji("📋").setStyle(ButtonStyle.Secondary)
   );
+
+  const successEmbed = new EmbedBuilder().setDescription("<:check:1521190651146801222> | QR Code gerado com sucesso!").setColor(0x57F287);
+  try {
+    if (loadingMsg && loadingMsg.edit && typeof loadingMsg.edit === "function") {
+      await loadingMsg.edit({ embeds: [successEmbed] });
+    } else if (loadingMsg && loadingMsg.id) {
+      await editWithIdentity(channel, loadingMsg.id, { embeds: [successEmbed] });
+    }
+  } catch (e) {
+    console.error("Failed to edit loading message:", e.message);
+  }
 
   await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
 
