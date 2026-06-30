@@ -199,23 +199,29 @@ async function buildProductPayload(
   if (showDeliveryBadge) {
     if (product.auto_delivery) {
       const rawText = localizedOrCustom(embedConfig.delivery_auto_text, lang, "delivery_auto");
-      
-      // Extract custom emoji if present at the start
       const customEmojiMatch = rawText.match(/^(<a?:\w+:\d+>)\s*(.*)/);
       if (customEmojiMatch) {
-        deliveryLine = `${customEmojiMatch[1]}\n\`\`\`diff\n+ ${customEmojiMatch[2]}\n\`\`\`\n\n`;
+        deliveryLine = `${customEmojiMatch[1]} **${customEmojiMatch[2]}**\n\n`;
       } else {
-        deliveryLine = `\`\`\`diff\n+ ${rawText}\n\`\`\`\n\n`;
+        const unicodeMatch = rawText.match(/^(\p{Emoji}|\u26A1|\uD83D[\uDE00-\uDE4F])\s*(.*)/u);
+        if (unicodeMatch) {
+          deliveryLine = `${unicodeMatch[1]} **${unicodeMatch[2]}**\n\n`;
+        } else {
+          deliveryLine = `**${rawText}**\n\n`;
+        }
       }
     } else {
       const rawText = localizedOrCustom(embedConfig.delivery_manual_text, lang, "delivery_manual");
-      
-      // Extract custom emoji if present at the start
       const customEmojiMatch = rawText.match(/^(<a?:\w+:\d+>)\s*(.*)/);
       if (customEmojiMatch) {
-        deliveryLine = `${customEmojiMatch[1]}\n\`\`\`diff\n- ${customEmojiMatch[2]}\n\`\`\`\n\n`;
+        deliveryLine = `${customEmojiMatch[1]} **${customEmojiMatch[2]}**\n\n`;
       } else {
-        deliveryLine = `\`\`\`diff\n- ${rawText}\n\`\`\`\n\n`;
+        const unicodeMatch = rawText.match(/^(\p{Emoji}|\u26A1|\uD83D[\uDE00-\uDE4F])\s*(.*)/u);
+        if (unicodeMatch) {
+          deliveryLine = `${unicodeMatch[1]} **${unicodeMatch[2]}**\n\n`;
+        } else {
+          deliveryLine = `**${rawText}**\n\n`;
+        }
       }
     }
   }

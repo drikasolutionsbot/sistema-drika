@@ -187,18 +187,17 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
               );
               
               const customEmojiMatch = rawText.match(/^(<a?:\w+:\d+>)\s*(.*)/);
-              const emojiPart = customEmojiMatch ? customEmojiMatch[1] : null;
-              const textPart = customEmojiMatch ? customEmojiMatch[2] : rawText;
+              const unicodeMatch = !customEmojiMatch ? rawText.match(/^(\p{Emoji}|\u26A1|\uD83D[\uDE00-\uDE4F])\s*(.*)/u) : null;
+              
+              const emojiPart = customEmojiMatch ? customEmojiMatch[1] : (unicodeMatch ? unicodeMatch[1] : null);
+              const textPart = customEmojiMatch ? customEmojiMatch[2] : (unicodeMatch ? unicodeMatch[2] : rawText);
               
               return (
-                <div className="my-2 space-y-1">
-                  {emojiPart && <p className="text-sm">{renderTextWithEmojis(emojiPart)}</p>}
-                  <div className="bg-[#1E1F22] border border-[#1E1F22] rounded px-2 py-1.5 font-mono text-xs">
-                    <span className={product.auto_delivery ? "text-[#57F287]" : "text-[#ED4245]"}>
-                      {product.auto_delivery ? "+ " : "- "}
-                      {renderTextWithEmojis(textPart)}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {emojiPart && <span className="text-sm leading-none">{renderTextWithEmojis(emojiPart)}</span>}
+                  <span className="text-[#dcddde] text-xs font-bold leading-none">
+                    {renderTextWithEmojis(textPart)}
+                  </span>
                 </div>
               );
             })()}
