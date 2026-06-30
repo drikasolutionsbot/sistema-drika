@@ -8,7 +8,7 @@ import { type EmbedConfig, DEFAULT_EMBED } from "./ProductDetailEmbed";
 import { parseEmojiFromLabel } from "@/components/discord/ButtonLabelWithEmoji";
 
 const DISCORD_LABELS: Record<string, Record<string, string>> = {
-  "pt-BR": { buy: "🛒 Comprar", buy_plain: "comprar", price: "Valor à vista", stock: "Restam", auto: "⚡ Entrega Automática!", manual: "📦 Entrega Manual", available: "✅ Disponível • Compre agora!", unavailable: "❌ Indisponível" },
+  "pt-BR": { buy: "🛒 Comprar", buy_plain: "comprar", price: "Valor à vista", stock: "Restam", auto: "<:zap:1521562668992037004> Entrega Automática!", manual: "📦 Entrega Manual", available: "✅ Disponível • Compre agora!", unavailable: "❌ Indisponível" },
   en: { buy: "🛒 Buy", buy_plain: "buy", price: "Price", stock: "In stock", auto: "⚡ Instant Delivery!", manual: "📦 Manual Delivery", available: "✅ Available • Buy now!", unavailable: "❌ Unavailable" },
   de: { buy: "🛒 Kaufen", buy_plain: "kaufen", price: "Preis", stock: "Verfügbar", auto: "⚡ Sofortige Lieferung!", manual: "📦 Manuelle Lieferung", available: "✅ Verfügbar • Jetzt kaufen!", unavailable: "❌ Nicht verfügbar" },
 };
@@ -17,7 +17,7 @@ const DEFAULT_DISCORD_TEXTS = new Set([
   "comprar", "🛒 comprar", "buy", "🛒 buy", "kaufen", "🛒 kaufen",
   "valor à vista", "valor a vista", "price", "preis",
   "restam", "in stock", "verfügbar",
-  "⚡ entrega automática!", "⚡ entrega automatica!", "⚡ instant delivery!", "⚡ sofortige lieferung!",
+  "<:zap:1521562668992037004> entrega automática!", "<:zap:1521562668992037004> entrega automatica!", "<:zap:1521562668992037004> instant delivery!", "<:zap:1521562668992037004> sofortige lieferung!",
   "📦 entrega manual", "🛠️ entrega manual", "📦 manual delivery", "🛠️ manual delivery", "📦 manuelle lieferung", "🛠️ manuelle lieferung",
   "✅ disponível • compre agora!", "✅ disponivel • compre agora!", "✅ available • buy now!", "✅ verfügbar • jetzt kaufen!",
   "❌ indisponível", "❌ indisponivel", "❌ unavailable", "❌ nicht verfügbar",

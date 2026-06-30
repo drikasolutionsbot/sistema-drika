@@ -287,7 +287,7 @@ async function startCheckout(interaction, tenant, productId) {
       description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stockMap[f.id] || 0}`,
     }));
 
-    const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+    const autoDelivery = product.auto_delivery ? "<:zap:1521562668992037004> **Entrega Automática!**\n\n" : "";
     const embed = new EmbedBuilder()
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
@@ -387,7 +387,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // Build checkout embed
   const descLines = [];
-  if (product.auto_delivery) descLines.push("⚡ **Entrega Automática!**");
+  if (product.auto_delivery) descLines.push("<:zap:1521562668992037004> **Entrega Automática!**");
   if (product.description) descLines.push(product.description);
 
   const { date: checkoutDate, time: checkoutTime } = formatDateTime();
@@ -419,9 +419,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
     .setTimestamp();
 
-  if (descLines.length) reviewEmbed.setDescription(reviewEmbed.data.description + "\n\n" + descLines.join("\n\n"));
-  if (product.banner_url) reviewEmbed.setImage(product.banner_url);
-  if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
+  // Product description and image were intentionally removed from checkout per requested design
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o Pagamento").setEmoji("1521190651146801222").setStyle(ButtonStyle.Success)
@@ -1042,7 +1040,7 @@ async function viewDetails(interaction, tenant, productId) {
   const storeConfig = await getStoreConfig(tenant.id);
   const embedColor = resolveProductColor(product, storeConfig);
 
-  const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
+  const autoDeliveryText = product.auto_delivery ? "<:zap:1521562668992037004> **Entrega Automática!**\n\n" : "";
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${product.name}`)
     .setDescription(`${autoDeliveryText}${product.description || "Sem descrição."}`)

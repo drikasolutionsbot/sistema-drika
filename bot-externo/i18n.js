@@ -62,7 +62,7 @@ const I18N = {
     cancel: "Cancelar",
     cart_created: "<a:certopreto:1369628807929008228> Seu carrinho foi criado com êxito.",
     go_to_cart: "Ir para o carrinho",
-    auto_delivery_inline: "⚡ **Entrega Automática!**",
+    auto_delivery_inline: "<:zap:1521562668992037004> **Entrega Automática!**",
     cart_opened_log_title: "<:car:1521242918290194493> Carrinho aberto",
     cart_opened_log_desc: "Usuário <@{user_id}> abriu um carrinho.",
     payment_expired_log_title: "🍃 Pagamento expirado",
