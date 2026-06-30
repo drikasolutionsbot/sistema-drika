@@ -57,7 +57,7 @@ module.exports = {
 
     // ── Criar ──
     if (sub === "criar") {
-      await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Criando sorteio...", ephemeral: true });
+      await interaction.reply({ content: "<a:loading:1521565470686445678> Criando sorteio...", ephemeral: true });
 
       try {
         const titulo = interaction.options.getString("titulo");
@@ -91,7 +91,7 @@ module.exports = {
 
     // ── Listar ──
     if (sub === "listar") {
-      await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Listando sorteios...", ephemeral: true });
+      await interaction.reply({ content: "<a:loading:1521565470686445678> Listando sorteios...", ephemeral: true });
 
       try {
         const giveaways = await invokeEdge({ action: "list" });
@@ -121,7 +121,7 @@ module.exports = {
 
     // ── Sortear ──
     if (sub === "sortear") {
-      await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Realizando sorteio..." });
+      await interaction.reply({ content: "<a:loading:1521565470686445678> Realizando sorteio..." });
 
       try {
         const id = interaction.options.getString("id");
@@ -148,7 +148,7 @@ module.exports = {
 
     // ── Cancelar ──
     if (sub === "cancelar") {
-      await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Cancelando sorteio...", ephemeral: true });
+      await interaction.reply({ content: "<a:loading:1521565470686445678> Cancelando sorteio...", ephemeral: true });
 
       try {
         const id = interaction.options.getString("id");

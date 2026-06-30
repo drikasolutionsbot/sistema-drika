@@ -39,7 +39,7 @@ module.exports = {
     .setDescription("Enviar painel de tickets no canal atual"),
 
   async execute(interaction, tenant) {
-    await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Aguarde, enviando painel...", ephemeral: true });
+    await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, enviando painel...", ephemeral: true });
 
     const storeConfig = await getStoreConfig(tenant.id);
     const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || "#5865F2").replace("#", ""), 16);

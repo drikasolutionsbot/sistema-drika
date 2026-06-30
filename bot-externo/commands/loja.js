@@ -7,7 +7,7 @@ module.exports = {
     .setDescription("Veja os produtos disponíveis na loja"),
 
   async execute(interaction, tenant) {
-    await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Carregando loja..." });
+    await interaction.reply({ content: "<a:loading:1521565470686445678> Carregando loja..." });
 
     const [products, categories, storeConfig, allFields] = await Promise.all([
       getProducts(tenant.id),

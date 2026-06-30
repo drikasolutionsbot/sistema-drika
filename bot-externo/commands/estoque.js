@@ -9,7 +9,7 @@ module.exports = {
     .setDescription("Veja o estoque atual dos produtos"),
 
   async execute(interaction, tenant) {
-    await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Verificando estoque...", ephemeral: true });
+    await interaction.reply({ content: "<a:loading:1521565470686445678> Verificando estoque...", ephemeral: true });
     const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
     const [products, storeConfig] = await Promise.all([

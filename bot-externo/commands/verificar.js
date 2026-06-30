@@ -14,7 +14,7 @@ async function execute(interaction, tenant) {
     return interaction.reply({ content: "⚠️ A verificação está desativada neste servidor.", ephemeral: true });
   }
 
-  await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Aguarde, enviando embed...", ephemeral: true });
+  await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, enviando embed...", ephemeral: true });
 
   try {
     const { DRIKA_TEMPLATES, DRIKA_COVER_URL } = require("../drikaTemplate");

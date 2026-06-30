@@ -214,7 +214,7 @@ async function generatePushinPayPix(apiKey, amountCents, webhook) {
 
 // ── Start Checkout (from buy_product button) ──
 async function startCheckout(interaction, tenant, productId) {
-  await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Aguarde, criando carrinho...", ephemeral: true });
+  await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, criando carrinho...", ephemeral: true });
 
   console.log(`[CHECKOUT] startCheckout productId=${productId} tenantId=${tenant.id}`);
 
@@ -308,7 +308,7 @@ async function startCheckout(interaction, tenant, productId) {
 
 // ── Select Variation (from dropdown) ──
 async function selectVariation(interaction, tenant, productId, fieldId) {
-  await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Aguarde, processando seleção...", ephemeral: true });
+  await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, processando seleção...", ephemeral: true });
 
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
@@ -496,7 +496,7 @@ async function goToPayment(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  const loadingMsg = await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("<a:carregadeira:1515809475922100426> | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
+  const loadingMsg = await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("<a:loading:1521565470686445678> | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
   const priceCents = order.total_cents;
   const amountBRL = priceCents / 100;
@@ -846,7 +846,7 @@ async function showCouponModal(interaction, orderId) {
 
 // ── Coupon Modal Submit ──
 async function handleCouponModal(interaction, tenant, orderId) {
-  await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Verificando cupom...", ephemeral: true });
+  await interaction.reply({ content: "<a:loading:1521565470686445678> Verificando cupom...", ephemeral: true });
   const couponCode = interaction.fields.getTextInputValue("coupon_code").trim().toUpperCase();
   if (!couponCode) return interaction.editReply({ content: "❌ Código inválido." });
 
@@ -892,7 +892,7 @@ async function showQuantityModal(interaction, orderId) {
 
 // ── Quantity Modal Submit ──
 async function handleQuantityModal(interaction, tenant, orderId) {
-  await interaction.reply({ content: "<a:carregadeira:1515809475922100426> Atualizando quantidade...", ephemeral: true });
+  await interaction.reply({ content: "<a:loading:1521565470686445678> Atualizando quantidade...", ephemeral: true });
   const qty = parseInt(interaction.fields.getTextInputValue("quantity_value").trim());
   if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "❌ Quantidade inválida (1-99)." });
 
