@@ -358,7 +358,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   let checkoutThread;
   try {
     checkoutThread = await interaction.channel.threads.create({
-      name: `<:car:1521242918290194493> • ${username} • ${order.order_number}`.substring(0, 100),
+      name: `🛒 • ${username} • ${order.order_number}`.substring(0, 100),
       type: ChannelType.PrivateThread,
       invitable: false,
       reason: `Checkout #${order.order_number}`,
