@@ -297,13 +297,8 @@ async function buildProductPayload(
     custom_id: `buy_product:${product_id}`,
   };
 
-  if (btnEmoji) {
-    if (isCustom && customId) {
-      buyButton.emoji = { id: customId, name: customName, animated: !!animated };
-    } else {
-      buyButton.emoji = { name: btnEmoji };
-    }
-  }
+  // Always use the custom car emoji for the buy button
+  buyButton.emoji = { id: "1521242918290194493", name: "car", animated: false };
 
   // Fields (variations) check
   const { data: fields } = await supabase
