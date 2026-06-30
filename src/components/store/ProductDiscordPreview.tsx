@@ -180,13 +180,28 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             <p className="text-white font-semibold text-sm">{title}</p>
 
             {/* Delivery badge */}
-            {cfg.show_delivery_badge !== false && (
-              product.auto_delivery ? (
-                <p className="text-[#dcddde] text-xs font-semibold">{renderTextWithEmojis(localizedOrCustom(cfg.delivery_auto_text, L.auto))}</p>
-              ) : (
-                <p className="text-[#dcddde] text-xs font-semibold">{renderTextWithEmojis(localizedOrCustom(cfg.delivery_manual_text, L.manual))}</p>
-              )
-            )}
+            {cfg.show_delivery_badge !== false && (() => {
+              const rawText = localizedOrCustom(
+                product.auto_delivery ? cfg.delivery_auto_text : cfg.delivery_manual_text,
+                product.auto_delivery ? L.auto : L.manual
+              );
+              
+              const customEmojiMatch = rawText.match(/^(<a?:\w+:\d+>)\s*(.*)/);
+              const emojiPart = customEmojiMatch ? customEmojiMatch[1] : null;
+              const textPart = customEmojiMatch ? customEmojiMatch[2] : rawText;
+              
+              return (
+                <div className="my-2 space-y-1">
+                  {emojiPart && <p className="text-sm">{renderTextWithEmojis(emojiPart)}</p>}
+                  <div className="bg-[#1E1F22] border border-[#1E1F22] rounded px-2 py-1.5 font-mono text-xs">
+                    <span className={product.auto_delivery ? "text-[#57F287]" : "text-[#ED4245]"}>
+                      {product.auto_delivery ? "+ " : "- "}
+                      {renderTextWithEmojis(textPart)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Description */}
             {description && (
