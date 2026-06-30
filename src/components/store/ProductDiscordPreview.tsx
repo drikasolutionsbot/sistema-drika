@@ -110,6 +110,26 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
   const title = resolveTemplate(cfg.title || "", `${product.icon_url ? "" : "🛒 "}${product.name || "Produto sem nome"}`);
   const description = cfg.description ? resolveTemplate(cfg.description, "") : product.description;
 
+  const renderTextWithEmojis = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(<a?:\w+:\d+>)/g);
+    return parts.map((part, i) => {
+      const match = part.match(/^<a?:(\w+):(\d+)>$/);
+      if (match) {
+        const isAnimated = part.startsWith("<a:");
+        return (
+          <img
+            key={i}
+            src={`https://cdn.discordapp.com/emojis/${match[2]}.${isAnimated ? "gif" : "png"}`}
+            alt={match[1]}
+            className="h-4 w-4 inline-block align-text-bottom mr-1"
+          />
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   const renderEmoji = (emoji: string | null) => {
     if (!emoji) return null;
     const match = emoji.match(/^<a?:(\w+):(\d+)>$/);
@@ -162,16 +182,16 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
             {/* Delivery badge */}
             {cfg.show_delivery_badge !== false && (
               product.auto_delivery ? (
-                <p className="text-[#57F287] text-xs font-semibold">{localizedOrCustom(cfg.delivery_auto_text, L.auto)}</p>
+                <p className="text-[#dcddde] text-xs font-semibold">{renderTextWithEmojis(localizedOrCustom(cfg.delivery_auto_text, L.auto))}</p>
               ) : (
-                <p className="text-[#FEE75C] text-xs font-semibold">{localizedOrCustom(cfg.delivery_manual_text, L.manual)}</p>
+                <p className="text-[#dcddde] text-xs font-semibold">{renderTextWithEmojis(localizedOrCustom(cfg.delivery_manual_text, L.manual))}</p>
               )
             )}
 
             {/* Description */}
             {description && (
               <p className="text-[#dcddde] text-xs whitespace-pre-wrap line-clamp-4">
-                {description}
+                {renderTextWithEmojis(description)}
               </p>
             )}
 
