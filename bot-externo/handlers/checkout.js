@@ -402,33 +402,41 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   });
 
   const reviewEmbed = new EmbedBuilder()
-    .setAuthor({ name: username, iconURL: interaction.user.displayAvatarURL() })
-    .setTitle("Revisão do Pedido")
+    .setAuthor({ name: "Carrinho de Compras" })
     .setColor(embedColor)
-    .addFields(
-      { name: "Valor à vista", value: `\`${formatBRL(priceCents)}\``, inline: true },
-      { name: "Em estoque", value: `\`${stockCount}\``, inline: true },
-      { name: "Carrinho", value: `\`1x\` \`${orderName} | ${formatBRL(priceCents)}\``, inline: false }
-    )
+    .setDescription([
+      `🛍️ **${product.name} (x1)**`,
+      fieldId ? `Campo: \`${fieldName}\`` : null,
+      `Preço unitário: \`${formatBRL(priceCents)}\``,
+      `Total: \`${formatBRL(priceCents)}\``,
+      "",
+      "---",
+      "",
+      `**Subtotal:** \`${formatBRL(priceCents)}\``,
+      `**Total:** \`${formatBRL(priceCents)}\``,
+      "**Forma de Pagamento:** `PIX`"
+    ].filter(Boolean).join("\n"))
     .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
     .setTimestamp();
 
-  if (descLines.length) reviewEmbed.setDescription(descLines.join("\n\n"));
+  if (descLines.length) reviewEmbed.setDescription(reviewEmbed.data.description + "\n\n" + descLines.join("\n\n"));
   if (product.banner_url) reviewEmbed.setImage(product.banner_url);
   if (product.icon_url) reviewEmbed.setThumbnail(product.icon_url);
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o Pagamento").setEmoji("1521190651146801222").setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel("Editar Quantidade").setEmoji("1521192422753833244").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`checkout_pay:${order.id}`).setLabel("Ir para o Pagamento").setEmoji("1521190651146801222").setStyle(ButtonStyle.Success)
   );
   const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`checkout_quantity:${order.id}`).setLabel("Editar Quantidade").setEmoji("1521192422753833244").setStyle(ButtonStyle.Primary)
+  );
+  const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`checkout_coupon:${order.id}`).setLabel("Usar Cupom").setEmoji("1521192533932380251").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("1521192495516487932").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`checkout_cancel:${order.id}`).setLabel("Cancelar").setEmoji("1521192495516487932").setStyle(ButtonStyle.Danger)
   );
 
   await sendWithIdentity(checkoutThread, tenant, {
     embeds: [reviewEmbed],
-    components: [row1, row2],
+    components: [row1, row2, row3],
     allowedMentions: { parse: [] },
   });
 
