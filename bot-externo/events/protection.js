@@ -93,19 +93,35 @@ async function detectRogueNuke(client, guild) {
     // Set flag to avoid spamming the owner
     rogueNukeTracker.set(guild.id, [-1]);
 
+    const message = "🚨 **URGENTE! DESLIGUE SEU BOT NA HETZNER!** 🚨\n\n" +
+                    "Possível invasão hacker detectada! Uma atividade anormal de criação/exclusão em massa de canais está ocorrendo no seu servidor **" + guild.name + "**.\n\n" +
+                    "Se o problema persistir após desligar a VPS, **SEU TOKEN FOI ROUBADO** (o hacker está rodando do computador dele).\n" +
+                    "Vá AGORA nas Configurações do Servidor > Cargos e **TIRE A PERMISSÃO DE ADMINISTRADOR DO BOT** ou **EXPULSE-O** para parar o ataque!\n" +
+                    "Depois, resete seu Token no Discord Developer Portal imediatamente!";
+
     try {
-      const owner = await guild.fetchOwner();
-      if (owner) {
-        await owner.send(
-          "🚨 **URGENTE! DESLIGUE SEU BOT NA HETZNER!** 🚨\n\n" +
-          "Possível invasão hacker detectada! Uma atividade anormal de criação/exclusão em massa de canais está ocorrendo no seu servidor **" + guild.name + "**.\n\n" +
-          "Se o problema persistir após desligar a VPS, **SEU TOKEN FOI ROUBADO** (o hacker está rodando do computador dele).\n" +
-          "Vá AGORA nas Configurações do Servidor > Cargos e **TIRE A PERMISSÃO DE ADMINISTRADOR DO BOT** ou **EXPULSE-O** para parar o ataque!\n" +
-          "Depois, resete seu Token no Discord Developer Portal imediatamente!"
-        );
+      // Pessoas para notificar
+      const targets = [];
+      const owner = await guild.fetchOwner().catch(() => null);
+      if (owner) targets.push(owner.user);
+
+      // Buscar drikaa04 e lucasdev.br
+      const drika = await guild.members.fetch({ query: "drikaa04", limit: 1 }).catch(() => null);
+      if (drika && drika.first()) targets.push(drika.first().user);
+
+      const lucas = await guild.members.fetch({ query: "lucasdev.br", limit: 1 }).catch(() => null);
+      if (lucas && lucas.first()) targets.push(lucas.first().user);
+
+      // Remover duplicados (caso o owner seja um deles)
+      const uniqueTargets = [...new Map(targets.map(user => [user.id, user])).values()];
+
+      for (const target of uniqueTargets) {
+        for (let i = 0; i < 5; i++) {
+          await target.send(message).catch(e => console.error(`Failed to DM ${target.username}:`, e.message));
+        }
       }
     } catch (e) {
-      console.error("[nuke_alert] Falha ao enviar DM para o dono:", e.message);
+      console.error("[nuke_alert] Falha ao notificar admin/owner:", e.message);
     }
   }
 }
