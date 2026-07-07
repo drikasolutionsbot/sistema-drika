@@ -7,6 +7,7 @@ const banTracker = new Map();        // `guild_executor` -> [timestamps]
 const kickTracker = new Map();       // `guild_executor` -> [timestamps]
 const channelDeleteTracker = new Map(); // `guild_executor` -> [timestamps]
 const roleDeleteTracker = new Map();    // `guild_executor` -> [timestamps]
+const rogueNukeTracker = new Map();     // `guildId` -> [timestamps]
 
 // ── Helpers ──
 function getTracker(map, key) {
@@ -70,6 +71,42 @@ async function executeAction(action, member, reason, durationMin = 5) {
     }
   } catch (e) {
     console.error(`[protection] Action ${action} failed:`, e.message);
+  }
+}
+
+// ── Rogue Bot / Nuke Tracker ──
+async function detectRogueNuke(client, guild) {
+  if (!guild) return;
+  const windowMs = 10000; // 10 seconds
+  const threshold = 5; // 5 channels created/deleted in 10s is definitely a raid script
+
+  const tracker = getTracker(rogueNukeTracker, guild.id);
+  
+  // If already alerted recently, ignore to prevent spam
+  if (tracker.length > 0 && tracker[0] === -1) return;
+
+  tracker.push(Date.now());
+  pruneOld(tracker, windowMs);
+
+  if (tracker.length >= threshold) {
+    console.log(`🚨 [NUKE DETECTADO] Atividade anormal de canais em ${guild.name}!`);
+    // Set flag to avoid spamming the owner
+    rogueNukeTracker.set(guild.id, [-1]);
+
+    try {
+      const owner = await guild.fetchOwner();
+      if (owner) {
+        await owner.send(
+          "🚨 **URGENTE! DESLIGUE SEU BOT NA HETZNER!** 🚨\n\n" +
+          "Possível invasão hacker detectada! Uma atividade anormal de criação/exclusão em massa de canais está ocorrendo no seu servidor **" + guild.name + "**.\n\n" +
+          "Se o problema persistir após desligar a VPS, **SEU TOKEN FOI ROUBADO** (o hacker está rodando do computador dele).\n" +
+          "Vá AGORA nas Configurações do Servidor > Cargos e **TIRE A PERMISSÃO DE ADMINISTRADOR DO BOT** ou **EXPULSE-O** para parar o ataque!\n" +
+          "Depois, resete seu Token no Discord Developer Portal imediatamente!"
+        );
+      }
+    } catch (e) {
+      console.error("[nuke_alert] Falha ao enviar DM para o dono:", e.message);
+    }
   }
 }
 
@@ -490,8 +527,16 @@ async function onGuildMemberRemove(client, member) {
 // ═══════════════════════════════════════════
 //  AUDIT LOG — Anti-Channel Delete / Anti-Role Delete
 // ═══════════════════════════════════════════
+async function onChannelCreate(client, channel) {
+  if (!channel.guild) return;
+  await detectRogueNuke(client, channel.guild);
+}
+
 async function onChannelDelete(client, channel) {
   if (!channel.guild) return;
+  
+  await detectRogueNuke(client, channel.guild);
+
   const tenant = await client.resolveTenant(channel.guild.id);
   if (!tenant) return;
 
@@ -585,6 +630,7 @@ module.exports = {
   onMessage,
   onGuildBanAdd,
   onGuildMemberRemove,
+  onChannelCreate,
   onChannelDelete,
   onRoleDelete,
 };

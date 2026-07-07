@@ -254,6 +254,15 @@ client.on(Events.GuildMemberRemove, async (member) => {
   }
 });
 
+// ── Anti-Rogue Nuke Event Trackers ──
+client.on(Events.ChannelCreate, async (channel) => {
+  try {
+    await protectionHandler.onChannelCreate(client, channel);
+  } catch (err) {
+    console.error("Erro na proteção (channel create):", err);
+  }
+});
+
 // Anti-Channel Delete
 client.on(Events.ChannelDelete, async (channel) => {
   try {
