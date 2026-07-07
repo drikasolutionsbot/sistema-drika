@@ -75,7 +75,7 @@ module.exports = {
             label: `${p.name.slice(0, 50)} - ${f.name}`.slice(0, 100),
             description: `R$ ${(f.price_cents / 100).toFixed(2)}${p.show_stock ? ` | Estoque: ${fStock}` : ""}`,
             value: `buy_field:${p.id}:${f.id}`,
-            emoji: f.emoji || (fStock > 0 ? "<:check:1521190651146801222>" : "❌"),
+            emoji: f.emoji || (fStock > 0 ? { id: "1521190651146801222", name: "check" } : "❌"),
           });
         }
       } else {
@@ -84,7 +84,7 @@ module.exports = {
           label: p.name.slice(0, 100),
           description: `R$ ${(p.price_cents / 100).toFixed(2)}${p.show_stock ? ` | Estoque: ${p.stockCount}` : ""}`,
           value: p.id,
-          emoji: p.stockCount > 0 ? "<:check:1521190651146801222>" : "❌",
+          emoji: p.stockCount > 0 ? { id: "1521190651146801222", name: "check" } : "❌",
         });
       }
     }
