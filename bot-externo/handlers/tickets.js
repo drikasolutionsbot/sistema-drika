@@ -117,8 +117,16 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   let ticketChannel;
   const staffMemberIds = new Set();
   try {
-    const parentCh = await interaction.guild.channels.fetch(parentChannelId);
+    const parentCh = await interaction.guild.channels.fetch(parentChannelId).catch(() => null);
     const categoryId = parentCh?.type === ChannelType.GuildCategory ? parentCh.id : parentCh?.parentId;
+
+    // Filtra cargos de staff que ainda existem no servidor
+    const guildRoles = interaction.guild.roles.cache;
+    const validStaffRoleIds = staffRoleIds.filter(roleId => guildRoles.has(roleId));
+    const invalidRoleIds = staffRoleIds.filter(roleId => !guildRoles.has(roleId));
+    if (invalidRoleIds.length > 0) {
+      console.warn("[TICKET_OPEN] Cargos de staff configurados nao existem no servidor:", invalidRoleIds);
+    }
 
     const permissionOverwrites = [
       {
@@ -135,7 +143,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       }
     ];
 
-    for (const roleId of staffRoleIds) {
+    for (const roleId of validStaffRoleIds) {
       permissionOverwrites.push({
         id: roleId,
         allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
@@ -160,8 +168,21 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     }
 
   } catch (err) {
-    console.error("[TICKET_OPEN] create ticket channel error:", err.message);
-    return interaction.editReply({ content: "❌ Não foi possível criar o canal do ticket." });
+    // Log completo para facilitar diagnostico
+    const errCode = err.code || err.status || "sem_codigo";
+    const errMsg = err.message || String(err);
+    console.error(`[TICKET_OPEN] Falha ao criar canal do ticket | code=${errCode} | msg=${errMsg}`);
+
+    // Mensagem amigavel com dica baseada no codigo de erro Discord
+    let userMsg = "❌ Não foi possível criar o canal do ticket.";
+    if (errCode === 30013) {
+      userMsg = "❌ Não foi possível criar o canal do ticket. O servidor atingiu o limite máximo de canais do Discord (500). Apague canais antigos de tickets para liberar espaço.";
+    } else if (errCode === 50013) {
+      userMsg = "❌ Não foi possível criar o canal do ticket. O bot não tem permissão de **Gerenciar Canais** no servidor.";
+    } else if (errCode === 50035) {
+      userMsg = "❌ Não foi possível criar o canal do ticket. Configuração inválida (verifique a categoria de tickets no painel).";
+    }
+    return interaction.editReply({ content: userMsg });
   }
 
   const ticket = await createTicket({
