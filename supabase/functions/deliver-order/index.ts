@@ -495,7 +495,7 @@ serve(async (req) => {
         const paymentLogEmbed: any = {
           title: tr(lang, "payment_confirmed_log_title"),
           description: trf(lang, "payment_confirmed_log_desc", { user_id: order.discord_user_id }),
-          color: 0x57F287,
+          color: embedColor,
           fields: [
             { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
@@ -525,7 +525,7 @@ serve(async (req) => {
             : isAutoDelivery
             ? trf(lang, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: order.discord_user_id })
             : trf(lang, "manual_delivery_pending_desc", { user_id: order.discord_user_id }),
-          color: (isAutoDelivery && !isOutOfStock) ? 0x57F287 : 0xFEE75C,
+          color: embedColor,
           fields: [
             { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: order.id, inline: false },

@@ -474,7 +474,6 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
         await sendLog(interaction.guild, tenant, {
           title: "🍃 Pagamento expirado",
           description: `Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`,
-          color: 0xED4245,
           fields: [
             { name: "**Detalhes**", value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
             { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
@@ -700,7 +699,6 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || "Loja", logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
                 title: "💰 Pagamento confirmado",
                 description: `Usuário <@${paidOrder.discord_user_id}> teve o pagamento confirmado.`,
-                color: 0x57F287,
                 fields: [
                   { name: "**Detalhes**", value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
                   { name: "**Pedido**", value: `\`#${paidOrder.order_number}\``, inline: true },
@@ -830,7 +828,6 @@ async function cancelOrder(interaction, tenant, orderId) {
   await sendLog(interaction.guild, tenant, {
     title: "🗑️ Pedido cancelado",
     description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
-    color: 0xED4245,
     fields: [
       { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(order.total_cents)}\``, inline: false },
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
