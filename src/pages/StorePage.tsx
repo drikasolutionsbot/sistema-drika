@@ -157,6 +157,51 @@ const StorePage = () => {
     }
   };
 
+  const handleDuplicateProduct = async (product: Product) => {
+    if (!tenantId) return;
+    toast({ title: "Duplicando produto..." });
+    const { data, error } = await supabase.functions.invoke("manage-products", {
+      body: { action: "duplicate", tenant_id: tenantId, product_id: product.id },
+    });
+    
+    if (error || data?.error) {
+      toast({ title: "Erro ao duplicar", description: error?.message || data?.error, variant: "destructive" });
+    } else {
+      toast({ title: "Produto duplicado com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setSelectedProduct(data as Product);
+    }
+  };
+
+  const handleMove = async (product: Product, direction: "up" | "down") => {
+    if (!tenantId) return;
+    // Usamos a lista completa para reordenar, ignorando filtros atuais de categoria/busca para evitar bagunça
+    const currentIndex = products.findIndex((p) => p.id === product.id);
+    if (currentIndex === -1) return;
+    
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= products.length) return;
+
+    const targetProduct = products[targetIndex];
+    
+    const newProducts = [...products];
+    newProducts[currentIndex] = targetProduct;
+    newProducts[targetIndex] = product;
+    
+    const updates = newProducts.map((p, idx) => ({ id: p.id, position: idx }));
+    
+    queryClient.setQueryData(["products", tenantId], newProducts);
+
+    const { error, data } = await supabase.functions.invoke("manage-products", {
+      body: { action: "reorder", tenant_id: tenantId, updates },
+    });
+
+    if (error || data?.error) {
+      toast({ title: "Erro ao reordenar", description: error?.message || data?.error, variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -182,7 +227,7 @@ const StorePage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] min-h-[400px] lg:min-h-[600px]">
               {/* Em mobile, esconde a lista quando um produto está selecionado */}
               <div className={selectedProduct ? "hidden lg:block" : "block"}>
-                <ProductList
+                  <ProductList
                   products={products}
                   isLoading={isLoading}
                   search={search}
@@ -194,6 +239,9 @@ const StorePage = () => {
                   selectedCategoryId={selectedCategoryId}
                   onCategoryChange={setSelectedCategoryId}
                   fieldCounts={fieldCounts}
+                  onDuplicate={handleDuplicateProduct}
+                  onMoveUp={(p) => handleMove(p, "up")}
+                  onMoveDown={(p) => handleMove(p, "down")}
                 />
               </div>
 

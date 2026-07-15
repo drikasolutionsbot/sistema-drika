@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, tenant_id, product, product_id } = await req.json();
+    const { action, tenant_id, product, product_id, updates } = await req.json();
     if (!tenant_id) throw new Error("Missing tenant_id");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -69,11 +69,73 @@ serve(async (req) => {
       });
     }
 
+    if (action === "duplicate") {
+      if (!product_id) throw new Error("Missing product_id");
+      
+      const { data: original, error: origError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", product_id)
+        .eq("tenant_id", tenant_id)
+        .single();
+        
+      if (origError) throw origError;
+      
+      const { id, created_at, updated_at, ...productData } = original;
+      productData.name = `Cópia de ${original.name}`;
+      productData.active = false;
+      
+      const { data: newProduct, error: dupError } = await supabase
+        .from("products")
+        .insert(productData)
+        .select()
+        .single();
+        
+      if (dupError) throw dupError;
+
+      const { data: fields } = await supabase
+        .from("product_fields")
+        .select("*")
+        .eq("product_id", product_id)
+        .eq("tenant_id", tenant_id);
+        
+      if (fields && fields.length > 0) {
+        const newFields = fields.map(f => {
+          const { id: _id, created_at: _ca, updated_at: _ua, ...fd } = f;
+          fd.product_id = newProduct.id;
+          return fd;
+        });
+        await supabase.from("product_fields").insert(newFields);
+      }
+      
+      return new Response(JSON.stringify(newProduct), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "reorder") {
+      if (!updates || !Array.isArray(updates)) throw new Error("Missing updates array");
+      
+      for (const update of updates) {
+        if (!update.id) continue;
+        await supabase
+          .from("products")
+          .update({ position: update.position })
+          .eq("id", update.id)
+          .eq("tenant_id", tenant_id);
+      }
+      
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "list") {
       const { data, error } = await supabase
         .from("products")
         .select("*")
         .eq("tenant_id", tenant_id)
+        .order("position", { ascending: true })
         .order("created_at", { ascending: false });
       if (error) throw error;
       return new Response(JSON.stringify(data), {

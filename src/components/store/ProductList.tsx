@@ -1,4 +1,4 @@
-import { Search, Plus, Package, Filter } from "lucide-react";
+import { Search, Plus, Package, Filter, MoreVertical, Copy, ArrowUp, ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Category {
   id: string;
@@ -40,6 +47,9 @@ interface ProductListProps {
   selectedCategoryId?: string | null;
   onCategoryChange?: (id: string | null) => void;
   fieldCounts?: Record<string, number>;
+  onDuplicate?: (product: Product) => void;
+  onMoveUp?: (product: Product) => void;
+  onMoveDown?: (product: Product) => void;
 }
 
 export const ProductList = ({
@@ -54,6 +64,9 @@ export const ProductList = ({
   selectedCategoryId,
   onCategoryChange,
   fieldCounts = {},
+  onDuplicate,
+  onMoveUp,
+  onMoveDown,
 }: ProductListProps) => {
   const filtered = products
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -127,7 +140,7 @@ export const ProductList = ({
                   key={product.id}
                   onClick={() => onSelect(product)}
                   className={cn(
-                    "w-full flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-all duration-150",
+                    "w-full flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-all duration-150 group",
                     selectedId === product.id
                       ? "bg-primary/10 border border-primary/20"
                       : "hover:bg-muted/60 border border-transparent"
@@ -153,6 +166,31 @@ export const ProductList = ({
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {variationCount} variações
                     </p>
+                  </div>
+                  
+                  <div className="ml-auto flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-background/80 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => onMoveUp?.(product)}>
+                          <ArrowUp className="mr-2 h-4 w-4" />
+                          Mover para cima
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onMoveDown?.(product)}>
+                          <ArrowDown className="mr-2 h-4 w-4" />
+                          Mover para baixo
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onDuplicate?.(product)}>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Duplicar produto
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </button>
               );
