@@ -529,7 +529,7 @@ async function goToPayment(interaction, tenant, orderId) {
       brcode = pixData.brcode || ""; paymentId = pixData.payment_id || externalRef;
     }
 
-    await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey });
+    await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, pix_brcode: brcode });
 
     const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
       : providerKey === "efi" ? "Pix – Efi Bank"
@@ -552,7 +552,7 @@ async function goToPayment(interaction, tenant, orderId) {
       return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
     }
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
-    await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix" });
+    await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix", pix_brcode: brcode });
 
     const storeConfig = await getStoreConfig(tenant.id);
     const approvalRow = new ActionRowBuilder().addComponents(
@@ -592,33 +592,53 @@ async function goToPayment(interaction, tenant, orderId) {
   });
 
   const pixEmbed = new EmbedBuilder()
+    .setAuthor({ name: "Pagamento PIX", iconURL: "https://cdn.discordapp.com/emojis/1521557393471832295.png" })
     .setDescription([
-      "<:pix:1521557393471832295> **Pagamento via PIX Criado**\n",
-      "🕐 **Expira em:**",
-      `em ${timeoutMin} minutos\n`,
-      "🪙 **Código Copia e Cola:**",
-      `\`\`\`\n${brcode}\n\`\`\``,
+      "<a:loading:1521565470686445678> Aguardando confirmação de pagamento.\n",
+      `**Pedido:**`,
+      `• \`${order.product_name}\` **1x**\n`,
+      `💵 **Subtotal:** ${formatBRL(order.total_cents)}`,
+      `\n💸 **Total a Pagar:** ${formatBRL(order.total_cents)}`,
+      `<:pix:1521557393471832295> **PIX Copia e Cola:** use o botão **Copiar código pix** abaixo.`,
+      `⚠️ *O código expira em ${timeoutMin} minutos.*`,
     ].join("\n"))
     .setColor(embedColor)
     .setImage(qrImageUrl)
     .setFooter({ text: pixFooterText, iconURL: storeLogo || undefined });
 
-  const pixRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`copy_pix:${order.id}`).setLabel("Código Copia e Cola").setEmoji("1521556965849829496").setStyle(ButtonStyle.Secondary)
-  );
+  // Buttons: copy + confirm (only for static PIX)
+  const copyBtn = new ButtonBuilder()
+    .setCustomId(`copy_pix:${order.id}`)
+    .setLabel("Copiar código pix")
+    .setEmoji("1521557393471832295")
+    .setStyle(ButtonStyle.Secondary);
 
-  const successEmbed = new EmbedBuilder().setDescription("<:check:1521190651146801222> | QR Code gerado com sucesso!").setColor(0x57F287);
+  let pixRow;
+  if (!provider) {
+    // Static PIX: show confirm button for manual approval
+    const confirmBtn = new ButtonBuilder()
+      .setCustomId(`approve_order:${order.id}`)
+      .setLabel("Confirmar pagamento")
+      .setEmoji("1521190651146801222")
+      .setStyle(ButtonStyle.Success);
+    pixRow = new ActionRowBuilder().addComponents(copyBtn, confirmBtn);
+  } else {
+    pixRow = new ActionRowBuilder().addComponents(copyBtn);
+  }
+
   try {
     if (loadingMsg && loadingMsg.edit && typeof loadingMsg.edit === "function") {
-      await loadingMsg.edit({ embeds: [successEmbed] });
+      await loadingMsg.edit({ embeds: [pixEmbed], components: [pixRow] });
     } else if (loadingMsg && loadingMsg.id) {
-      await editWithIdentity(channel, loadingMsg.id, { embeds: [successEmbed] });
+      await editWithIdentity(channel, loadingMsg.id, { embeds: [pixEmbed], components: [pixRow] });
+    } else {
+      await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
     }
   } catch (e) {
     console.error("Failed to edit loading message:", e.message);
+    await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
   }
 
-  await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
 
   // ── Start payment polling for providers without reliable webhooks ──
   if (provider && provider.provider_key) {
@@ -728,14 +748,14 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("<:check:1521190651146801222> Pagamento Confirmado!").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("Pagamento Confirmado!").setDescription(`<:check:1521190651146801222> Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
   } catch {}
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
   const approvedEmbed = new EmbedBuilder()
-    .setTitle("<:check:1521190651146801222> Pedido Aprovado")
-    .setDescription(`Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
+    .setTitle("Pedido Aprovado")
+    .setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
     .setColor(approveEmbedColor)
     .addFields(
       { name: "📦 Produto", value: order.product_name, inline: true },
@@ -829,11 +849,18 @@ async function copyPix(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
   if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
 
+  // 1. Try to use the saved brcode from the database
+  if (order.pix_brcode) {
+    return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${order.pix_brcode}\n\`\`\``, ephemeral: true });
+  }
+
+  // 2. Fallback: regenerate static PIX brcode if tenant has a pix_key
   if (tenant.pix_key) {
     const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
     return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
   }
-  return interaction.reply({ content: "📋 O código PIX está na mensagem acima.", ephemeral: true });
+
+  return interaction.reply({ content: "❌ Código PIX não disponível. Copie manualmente da mensagem acima.", ephemeral: true });
 }
 
 // ── Coupon Modal ──
@@ -939,11 +966,12 @@ async function markDelivered(interaction, tenant, orderId) {
   await updateOrderStatus(orderId, "delivered");
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("<:check:1521190651146801222> Entrega Confirmada").setDescription(`Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+    embeds: [new EmbedBuilder().setTitle("Entrega Confirmada").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("<:check:1521190651146801222> Pedido Entregue").setDescription(`Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
     components: [],
   });
 
