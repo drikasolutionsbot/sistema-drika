@@ -289,7 +289,17 @@ async function buildProductPayload(
     } else {
       footerText = `${tenant?.name || tr(lang, "store_default")} • ${dateStr}`;
     }
-    embed.footer = { text: footerText };
+
+    let footerIconUrl: string | undefined;
+    const emojiMatch = footerText.match(/<(a?):[a-zA-Z0-9_]+:(\d+)>/);
+    if (emojiMatch) {
+      const isAnimated = emojiMatch[1] === "a";
+      const emojiId = emojiMatch[2];
+      footerIconUrl = `https://cdn.discordapp.com/emojis/${emojiId}.${isAnimated ? "gif" : "png"}`;
+      footerText = footerText.replace(/<a?:[a-zA-Z0-9_]+:\d+>\s*/g, "").trim();
+    }
+
+    embed.footer = { text: footerText, icon_url: footerIconUrl };
   }
 
   if (!isDefaultColor) {
