@@ -179,8 +179,8 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .single();
 
-    const rawEmbedColor = storeConfig?.embed_color && storeConfig.embed_color !== "#2B2D31" ? parseInt(storeConfig.embed_color.replace("#", ""), 16) : undefined;
-    const rawPurchaseColor = storeConfig?.purchase_embed_color && storeConfig.purchase_embed_color !== "#2B2D31" ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16) : undefined;
+    const rawEmbedColor = storeConfig?.embed_color ? parseInt(storeConfig.embed_color.replace("#", ""), 16) : 0x2B2D31;
+    const rawPurchaseColor = storeConfig?.purchase_embed_color ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16) : 0x2B2D31;
     const embedColor = rawEmbedColor;
     const purchaseEmbedColor = rawPurchaseColor;
 

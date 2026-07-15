@@ -1158,16 +1158,34 @@ serve(async (req: Request) => {
             }
           }
 
+          const availableFields = product.auto_delivery ? fields.filter((f: any) => (stockMap[f.id] || 0) > 0) : fields;
+
+          if (availableFields.length === 0 && product.auto_delivery) {
+            await editFollowup(interaction, botToken, {
+              content: "",
+              embeds: [{
+                title: product.name,
+                description: "❌ Produto esgotado no momento.",
+                color: 0xED4245,
+              }]
+            });
+            return ok();
+          }
+
           // Show variation selector via select menu
-          const options = fields.map((f: any) => {
+          const options = availableFields.map((f: any) => {
             const stock = stockMap[f.id] || 0;
+            let desc = `Valor: ${formatMoney(f.price_cents, product.currency)}`;
+            if (product.auto_delivery) desc += ` | Estoque: ${stock}`;
+
             return {
               label: f.name,
               value: `buy_field:${productId}:${f.id}`,
-              description: trf(Lproduct, "field_option_desc", { price: formatMoney(f.price_cents, product.currency), stock }),
+              description: desc.slice(0, 100),
               emoji: f.emoji ? parseEmoji(f.emoji) : undefined,
             };
           });
+
 
           const embedColorVal = await resolveProductEmbedColor(product, tenantId);
           const autoDelivery = product.auto_delivery ? `${tr(Lproduct, "auto_delivery_inline")}\n\n` : "";
