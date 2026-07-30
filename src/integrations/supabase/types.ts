@@ -1844,6 +1844,7 @@ export type Database = {
           store_banner_url: string | null
           store_description: string | null
           store_logo_url: string | null
+          qr_code_logo_url: string | null
           store_title: string | null
           tenant_id: string
           ticket_channel_id: string | null
@@ -1880,6 +1881,7 @@ export type Database = {
           store_banner_url?: string | null
           store_description?: string | null
           store_logo_url?: string | null
+          qr_code_logo_url?: string | null
           store_title?: string | null
           tenant_id: string
           ticket_channel_id?: string | null
@@ -1916,6 +1918,7 @@ export type Database = {
           store_banner_url?: string | null
           store_description?: string | null
           store_logo_url?: string | null
+          qr_code_logo_url?: string | null
           store_title?: string | null
           tenant_id?: string
           ticket_channel_id?: string | null

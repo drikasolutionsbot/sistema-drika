@@ -578,7 +578,10 @@ async function goToPayment(interaction, tenant, orderId) {
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
   const embedColor = await resolveOrderColor(order, storeConfig);
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
+  const qrLogoUrl = storeConfig?.qr_code_logo_url;
+  const qrImageUrl = qrLogoUrl 
+    ? `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}&centerImageUrl=${encodeURIComponent(qrLogoUrl)}`
+    : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
   const { date: paymentDate, time: paymentTime } = formatDateTime();
   const pixFooterText = resolvePixFooter(storeConfig, {
     storeName,
