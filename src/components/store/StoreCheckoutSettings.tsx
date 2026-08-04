@@ -34,6 +34,7 @@ interface StoreConfig {
   purchase_embed_thumbnail_url: string;
   customer_role_id: string;
   qr_code_logo_url: string;
+  qr_code_style: string;
 }
 
 const defaultConfig: StoreConfig = {
@@ -54,6 +55,7 @@ const defaultConfig: StoreConfig = {
   purchase_embed_thumbnail_url: "",
   customer_role_id: "",
   qr_code_logo_url: "",
+  qr_code_style: "classic",
 };
 
 const StoreCheckoutSettings = () => {
@@ -205,6 +207,55 @@ const StoreCheckoutSettings = () => {
                 path={`${tenantId}/qr-logo`}
               />
               <p className="text-[11px] text-muted-foreground mt-2">Esta logo aparecerá no centro do QR Code gerado nos pagamentos via PIX.</p>
+            </div>
+            
+            <Separator />
+            <div>
+              <Label>Modelo de QR Code</Label>
+              <Select
+                value={config.qr_code_style || "classic"}
+                onValueChange={(v) => update("qr_code_style", v)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecione um estilo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="classic">Clássico (Quadrado)</SelectItem>
+                  <SelectItem value="rounded">Bordas Arredondadas</SelectItem>
+                  <SelectItem value="dots">Estilo Bolinhas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+            <div>
+              <Label className="flex items-center gap-1.5 mb-2"><Eye className="h-3.5 w-3.5" /> Preview do QR Code</Label>
+              <div className="bg-[#313338] rounded-lg p-6 flex flex-col items-center justify-center">
+                {/* Dummy QR Preview using Quickchart API */}
+                <div className="bg-white p-2 rounded-lg relative flex items-center justify-center">
+                  <img 
+                    src={`https://quickchart.io/qr?size=200&text=preview&ecLevel=H`}
+                    alt="QR Code Preview" 
+                    className={`w-32 h-32 ${config.qr_code_style === "rounded" ? "rounded-xl" : config.qr_code_style === "dots" ? "rounded-[2rem]" : ""}`}
+                    style={{
+                      // Faking dots/rounded using CSS filters/masks is hard, just standard image for now in preview 
+                      // unless we generate it properly, but here we just apply some basic CSS rounding for the demo
+                      maskImage: config.qr_code_style === "dots" ? "radial-gradient(circle, black 40%, transparent 40%)" : "none",
+                      maskSize: "10px 10px"
+                    }}
+                  />
+                  {config.qr_code_logo_url && (
+                    <div className="absolute bg-white rounded-full p-1" style={{ width: "32px", height: "32px", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+                      <img src={config.qr_code_logo_url} alt="Logo" className="w-full h-full object-contain rounded-full" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-[#dcddde] text-xs mt-3 text-center">
+                  Preview ilustrativo.
+                  <br />
+                  <span className="text-[10px] text-muted-foreground">Nota: O modelo real gerado pelo bot pode variar dependendo do suporte de renderização do Discord.</span>
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

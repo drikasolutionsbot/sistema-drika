@@ -1,7 +1,7 @@
 const {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ChannelType, PermissionFlagsBits, ModalBuilder, TextInputBuilder,
-  TextInputStyle, StringSelectMenuBuilder,
+  TextInputStyle, StringSelectMenuBuilder, AttachmentBuilder
 } = require("discord.js");
 const {
   getProducts, getProductById, getProductFields, countStock, getAvailableStock,
@@ -484,6 +484,44 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   }, timeout);
 }
 
+// ── Generate Styled QR Code ──
+async function generateStyledQrAttachment(brcode, style, logoUrl) {
+  let config = {};
+  if (style === "rounded") {
+    config = { body: "circle-zell", eye: "frame13", eyeBall: "ball14" };
+  } else if (style === "dots") {
+    config = { body: "dot", eye: "frame12", eyeBall: "ball15" };
+  } else {
+    config = { body: "square", eye: "frame0", eyeBall: "ball0" }; // classic
+  }
+  
+  if (logoUrl) {
+    config.logo = logoUrl;
+  }
+
+  const payload = {
+    data: brcode,
+    config: config,
+    size: 400,
+    download: false,
+    file: "png"
+  };
+
+  try {
+    const response = await fetch("https://api.qrcode-monkey.com/qr/custom", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return new AttachmentBuilder(buffer, { name: "qrcode.png" });
+  } catch (err) {
+    console.error("Failed to generate styled QR code:", err);
+    return null;
+  }
+}
+
 // ── Go to Payment (generate PIX) ──
 async function goToPayment(interaction, tenant, orderId) {
   await interaction.deferUpdate();
@@ -579,11 +617,22 @@ async function goToPayment(interaction, tenant, orderId) {
   const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
   const embedColor = await resolveOrderColor(order, storeConfig);
   const qrLogoUrl = storeConfig?.qr_code_logo_url;
-  // api.qrserver.com is known to sometimes block Discord's image proxy.
-  // Using quickchart.io as the reliable fallback.
-  const qrImageUrl = qrLogoUrl 
-    ? `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}&centerImageUrl=${encodeURIComponent(qrLogoUrl)}`
-    : `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}`;
+  const qrStyle = storeConfig?.qr_code_style || "classic";
+
+  let qrAttachment = null;
+  let qrImageUrl = "";
+
+  if (qrStyle !== "classic" || qrLogoUrl) {
+    qrAttachment = await generateStyledQrAttachment(brcode, qrStyle, qrLogoUrl);
+  }
+
+  if (qrAttachment) {
+    qrImageUrl = "attachment://qrcode.png";
+  } else {
+    // Fallback if API fails or if it's purely classic with no logo
+    qrImageUrl = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}`;
+  }
+
   const { date: paymentDate, time: paymentTime } = formatDateTime();
   const pixFooterText = resolvePixFooter(storeConfig, {
     storeName,
@@ -631,16 +680,26 @@ async function goToPayment(interaction, tenant, orderId) {
   }
 
   try {
+    const messagePayload = {
+      embeds: [pixEmbed],
+      components: [pixRow],
+      files: qrAttachment ? [qrAttachment] : []
+    };
+
     if (loadingMsg && loadingMsg.edit && typeof loadingMsg.edit === "function") {
-      await loadingMsg.edit({ embeds: [pixEmbed], components: [pixRow] });
+      await loadingMsg.edit(messagePayload);
     } else if (loadingMsg && loadingMsg.id) {
-      await editWithIdentity(channel, loadingMsg.id, { embeds: [pixEmbed], components: [pixRow] });
+      await editWithIdentity(channel, loadingMsg.id, messagePayload);
     } else {
-      await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+      await sendWithIdentity(channel, tenant, messagePayload);
     }
   } catch (e) {
     console.error("Failed to edit loading message:", e.message);
-    await sendWithIdentity(channel, tenant, { embeds: [pixEmbed], components: [pixRow] });
+    await sendWithIdentity(channel, tenant, {
+      embeds: [pixEmbed],
+      components: [pixRow],
+      files: qrAttachment ? [qrAttachment] : []
+    });
   }
 
 
