@@ -579,9 +579,11 @@ async function goToPayment(interaction, tenant, orderId) {
   const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
   const embedColor = await resolveOrderColor(order, storeConfig);
   const qrLogoUrl = storeConfig?.qr_code_logo_url;
+  // api.qrserver.com is known to sometimes block Discord's image proxy.
+  // Using quickchart.io as the reliable fallback.
   const qrImageUrl = qrLogoUrl 
     ? `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}&centerImageUrl=${encodeURIComponent(qrLogoUrl)}`
-    : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
+    : `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}`;
   const { date: paymentDate, time: paymentTime } = formatDateTime();
   const pixFooterText = resolvePixFooter(storeConfig, {
     storeName,
