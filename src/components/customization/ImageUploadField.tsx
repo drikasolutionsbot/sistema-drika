@@ -18,13 +18,11 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds" }: ImageUp
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !tenantId) return;
-
+  const processFile = async (file: File) => {
+    if (!tenantId) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const ext = file.name.split(".").pop() || "png";
       const path = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage
         .from("tenant-assets")
@@ -41,6 +39,22 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds" }: ImageUp
     }
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await processFile(file);
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const file = Array.from(e.clipboardData.items)
+      .find(item => item.type.startsWith("image/"))
+      ?.getAsFile();
+    
+    if (file) {
+      e.preventDefault();
+      await processFile(file);
+    }
+  };
+
   return (
     <div className="space-y-1">
       <label className="text-xs text-muted-foreground">{label}</label>
@@ -48,7 +62,8 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds" }: ImageUp
         <Input
           value={value}
           onChange={e => onChange(e.target.value)}
-          placeholder="https://... ou faça upload"
+          onPaste={handlePaste}
+          placeholder="https://... ou faça upload (ou cole a imagem aqui)"
           className="bg-background border-border text-sm flex-1"
         />
         <Button
