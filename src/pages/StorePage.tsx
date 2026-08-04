@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Package } from "lucide-react";
 import StoreGeneralSettings from "@/components/store/StoreGeneralSettings";
+import StoreCheckoutSettings from "@/components/store/StoreCheckoutSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductList } from "@/components/store/ProductList";
 import { ProductDetail } from "@/components/store/ProductDetail";
@@ -217,6 +218,7 @@ const StorePage = () => {
             <TabsTrigger value="products">Produtos</TabsTrigger>
             <TabsTrigger value="categories">Categorias</TabsTrigger>
             <TabsTrigger value="general">Geral</TabsTrigger>
+            <TabsTrigger value="checkout">Checkout</TabsTrigger>
             <TabsTrigger value="coupons">Cupons</TabsTrigger>
             <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
           </TabsList>
@@ -279,6 +281,12 @@ const StorePage = () => {
         <TabsContent value="general" className="mt-4">
           <div className="rounded-xl border border-border bg-card p-6">
             <StoreGeneralSettings />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="checkout" className="mt-4">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <StoreCheckoutSettings />
           </div>
         </TabsContent>
 
