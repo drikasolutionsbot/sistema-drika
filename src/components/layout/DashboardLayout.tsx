@@ -10,6 +10,8 @@ import FreePlanLock from "@/components/FreePlanLock";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isPaidPlan } from "@/lib/plans";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 /**
  * Rotas liberadas no plano Free.
@@ -55,6 +57,23 @@ export const DashboardLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { tenant, isPlanExpired } = useTenant();
   const isMobile = useIsMobile();
+  const [allowCustomization, setAllowCustomization] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      const { data } = await supabase
+        .from("landing_config")
+        .select("allow_customization_on_trial")
+        .limit(1)
+        .single();
+      if (data) {
+        setAllowCustomization(data.allow_customization_on_trial || false);
+      }
+      setLoadingConfig(false);
+    };
+    fetchConfig();
+  }, []);
 
   if (isPlanExpired) {
     return <PlanExpiredPage />;
@@ -63,7 +82,15 @@ export const DashboardLayout = () => {
   // Bloqueio Free: rotas não-permitidas viram tela de upgrade
   const path = location.pathname;
   const isFree = !!tenant && !isPaidPlan(tenant.plan);
-  const isLockedRoute = !FREE_ALLOWED_ROUTES.has(path);
+  
+  let isLockedRoute = !FREE_ALLOWED_ROUTES.has(path);
+  
+  if (isFree && allowCustomization) {
+    if (path === "/customization" || path === "/bot-customization") {
+      isLockedRoute = false;
+    }
+  }
+
   const showFreeLock = isFree && isLockedRoute;
   const lockLabel = FREE_LOCK_LABELS[path];
 
@@ -95,7 +122,15 @@ export const DashboardLayout = () => {
           <TopBar onToggleSidebar={toggleSidebar} />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <ErrorBoundary key={location.pathname}>
-              {showFreeLock ? <FreePlanLock feature={lockLabel} /> : <Outlet />}
+              {isFree && loadingConfig ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : showFreeLock ? (
+                <FreePlanLock feature={lockLabel} />
+              ) : (
+                <Outlet />
+              )}
             </ErrorBoundary>
           </main>
         </div>

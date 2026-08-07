@@ -30,6 +30,7 @@ const AdminLandingConfigPage = () => {
     pro_plan_name: "Pro",
     master_plan_name: "Master",
     show_trial: true,
+    allow_customization_on_trial: false,
   });
 
   useEffect(() => {
@@ -55,6 +56,7 @@ const AdminLandingConfigPage = () => {
           pro_plan_name: (data as any).pro_plan_name || "Pro",
           master_plan_name: (data as any).master_plan_name || "Master",
           show_trial: (data as any).show_trial !== false,
+          allow_customization_on_trial: (data as any).allow_customization_on_trial === true,
         });
         setProPriceInput(((data.pro_price_cents || 2690) / 100).toFixed(2));
         setMasterPriceInput((((data as any).master_price_cents || 3090) / 100).toFixed(2));
@@ -83,6 +85,7 @@ const AdminLandingConfigPage = () => {
         pro_plan_name: form.pro_plan_name,
         master_plan_name: form.master_plan_name,
         show_trial: form.show_trial,
+        allow_customization_on_trial: form.allow_customization_on_trial,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", configId);
@@ -182,6 +185,20 @@ const AdminLandingConfigPage = () => {
             <Switch
               checked={form.show_trial}
               onCheckedChange={(checked) => setForm((p) => ({ ...p, show_trial: checked }))}
+            />
+          </div>
+
+          {/* Customization on Trial Toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
+            <div className="space-y-0.5 pr-4">
+              <Label className="text-sm font-semibold">Personalização no Teste Grátis</Label>
+              <p className="text-xs text-muted-foreground">
+                Se ativado (Grátis), os clientes poderão acessar a tela de Personalização durante os 4 dias de teste. Se desativado (Paga), a tela ficará bloqueada exigindo plano Pro/Master.
+              </p>
+            </div>
+            <Switch
+              checked={form.allow_customization_on_trial}
+              onCheckedChange={(checked) => setForm((p) => ({ ...p, allow_customization_on_trial: checked }))}
             />
           </div>
 

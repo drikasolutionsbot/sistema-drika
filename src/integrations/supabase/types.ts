@@ -846,6 +846,7 @@ export type Database = {
           abacatepay_active: boolean
           abacatepay_api_key: string | null
           abacatepay_webhook_secret: string | null
+          allow_customization_on_trial: boolean
           auto_activate_plan: boolean
           created_at: string
           efi_active: boolean
@@ -888,6 +889,7 @@ export type Database = {
           abacatepay_active?: boolean
           abacatepay_api_key?: string | null
           abacatepay_webhook_secret?: string | null
+          allow_customization_on_trial?: boolean
           auto_activate_plan?: boolean
           created_at?: string
           efi_active?: boolean
@@ -930,6 +932,7 @@ export type Database = {
           abacatepay_active?: boolean
           abacatepay_api_key?: string | null
           abacatepay_webhook_secret?: string | null
+          allow_customization_on_trial?: boolean
           auto_activate_plan?: boolean
           created_at?: string
           efi_active?: boolean
