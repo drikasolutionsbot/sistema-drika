@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, useMemo, type RefObject } from "react";
-import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus } from "lucide-react";
+import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus, Gift, ShieldCheck } from "lucide-react";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -583,17 +583,32 @@ const LandingPage = () => {
               {
                 icon: ShoppingCart,
                 title: "Vendas Automáticas",
-                desc: "Venda produtos digitais automaticamente. Pagamento via PIX e entrega instantânea no ticket.",
+                desc: "Venda produtos digitais diretamente no Discord com pagamento via PIX e entrega instantânea.",
               },
               {
-                icon: Shield,
-                title: "Moderação Completa",
-                desc: "Sistema de tickets, automações inteligentes e controle total de cargos e permissões.",
+                icon: Package,
+                title: "Gestão de Estoque",
+                desc: "Controle total sobre seus produtos. Acompanhe a disponibilidade de forma simples e rápida.",
               },
               {
-                icon: Lock,
-                title: "Segurança 24/7",
-                desc: "Anti-raid, anti-spam e verificação de membros. Seu servidor blindado contra ataques.",
+                icon: MessageSquare,
+                title: "Sistema de Tickets",
+                desc: "Atendimento profissional com tickets organizados. Facilite o suporte para seus clientes.",
+              },
+              {
+                icon: Gift,
+                title: "Sorteios Engajadores",
+                desc: "Crie sorteios interativos para movimentar sua comunidade e atrair novos membros facilmente.",
+              },
+              {
+                icon: ShieldCheck,
+                title: "Verificação de Membros",
+                desc: "Mantenha seu servidor seguro contra bots e raids com um sistema de verificação eficiente.",
+              },
+              {
+                icon: Settings,
+                title: "Painel de Controle",
+                desc: "Gerencie configurações, cadastre produtos e acompanhe estatísticas em tempo real pelo painel.",
               },
             ].map((f, i) => (
               <ScrollReveal key={f.title} delay={0.1 * i}>
