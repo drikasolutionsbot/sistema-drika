@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { isMaster } from "@/lib/plans";
+import { openUpgradeModal } from "@/components/ProUpgradeModal";
 
 // ─── Types ──────────────────────────────
 interface ProtectionSetting {
@@ -219,6 +221,17 @@ const MODULES: ModuleDef[] = [
       { key: "action", label: "Ação", type: "select", default: "delete", options: [{ value: "delete", label: "Deletar" }, { value: "warn", label: "Avisar" }, { value: "mute", label: "Silenciar" }] },
     ],
   },
+  {
+    key: "anti_fraud",
+    name: "Proteção Anti-Fraude Avançada",
+    description: "Bloqueia tentativas de fraude, comprovantes falsos e compras suspeitas no bot.",
+    icon: ShieldCheck,
+    category: "moderation",
+    color: "text-emerald-400 bg-emerald-500/10",
+    configFields: [
+      { key: "strict_mode", label: "Modo Estrito", type: "boolean", default: true, description: "Bloqueia qualquer suspeita imediatamente" },
+    ],
+  },
 ];
 
 const CATEGORY_META: Record<string, { label: string; description: string; icon: any; color: string }> = {
@@ -230,7 +243,8 @@ const CATEGORY_META: Record<string, { label: string; description: string; icon: 
 
 // ─── Component ──────────────────────────
 const ProtectionPage = () => {
-  const { tenantId } = useTenant();
+  const { tenantId, tenant } = useTenant();
+  const userIsMaster = isMaster((tenant as any)?.plan);
   const [settings, setSettings] = useState<Record<string, ProtectionSetting>>({});
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
   const [logs, setLogs] = useState<ProtectionLog[]>([]);
@@ -482,6 +496,7 @@ const ProtectionPage = () => {
                     const Icon = mod.icon;
                     const isEnabled = settings[mod.key]?.enabled ?? false;
                     const isExpanded = expandedModules.has(mod.key);
+                    const isLocked = mod.key === "anti_fraud" && !userIsMaster;
                     const config = getModuleConfig(mod.key);
 
                     return (
@@ -504,16 +519,31 @@ const ProtectionPage = () => {
                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />}
                               </button>
                             </CollapsibleTrigger>
-                            <Switch
-                              checked={isEnabled}
-                              onCheckedChange={(v) => toggleModule(mod.key, v)}
-                              className="ml-3"
-                            />
+                            <div className="flex items-center gap-2 ml-3">
+                              {isLocked && (
+                                <Badge variant="outline" className="gap-1 text-[10px] bg-primary/10 text-primary border-primary/20 cursor-pointer" onClick={(e) => { e.stopPropagation(); openUpgradeModal("master"); }}>
+                                  <Lock className="h-3 w-3" /> Master
+                                </Badge>
+                              )}
+                              <Switch
+                                checked={isEnabled}
+                                onCheckedChange={(v) => { if (isLocked) { openUpgradeModal("master"); return; } toggleModule(mod.key, v); }}
+                                disabled={isLocked}
+                              />
+                            </div>
                           </div>
 
                           {/* Module Config */}
                           <CollapsibleContent>
-                            <div className="border-t border-border p-4 space-y-4 bg-muted/20">
+                            <div className="border-t border-border p-4 space-y-4 bg-muted/20 relative">
+                              {isLocked && (
+                                <div className="absolute inset-0 z-10 bg-background/50 backdrop-blur-[1px] flex flex-col items-center justify-center p-4 text-center rounded-b-xl">
+                                  <Lock className="h-8 w-8 text-primary mb-2 opacity-80" />
+                                  <p className="text-sm font-semibold text-foreground">Proteção Avançada</p>
+                                  <p className="text-xs text-muted-foreground mt-1 max-w-[250px]">Esta opção de segurança está disponível apenas no plano Master.</p>
+                                  <Button size="sm" onClick={() => openUpgradeModal("master")} className="mt-3 h-8 text-xs">Fazer Upgrade</Button>
+                                </div>
+                              )}
                               {mod.configFields.map((field) => (
                                 <div key={field.key} className="space-y-2">
                                   <div className="flex items-center justify-between">
