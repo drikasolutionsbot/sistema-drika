@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, useMemo, type RefObject } from "react";
-import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles } from "lucide-react";
+import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus } from "lucide-react";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -418,6 +418,7 @@ const LandingPage = () => {
     pro_plan_name: string;
     master_plan_name: string;
     show_trial?: boolean;
+    is_free_system?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -482,29 +483,39 @@ const LandingPage = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            {(landingConfig?.show_trial ?? true) ? (
-              <>
-                <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                  <span className="flex items-center justify-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    Testar Grátis — 4 dias
-                  </span>
-                </button>
-                <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
-                  <span className="flex items-center justify-center gap-2">
-                    <Crown className="h-4 w-4" />
-                    Ver Planos
-                  </span>
-                </button>
-              </>
-            ) : (
-              <button onClick={scrollToPlans} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            {landingConfig?.is_free_system ? (
+              <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
                 <span className="flex items-center justify-center gap-2">
-                  <Crown className="h-4 w-4" />
-                  Ver Planos
+                  <UserPlus className="h-4 w-4" />
+                  Cadastre-se Grátis
+                </span>
+              </button>
+            ) : (landingConfig?.show_trial ?? true) ? (
+              <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                <span className="flex items-center justify-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Testar Grátis — 4 dias
+                </span>
+              </button>
+            ) : (
+              <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
+                <span className="flex items-center justify-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Cadastre-se
                 </span>
               </button>
             )}
+            
+            <button onClick={scrollToPlans} className={`group px-6 py-3 rounded-full font-semibold transition-all cursor-pointer ${
+              !landingConfig?.is_free_system && !(landingConfig?.show_trial ?? true)
+                ? "bg-white text-black border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
+            }`}>
+              <span className="flex items-center justify-center gap-2">
+                <Crown className="h-4 w-4" />
+                Ver Planos
+              </span>
+            </button>
           </div>
 
           {/* Login link */}

@@ -292,6 +292,23 @@ const LoginPage = () => {
             </div>
           )}
 
+          {/* Cadastre-se */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => navigate("/signup")}
+              className="w-full flex items-center justify-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-2 bg-primary/10 border border-primary/30 rounded-full hover:bg-primary/20"
+            >
+              <span>
+                {language === "pt-BR"
+                  ? "Não tem uma conta? Cadastre-se"
+                  : language === "de"
+                  ? "Kein Konto? Registrieren"
+                  : "No account? Sign up"}
+              </span>
+            </button>
+          </div>
+
           {/* Modal Esqueci Senha */}
           {forgotOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => !forgotSending && setForgotOpen(false)}>
