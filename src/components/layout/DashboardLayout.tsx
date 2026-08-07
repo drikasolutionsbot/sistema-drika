@@ -86,9 +86,7 @@ export const DashboardLayout = () => {
   let isLockedRoute = !FREE_ALLOWED_ROUTES.has(path);
   
   if (isFree && allowCustomization) {
-    if (path === "/customization" || path === "/bot-customization") {
-      isLockedRoute = false;
-    }
+    isLockedRoute = false;
   }
 
   const showFreeLock = isFree && isLockedRoute;

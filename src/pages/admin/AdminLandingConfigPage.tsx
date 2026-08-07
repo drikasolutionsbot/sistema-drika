@@ -191,9 +191,9 @@ const AdminLandingConfigPage = () => {
           {/* Customization on Trial Toggle */}
           <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
             <div className="space-y-0.5 pr-4">
-              <Label className="text-sm font-semibold">Personalização no Teste Grátis</Label>
+              <Label className="text-sm font-semibold">Liberar Todas as Abas no Teste Grátis</Label>
               <p className="text-xs text-muted-foreground">
-                Se ativado (Grátis), os clientes poderão acessar a tela de Personalização durante os 4 dias de teste. Se desativado (Paga), a tela ficará bloqueada exigindo plano Pro/Master.
+                Se ativado, os clientes poderão acessar todas as telas bloqueadas durante os 4 dias de teste. Se desativado, as telas premium (como Recursos, Loja, etc) ficarão bloqueadas exigindo plano Pro/Master.
               </p>
             </div>
             <Switch
