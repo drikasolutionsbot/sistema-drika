@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Sidebar } from "./Sidebar";
