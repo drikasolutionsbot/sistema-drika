@@ -30,11 +30,11 @@ const SignupPage = () => {
   useEffect(() => {
     supabase
       .from("landing_config")
-      .select("show_trial")
+      .select("show_trial, is_free_system")
       .limit(1)
       .single()
       .then(({ data }) => {
-        if (data && data.show_trial === false) {
+        if (data && data.show_trial === false && data.is_free_system !== true) {
           setTrialEnabled(false);
         }
         setCheckingConfig(false);

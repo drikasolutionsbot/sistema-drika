@@ -55,7 +55,7 @@ export const DashboardLayout = () => {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { tenant, isPlanExpired } = useTenant();
+  const { tenant, isPlanExpired, isSystemFree } = useTenant();
   const isMobile = useIsMobile();
   const [allowCustomization, setAllowCustomization] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
@@ -85,7 +85,9 @@ export const DashboardLayout = () => {
   
   let isLockedRoute = !FREE_ALLOWED_ROUTES.has(path);
   
-  if (isFree && allowCustomization) {
+  if (isSystemFree) {
+    isLockedRoute = false;
+  } else if (isFree && allowCustomization) {
     isLockedRoute = false;
   }
 

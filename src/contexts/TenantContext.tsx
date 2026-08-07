@@ -38,6 +38,7 @@ interface TenantContextType {
   loading: boolean;
   refetch: () => Promise<Tenant | null>;
   isPlanExpired: boolean;
+  isSystemFree: boolean;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -46,6 +47,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSystemFree, setIsSystemFree] = useState(false);
 
   const fetchTenant = async (isRefetch = false): Promise<Tenant | null> => {
     if (!isRefetch) setLoading(true);
@@ -131,6 +133,18 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => { fetchTenant(); }, [user]);
 
   useEffect(() => {
+    const fetchConfig = async () => {
+      const { data } = await supabase
+        .from("landing_config")
+        .select("is_free_system")
+        .limit(1)
+        .single();
+      if (data) setIsSystemFree(data.is_free_system || false);
+    };
+    fetchConfig();
+  }, []);
+
+  useEffect(() => {
     if (!tenant?.id || tenant.discord_guild_id) return;
 
     const channel = supabase
@@ -150,6 +164,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   }, [tenant?.id, tenant?.discord_guild_id]);
 
   const isPlanExpired = (() => {
+    if (isSystemFree) return false;
     if (!tenant) return false;
     if (tenant.plan === "expired") return true;
     if (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) {
@@ -159,7 +174,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   })();
 
   return (
-    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired }}>
+    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree }}>
       {children}
     </TenantContext.Provider>
   );

@@ -31,6 +31,7 @@ const AdminLandingConfigPage = () => {
     master_plan_name: "Master",
     show_trial: true,
     allow_customization_on_trial: false,
+    is_free_system: false,
   });
 
   useEffect(() => {
@@ -57,6 +58,7 @@ const AdminLandingConfigPage = () => {
           master_plan_name: (data as any).master_plan_name || "Master",
           show_trial: (data as any).show_trial !== false,
           allow_customization_on_trial: (data as any).allow_customization_on_trial === true,
+          is_free_system: (data as any).is_free_system === true,
         });
         setProPriceInput(((data.pro_price_cents || 2690) / 100).toFixed(2));
         setMasterPriceInput((((data as any).master_price_cents || 3090) / 100).toFixed(2));
@@ -86,6 +88,7 @@ const AdminLandingConfigPage = () => {
         master_plan_name: form.master_plan_name,
         show_trial: form.show_trial,
         allow_customization_on_trial: form.allow_customization_on_trial,
+        is_free_system: form.is_free_system,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", configId);
@@ -199,6 +202,20 @@ const AdminLandingConfigPage = () => {
             <Switch
               checked={form.allow_customization_on_trial}
               onCheckedChange={(checked) => setForm((p) => ({ ...p, allow_customization_on_trial: checked }))}
+            />
+          </div>
+
+          {/* Is Free System Toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
+            <div className="space-y-0.5 pr-4">
+              <Label className="text-sm font-semibold">Sistema 100% Gratuito</Label>
+              <p className="text-xs text-muted-foreground">
+                Se ativado, o sistema será 100% gratuito. Contas não terão prazo de validade ou teste de trial, não precisarão assinar plano Pro/Master, e todas as rotas estarão liberadas.
+              </p>
+            </div>
+            <Switch
+              checked={form.is_free_system}
+              onCheckedChange={(checked) => setForm((p) => ({ ...p, is_free_system: checked }))}
             />
           </div>
 

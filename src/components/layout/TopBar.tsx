@@ -46,7 +46,7 @@ function timeAgo(dateStr: string, t: any): string {
   return `${Math.floor(hours / 24)}${t.topbar.dAgo}`;
 }
 
-const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string | null; plan_started_at: string | null } }) => {
+const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_expires_at: string | null; plan_started_at: string | null }, isSystemFree: boolean }) => {
   const { t } = useLanguage();
   const planInfo = getPlanInfo(tenant.plan);
   const isPaid = isPaidPlan(tenant.plan);
@@ -57,7 +57,12 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
   let isExpiring = false;
   let isExpired = false;
   
-  if (tenant.plan_expires_at) {
+  if (isSystemFree) {
+    timeLeft = "Ilimitado";
+    expiresLabel = "Vitalício";
+    isExpired = false;
+    isExpiring = false;
+  } else if (tenant.plan_expires_at) {
     const now = new Date();
     const expires = new Date(tenant.plan_expires_at);
     const diffMs = expires.getTime() - now.getTime();
@@ -97,8 +102,8 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
                 ? "bg-destructive/10 border-destructive/20 text-destructive"
                 : "bg-muted border-border text-muted-foreground"
         }`}>
-          <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : isPaid ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
-          <span className="font-semibold">{tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free"}</span>
+          <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : (isPaid || isSystemFree) ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
+          <span className="font-semibold">{isSystemFree ? "Free" : tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free"}</span>
           {timeLeft && (
             <>
               <span className="text-muted-foreground/50 hidden sm:inline">•</span>
@@ -113,8 +118,8 @@ const PlanBadge = ({ tenant }: { tenant: { plan: string; plan_expires_at: string
       <PopoverContent align="end" className="w-72 p-0 bg-card border-border">
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Crown className={`h-5 w-5 ${isPaid ? "text-primary" : "text-muted-foreground"}`} />
-            <h4 className="text-sm font-bold">{t.plan.plan} {planLabel}</h4>
+            <Crown className={`h-5 w-5 ${(isPaid || isSystemFree) ? "text-primary" : "text-muted-foreground"}`} />
+            <h4 className="text-sm font-bold">{t.plan.plan} {isSystemFree ? "Free" : planLabel}</h4>
           </div>
           
           {tenant.plan_started_at && (
@@ -435,11 +440,15 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
             <DropdownMenuSeparator />
             {tenant && (() => {
               const isPaid = isPaidPlan(tenant.plan);
-              const planLabel = tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
+              const planLabel = isSystemFree ? "Free" : tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
               let timeLeft = "";
               let isExpiring = false;
               let isExpired = false;
-              if (tenant.plan_expires_at) {
+              if (isSystemFree) {
+                timeLeft = "Ilimitado";
+                isExpired = false;
+                isExpiring = false;
+              } else if (tenant.plan_expires_at) {
                 const now = new Date();
                 const expires = new Date(tenant.plan_expires_at);
                 const diffMs = expires.getTime() - now.getTime();
@@ -457,7 +466,9 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                   isExpiring = days < 2;
                 }
               }
-              const tone = isExpired
+              const tone = isSystemFree 
+                ? "border-primary/25 bg-primary/5"
+                : isExpired
                 ? "border-destructive/30 bg-destructive/10"
                 : isPaid
                   ? "border-primary/25 bg-primary/5"
@@ -468,18 +479,21 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                 <div className="px-2 pb-2">
                   <button
                     onClick={() => {
-                      if (!isPaid || isExpired) {
+                      if (!isSystemFree && (!isPaid || isExpired)) {
                         sessionStorage.setItem("open_upgrade_modal", "true");
                       }
                       navigate("/settings");
                     }}
                     className={`w-full flex items-center gap-2 rounded-lg border ${tone} px-2.5 py-2 text-left transition-colors hover:bg-accent/40`}
                   >
-                    <Crown className={`h-4 w-4 shrink-0 ${isExpired ? "text-destructive" : isPaid ? "text-primary" : "text-muted-foreground"}`} />
+                    <Crown className={`h-4 w-4 shrink-0 ${isSystemFree ? "text-primary" : isExpired ? "text-destructive" : isPaid ? "text-primary" : "text-muted-foreground"}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-semibold">{planLabel}</span>
-                        {(!isPaid || isExpired) && (
+                        {(!isPaid && !isSystemFree && !isExpired) && (
+                          <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Upgrade</span>
+                        )}
+                        {(isExpired && !isSystemFree) && (
                           <span className="text-[9px] uppercase tracking-wider text-primary font-bold">Upgrade</span>
                         )}
                       </div>
