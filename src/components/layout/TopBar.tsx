@@ -190,7 +190,7 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_expi
 
 export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   const { user, signOut } = useAuth();
-  const { tenant, tenantId } = useTenant();
+  const { tenant, tenantId, isSystemFree } = useTenant();
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
