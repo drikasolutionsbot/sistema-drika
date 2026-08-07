@@ -455,7 +455,9 @@ const LandingPage = () => {
             <img src={drikaLogo} alt="Drika" className="h-6 sm:h-7 w-auto" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <button onClick={scrollToPlans} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+            {!landingConfig?.is_free_system && (
+              <button onClick={scrollToPlans} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+            )}
             <button onClick={() => navigate("/login")} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
             <button 
               onClick={() => (landingConfig?.show_trial ?? true) ? navigate("/signup") : scrollToPlans()} 
@@ -506,16 +508,18 @@ const LandingPage = () => {
               </button>
             )}
             
-            <button onClick={scrollToPlans} className={`group px-6 py-3 rounded-full font-semibold transition-all cursor-pointer ${
-              !landingConfig?.is_free_system && !(landingConfig?.show_trial ?? true)
-                ? "bg-white text-black border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-                : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
-            }`}>
-              <span className="flex items-center justify-center gap-2">
-                <Crown className="h-4 w-4" />
-                Ver Planos
-              </span>
-            </button>
+            {!landingConfig?.is_free_system && (
+              <button onClick={scrollToPlans} className={`group px-6 py-3 rounded-full font-semibold transition-all cursor-pointer ${
+                !(landingConfig?.show_trial ?? true)
+                  ? "bg-white text-black border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                  : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
+              }`}>
+                <span className="flex items-center justify-center gap-2">
+                  <Crown className="h-4 w-4" />
+                  Ver Planos
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Login link */}
@@ -689,7 +693,8 @@ const LandingPage = () => {
       )}
 
       {/* ===== 6. PRICING ===== */}
-      <section id="planos" className="relative z-10 py-16 px-4">
+      {!landingConfig?.is_free_system && (
+        <section id="planos" className="relative z-10 py-16 px-4">
         <div className="max-w-4xl mx-auto">
           <ScrollReveal>
             <div className="text-center mb-10">
@@ -822,6 +827,7 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== 7. FAQ ===== */}
       <section className="relative z-10 py-12 px-4">
