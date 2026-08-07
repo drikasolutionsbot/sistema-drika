@@ -455,7 +455,7 @@ const LandingPage = () => {
             <img src={drikaLogo} alt="Drika" className="h-6 sm:h-7 w-auto" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            {!landingConfig?.is_free_system && (
+            {landingConfig && !landingConfig.is_free_system && (
               <button onClick={scrollToPlans} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
             )}
             <button onClick={() => navigate("/login")} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
@@ -484,41 +484,49 @@ const LandingPage = () => {
             Vendas, moderação e segurança — tudo em um único bot.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-            {landingConfig?.is_free_system ? (
-              <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                <span className="flex items-center justify-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Cadastre-se Grátis
-                </span>
-              </button>
-            ) : (landingConfig?.show_trial ?? true) ? (
-              <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                <span className="flex items-center justify-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  Testar Grátis — 4 dias
-                </span>
-              </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center animate-fade-in min-h-[48px]" style={{ animationDelay: "0.2s" }}>
+            {!landingConfig ? (
+              <div className="flex justify-center w-full">
+                <Loader2 className="h-6 w-6 text-white/50 animate-spin my-auto" />
+              </div>
             ) : (
-              <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
-                <span className="flex items-center justify-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Cadastre-se
-                </span>
-              </button>
-            )}
-            
-            {!landingConfig?.is_free_system && (
-              <button onClick={scrollToPlans} className={`group px-6 py-3 rounded-full font-semibold transition-all cursor-pointer ${
-                !(landingConfig?.show_trial ?? true)
-                  ? "bg-white text-black border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-                  : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
-              }`}>
-                <span className="flex items-center justify-center gap-2">
-                  <Crown className="h-4 w-4" />
-                  Ver Planos
-                </span>
-              </button>
+              <>
+                {landingConfig.is_free_system ? (
+                  <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                    <span className="flex items-center justify-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Cadastre-se Grátis
+                    </span>
+                  </button>
+                ) : (landingConfig.show_trial ?? true) ? (
+                  <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white text-black font-semibold transition-all cursor-pointer border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                    <span className="flex items-center justify-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Testar Grátis — 4 dias
+                    </span>
+                  </button>
+                ) : (
+                  <button onClick={() => navigate("/signup")} className="group px-6 py-3 rounded-full bg-white/10 text-white font-semibold transition-all cursor-pointer border border-white/20 hover:bg-white/20">
+                    <span className="flex items-center justify-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Cadastre-se
+                    </span>
+                  </button>
+                )}
+                
+                {!landingConfig.is_free_system && (
+                  <button onClick={scrollToPlans} className={`group px-6 py-3 rounded-full font-semibold transition-all cursor-pointer ${
+                    !(landingConfig.show_trial ?? true)
+                      ? "bg-white text-black border-none hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                      : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
+                  }`}>
+                    <span className="flex items-center justify-center gap-2">
+                      <Crown className="h-4 w-4" />
+                      Ver Planos
+                    </span>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -693,7 +701,7 @@ const LandingPage = () => {
       )}
 
       {/* ===== 6. PRICING ===== */}
-      {!landingConfig?.is_free_system && (
+      {landingConfig && !landingConfig.is_free_system && (
         <section id="planos" className="relative z-10 py-16 px-4">
         <div className="max-w-4xl mx-auto">
           <ScrollReveal>
