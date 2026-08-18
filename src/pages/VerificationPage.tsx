@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import ChannelSelectWithCreate from "@/components/channels/ChannelSelectWithCreate";
 import { DiscordButtonStylePicker, type DiscordButtonStyle, getDiscordButtonStyles } from "@/components/discord/DiscordButtonStylePicker";
 import ButtonLabelWithEmoji, { parseEmojiFromLabel } from "@/components/discord/ButtonLabelWithEmoji";
+import FreePlanLock from "@/components/FreePlanLock";
+import { isPaidPlan } from "@/lib/plans";
 
 interface VerifyConfig {
   verify_enabled: boolean;
@@ -44,7 +46,7 @@ const defaultConfig: VerifyConfig = {
 };
 
 const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
-  const { tenantId, tenant } = useTenant();
+  const { tenantId, tenant, isSystemFree } = useTenant();
   const [serverConfig, setServerConfig] = useState<VerifyConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -273,6 +275,11 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
 
   const botName = tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
+
+  // ── Plano gate: apenas Pro e Master ──
+  if (!isSystemFree && !isPaidPlan(tenant?.plan)) {
+    return <FreePlanLock feature="Verificação" />;
+  }
 
   if (loading) {
     return (
