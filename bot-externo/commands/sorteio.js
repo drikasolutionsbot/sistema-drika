@@ -31,7 +31,6 @@ module.exports = {
     ),
 
   async execute(interaction, client, tenant) {
-    const tenant = await client.resolveTenant(interaction.guild.id);
     if (!tenant) {
       return interaction.reply({ content: "❌ Servidor não configurado.", ephemeral: true });
     }
