@@ -37,7 +37,6 @@ const navLabelKeys: Record<string, keyof typeof import("@/i18n/translations/pt-B
   "/ai-assistant": "aiGenerator",
   "/finance": "finance",
   "/approvals": "approvals",
-  "/affiliates": "affiliates",
   "/customization": "server",
   "/resources": "resources",
   "/bot-customization": "customization",
@@ -81,7 +80,6 @@ const defaultNavGroups: NavGroup[] = [
     items: [
       { label: "finance", icon: DollarSign, path: "/finance" },
       { label: "approvals", icon: ClipboardCheck, path: "/approvals" },
-      { label: "affiliates", icon: Users, path: "/affiliates" },
     ],
     reorderable: true,
   },
@@ -128,7 +126,6 @@ const iconMap: Record<string, React.ElementType> = {
   "/ai-assistant": Sparkles,
   "/finance": DollarSign,
   "/approvals": ClipboardCheck,
-  "/affiliates": Users,
   "/customization": Server,
   "/resources": Box,
   "/bot-customization": Sparkles,

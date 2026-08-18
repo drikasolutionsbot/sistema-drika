@@ -10,7 +10,6 @@ export const en: TranslationKeys = {
     aiGenerator: "AI Generator",
     finance: "Finance",
     approvals: "Approvals",
-    affiliates: "Affiliates",
     server: "Server",
     resources: "Resources",
     customization: "Customization",

@@ -396,7 +396,6 @@ export default function ApprovalsPage() {
                     <DetailItem icon={Calendar} label="Criado em" value={formatDate(order.created_at)} />
                     <DetailItem icon={Calendar} label="Atualizado em" value={formatDate(order.updated_at)} />
                     <DetailItem icon={Hash} label="Cupom ID" value={order.coupon_id || "—"} mono />
-                    <DetailItem icon={Hash} label="Afiliado ID" value={order.affiliate_id || "—"} mono />
                     <DetailItem icon={Hash} label="Field ID" value={order.field_id || "—"} mono />
                   </div>
                 )}

@@ -9,7 +9,6 @@ export const ptBR = {
     aiGenerator: "Gerador IA",
     finance: "Finanças",
     approvals: "Aprovações",
-    affiliates: "Afiliados",
     server: "Servidor",
     resources: "Recursos",
     customization: "Personalização",

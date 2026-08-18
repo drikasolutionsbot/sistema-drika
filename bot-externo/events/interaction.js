@@ -1,14 +1,5 @@
-const pingCommand = require("../commands/ping");
-const lojaCommand = require("../commands/loja");
-const comprarHandler = require("../commands/comprar");
-const ticketCommand = require("../commands/ticket");
-const painelCommand = require("../commands/painel");
-const estoqueCommand = require("../commands/estoque");
-const verificarCommand = require("../commands/verificar");
-const sorteioCommand = require("../commands/sorteio");
 const checkoutHandler = require("../handlers/checkout");
 const ticketsHandler = require("../handlers/tickets");
-const moderationHandler = require("../handlers/moderation");
 
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
@@ -33,29 +24,6 @@ module.exports = async function handleInteraction(client, interaction) {
       await interaction.reply({ content: "❌ Este servidor não está configurado no painel.", ephemeral: true }).catch(() => {});
     }
     return;
-  }
-
-  // ── Slash Commands ──
-  if (interaction.isChatInputCommand()) {
-    switch (interaction.commandName) {
-      case "ping": return pingCommand.execute(interaction, tenant);
-      case "loja": return lojaCommand.execute(interaction, tenant);
-      case "comprar": return comprarHandler.execute(interaction, tenant);
-      case "ticket": return ticketsHandler.openTicket(interaction, tenant);
-      case "painel": return painelCommand.execute(interaction, tenant);
-      case "estoque": return estoqueCommand.execute(interaction, tenant);
-      case "verificar": return verificarCommand.execute(interaction, tenant);
-      case "sorteio": return sorteioCommand.execute(interaction, client, tenant);
-      case "clear": return moderationHandler.handleClear(interaction, tenant);
-      case "ban": return moderationHandler.handleBan(interaction, tenant);
-      case "kick": return moderationHandler.handleKick(interaction, tenant);
-      case "fechar": {
-        const { getTicketByChannel } = require("../supabase");
-        const ticket = await getTicketByChannel(interaction.channel.id);
-        if (!ticket) return interaction.reply({ content: "❌ Este canal não é um ticket ativo.", ephemeral: true });
-        return ticketsHandler.handleCloseTicket(interaction, tenant, ticket.id);
-      }
-    }
   }
 
   // ── Buttons ──

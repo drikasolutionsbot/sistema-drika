@@ -28,7 +28,7 @@ import DashboardPage from "./pages/DashboardPage";
 import StorePage from "./pages/StorePage";
 import ChannelsPage from "./pages/ChannelsPage";
 import CouponsPage from "./pages/CouponsPage";
-import AffiliatesPage from "./pages/AffiliatesPage";
+
 import PaymentsPage from "./pages/PaymentsPage";
 import TicketsPage from "./pages/TicketsPage";
 import FinancePage from "./pages/FinancePage";
@@ -55,7 +55,7 @@ import VerifyResultPage from "./pages/VerifyResultPage";
 import VerifyRedirectPage from "./pages/VerifyRedirectPage";
 import GiveawaysPage from "./pages/GiveawaysPage";
 import EmbedsPage from "./pages/EmbedsPage";
-import AdminAffiliatesPage from "./pages/admin/AdminAffiliatesPage";
+
 import AdminBotConfigPage from "./pages/admin/AdminBotConfigPage";
 import AdminGlobalMarketplacePage from "./pages/admin/AdminGlobalMarketplacePage";
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
@@ -113,7 +113,7 @@ const AppRoutes = () => (
       <Route path="/admin/permissoes" element={<AdminPermissionsPage />} />
       <Route path="/admin/tutoriais" element={<AdminTutorialsPage />} />
       <Route path="/admin/marketplace" element={<AdminMarketplacePage />} />
-      <Route path="/admin/afiliados" element={<AdminAffiliatesPage />} />
+
       <Route path="/admin/bot-config" element={<AdminBotConfigPage />} />
       <Route path="/admin/marketplace-global" element={<AdminGlobalMarketplacePage />} />
     </Route>
@@ -126,7 +126,7 @@ const AppRoutes = () => (
       <Route path="/marketplace" element={<MarketplacePage />} />
       <Route path="/channels" element={<ChannelsPage />} />
       <Route path="/coupons" element={<CouponsPage />} />
-      <Route path="/affiliates" element={<AffiliatesPage />} />
+
       <Route path="/payments" element={<PaymentsPage />} />
       <Route path="/tickets" element={<TicketsPage />} />
       <Route path="/finance" element={<FinancePage />} />

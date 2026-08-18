@@ -220,7 +220,6 @@ const StorePage = () => {
             <TabsTrigger value="general">Geral</TabsTrigger>
             <TabsTrigger value="checkout">Checkout</TabsTrigger>
             <TabsTrigger value="coupons">Cupons</TabsTrigger>
-            <TabsTrigger value="affiliates">Afiliados</TabsTrigger>
           </TabsList>
         </div>
 
@@ -293,12 +292,6 @@ const StorePage = () => {
         <TabsContent value="coupons" className="mt-4">
           <div className="rounded-xl border border-border bg-card p-6">
             <CouponsPage />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="affiliates" className="mt-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <p className="text-muted-foreground text-sm">Programa de afiliados em breve.</p>
           </div>
         </TabsContent>
       </Tabs>

@@ -32,7 +32,6 @@ const FREE_LOCK_LABELS: Record<string, string> = {
   "/marketplace": "Marketplace",
   "/channels": "Canais",
   "/coupons": "Cupons",
-  "/affiliates": "Afiliados",
   "/payments": "Pagamentos",
   "/tickets": "Tickets",
   "/customization": "Personalização",

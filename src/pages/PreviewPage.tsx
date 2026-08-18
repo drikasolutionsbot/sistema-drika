@@ -13,7 +13,7 @@ import previewFinance from "@/assets/preview-real-finance.jpg";
 const MockSidebar = ({ activeItem }: { activeItem: string }) => {
   const groups = [
     { label: "PRINCIPAL", items: ["Visão Geral", "Gerador IA"] },
-    { label: "GERENCIAMENTO", items: ["Finanças", "Aprovações", "Afiliados"] },
+    { label: "GERENCIAMENTO", items: ["Finanças", "Aprovações"] },
     { label: "BOT", items: ["Servidor", "Recursos", "Personalização"] },
     { label: "CONFIGURAÇÕES", items: ["Canais", "Cargos", "Verificação", "Loja", "Proteção", "Tickets", "Sorteios"] },
   ];
@@ -450,7 +450,6 @@ const PreviewPage = () => {
               { label: "Boas-vindas personalizadas", icon: "👋" },
               { label: "Proteção anti-raid", icon: "🛡️" },
               { label: "Gerador IA de textos", icon: "🤖" },
-              { label: "Sistema de afiliados", icon: "🤝" },
               { label: "Cargos automáticos", icon: "👑" },
               { label: "Backup na nuvem (eCloud)", icon: "☁️" },
               { label: "Marketplace integrado", icon: "🏪" },

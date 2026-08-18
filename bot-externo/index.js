@@ -2,16 +2,12 @@ const {
   Client,
   GatewayIntentBits,
   Collection,
-  REST,
-  Routes,
   ActivityType,
   Events,
 } = require("discord.js");
 require("dotenv").config();
 
 const { getTenantByGuild, getGlobalBotConfig } = require("./supabase");
-
-const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_BOT_TOKEN);
 
 // Cache de tenants por guild_id (TTL: 60s)
 const tenantCache = new Map();
@@ -40,14 +36,6 @@ client.tenantCache = tenantCache;
 client.resolveTenant = resolveTenant;
 
 // ── Carregar handlers ──
-const pingCommand = require("./commands/ping");
-const lojaCommand = require("./commands/loja");
-const comprarHandler = require("./commands/comprar");
-const ticketCommand = require("./commands/ticket");
-const painelCommand = require("./commands/painel");
-const estoqueCommand = require("./commands/estoque");
-const verificarCommand = require("./commands/verificar");
-const sorteioCommand = require("./commands/sorteio");
 const interactionHandler = require("./events/interaction");
 const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
@@ -99,40 +87,6 @@ client.on(Events.ClientReady, async () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
   console.log(`📡 Conectado em ${client.guilds.cache.size} servidor(es)`);
 
-  // Registrar slash commands em cada guild
-  const { SlashCommandBuilder } = require("discord.js");
-
-  const commands = [
-    pingCommand.data,
-    lojaCommand.data,
-    comprarHandler.data,
-    ticketCommand.data,
-    painelCommand.data,
-    estoqueCommand.data,
-    verificarCommand.data,
-    sorteioCommand.data,
-    // Moderation commands
-    new SlashCommandBuilder().setName("clear").setDescription("Limpa todas as mensagens do canal"),
-    new SlashCommandBuilder().setName("ban").setDescription("Bane um usuário do servidor")
-      .addUserOption(o => o.setName("usuario").setDescription("Usuário para banir").setRequired(true))
-      .addStringOption(o => o.setName("motivo").setDescription("Motivo do ban")),
-    new SlashCommandBuilder().setName("kick").setDescription("Expulsa um usuário do servidor")
-      .addUserOption(o => o.setName("usuario").setDescription("Usuário para expulsar").setRequired(true))
-      .addStringOption(o => o.setName("motivo").setDescription("Motivo da expulsão")),
-    new SlashCommandBuilder().setName("fechar").setDescription("Fecha o ticket atual"),
-  ];
-
-  for (const guild of client.guilds.cache.values()) {
-    try {
-      await rest.put(Routes.applicationGuildCommands(client.user.id, guild.id), {
-        body: commands,
-      });
-      console.log(`📝 Comandos registrados em: ${guild.name}`);
-    } catch (err) {
-      console.error(`Erro ao registrar comandos em ${guild.name}:`, err.message);
-    }
-  }
-
   // Sync status immediately
   await syncBotStatus();
 
@@ -153,43 +107,14 @@ client.on(Events.ClientReady, async () => {
   const { initRealtimeListeners } = require("./handlers/realtime");
   initRealtimeListeners(client);
 });
-// ── Ao entrar em um novo servidor, registrar os comandos ──
+
+// ── Ao entrar em um novo servidor ──
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
-  const { SlashCommandBuilder } = require("discord.js");
-
-  const commands = [
-    pingCommand.data,
-    lojaCommand.data,
-    comprarHandler.data,
-    ticketCommand.data,
-    painelCommand.data,
-    estoqueCommand.data,
-    verificarCommand.data,
-    sorteioCommand.data,
-    new SlashCommandBuilder().setName("clear").setDescription("Limpa todas as mensagens do canal"),
-    new SlashCommandBuilder().setName("ban").setDescription("Bane um usuário do servidor")
-      .addUserOption(o => o.setName("usuario").setDescription("Usuário para banir").setRequired(true))
-      .addStringOption(o => o.setName("motivo").setDescription("Motivo do ban")),
-    new SlashCommandBuilder().setName("kick").setDescription("Expulsa um usuário do servidor")
-      .addUserOption(o => o.setName("usuario").setDescription("Usuário para expulsar").setRequired(true))
-      .addStringOption(o => o.setName("motivo").setDescription("Motivo da expulsão")),
-    new SlashCommandBuilder().setName("fechar").setDescription("Fecha o ticket atual"),
-  ];
-
-  try {
-    await rest.put(Routes.applicationGuildCommands(client.user.id, guild.id), {
-      body: commands,
-    });
-    console.log(`📝 Comandos registrados no novo servidor: ${guild.name}`);
-
-    await syncBotStatus();
-  } catch (err) {
-    console.error(`Erro ao registrar comandos em ${guild.name}:`, err.message);
-  }
+  await syncBotStatus();
 });
 
-// ── Interactions (slash commands + buttons) ──
+// ── Interactions (buttons, modals, select menus) ──
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     await interactionHandler(client, interaction);

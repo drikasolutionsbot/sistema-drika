@@ -31,7 +31,6 @@ const DEFAULT_NAV_ITEMS: NavItem[] = [
   { label: "Tutoriais", icon: BookOpen, path: "/admin/tutoriais" },
   { label: "Market Clientes", icon: Store, path: "/admin/marketplace" },
   { label: "Marketplace Global", icon: Globe, path: "/admin/marketplace-global" },
-  { label: "Afiliados", icon: UserPlus, path: "/admin/afiliados" },
   { label: "Bot Externo", icon: Bot, path: "/admin/bot-config" },
 ];
 
