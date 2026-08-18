@@ -11,7 +11,7 @@ module.exports = {
       .setTitle("🔗 Painel de Gerenciamento")
       .setDescription(
         `Acesse o painel para gerenciar produtos, configurações e mais.\n\n` +
-        `**[Acessar Painel](https://drikabotteste.lovable.app)**\n\n` +
+        `**[Acessar Painel](https://www.drikahub.com/admin)**\n\n` +
         `Tenant: **${tenant.name}**\nPlano: **${tenant.plan}**`
       )
       .setColor(parseInt((tenant.primary_color || "#FF69B4").replace("#", ""), 16))
