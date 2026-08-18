@@ -374,6 +374,44 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // Get store branding
   const storeConfig = await getStoreConfig(tenant.id);
+
+  // Background task to explicitly add admins/staff to the private thread
+  // This makes the thread pop up in their sidebar without needing them to manually join.
+  (async () => {
+    try {
+      let staffRoleIds = [];
+      if (storeConfig?.ticket_staff_role_id) {
+        staffRoleIds = storeConfig.ticket_staff_role_id.split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        const { data: fallbackRoles } = await supabase
+          .from("tenant_roles")
+          .select("discord_role_id")
+          .eq("tenant_id", tenant.id)
+          .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
+        staffRoleIds = (fallbackRoles || []).map((r) => r.discord_role_id);
+      }
+
+      const guildMembers = await interaction.guild.members.fetch().catch(() => null);
+      if (guildMembers) {
+        const staffMembers = guildMembers.filter(m => 
+          !m.user.bot && 
+          m.id !== userId &&
+          (m.permissions.has(PermissionFlagsBits.Administrator) || m.roles.cache.some(r => staffRoleIds.includes(r.id)))
+        );
+
+        // Slice to 20 to avoid exceeding message length or causing massive pings
+        const membersToMention = Array.from(staffMembers.values()).slice(0, 20);
+        if (membersToMention.length > 0) {
+          const mentions = membersToMention.map(m => `<@${m.id}>`).join(" ");
+          // Sending a message with user mentions in a thread automatically adds them as members
+          const pingMsg = await checkoutThread.send({ content: `Adicionando equipe: ${mentions}` }).catch(() => null);
+          if (pingMsg) await pingMsg.delete().catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.error("[CHECKOUT] Erro ao puxar staffs pro checkout:", e.message);
+    }
+  })();
   const storeName = storeConfig?.store_title || tenant.name || "Loja";
   const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
   const productEmbedConfig = getProductEmbedConfig(product);
