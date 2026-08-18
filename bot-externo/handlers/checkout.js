@@ -912,13 +912,13 @@ async function copyPix(interaction, tenant, orderId) {
 
   // 1. Try to use the saved brcode from the database
   if (order.pix_brcode) {
-    return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${order.pix_brcode}\n\`\`\``, ephemeral: true });
+    return interaction.reply({ content: order.pix_brcode, ephemeral: true });
   }
 
   // 2. Fallback: regenerate static PIX brcode if tenant has a pix_key
   if (tenant.pix_key) {
     const brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", order.total_cents / 100, `PED${order.order_number}`);
-    return interaction.reply({ content: `📋 **Código PIX Copia e Cola:**\n\`\`\`\n${brcode}\n\`\`\``, ephemeral: true });
+    return interaction.reply({ content: brcode, ephemeral: true });
   }
 
   return interaction.reply({ content: "❌ Código PIX não disponível. Copie manualmente da mensagem acima.", ephemeral: true });
