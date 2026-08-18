@@ -86,7 +86,7 @@ async function handleBan(interaction, tenant) {
   try {
     await interaction.guild.members.ban(targetUser, { reason, deleteMessageSeconds: 604800 });
     const embed = new EmbedBuilder().setTitle("🔨 Usuário Banido").setDescription(`<@${targetUser.id}> foi banido por <@${interaction.user.id}>.`).addFields({ name: "Motivo", value: reason }).setColor(0x2B2D31).setTimestamp();
-    applyDrikaCover(embed);
+    applyDrikaCover(embed, tenant);
     await interaction.editReply({
       embeds: [embed],
     });
@@ -110,7 +110,7 @@ async function handleKick(interaction, tenant) {
   try {
     await interaction.guild.members.kick(targetUser, reason);
     const embed = new EmbedBuilder().setTitle("👢 Usuário Expulso").setDescription(`<@${targetUser.id}> foi expulso por <@${interaction.user.id}>.`).addFields({ name: "Motivo", value: reason }).setColor(0x2B2D31).setTimestamp();
-    applyDrikaCover(embed);
+    applyDrikaCover(embed, tenant);
     await interaction.editReply({
       embeds: [embed],
     });

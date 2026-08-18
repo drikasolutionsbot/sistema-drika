@@ -22,7 +22,7 @@ module.exports = {
       )
       .setColor(latency < 200 ? 0x57f287 : latency < 500 ? 0xfee75c : 0xed4245)
       .setTimestamp();
-    applyDrikaCover(embed);
+    applyDrikaCover(embed, tenant);
 
     return interaction.editReply({ embeds: [embed] });
   },

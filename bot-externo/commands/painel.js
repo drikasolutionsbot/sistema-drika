@@ -16,7 +16,7 @@ module.exports = {
       )
       .setColor(parseInt((tenant.primary_color || "#FF69B4").replace("#", ""), 16))
       .setTimestamp();
-    applyDrikaCover(embed);
+    applyDrikaCover(embed, tenant);
 
     return interaction.reply({ embeds: [embed], ephemeral: true });
   },

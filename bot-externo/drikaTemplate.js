@@ -6,7 +6,11 @@
  * Para trocar a imagem oficial, edite apenas a constante DRIKA_COVER_URL abaixo.
  */
 
-const DRIKA_COVER_URL = process.env.DRIKA_COVER_URL || null;
+let DRIKA_COVER_URL = process.env.DRIKA_COVER_URL || null;
+
+function setGlobalCover(url) {
+  DRIKA_COVER_URL = url;
+}
 
 const DRIKA_TEMPLATES = {
   purchase: {
@@ -31,9 +35,14 @@ const DRIKA_TEMPLATES = {
  * Aplica capa fixa Drika em um EmbedBuilder (discord.js).
  * Chamar SEMPRE depois das outras configurações para garantir override.
  */
-function applyDrikaCover(embed) {
-  if (DRIKA_COVER_URL && embed && typeof embed.setImage === "function") {
-    embed.setImage(DRIKA_COVER_URL);
+function applyDrikaCover(embed, tenant = null) {
+  let coverToUse = DRIKA_COVER_URL;
+  if (tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master" && tenant.bot_banner_url) {
+    coverToUse = tenant.bot_banner_url;
+  }
+  
+  if (coverToUse && embed && typeof embed.setImage === "function") {
+    embed.setImage(coverToUse);
   }
   return embed;
 }
@@ -46,11 +55,14 @@ function applyDrikaTemplate(embed, type) {
   if (!tpl || !embed) return embed;
   if (typeof embed.setTitle === "function") embed.setTitle(tpl.title);
   if (typeof embed.setDescription === "function") embed.setDescription(tpl.description);
+  
+  // Here we don't have tenant, but this function is actually unused right now.
   if (DRIKA_COVER_URL && typeof embed.setImage === "function") embed.setImage(DRIKA_COVER_URL);
   return embed;
 }
 
 module.exports = {
+  setGlobalCover,
   DRIKA_COVER_URL,
   DRIKA_TEMPLATES,
   applyDrikaCover,

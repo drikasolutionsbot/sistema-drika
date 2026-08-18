@@ -36,7 +36,7 @@ module.exports = {
       .setDescription(lines.join("\n"))
       .setColor(embedColor)
       .setTimestamp();
-    applyDrikaCover(embed);
+    applyDrikaCover(embed, tenant);
 
     return interaction.editReply({ embeds: [embed] });
   },

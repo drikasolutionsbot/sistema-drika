@@ -52,7 +52,7 @@ module.exports = {
     if (storeConfig?.ticket_embed_footer) embed.setFooter({ text: storeConfig.ticket_embed_footer });
     if (storeConfig?.ticket_embed_image_url) embed.setImage(storeConfig.ticket_embed_image_url);
     if (storeConfig?.ticket_embed_thumbnail_url) embed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
-    applyDrikaCover(embed);
+    applyDrikaCover(embed, tenant);
 
     // Parse button label & emoji
     const rawLabel = storeConfig?.ticket_embed_button_label || "<:mail:1521240067064987669> Abrir Ticket";

@@ -73,7 +73,7 @@ function buildEmbed(embedData, member) {
     }
   }
 
-  applyDrikaCover(embed);
+  applyDrikaCover(embed, tenant);
   return embed;
 }
 

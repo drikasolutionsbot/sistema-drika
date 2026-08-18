@@ -30,7 +30,7 @@ module.exports = {
         .addStringOption(o => o.setName("id").setDescription("ID do sorteio").setRequired(true))
     ),
 
-  async execute(interaction, client) {
+  async execute(interaction, client, tenant) {
     const tenant = await client.resolveTenant(interaction.guild.id);
     if (!tenant) {
       return interaction.reply({ content: "❌ Servidor não configurado.", ephemeral: true });
@@ -111,7 +111,7 @@ module.exports = {
           .setTitle("🎉 Sorteios Ativos")
           .setDescription(lines.join("\n\n"))
           .setFooter({ text: `${active.length} sorteio(s) ativo(s)` });
-        applyDrikaCover(embed);
+        applyDrikaCover(embed, tenant);
 
         await interaction.editReply({ embeds: [embed] });
       } catch (err) {
@@ -138,7 +138,7 @@ module.exports = {
           .setTitle(`🎉 Sorteio Encerrado!`)
           .setDescription(`🏆 **Vencedor${winners.length > 1 ? "es" : ""}:** ${winnerMentions}\n\nParabéns! 🥳`)
           .setTimestamp();
-        applyDrikaCover(embed);
+        applyDrikaCover(embed, tenant);
 
         await interaction.editReply({ content: `🎉 ${winnerMentions}`, embeds: [embed] });
       } catch (err) {

@@ -37,7 +37,7 @@ async function onMemberJoin(client, member, tenant) {
         .setTimestamp();
 
       if (tenant.logo_url) dm.setThumbnail(tenant.logo_url);
-      applyDrikaCover(dm);
+      applyDrikaCover(dm, tenant);
 
       await member.send({ embeds: [dm] }).catch(() => {
         // DMs may be disabled

@@ -68,10 +68,18 @@ function normalizeStatus(rawStatus) {
   return (firstLine || fallback).slice(0, 128);
 }
 
+const { setGlobalCover } = require("./drikaTemplate");
+
 async function syncBotStatus() {
   try {
     const config = await getGlobalBotConfig();
     const status = normalizeStatus(config?.global_bot_status);
+    if (config?.global_bot_banner_url) {
+      setGlobalCover(config.global_bot_banner_url);
+      if (client.user && typeof client.user.setBanner === "function") {
+        try { await client.user.setBanner(config.global_bot_banner_url); } catch (e) { console.error("Banner set err:", e.message); }
+      }
+    }
 
     if (status === lastAppliedStatus) return;
 

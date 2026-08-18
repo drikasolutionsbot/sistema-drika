@@ -203,7 +203,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
   if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
-  applyDrikaCover(welcomeEmbed);
+  applyDrikaCover(welcomeEmbed, tenant);
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle).setEmoji("1521188814498959481"),
@@ -279,7 +279,7 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
     }
 
     const archivedEmbed = new EmbedBuilder().setTitle("📁 Ticket Arquivado").setDescription(`Ticket arquivado por <@${interaction.user.id}>.`).setColor(parseInt((storeConfig?.embed_color || "#5865F2").replace("#", ""), 16));
-    applyDrikaCover(archivedEmbed);
+    applyDrikaCover(archivedEmbed, tenant);
     await interaction.channel.send({
       embeds: [archivedEmbed],
     });
@@ -356,7 +356,7 @@ async function handleDeleteTicket(interaction, tenant, ticketId) {
     }
 
     const deletedEmbed = new EmbedBuilder().setTitle("🗑️ Ticket Deletado").setDescription(`Ticket deletado por <@${interaction.user.id}>.\nO tópico será excluído em 5 segundos.`).setColor(parseInt((storeConfig?.embed_color || "#5865F2").replace("#", ""), 16));
-    applyDrikaCover(deletedEmbed);
+    applyDrikaCover(deletedEmbed, tenant);
     await interaction.channel.send({
       embeds: [deletedEmbed],
     });
@@ -395,7 +395,7 @@ async function handleRemindTicket(interaction, tenant, ticketId) {
     const user = await interaction.client.users.fetch(ticket.discord_user_id);
     const ticketUrl = `https://discord.com/channels/${interaction.guild.id}/${ticket.discord_channel_id}`;
     const remindEmbed = new EmbedBuilder().setDescription(`${greeting} <@${ticket.discord_user_id}>, você possui um ticket pendente de resposta; se não for respondido, poderá ser fechado.`).setColor(parseInt((storeConfig?.embed_color || "#5865F2").replace("#", ""), 16));
-    applyDrikaCover(remindEmbed);
+    applyDrikaCover(remindEmbed, tenant);
     await user.send({
       embeds: [remindEmbed],
       components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel("Ir para o ticket").setStyle(ButtonStyle.Link).setURL(ticketUrl))],
@@ -855,7 +855,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     )
     .setTimestamp()
     .setFooter({ text: `${closedAtStr} • ${tenant.name || "Servidor"}` });
-  applyDrikaCover(logEmbed);
+  applyDrikaCover(logEmbed, tenant);
 
   // Build transcript and upload
   let components = [];
@@ -941,7 +941,7 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
         )
         .setTimestamp()
         .setFooter({ text: tenant.name || "Drika Hub" });
-      applyDrikaCover(dmEmbed);
+      applyDrikaCover(dmEmbed, tenant);
       await user.send({
         embeds: [dmEmbed],
         components: [new ActionRowBuilder().addComponents(
