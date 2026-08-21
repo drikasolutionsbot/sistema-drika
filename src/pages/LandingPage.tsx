@@ -36,24 +36,7 @@ const ScrollReveal = ({ children, delay = 0, className = "" }: { children: React
   );
 };
 
-/* ── FAQ Accordion ── */
-const FaqItem = ({ q, a }: { q: string; a: string }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 text-left text-sm font-semibold text-white/90 bg-transparent border-none cursor-pointer hover:bg-white/5 transition-colors"
-      >
-        {q}
-        <ChevronDown className={`h-4 w-4 text-white/40 shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
-      </button>
-      <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 opacity-100" : "max-h-0 opacity-0"}`}>
-        <p className="px-4 pb-4 text-xs text-white/50 leading-relaxed">{a}</p>
-      </div>
-    </div>
-  );
-};
+
 
 /* ── Counter animation ── */
 const AnimatedCounter = ({ target, suffix = "" }: { target: number; suffix?: string }) => {
@@ -856,30 +839,7 @@ const LandingPage = () => {
       </section>
       )}
 
-      {/* ===== 7. FAQ ===== */}
-      <section className="relative z-10 py-12 px-4">
-        <div className="max-w-xl mx-auto">
-          <ScrollReveal>
-            <div className="text-center mb-8">
-              <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Perguntas <span className="text-white">frequentes</span>
-              </h2>
-            </div>
-          </ScrollReveal>
-          <div className="space-y-3">
-            {[
-              { q: "Preciso de cartão de crédito para testar?", a: "Não! O plano Free é 100% gratuito por 4 dias. Sem cartão, sem compromisso." },
-              { q: "O bot funciona em qualquer servidor?", a: "Sim, funciona em qualquer servidor Discord. Basta adicionar o bot e configurar pelo painel." },
-              { q: "Como funciona o pagamento PIX?", a: "Quando um cliente compra no seu servidor, o bot gera automaticamente um QR Code PIX. Após o pagamento, a entrega é feita instantaneamente." },
-              { q: "Posso cancelar a qualquer momento?", a: "Sim, sem multa e sem burocracia. Você pode cancelar o plano Pro quando quiser." },
-            ].map((faq, i) => (
-              <ScrollReveal key={i} delay={0.05 * i}>
-                <FaqItem q={faq.q} a={faq.a} />
-              </ScrollReveal>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* ===== 8. FOOTER ===== */}
       <footer className="relative z-20 border-t border-white/10 py-5 px-4">
