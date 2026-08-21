@@ -45,6 +45,7 @@ import SupportPage from "./pages/SupportPage";
 import ApprovalsPage from "./pages/ApprovalsPage";
 import VerificationPage from "./pages/VerificationPage";
 import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 import PreviewPage from "./pages/PreviewPage";
@@ -92,6 +93,7 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/signup" element={<SignupPage />} />
     <Route path="/termos" element={<TermsPage />} />
+    <Route path="/privacidade" element={<PrivacyPage />} />
     <Route path="/verify/result" element={<VerifyResultPage />} />
     <Route path="/verify/:slug" element={<VerifyRedirectPage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
