@@ -1120,17 +1120,20 @@ async function cancelManual(interaction, tenant, orderId) {
 
 // ── Copy Delivered ──
 async function copyDelivered(interaction, tenant, orderId) {
+  // Defer immediately to avoid Discord's 3s timeout while Supabase queries run
+  await interaction.deferReply({ ephemeral: true });
+
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.editReply({ content: "❌ Pedido não encontrado." });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
     .eq("delivered_to", order.discord_user_id).eq("delivered", true)
     .order("delivered_at", { ascending: false }).limit(10);
 
-  if (!items?.length) return interaction.reply({ content: "❌ Nenhum conteúdo entregue encontrado.", ephemeral: true });
+  if (!items?.length) return interaction.editReply({ content: "❌ Nenhum conteúdo entregue encontrado." });
   const content = items.map((i) => i.content).join("\n");
-  return interaction.reply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\``, ephemeral: true });
+  return interaction.editReply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\`` });
 }
 
 // ── View Variations ──
