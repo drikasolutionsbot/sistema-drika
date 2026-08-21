@@ -448,20 +448,41 @@ const LandingPage = () => {
       {/* Center glow */}
       <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,_rgba(29,78,216,0.1)_0%,_transparent_60%)]" />
 
+      {/* ===== DISCORD ANNOUNCEMENT BAR ===== */}
+      <a
+        href="https://discord.gg/EpANWMPEKS"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="relative z-50 flex items-center justify-center gap-2 sm:gap-3 px-4 py-2 bg-[#1a1a2e]/90 backdrop-blur-md border-b border-[#5865F2]/30 hover:bg-[#1a1a2e] transition-colors group cursor-pointer"
+      >
+        {/* Discord icon */}
+        <svg className="h-4 w-4 text-[#5865F2] shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.053a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+        </svg>
+        <span className="text-[11px] sm:text-xs text-white/70 group-hover:text-white/90 transition-colors font-medium">
+          Entre no nosso servidor de suporte
+        </span>
+        <span className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-[#5865F2] border border-[#5865F2]/40 rounded px-2 py-0.5 group-hover:border-[#5865F2]/70 group-hover:text-[#7289da] transition-all">
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Entrar
+        </span>
+      </a>
+
       {/* ===== STICKY NAV ===== */}
+
       <nav className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 h-12">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2">
-            <img src={drikaLogo} alt="Drika" className="h-6 sm:h-7 w-auto" />
+            <img src={drikaLogo} alt="Drika" className="h-8 sm:h-10 w-auto" />
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {landingConfig && !landingConfig.is_free_system && (
-              <button onClick={scrollToPlans} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+              <button onClick={scrollToPlans} className="text-xs sm:text-sm text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
             )}
-            <button onClick={() => navigate("/login")} className="text-[11px] sm:text-xs text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
+            <button onClick={() => navigate("/login")} className="text-xs sm:text-sm text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
             <button 
-              onClick={() => (landingConfig?.show_trial ?? true) ? navigate("/signup") : scrollToPlans()} 
-              className="text-[11px] sm:text-xs px-3 sm:px-4 py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all"
+              onClick={() => navigate("/signup")} 
+              className="text-xs sm:text-sm px-4 sm:px-5 py-2 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all"
             >
               Começar
             </button>
@@ -546,29 +567,9 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ===== 2. SOCIAL PROOF STATS ===== */}
-      <section className="relative z-10 py-8 px-4">
-        <ScrollReveal>
-          <div className="max-w-2xl mx-auto grid grid-cols-3 gap-4">
-            {[
-              { icon: Users, value: landingConfig?.stat_servers ?? 120, suffix: "+", label: landingConfig?.stat_servers_label ?? "Servidores ativos" },
-              { icon: TrendingUp, value: landingConfig?.stat_sales ?? 500, suffix: "+", label: landingConfig?.stat_sales_label ?? "Vendas processadas" },
-              { icon: Package, value: landingConfig?.stat_products ?? 1200, suffix: "+", label: landingConfig?.stat_products_label ?? "Produtos entregues" },
-            ].map((s) => (
-              <div key={s.label} className="text-center p-4 rounded-xl border border-white/10 bg-white/[0.02]">
-                <s.icon className="h-5 w-5 text-white/60 mx-auto mb-2" />
-                <div className="text-xl md:text-2xl font-extrabold font-display text-white">
-                  <AnimatedCounter target={s.value} suffix={s.suffix} />
-                </div>
-                <p className="text-[10px] text-white/40 mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </ScrollReveal>
-      </section>
 
       {/* ===== 3. FEATURES ===== */}
-      <section className="relative z-10 py-12 px-4">
+      <section className="relative z-10 py-4 px-4">
         <div className="max-w-3xl mx-auto">
           <ScrollReveal>
             <div className="text-center mb-8">
@@ -612,12 +613,15 @@ const LandingPage = () => {
               },
             ].map((f, i) => (
               <ScrollReveal key={f.title} delay={0.1 * i}>
-                <div className="group rounded-2xl border border-white/10 bg-white/[0.02] p-5 hover:border-white/20 hover:bg-white/[0.04] transition-all duration-300 h-full">
-                  <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <f.icon className="h-5 w-5 text-white" />
+                <div className={`group rounded-2xl border border-white/5 bg-[#09090b]/80 p-5 transition-all duration-500 h-full hover:shadow-[0_0_30px_-5px_rgba(236,72,153,0.15)] hover:border-pink-500/30 relative overflow-hidden`}>
+                  {/* Subtle pink glow inside card on hover */}
+                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500 bg-pink-500`} />
+                  
+                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-500 group-hover:scale-110 bg-pink-500/10 text-pink-500`}>
+                    <f.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-base font-bold font-display mb-2">{f.title}</h3>
-                  <p className="text-xs text-white/50 leading-relaxed">{f.desc}</p>
+                  <h3 className="text-base font-bold font-display mb-2 text-white">{f.title}</h3>
+                  <p className="text-xs text-white/70 leading-relaxed">{f.desc}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -631,28 +635,28 @@ const LandingPage = () => {
           <ScrollReveal>
             <div className="text-center mb-8">
               <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">
-                Como <span className="text-white">funciona</span>
+                Como <span className="text-pink-500">funciona</span>
               </h2>
-              <p className="text-xs text-white/40">3 passos para começar a vender</p>
+              <p className="text-xs text-white/50">3 passos para começar a vender</p>
             </div>
           </ScrollReveal>
           <div className="space-y-4">
             {[
-              { step: "1", icon: Bot, title: "Instale o bot", desc: "Adicione o bot Drika no seu servidor Discord com um clique." },
-              { step: "2", icon: Settings, title: "Configure sua loja", desc: "Use o painel para criar produtos, definir preços e configurar pagamento PIX." },
-              { step: "3", icon: ShoppingCart, title: "Comece a vender", desc: "Seus clientes compram direto no Discord. Pagamento e entrega automáticos." },
+              { step: "01", icon: Bot, title: "Instale o bot", desc: "Adicione o bot Drika no seu servidor Discord com um clique." },
+              { step: "02", icon: Settings, title: "Configure sua loja", desc: "Use o painel para criar produtos, definir preços e configurar pagamento PIX." },
+              { step: "03", icon: ShoppingCart, title: "Comece a vender", desc: "Seus clientes compram direto no Discord. Pagamento e entrega automáticos." },
             ].map((s, i) => (
               <ScrollReveal key={s.step} delay={0.1 * i}>
-                <div className="flex items-start gap-4 p-4 rounded-2xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all">
-                  <div className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center shrink-0 font-extrabold font-display text-sm">
+                <div className="flex items-start gap-5 p-6 rounded-2xl border border-white/5 bg-[#09090b]/80 hover:border-pink-500/20 hover:bg-white/[0.02] transition-all duration-300">
+                  <div className="text-xl sm:text-2xl font-bold font-display text-pink-500/20 group-hover:text-pink-500/40 transition-colors shrink-0 select-none">
                     {s.step}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold font-display mb-1 flex items-center gap-2">
-                      <s.icon className="h-4 w-4 text-white/60" />
+                    <h3 className="text-sm sm:text-base font-bold font-display mb-2 flex items-center gap-2 text-white">
+                      <s.icon className="h-4 w-4 text-pink-500" />
                       {s.title}
                     </h3>
-                    <p className="text-xs text-white/50 leading-relaxed">{s.desc}</p>
+                    <p className="text-xs sm:text-sm text-white/70 leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
               </ScrollReveal>
@@ -868,7 +872,6 @@ const LandingPage = () => {
               { q: "O bot funciona em qualquer servidor?", a: "Sim, funciona em qualquer servidor Discord. Basta adicionar o bot e configurar pelo painel." },
               { q: "Como funciona o pagamento PIX?", a: "Quando um cliente compra no seu servidor, o bot gera automaticamente um QR Code PIX. Após o pagamento, a entrega é feita instantaneamente." },
               { q: "Posso cancelar a qualquer momento?", a: "Sim, sem multa e sem burocracia. Você pode cancelar o plano Pro quando quiser." },
-              { q: "O que acontece quando o plano Free expira?", a: "Após os 4 dias, o bot para de funcionar. Você pode assinar o plano Pro para continuar usando sem limites." },
             ].map((faq, i) => (
               <ScrollReveal key={i} delay={0.05 * i}>
                 <FaqItem q={faq.q} a={faq.a} />
