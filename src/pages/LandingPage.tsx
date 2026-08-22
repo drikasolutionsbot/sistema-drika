@@ -436,7 +436,7 @@ const LandingPage = () => {
         href="https://discord.gg/EpANWMPEKS"
         target="_blank"
         rel="noopener noreferrer"
-        className="relative z-50 flex items-center justify-center gap-2 sm:gap-3 px-4 py-2 bg-[#1a1a2e]/90 backdrop-blur-md border-b border-[#ff6bc9]/30 hover:bg-[#1a1a2e] transition-colors group cursor-pointer"
+        className="relative z-50 flex items-center justify-center gap-2 sm:gap-3 px-4 py-2 bg-[#3d102e]/90 backdrop-blur-md border-b border-[#ff6bc9]/30 hover:bg-[#4d143a] transition-colors group cursor-pointer"
       >
         {/* Discord icon */}
         <svg className="h-4 w-4 text-[#ff6bc9] shrink-0" viewBox="0 0 24 24" fill="currentColor">
