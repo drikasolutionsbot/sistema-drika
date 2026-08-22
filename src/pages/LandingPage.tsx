@@ -484,7 +484,7 @@ const LandingPage = () => {
             <span className="drop-shadow-none">mais completo para o Discord</span>
           </h1>
 
-          <p className="text-base md:text-lg text-[#ff6bc9] max-w-xl mx-auto mb-8 animate-fade-in font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] text-center" style={{ animationDelay: "0.1s" }}>
+          <p className="text-lg md:text-xl text-white max-w-xl mx-auto mb-8 animate-fade-in font-bold drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] text-center" style={{ animationDelay: "0.1s", textShadow: "-1px -1px 0 #ff6bc9, 1px -1px 0 #ff6bc9, -1px 1px 0 #ff6bc9, 1px 1px 0 #ff6bc9" }}>
             Sistema de vendas automáticas, tickets profissionais, moderação, sistema de verificação de membros e muito mais.
           </p>
 
