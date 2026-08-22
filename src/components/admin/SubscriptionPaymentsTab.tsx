@@ -43,6 +43,7 @@ const PLAN_LABELS: Record<string, { label: string; color: string }> = {
   starter: { label: "Starter", color: "bg-blue-500/10 text-blue-500" },
   pro: { label: "Pro", color: "bg-emerald-500/10 text-emerald-500" },
   business: { label: "Business", color: "bg-amber-500/10 text-amber-500" },
+  master: { label: "Master", color: "bg-purple-500/10 text-purple-500" },
 };
 
 const SubscriptionPaymentsTab = () => {
@@ -250,6 +251,7 @@ const SubscriptionPaymentsTab = () => {
             <SelectItem value="starter">Starter</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
             <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="master">Master</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing}>
