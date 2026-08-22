@@ -453,7 +453,7 @@ const LandingPage = () => {
 
       {/* ===== STICKY NAV ===== */}
 
-      <nav className="sticky top-0 z-50 bg-[#27272a]/40 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
+      <nav className="sticky top-0 z-50 bg-white/[0.03] backdrop-blur-lg border-b border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
         <div className="max-w-4xl mx-auto flex items-center justify-end px-6 h-8 sm:h-10">
           <div className="flex items-center gap-2 sm:gap-4">
             {landingConfig && !landingConfig.is_free_system && (
