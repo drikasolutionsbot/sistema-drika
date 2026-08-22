@@ -436,7 +436,7 @@ const LandingPage = () => {
         href="https://discord.gg/EpANWMPEKS"
         target="_blank"
         rel="noopener noreferrer"
-        className="relative z-50 flex items-center justify-center gap-2 sm:gap-3 px-4 py-2 bg-[#1a1a2e]/90 backdrop-blur-md border-b border-[#5865F2]/30 hover:bg-[#1a1a2e] transition-colors group cursor-pointer"
+        className="relative z-50 flex items-center justify-center gap-2 sm:gap-3 px-4 py-2 bg-[#1a1a2e]/90 backdrop-blur-md border-b border-[#ff6bc9]/30 hover:bg-[#1a1a2e] transition-colors group cursor-pointer"
       >
         {/* Discord icon */}
         <svg className="h-4 w-4 text-[#ff6bc9] shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -445,7 +445,7 @@ const LandingPage = () => {
         <span className="text-[11px] sm:text-xs text-white group-hover:text-white/80 transition-colors font-display font-extrabold tracking-wide">
           Entre no nosso servidor de suporte
         </span>
-        <span className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-[#5865F2] border border-[#5865F2]/40 rounded px-2 py-0.5 group-hover:border-[#5865F2]/70 group-hover:text-[#7289da] transition-all">
+        <span className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-[#ff6bc9] border border-[#ff6bc9]/40 rounded px-2 py-0.5 group-hover:border-[#ff6bc9]/70 group-hover:text-[#ff85d4] transition-all">
           <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           Entrar
         </span>
