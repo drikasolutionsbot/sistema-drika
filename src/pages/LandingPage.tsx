@@ -478,13 +478,13 @@ const LandingPage = () => {
         <div className="text-center max-w-2xl mx-auto">
           <img src={drikaLogo} alt="Drika Solutions" className="h-20 sm:h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] animate-fade-in" />
 
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] text-[#ff6bc9] text-center" style={{ WebkitTextStroke: "1.5px black" }}>
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] text-[#ff6bc9] text-center" style={{ WebkitTextStroke: "2px black" }}>
             Conheça o Bot de vendas
             <br />
             <span className="drop-shadow-none">mais completo para o Discord</span>
           </h1>
 
-          <p className="text-base md:text-lg text-[#ff6bc9] max-w-xl mx-auto mb-8 animate-fade-in font-semibold drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] text-center" style={{ animationDelay: "0.1s", WebkitTextStroke: "0.5px black" }}>
+          <p className="text-base md:text-lg text-[#ff6bc9] max-w-xl mx-auto mb-8 animate-fade-in font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] text-center" style={{ animationDelay: "0.1s", WebkitTextStroke: "1px black" }}>
             Sistema de vendas automáticas, tickets profissionais, moderação, sistema de verificação de membros e muito mais.
           </p>
 
