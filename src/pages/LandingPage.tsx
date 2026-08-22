@@ -453,16 +453,16 @@ const LandingPage = () => {
 
       {/* ===== STICKY NAV ===== */}
 
-      <nav className="sticky top-0 z-50 bg-[#18181b]/95 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-4xl mx-auto flex items-center justify-end px-6 h-10 sm:h-12">
+      <nav className="sticky top-0 z-50 bg-[#27272a]/95 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-4xl mx-auto flex items-center justify-end px-6 h-8 sm:h-10">
           <div className="flex items-center gap-2 sm:gap-4">
             {landingConfig && !landingConfig.is_free_system && (
-              <button onClick={scrollToPlans} className="text-xs sm:text-sm text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
+              <button onClick={scrollToPlans} className="text-xs text-white/70 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
             )}
-            <button onClick={() => navigate("/login")} className="text-xs sm:text-sm text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
+            <button onClick={() => navigate("/login")} className="text-xs text-white/70 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Entrar</button>
             <button 
               onClick={() => navigate("/signup")} 
-              className="text-xs sm:text-sm px-4 sm:px-5 py-2 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all"
+              className="text-xs px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-white text-black font-semibold cursor-pointer border-none hover:bg-white/90 transition-all"
             >
               Começar
             </button>
