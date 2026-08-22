@@ -453,11 +453,8 @@ const LandingPage = () => {
 
       {/* ===== STICKY NAV ===== */}
 
-      <nav className="sticky top-0 z-50 bg-black/60 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-4xl mx-auto flex items-center justify-between px-6 h-16">
-          <div className="flex items-center gap-2">
-            <img src={drikaLogo} alt="Drika" className="h-8 sm:h-10 w-auto" />
-          </div>
+      <nav className="sticky top-0 z-50 bg-[#18181b]/95 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-4xl mx-auto flex items-center justify-end px-6 h-12 sm:h-14">
           <div className="flex items-center gap-2 sm:gap-4">
             {landingConfig && !landingConfig.is_free_system && (
               <button onClick={scrollToPlans} className="text-xs sm:text-sm text-white/60 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
