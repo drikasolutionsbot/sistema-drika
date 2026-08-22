@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const BotCustomizationPage = () => {
-  const { tenant, tenantId, refetch } = useTenant();
+  const { tenant, tenantId, refetch, globalBotBanner } = useTenant();
   const [editOpen, setEditOpen] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
@@ -32,6 +32,7 @@ const BotCustomizationPage = () => {
   const botName = tenant.bot_name || "Drika Bot";
   const botAvatar = tenant.bot_avatar_url;
   const botBanner = (tenant as any).bot_banner_url as string | null;
+  const effectiveBanner = botBanner || globalBotBanner;
   const userIsMaster = isMaster((tenant as any).plan);
 
   const botId = (tenant as any).discord_bot_id || tenant.id;
@@ -218,13 +219,13 @@ const BotCustomizationPage = () => {
       {/* Hero Card */}
       <div className="relative rounded-2xl overflow-hidden border border-border bg-card min-h-[280px]">
         {/* Banner background (preview tem prioridade) */}
-        {(bannerPreview || botBanner) ? (
+        {(bannerPreview || effectiveBanner) ? (
           <div className="absolute inset-0">
             <img
-              src={bannerPreview || botBanner!}
+              src={bannerPreview || effectiveBanner!}
               alt="Capa do bot"
               className={`w-full h-full object-cover transition-opacity duration-300 ${
-                !userIsMaster && botBanner && !bannerPreview ? "blur-md scale-110" : ""
+                !userIsMaster && effectiveBanner && !bannerPreview ? "blur-md scale-110" : ""
               } ${uploadingBanner ? "opacity-90" : "opacity-100"}`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/40" />

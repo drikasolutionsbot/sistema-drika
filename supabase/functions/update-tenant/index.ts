@@ -252,6 +252,13 @@ serve(async (req) => {
           } else {
             memberPatch.banner = null; // remover banner
           }
+        } else if (tenantPlan?.plan !== "master") {
+          // Fallback para a capa global se o cliente for padrão e estiver atualizando o bot
+          const { data: config } = await supabase.from("landing_config").select("global_bot_banner_url").limit(1).single();
+          if (config?.global_bot_banner_url) {
+            const dataUri = await urlToDataUri(config.global_bot_banner_url);
+            if (dataUri) memberPatch.banner = dataUri;
+          }
         }
 
         if (Object.keys(memberPatch).length > 0) {

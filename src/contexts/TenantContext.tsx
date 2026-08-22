@@ -39,6 +39,7 @@ interface TenantContextType {
   refetch: () => Promise<Tenant | null>;
   isPlanExpired: boolean;
   isSystemFree: boolean;
+  globalBotBanner: string | null;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -48,6 +49,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSystemFree, setIsSystemFree] = useState(false);
+  const [globalBotBanner, setGlobalBotBanner] = useState<string | null>(null);
 
   const fetchTenant = async (isRefetch = false): Promise<Tenant | null> => {
     if (!isRefetch) setLoading(true);
@@ -136,10 +138,13 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     const fetchConfig = async () => {
       const { data } = await supabase
         .from("landing_config")
-        .select("is_free_system")
+        .select("is_free_system, global_bot_banner_url")
         .limit(1)
         .single();
-      if (data) setIsSystemFree(data.is_free_system || false);
+      if (data) {
+        setIsSystemFree(data.is_free_system || false);
+        setGlobalBotBanner(data.global_bot_banner_url || null);
+      }
     };
     fetchConfig();
   }, []);
@@ -174,7 +179,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   })();
 
   return (
-    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree }}>
+    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree, globalBotBanner }}>
       {children}
     </TenantContext.Provider>
   );
