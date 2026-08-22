@@ -478,13 +478,13 @@ const LandingPage = () => {
         <div className="text-center max-w-2xl mx-auto">
           <img src={drikaLogo} alt="Drika Solutions" className="h-20 sm:h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] animate-fade-in" />
 
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] text-primary text-center">
             Conheça o Bot de vendas
             <br />
-            <span className="text-white/90 drop-shadow-none">mais completo para o Discord</span>
+            <span className="drop-shadow-none">mais completo para o Discord</span>
           </h1>
 
-          <p className="text-sm md:text-base text-white/70 max-w-lg mx-auto mb-8 animate-fade-in font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]" style={{ animationDelay: "0.1s" }}>
+          <p className="text-base md:text-lg text-primary max-w-xl mx-auto mb-8 animate-fade-in font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] text-center" style={{ animationDelay: "0.1s" }}>
             Sistema de vendas automáticas, tickets profissionais, moderação, sistema de verificação de membros e muito mais.
           </p>
 
