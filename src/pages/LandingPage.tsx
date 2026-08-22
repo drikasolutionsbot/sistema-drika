@@ -478,10 +478,10 @@ const LandingPage = () => {
         <div className="text-center max-w-2xl mx-auto">
           <img src={drikaLogo} alt="Drika Solutions" className="h-20 sm:h-28 md:h-40 w-auto mx-auto mb-5 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] animate-fade-in" />
 
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] text-white text-center" style={{ textShadow: "-1px -1px 0 #ff6bc9, 1px -1px 0 #ff6bc9, -1px 1px 0 #ff6bc9, 1px 1px 0 #ff6bc9, 0 1px 0 #ff6bc9, 1px 0 0 #ff6bc9, 0 -1px 0 #ff6bc9, -1px 0 0 #ff6bc9" }}>
-            Conheça o Bot de vendas
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-display mb-3 leading-tight animate-fade-in drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)] text-center">
+            <span className="text-white">Conheça o Bot de vendas</span>
             <br />
-            <span className="drop-shadow-none">mais completo para o Discord</span>
+            <span className="text-[#ff6bc9]">mais completo para o Discord</span>
           </h1>
 
           <p className="text-lg md:text-xl text-white max-w-xl mx-auto mb-8 animate-fade-in font-bold drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] text-center" style={{ animationDelay: "0.1s", textShadow: "-1px -1px 0 #ff6bc9, 1px -1px 0 #ff6bc9, -1px 1px 0 #ff6bc9, 1px 1px 0 #ff6bc9" }}>
