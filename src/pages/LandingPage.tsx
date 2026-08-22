@@ -541,12 +541,7 @@ const LandingPage = () => {
             </button>
           </div>
 
-          {/* Social proof */}
-          <div className="mt-4 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-            <p className="text-xs text-white/40 font-medium">
-              Usado por <span className="text-white font-bold">+120 servidores</span> no Discord
-            </p>
-          </div>
+
         </div>
       </section>
 
