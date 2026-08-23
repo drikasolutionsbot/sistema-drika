@@ -274,6 +274,8 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
     } catch {
       toast({ title: "Erro ao excluir", variant: "destructive" });
     }
+  };
+
   const botName = tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
 

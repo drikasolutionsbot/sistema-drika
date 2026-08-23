@@ -790,6 +790,7 @@ const ProtectionPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
