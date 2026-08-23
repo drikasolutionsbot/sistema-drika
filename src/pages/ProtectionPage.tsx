@@ -427,7 +427,7 @@ const ProtectionPage = () => {
 
   return (
     <div className="relative">
-      {!isSystemFree && !isPro && (
+      {!isPro && (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl border border-border mt-6 mx-6">
           <div className="bg-pink-600/20 p-4 rounded-2xl mb-4">
             <Lock className="h-8 w-8 text-pink-500" />
@@ -442,7 +442,7 @@ const ProtectionPage = () => {
           </Button>
         </div>
       )}
-      <div className={cn("space-y-6 animate-fade-in", !isSystemFree && !isPro && "pointer-events-none opacity-50 select-none")}>
+      <div className={cn("space-y-6 animate-fade-in", !isPro && "pointer-events-none opacity-50 select-none")}>
         {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

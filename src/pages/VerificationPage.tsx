@@ -291,7 +291,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
 
   return (
     <div className="relative">
-      {!isSystemFree && !isPro && (
+      {!isPro && (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl border border-border mt-6 mx-6">
           <div className="bg-pink-600/20 p-4 rounded-2xl mb-4">
             <Lock className="h-8 w-8 text-pink-500" />
@@ -306,7 +306,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
           </Button>
         </div>
       )}
-      <div className={cn("space-y-6 max-w-5xl mx-auto", !isSystemFree && !isPro && "pointer-events-none opacity-50 select-none")}>
+      <div className={cn("space-y-6 max-w-5xl mx-auto", !isPro && "pointer-events-none opacity-50 select-none")}>
         {/* Draft banner */}
       {hasDraft && (
         <div className="flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5">
