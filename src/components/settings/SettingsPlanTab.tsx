@@ -22,7 +22,9 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [pixExpired, setPixExpired] = useState(false);
   const [proPriceCents, setProPriceCents] = useState(2690);
+  const [masterPriceCents, setMasterPriceCents] = useState(3090);
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<"pro" | "master">("pro");
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -31,10 +33,11 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const isFree = tenant.plan === "free" || !tenant.plan;
   const canUpgrade = isFree || isExpired;
 
-  // Fetch pro price from landing_config
+  // Fetch prices from landing_config
   useEffect(() => {
-    supabase.from("landing_config").select("pro_price_cents").limit(1).single().then(({ data }) => {
+    supabase.from("landing_config").select("pro_price_cents, master_price_cents").limit(1).single().then(({ data }) => {
       if (data?.pro_price_cents) setProPriceCents(data.pro_price_cents);
+      if (data?.master_price_cents) setMasterPriceCents(data.master_price_cents);
     });
   }, []);
 
@@ -74,13 +77,14 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
   }, [refetchTenant]);
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (planType: "pro" | "master" = "pro") => {
     if (!tenantId) return;
     setLoading(true);
     setPaymentConfirmed(false);
+    setSelectedPlan(planType);
     try {
       const { data, error } = await supabase.functions.invoke("generate-subscription-pix", {
-        body: { tenant_id: tenantId },
+        body: { tenant_id: tenantId, plan: planType },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message || "Erro ao gerar PIX");
       setPixCode(data.brcode || data.qr_code || "");
@@ -231,41 +235,82 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           )}
         </div>
 
-        {/* Subscribe button inside plan card */}
-        {canUpgrade && (
-          <Button
-            onClick={handleUpgrade}
-            disabled={loading}
-            className="w-full gradient-pink text-primary-foreground border-none gap-2"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
-            Assine o Plano Pro
-          </Button>
-        )}
+        {/* Subscribe button inside plan card - hidden in favor of cards below */}
       </div>
 
-      {/* Upgrade section */}
-      {canUpgrade && (
-        <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-5 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-              <Crown className="h-5 w-5 text-primary" />
+      {/* Upgrade section (Plans side by side) */}
+      {canUpgrade && !pixCode && (
+        <div className="mt-6 space-y-4">
+          <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 relative overflow-hidden shadow-2xl">
+            {/* Logo */}
+            <img src="/logo.png" alt="Drika Hub" className="h-10 mb-4 object-contain opacity-90 drop-shadow-md" />
+            
+            <div className="text-center mb-6 z-10">
+              <h4 className="text-lg font-bold text-white">Escolha o seu plano</h4>
+              <p className="text-xs text-white/60 mt-1">Acesso completo a todas as funcionalidades da plataforma</p>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Atualizar para Pro</h4>
-              <p className="text-xs text-muted-foreground">Acesso completo a todas as funcionalidades</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full z-10">
+              {/* Pro Plan */}
+              <div className="relative rounded-xl border border-white/10 bg-white/5 p-5 flex flex-col items-center hover:bg-white/10 transition-colors">
+                <Crown className="h-6 w-6 text-pink-500 mb-2" />
+                <h5 className="text-base font-bold text-white">Plano Pro</h5>
+                <p className="text-2xl font-extrabold text-white my-3">
+                  R$ {(proPriceCents / 100).toFixed(2).replace(".", ",")}
+                  <span className="text-xs font-normal text-white/60">/mês</span>
+                </p>
+                <Button
+                  onClick={() => handleUpgrade("pro")}
+                  disabled={loading}
+                  className="w-full rounded-full bg-pink-600 hover:bg-pink-700 text-white border-none h-11 transition-all"
+                >
+                  {loading && selectedPlan === "pro" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
+                  Ativar Pro
+                </Button>
+              </div>
+
+              {/* Master Plan */}
+              <div className="relative rounded-xl border border-purple-500/30 bg-purple-500/10 p-5 flex flex-col items-center hover:bg-purple-500/20 transition-colors shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+                <div className="absolute -top-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
+                  Recomendado
+                </div>
+                <Sparkles className="h-6 w-6 text-purple-400 mb-2" />
+                <h5 className="text-base font-bold text-white">Plano Master</h5>
+                <p className="text-2xl font-extrabold text-white my-3">
+                  R$ {(masterPriceCents / 100).toFixed(2).replace(".", ",")}
+                  <span className="text-xs font-normal text-white/60">/mês</span>
+                </p>
+                <Button
+                  onClick={() => handleUpgrade("master")}
+                  disabled={loading}
+                  className="w-full rounded-full bg-purple-600 hover:bg-purple-700 text-white border-none h-11 transition-all"
+                >
+                  {loading && selectedPlan === "master" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  Ativar Master
+                </Button>
+              </div>
             </div>
+            
+            {/* Background glow effects */}
+            <div className="absolute top-1/2 -left-10 w-32 h-32 bg-pink-500/20 rounded-full blur-[60px] pointer-events-none" />
+            <div className="absolute bottom-0 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[60px] pointer-events-none" />
+          </div>
+        </div>
+      )}
+
+      {/* PIX Payment Section */}
+      {canUpgrade && pixCode && (
+        <div className="mt-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-6 space-y-4">
+          <div className="flex flex-col items-center justify-center mb-4">
+            <h4 className="text-lg font-bold text-white">Pagamento do Plano {selectedPlan === "master" ? "Master" : "Pro"}</h4>
+            <p className="text-2xl font-extrabold text-white mt-1">R$ {((selectedPlan === "master" ? masterPriceCents : proPriceCents) / 100).toFixed(2).replace(".", ",")}</p>
           </div>
 
-          <div className="text-center">
-            <p className="text-3xl font-extrabold text-foreground">R$ {(proPriceCents / 100).toFixed(2).replace(".", ",")}<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
-          </div>
-
-          {pixCode && !pixExpired ? (
-            <div className="space-y-3">
+          {!pixExpired ? (
+            <div className="space-y-4">
               {/* Timer */}
-              <div className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 ${
-                secondsLeft <= 120 ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-400"
+              <div className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 mx-auto w-fit ${
+                secondsLeft <= 120 ? "bg-destructive/20 text-red-400" : "bg-amber-500/20 text-amber-400"
               }`}>
                 <Clock className="h-4 w-4" />
                 <span className="text-sm font-mono font-semibold">{formatTime(secondsLeft)}</span>
@@ -273,87 +318,107 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
               </div>
 
               {qrCodeBase64 && (
-                <div className="flex justify-center">
-                  <img
-                    src={qrCodeBase64}
-                    alt="QR Code PIX"
-                    className="w-48 h-48 rounded-xl border border-border"
-                  />
+                <div className="flex justify-center my-4">
+                  <div className="bg-white p-3 rounded-2xl">
+                    <img
+                      src={qrCodeBase64}
+                      alt="QR Code PIX"
+                      className="w-48 h-48"
+                    />
+                  </div>
                 </div>
               )}
-              <p className="text-sm text-muted-foreground text-center">Copie o código PIX e pague pelo seu banco:</p>
-              <div className="rounded-xl border border-primary/20 bg-muted/50 p-4">
-                <code className="block text-xs font-mono text-primary break-all leading-relaxed text-center">
+              
+              <p className="text-sm text-white/80 text-center">Copie o código PIX e pague pelo seu banco:</p>
+              
+              <div className="rounded-xl border border-white/10 bg-black/40 p-4 relative group">
+                <code className="block text-xs font-mono text-white break-all leading-relaxed text-center">
                   {pixCode}
                 </code>
               </div>
+              
               <button
                 onClick={handleCopy}
-                className={`w-full h-11 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
-                  copied ? "bg-emerald-500/20 text-emerald-400" : "bg-muted text-foreground hover:bg-accent"
+                className={`w-full h-12 flex items-center justify-center gap-2 rounded-full font-medium text-base cursor-pointer border-none transition-all ${
+                  copied ? "bg-emerald-500 text-white" : "bg-white text-black hover:bg-white/90"
                 }`}
               >
                 {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                 {copied ? "Copiado!" : "Copiar Código PIX"}
               </button>
-              <div className="flex flex-col items-center gap-2">
+              
+              <div className="flex flex-col items-center gap-3 pt-3">
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-2 w-2">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                   </span>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-white/60">
                     Verificando pagamento automaticamente...
                   </p>
                 </div>
-                <Button 
-                  onClick={handleManualCheck} 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-xs text-muted-foreground"
-                  disabled={checkingStatus}
-                >
-                  {checkingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                  Já paguei — verificar agora
-                </Button>
+                <div className="flex items-center gap-4 mt-2">
+                  <Button 
+                    onClick={handleManualCheck} 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs text-white/50 hover:text-white"
+                    disabled={checkingStatus}
+                  >
+                    {checkingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    Já paguei
+                  </Button>
+                  <span className="text-white/20">|</span>
+                  <Button 
+                    onClick={() => setPixCode(null)} 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs text-white/50 hover:text-white"
+                  >
+                    Trocar plano
+                  </Button>
+                </div>
               </div>
             </div>
-          ) : pixExpired ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 rounded-lg py-3 px-3 bg-destructive/10 text-destructive">
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-2 rounded-lg py-3 px-3 bg-destructive/20 text-red-400 mx-auto w-fit">
                 <Clock className="h-4 w-4" />
                 <span className="text-sm font-semibold">PIX expirado</span>
               </div>
-              <p className="text-xs text-muted-foreground text-center">O tempo para pagamento acabou. Gere um novo código.</p>
-              <Button
-                onClick={handleUpgrade}
-                disabled={loading}
-                className="w-full h-11 rounded-full gradient-pink text-primary-foreground border-none hover:opacity-90"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
-                Gerar novo PIX
-              </Button>
+              <p className="text-xs text-white/60 text-center">O tempo para pagamento acabou. Gere um novo código.</p>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setPixCode(null)}
+                  variant="outline"
+                  className="w-full h-11 rounded-full border-white/20 text-white hover:bg-white/10"
+                >
+                  Voltar
+                </Button>
+                <Button
+                  onClick={() => handleUpgrade(selectedPlan)}
+                  disabled={loading}
+                  className={`w-full h-11 rounded-full text-white border-none hover:opacity-90 ${selectedPlan === 'master' ? 'bg-purple-600' : 'bg-pink-600'}`}
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : (selectedPlan === 'master' ? <Sparkles className="h-4 w-4 mr-2" /> : <Crown className="h-4 w-4 mr-2" />)}
+                  Gerar novo PIX
+                </Button>
+              </div>
             </div>
-          ) : (
-            <Button
-              onClick={handleUpgrade}
-              disabled={loading}
-              className="w-full h-11 rounded-full gradient-pink text-primary-foreground border-none hover:opacity-90"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
-              {isExpired ? "Renovar Plano Pro via PIX" : "Ativar Plano Pro via PIX"}
-            </Button>
           )}
 
-          <a
-            href="https://wa.me/5548996915303?text=Quero%20ativar%20o%20plano%20Pro"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            Ou fale com o suporte
-          </a>
+          <div className="pt-4 mt-4 border-t border-white/10 flex justify-center">
+            <a
+              href={`https://wa.me/5548996915303?text=Quero%20ativar%20o%20plano%20${selectedPlan === 'master' ? 'Master' : 'Pro'}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Ou fale com o suporte
+            </a>
+          </div>
         </div>
       )}
 

@@ -39,7 +39,9 @@ function replacePlaceholders(text, member) {
 function buildEmbed(embedData, member) {
   if (!embedData) return null;
 
-  const color = parseInt((embedData.color || "#2B2D31").replace("#", ""), 16);
+  let fallbackColor = embedData.color || "#FF69B4";
+  if (fallbackColor.toUpperCase() === "#2B2D31") fallbackColor = "#FF69B4";
+  const color = parseInt(fallbackColor.replace("#", ""), 16);
   const embed = new EmbedBuilder().setColor(color);
 
   if (embedData.title) embed.setTitle(replacePlaceholders(embedData.title, member));

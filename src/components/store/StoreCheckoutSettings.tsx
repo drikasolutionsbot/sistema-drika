@@ -202,9 +202,8 @@ const StoreCheckoutSettings = () => {
                 label=""
                 value={config.qr_code_logo_url}
                 onChange={(url) => update("qr_code_logo_url", url)}
-                onClear={() => update("qr_code_logo_url", "")}
-                bucket="tenant-assets"
-                path={`${tenantId}/qr-logo`}
+                folder="qr-logo"
+                maxSizeKB={500}
               />
               <p className="text-[11px] text-muted-foreground mt-2">Esta logo aparecerá no centro do QR Code gerado nos pagamentos via PIX.</p>
             </div>

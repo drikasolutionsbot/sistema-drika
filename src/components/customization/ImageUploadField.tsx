@@ -11,15 +11,22 @@ interface ImageUploadFieldProps {
   value: string;
   onChange: (url: string) => void;
   folder?: string;
+  maxSizeKB?: number;
 }
 
-const ImageUploadField = ({ label, value, onChange, folder = "embeds" }: ImageUploadFieldProps) => {
+const ImageUploadField = ({ label, value, onChange, folder = "embeds", maxSizeKB }: ImageUploadFieldProps) => {
   const { tenantId } = useTenant();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const processFile = async (file: File) => {
     if (!tenantId) return;
+    
+    if (maxSizeKB && file.size > maxSizeKB * 1024) {
+      toast.error(`A imagem deve ter no máximo ${maxSizeKB}KB para evitar erros na renderização do QR Code.`);
+      return;
+    }
+    
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "png";

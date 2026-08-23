@@ -106,6 +106,43 @@ client.on(Events.ClientReady, async () => {
   // Inicia listener de realtime do Supabase para enviar DMs de reabastecimento
   const { initRealtimeListeners } = require("./handlers/realtime");
   initRealtimeListeners(client);
+
+  // Auto-draw para Sorteios Expirados a cada 1 minuto
+  setInterval(async () => {
+    try {
+      const { data: expiredGiveaways } = await supabase
+        .from("giveaways")
+        .select("id, tenant_id")
+        .eq("status", "active")
+        .lte("ends_at", new Date().toISOString());
+
+      if (expiredGiveaways && expiredGiveaways.length > 0) {
+        console.log(`[SORTEIO] Encontrados ${expiredGiveaways.length} sorteios expirados para sortear automaticamente...`);
+        for (const g of expiredGiveaways) {
+          try {
+            const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/manage-giveaways`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+              },
+              body: JSON.stringify({ action: "draw", giveaway_id: g.id, tenant_id: g.tenant_id })
+            });
+            if (res.ok) {
+              console.log(`[SORTEIO] Ganhadores sorteados com sucesso para o sorteio ${g.id} (tenant: ${g.tenant_id})`);
+            } else {
+              const text = await res.text();
+              console.error(`[SORTEIO] Falha ao sortear ${g.id}: ${res.status} ${text}`);
+            }
+          } catch (e) {
+            console.error(`[SORTEIO] Erro na requisição para sortear ${g.id}:`, e.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[SORTEIO] Erro ao buscar sorteios expirados:", e.message);
+    }
+  }, 60 * 1000);
 });
 
 // ── Ao entrar em um novo servidor ──

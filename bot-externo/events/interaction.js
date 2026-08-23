@@ -7,18 +7,23 @@ module.exports = async function handleInteraction(client, interaction) {
 
   const tenant = guildId ? await client.resolveTenant(guildId) : null;
 
-  // For DM interactions (buttons), resolve tenant from order
+  // For DM interactions (buttons/modals)
+  let isAllowedDM = false;
   if (!tenant && !guildId) {
-    if (interaction.isButton()) {
-      const customId = interaction.customId;
-      if (customId.startsWith("cancel_order:") || customId.startsWith("copy_delivered:")) {
-        // These can work without tenant context
-      }
+    const customId = interaction.customId || "";
+    isAllowedDM = customId.startsWith("cancel_order:") || 
+                  customId.startsWith("copy_delivered:") || 
+                  customId.startsWith("feedback_open:") || 
+                  customId.startsWith("feedback_rate:") || 
+                  customId.startsWith("feedback_modal:");
+    
+    if (!isAllowedDM) {
+      return;
     }
-    return;
   }
 
-  if (!tenant) {
+  // Se não tem tenant e não é uma DM permitida, bloqueia.
+  if (!tenant && !isAllowedDM) {
     const canReply = interaction.isCommand() || interaction.isButton() || interaction.isAnySelectMenu() || interaction.isModalSubmit();
     if (canReply) {
       await interaction.reply({ content: "❌ Este servidor não está configurado no painel.", ephemeral: true }).catch(() => {});
@@ -72,6 +77,17 @@ module.exports = async function handleInteraction(client, interaction) {
     // Transcript view button
     if (customId.startsWith("transcript_view_")) return ticketsHandler.handleTranscriptView(interaction, tenant, customId.replace("transcript_view_", ""));
 
+    // Feedback buttons
+    if (customId.startsWith("feedback_open:")) {
+      const { openFeedback } = require("../handlers/feedback");
+      return openFeedback(interaction, customId.replace("feedback_open:", ""));
+    }
+    if (customId.startsWith("feedback_rate:")) {
+      const parts = customId.split(":");
+      const { rateFeedback } = require("../handlers/feedback");
+      return rateFeedback(interaction, parts[1], parts[2]);
+    }
+
     // Legacy compatibility (mensagens antigas)
     if (customId.startsWith("buy_")) return checkoutHandler.startCheckout(interaction, tenant, customId.replace("buy_", ""));
     if (customId.startsWith("field_")) {
@@ -119,5 +135,10 @@ module.exports = async function handleInteraction(client, interaction) {
     if (customId.startsWith("coupon_modal_")) return checkoutHandler.handleCouponModal(interaction, tenant, customId.replace("coupon_modal_", ""));
     if (customId.startsWith("quantity_modal_")) return checkoutHandler.handleQuantityModal(interaction, tenant, customId.replace("quantity_modal_", ""));
     if (customId.startsWith("ticket_rename_modal_")) return ticketsHandler.handleRenameModal(interaction, tenant, customId.replace("ticket_rename_modal_", ""));
+    if (customId.startsWith("feedback_modal:")) {
+      const parts = customId.split(":");
+      const { submitFeedback } = require("../handlers/feedback");
+      return submitFeedback(interaction, parts[1], parts[2]);
+    }
   }
 };

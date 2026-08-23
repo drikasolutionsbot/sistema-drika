@@ -49,7 +49,9 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
 
     const storeName = storeConfig?.store_title || tenant.name || "Loja";
     const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
-    const embedColor = color || parseInt((storeConfig?.embed_color || "#2B2D31").replace("#", ""), 16);
+    let fallbackColor = storeConfig?.embed_color || "#FF69B4";
+    if (fallbackColor.toUpperCase() === "#2B2D31") fallbackColor = "#FF69B4";
+    const embedColor = color || parseInt(fallbackColor.replace("#", ""), 16);
     const { date, time } = formatDateTime();
     const botToken = process.env.DISCORD_BOT_TOKEN;
 
