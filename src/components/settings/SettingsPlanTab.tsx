@@ -357,23 +357,20 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                     Verificando pagamento automaticamente...
                   </p>
                 </div>
-                <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-3 mt-4 w-full">
                   <Button 
                     onClick={handleManualCheck} 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-xs text-white/50 hover:text-white"
+                    variant="outline"
+                    className="flex-1 h-10 border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors"
                     disabled={checkingStatus}
                   >
-                    {checkingStatus ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                    {checkingStatus ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                     Já paguei
                   </Button>
-                  <span className="text-white/20">|</span>
                   <Button 
                     onClick={() => setPixCode(null)} 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-xs text-white/50 hover:text-white"
+                    variant="outline"
+                    className="flex-1 h-10 border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
                   >
                     Trocar plano
                   </Button>
