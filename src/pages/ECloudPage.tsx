@@ -290,7 +290,7 @@ const ECloudPage = () => {
           <p className="text-muted-foreground text-center max-w-md mb-6">
             O painel avançado eCloud está disponível apenas para clientes dos planos Pro ou Master. Faça upgrade para desbloquear estas funcionalidades.
           </p>
-          <Button onClick={() => navigate("/dashboard/settings?tab=plan")} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
+          <Button onClick={() => navigate("/settings?tab=plan")} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
             <Crown className="h-4 w-4 mr-2" />
             Desbloquear Acesso
           </Button>
