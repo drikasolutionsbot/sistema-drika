@@ -4,8 +4,10 @@ import {
   Zap, Link2, UserX, AlertTriangle, Clock, RefreshCw, Plus,
   Settings2, Activity, Eye, EyeOff, Search, Check, X, Skull,
   Volume2, AtSign, Hash, Globe, Lock, Unlock, ChevronDown, ChevronRight,
-  Siren, BellRing, RotateCcw,
+  Siren, BellRing, RotateCcw, Crown,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -243,7 +245,8 @@ const CATEGORY_META: Record<string, { label: string; description: string; icon: 
 
 // ─── Component ──────────────────────────
 const ProtectionPage = () => {
-  const { tenantId, tenant } = useTenant();
+  const { tenantId, tenant, isSystemFree } = useTenant();
+  const navigate = useNavigate();
   const userIsMaster = isMaster((tenant as any)?.plan);
   const [settings, setSettings] = useState<Record<string, ProtectionSetting>>({});
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
@@ -408,6 +411,7 @@ const ProtectionPage = () => {
   };
 
   const enabledCount = Object.values(settings).filter((s) => s.enabled).length;
+  const isPro = tenant?.plan === "pro" || tenant?.plan === "master" || tenant?.plan === "business";
 
   if (loading) {
     return (
@@ -422,8 +426,24 @@ const ProtectionPage = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+    <div className="relative">
+      {!isSystemFree && !isPro && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl border border-border mt-6 mx-6">
+          <div className="bg-pink-600/20 p-4 rounded-2xl mb-4">
+            <Lock className="h-8 w-8 text-pink-500" />
+          </div>
+          <h3 className="text-xl font-bold text-foreground mb-2">Acesso Exclusivo Pro & Master</h3>
+          <p className="text-muted-foreground text-center max-w-md mb-6">
+            O módulo avançado de proteção está disponível apenas para clientes dos planos Pro ou Master. Faça upgrade para desbloquear.
+          </p>
+          <Button onClick={() => navigate("/dashboard/settings?tab=plan")} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
+            <Crown className="h-4 w-4 mr-2" />
+            Desbloquear Acesso
+          </Button>
+        </div>
+      )}
+      <div className={cn("space-y-6 animate-fade-in", !isSystemFree && !isPro && "pointer-events-none opacity-50 select-none")}>
+        {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold flex items-center gap-2">

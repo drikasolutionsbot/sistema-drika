@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ShieldCheck, Save, Loader2, Send, Eye, Upload, X, ImageIcon, Undo2, FolderOpen, Trash2 } from "lucide-react";
+import { ShieldCheck, Save, Loader2, Send, Eye, Upload, X, ImageIcon, Undo2, FolderOpen, Trash2, Lock, Crown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { useTenant } from "@/contexts/TenantContext";
@@ -47,6 +49,7 @@ const defaultConfig: VerifyConfig = {
 
 const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
   const { tenantId, tenant, isSystemFree } = useTenant();
+  const navigate = useNavigate();
   const [serverConfig, setServerConfig] = useState<VerifyConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -271,15 +274,10 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
     } catch {
       toast({ title: "Erro ao excluir", variant: "destructive" });
     }
-  };
-
   const botName = tenant?.name || "Bot";
   const botAvatar = tenant?.logo_url;
 
-  // ── Plano gate: apenas Pro e Master ──
-  if (!isSystemFree && !isPaidPlan(tenant?.plan)) {
-    return <FreePlanLock feature="Verificação" />;
-  }
+  const isPro = tenant?.plan === "pro" || tenant?.plan === "master" || tenant?.plan === "business";
 
   if (loading) {
     return (
@@ -290,8 +288,24 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Draft banner */}
+    <div className="relative">
+      {!isSystemFree && !isPro && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl border border-border mt-6 mx-6">
+          <div className="bg-pink-600/20 p-4 rounded-2xl mb-4">
+            <Lock className="h-8 w-8 text-pink-500" />
+          </div>
+          <h3 className="text-xl font-bold text-foreground mb-2">Acesso Exclusivo Pro & Master</h3>
+          <p className="text-muted-foreground text-center max-w-md mb-6">
+            O módulo de verificação de membros está disponível apenas para clientes dos planos Pro ou Master. Faça upgrade para desbloquear.
+          </p>
+          <Button onClick={() => navigate("/dashboard/settings?tab=plan")} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
+            <Crown className="h-4 w-4 mr-2" />
+            Desbloquear Acesso
+          </Button>
+        </div>
+      )}
+      <div className={cn("space-y-6 max-w-5xl mx-auto", !isSystemFree && !isPro && "pointer-events-none opacity-50 select-none")}>
+        {/* Draft banner */}
       {hasDraft && (
         <div className="flex items-center justify-between rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5">
           <p className="text-sm text-yellow-400">
@@ -652,6 +666,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
