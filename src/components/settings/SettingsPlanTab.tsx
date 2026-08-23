@@ -419,21 +419,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mt-4">
-        <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
-          <p className="text-lg font-bold text-foreground">∞</p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Produtos</p>
-        </div>
-        <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
-          <p className="text-lg font-bold text-foreground">∞</p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Vendas</p>
-        </div>
-        <div className="rounded-xl bg-muted/50 border border-border p-4 text-center">
-          <p className="text-lg font-bold text-foreground">24/7</p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Suporte</p>
-        </div>
-      </div>
+
     </div>
   );
 };
