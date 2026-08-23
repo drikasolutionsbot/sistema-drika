@@ -66,6 +66,8 @@ const StoreCheckoutSettings = () => {
   const [channels, setChannels] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [discordRoles, setDiscordRoles] = useState<any[]>([]);
+  const [qrPreviewUrl, setQrPreviewUrl] = useState<string | null>(null);
+  const [loadingQr, setLoadingQr] = useState(false);
 
   const { draft: config, setDraft: setConfig, clearDraft, hasDraft, discardDraft } = useLocalDraft<StoreConfig>(
     "store-settings",
@@ -123,6 +125,58 @@ const StoreCheckoutSettings = () => {
     fetchDiscordRoles();
   }, [fetchConfig, fetchChannels, fetchDiscordRoles]);
 
+  useEffect(() => {
+    let active = true;
+    const fetchQr = async () => {
+      setLoadingQr(true);
+      try {
+        let configObj: any = {};
+        if (config.qr_code_style === "rounded") {
+          configObj = { body: "circle-zell", eye: "frame13", eyeBall: "ball14" };
+        } else if (config.qr_code_style === "dots") {
+          configObj = { body: "dot", eye: "frame12", eyeBall: "ball15" };
+        } else {
+          configObj = { body: "square", eye: "frame0", eyeBall: "ball0" };
+        }
+
+        if (config.qr_code_logo_url) {
+          configObj.logo = config.qr_code_logo_url;
+        }
+
+        const res = await fetch("https://api.qrcode-monkey.com/qr/custom", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: "https://drikahub.com",
+            config: configObj,
+            size: 300,
+            download: false,
+            file: "png"
+          })
+        });
+        
+        if (res.ok) {
+          const blob = await res.blob();
+          const objUrl = URL.createObjectURL(blob);
+          if (active) setQrPreviewUrl(objUrl);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoadingQr(false);
+      }
+    };
+
+    const t = setTimeout(() => {
+      fetchQr();
+    }, 800);
+
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [config.qr_code_style, config.qr_code_logo_url]);
+
   const handleSave = async () => {
     if (!tenantId) return;
     setSaving(true);
@@ -131,6 +185,7 @@ const StoreCheckoutSettings = () => {
         body: { action: "upsert", tenant_id: tenantId, config },
       });
       if (error) throw error;
+      setServerConfig(config);
       clearDraft();
       toast({ title: "Configurações da loja salvas! ✅" });
     } catch (e: any) {
@@ -228,32 +283,23 @@ const StoreCheckoutSettings = () => {
 
             <Separator />
             <div>
-              <Label className="flex items-center gap-1.5 mb-2"><Eye className="h-3.5 w-3.5" /> Preview do QR Code</Label>
-              <div className="bg-[#313338] rounded-lg p-6 flex flex-col items-center justify-center">
-                {/* Dummy QR Preview using Quickchart API */}
-                <div className="bg-white p-2 rounded-lg relative flex items-center justify-center">
+              <Label className="flex items-center gap-1.5 mb-2"><Eye className="h-3.5 w-3.5" /> Preview</Label>
+              <div className="bg-[#313338] rounded-lg p-6 flex flex-col items-center justify-center relative min-h-[200px]">
+                {loadingQr && (
+                  <div className="absolute inset-0 bg-[#313338]/80 z-10 flex flex-col items-center justify-center rounded-lg backdrop-blur-sm">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                    <p className="text-xs text-white/70">Gerando preview...</p>
+                  </div>
+                )}
+                <div className="bg-white p-2 rounded-lg flex items-center justify-center">
                   <img 
-                    src={`https://quickchart.io/qr?size=200&text=preview&ecLevel=H`}
+                    src={qrPreviewUrl || `https://quickchart.io/qr?size=200&text=preview&ecLevel=H`}
                     alt="QR Code Preview" 
-                    className={`w-32 h-32 ${config.qr_code_style === "rounded" ? "rounded-xl" : config.qr_code_style === "dots" ? "rounded-[2rem]" : ""}`}
-                    style={{
-                      // Faking dots/rounded using CSS filters/masks is hard, just standard image for now in preview 
-                      // unless we generate it properly, but here we just apply some basic CSS rounding for the demo
-                      maskImage: config.qr_code_style === "dots" ? "radial-gradient(circle, black 40%, transparent 40%)" : "none",
-                      maskSize: "10px 10px"
-                    }}
+                    className="w-40 h-40"
                   />
-                  {config.qr_code_logo_url && (
-                    <div className="absolute bg-white rounded-full p-1" style={{ width: "32px", height: "32px", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-                      <img src={config.qr_code_logo_url} alt="Logo" className="w-full h-full object-contain rounded-full" />
-                    </div>
-                  )}
                 </div>
-                <p className="text-[#dcddde] text-xs mt-3 text-center">
-                  Preview ilustrativo.
-                  <br />
-                  <span className="text-[10px] text-muted-foreground">Nota: O modelo real gerado pelo bot pode variar dependendo do suporte de renderização do Discord.</span>
-                </p>
+                <p className="text-xs text-[#dcddde] mt-4">Preview real.</p>
+                <p className="text-[10px] text-[#72767d] mt-1 text-center">Este modelo reflete exatamente o que será gerado pelo bot no Discord.</p>
               </div>
             </div>
           </CardContent>
