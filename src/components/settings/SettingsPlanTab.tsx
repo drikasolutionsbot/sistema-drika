@@ -274,7 +274,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                 <div className="absolute -top-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
                   Recomendado
                 </div>
-                <Sparkles className="h-6 w-6 text-purple-400 mb-2" />
+                <Crown className="h-6 w-6 text-purple-400 mb-2" />
                 <h5 className="text-base font-bold text-white">Plano Master</h5>
                 <p className="text-2xl font-extrabold text-white my-3">
                   R$ {(masterPriceCents / 100).toFixed(2).replace(".", ",")}
@@ -285,7 +285,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   disabled={loading}
                   className="w-full rounded-full bg-purple-600 hover:bg-purple-700 text-white border-none h-11 transition-all"
                 >
-                  {loading && selectedPlan === "master" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  {loading && selectedPlan === "master" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
                   Ativar Master
                 </Button>
               </div>
@@ -401,7 +401,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   disabled={loading}
                   className={`w-full h-11 rounded-full text-white border-none hover:opacity-90 ${selectedPlan === 'master' ? 'bg-purple-600' : 'bg-pink-600'}`}
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : (selectedPlan === 'master' ? <Sparkles className="h-4 w-4 mr-2" /> : <Crown className="h-4 w-4 mr-2" />)}
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
                   Gerar novo PIX
                 </Button>
               </div>
