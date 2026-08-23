@@ -31,10 +31,12 @@ import {
   XCircle,
   Wifi,
   WifiOff,
+  Lock
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface GuildInfo {
   id: string;
@@ -62,6 +64,7 @@ const PLAN_FEATURES: Record<string, { label: string; limits: string }> = {
 
 const ECloudPage = () => {
   const { tenant, tenantId } = useTenant();
+  const navigate = useNavigate();
   const [guildInfo, setGuildInfo] = useState<GuildInfo | null>(null);
   const [botOnline, setBotOnline] = useState<boolean | null>(null);
   const [recentLogs, setRecentLogs] = useState<RecentLog[]>([]);
@@ -261,6 +264,7 @@ const ECloudPage = () => {
   };
 
   const plan = PLAN_FEATURES[tenant?.plan || "free"] || PLAN_FEATURES.free;
+  const isPro = tenant?.plan === "pro" || tenant?.plan === "master" || tenant?.plan === "business";
 
   const statusIcon = (status: string) => {
     if (status === "success") return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
@@ -275,9 +279,25 @@ const ECloudPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="relative">
+      {!isPro && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl border border-border mt-6 mx-6">
+          <div className="bg-pink-600/20 p-4 rounded-2xl mb-4">
+            <Lock className="h-8 w-8 text-pink-500" />
+          </div>
+          <h3 className="text-xl font-bold text-foreground mb-2">Acesso Exclusivo Pro & Master</h3>
+          <p className="text-muted-foreground text-center max-w-md mb-6">
+            O painel avançado eCloud está disponível apenas para clientes dos planos Pro ou Master. Faça upgrade para desbloquear estas funcionalidades.
+          </p>
+          <Button onClick={() => navigate("/dashboard/settings?tab=plan")} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
+            <Crown className="h-4 w-4 mr-2" />
+            Desbloquear Acesso
+          </Button>
+        </div>
+      )}
+      <div className={cn("space-y-6", !isPro && "pointer-events-none opacity-50 select-none")}>
+        {/* Header */}
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Cloud className="h-6 w-6 text-primary" />
           <h1 className="font-display text-2xl font-bold">eCloud</h1>
@@ -287,6 +307,201 @@ const ECloudPage = () => {
               {botOnline ? "Online" : "Offline"}
             </Badge>
           )}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 hidden sm:flex">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground">Realtime</span>
+          </div>
+          {lastCheck && (
+            <span className="text-xs text-muted-foreground hidden md:inline">
+              Última verificação: {lastCheck.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          )}
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="monitor">
+        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
+          <TabsList className="bg-muted/50 border border-border rounded-xl p-1 w-max min-w-full sm:w-auto">
+            <TabsTrigger value="monitor" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Monitor
+            </TabsTrigger>
+            <TabsTrigger value="saude" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Saúde
+            </TabsTrigger>
+            <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Dados
+            </TabsTrigger>
+            <TabsTrigger value="verificacao" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Verificação
+            </TabsTrigger>
+            <TabsTrigger value="verificados" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
+              Verificados
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="monitor" className="mt-6 space-y-6">
+          {/* Stats Grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                title="Total de Membros"
+                value={guildInfo?.member_count?.toLocaleString("pt-BR") || "—"}
+                icon={Users}
+                change={guildInfo ? `${guildInfo.presence_count} online` : undefined}
+                changeType="positive"
+              />
+              <StatCard
+                title="Status do Bot"
+                value={botOnline ? "Ativo" : "Inativo"}
+                icon={botOnline ? Wifi : WifiOff}
+                change={botOnline ? "Respondendo normalmente" : "Sem resposta"}
+                changeType={botOnline ? "positive" : "negative"}
+              />
+              <StatCard
+                title="Servidor"
+                value={guildInfo?.name || tenant?.name || "—"}
+                icon={Server}
+                change={tenant?.discord_guild_id ? `ID: ${tenant.discord_guild_id}` : "Não vinculado"}
+                changeType="neutral"
+              />
+              <StatCard
+                title="Plano Atual"
+                value={plan.label}
+                icon={Crown}
+                change={plan.limits}
+                changeType="neutral"
+              />
+            </div>
+          )}
+
+          {/* Charts */}
+          {tenantId && <ECloudCharts tenantId={tenantId} />}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Logs */}
+            <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="h-5 w-5 text-primary" />
+                <h2 className="font-display font-semibold text-lg">Atividade Recente</h2>
+              </div>
+
+              {loading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 rounded-lg" />
+                  ))}
+                </div>
+              ) : recentLogs.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-8 text-center">Nenhuma atividade recente</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-shrink-0">{logIcon(log.type)}</div>
+                       <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{log.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{log.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {log.orderStatus ? (
+                          <StatusBadge status={log.orderStatus} />
+                        ) : (
+                          statusIcon(log.status)
+                        )}
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Server Info */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="h-5 w-5 text-primary" />
+                <h2 className="font-display font-semibold text-lg">Drika Bot</h2>
+              </div>
+
+              {guildInfo ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 rounded-lg border border-border p-3 bg-muted/30">
+                    {guildInfo.icon ? (
+                      <img src={guildInfo.icon} alt="" className="h-12 w-12 rounded-full" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Hash className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium">{guildInfo.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {guildInfo.member_count.toLocaleString("pt-BR")} membros · {guildInfo.presence_count} online
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant={botOnline ? "default" : "destructive"}>
+                        {botOnline ? "Online" : "Offline"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Prefixo</span>
+                      <span className="text-sm font-mono font-medium">{(tenant as any)?.bot_prefix || "d!"}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Plano</span>
+                      <span className="text-sm font-medium">{plan.label}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <span className="text-sm text-muted-foreground">Guild ID</span>
+                      <span className="text-xs font-mono text-muted-foreground">{tenant?.discord_guild_id || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  {loading ? "Carregando..." : "Servidor não vinculado"}
+                </p>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="saude" className="mt-6">
+          {tenantId && <ECloudHealthTab tenantId={tenantId} />}
+        </TabsContent>
+
+        <TabsContent value="dados" className="mt-6">
+          {tenantId && <ECloudDataTab tenantId={tenantId} />}
+        </TabsContent>
+
+        <TabsContent value="verificacao" className="mt-6">
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 hidden sm:flex">

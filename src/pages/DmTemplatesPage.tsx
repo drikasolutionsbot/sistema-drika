@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Plus, Trash2, RotateCcw, Save, Eye } from "lucide-react";
+import { Loader2, Mail, Plus, Trash2, RotateCcw, Save, Eye, Lock, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 // ─── Template definitions (chaves alinhadas com send-dm-template) ─────
 type TemplateKey =
@@ -201,12 +202,15 @@ function renderDiscordMarkdown(text: string): JSX.Element[] {
 const DmTemplatesPage = () => {
   const { tenantId, tenant } = useTenant();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [activeKey, setActiveKey] = useState<TemplateKey>("payment_approved");
   const [rows, setRows] = useState<Record<string, DmTemplateRow>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testUserId, setTestUserId] = useState("");
+
+  const isPro = tenant?.plan === "pro" || tenant?.plan === "master" || tenant?.plan === "business";
 
   const activeMeta = useMemo(
     () => TEMPLATES.find((t) => t.key === activeKey)!,
@@ -380,386 +384,403 @@ const DmTemplatesPage = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
-          <Mail className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Personalizar DMs</h1>
-          <p className="text-sm text-muted-foreground">
-            Customize as mensagens privadas que o bot envia ao cliente em cada evento de venda e ticket.
+    <div className="relative">
+      {!isPro && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl border border-border mt-6 mx-6">
+          <div className="bg-pink-600/20 p-4 rounded-2xl mb-4">
+            <Lock className="h-8 w-8 text-pink-500" />
+          </div>
+          <h3 className="text-xl font-bold text-foreground mb-2">Acesso Exclusivo Pro & Master</h3>
+          <p className="text-muted-foreground text-center max-w-md mb-6">
+            A personalização avançada de mensagens DM está disponível apenas para clientes dos planos Pro ou Master. Faça upgrade para desbloquear.
           </p>
+          <Button onClick={() => navigate("/dashboard/settings?tab=plan")} className="bg-pink-600 hover:bg-pink-700 text-white border-none">
+            <Crown className="h-4 w-4 mr-2" />
+            Desbloquear Acesso
+          </Button>
         </div>
-      </div>
+      )}
+      <div className={cn("container mx-auto p-6 max-w-7xl space-y-6", !isPro && "pointer-events-none opacity-50 select-none")}>
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
+            <Mail className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Personalizar DMs</h1>
+            <p className="text-sm text-muted-foreground">
+              Customize as mensagens privadas que o bot envia ao cliente em cada evento de venda e ticket.
+            </p>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar de templates */}
-        <Card className="col-span-12 lg:col-span-3 p-3 space-y-1 bg-card border-border h-fit">
-          {TEMPLATES.map((tpl) => {
-            const row = rows[tpl.key];
-            const isActive = activeKey === tpl.key;
-            return (
-              <button
-                key={tpl.key}
-                onClick={() => setActiveKey(tpl.key)}
-                className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors",
-                  isActive ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/50 border border-transparent"
-                )}
-              >
-                <span className="text-lg">{tpl.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
-                    {tpl.label}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {row?.enabled === false ? "Desativado" : "Ativo"}
-                  </p>
-                </div>
-                <span
+        <div className="grid grid-cols-12 gap-6">
+          {/* Sidebar de templates */}
+          <Card className="col-span-12 lg:col-span-3 p-3 space-y-1 bg-card border-border h-fit">
+            {TEMPLATES.map((tpl) => {
+              const row = rows[tpl.key];
+              const isActive = activeKey === tpl.key;
+              return (
+                <button
+                  key={tpl.key}
+                  onClick={() => setActiveKey(tpl.key)}
                   className={cn(
-                    "h-2 w-2 rounded-full shrink-0",
-                    row?.enabled === false ? "bg-muted-foreground/40" : "bg-emerald-500"
+                    "w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-colors",
+                    isActive ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/50 border border-transparent"
                   )}
-                />
-              </button>
-            );
-          })}
-        </Card>
-
-        {/* Editor */}
-        <div className="col-span-12 lg:col-span-5 space-y-4">
-          <Card className="p-5 space-y-5 bg-card border-border">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <span>{activeMeta.emoji}</span> {activeMeta.label}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1">{activeMeta.description}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Label htmlFor="enabled" className="text-xs">Ativo</Label>
-                <Switch id="enabled" checked={current.enabled} onCheckedChange={setEnabled} />
-              </div>
-            </div>
-
-            {/* Placeholders */}
-            <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
-                Placeholders disponíveis
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {activeMeta.placeholders.map((p) => (
-                  <code
-                    key={p}
-                    className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 cursor-pointer hover:bg-primary/20"
-                    onClick={() => navigator.clipboard.writeText(p)}
-                    title="Clique para copiar"
-                  >
-                    {p}
-                  </code>
-                ))}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold">Título</Label>
-              <Input
-                value={current.embed_data.title || ""}
-                onChange={(e) => updateEmbed({ title: e.target.value })}
-                className="bg-muted border-border"
-                maxLength={256}
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-bold">Descrição</Label>
-              <Textarea
-                value={current.embed_data.description || ""}
-                onChange={(e) => updateEmbed({ description: e.target.value })}
-                className="bg-muted border-border min-h-[140px] resize-y font-mono text-sm"
-                maxLength={4096}
-              />
-            </div>
-
-            {/* Color + Footer */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-bold">Cor</Label>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={current.embed_data.color || "#2B2D31"}
-                    onChange={(e) => updateEmbed({ color: e.target.value })}
-                    className="h-10 w-14 rounded border border-border bg-muted cursor-pointer"
-                  />
-                  <Input
-                    value={current.embed_data.color || ""}
-                    onChange={(e) => updateEmbed({ color: e.target.value })}
-                    className="bg-muted border-border font-mono"
-                    placeholder="#5865F2"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-bold">Rodapé</Label>
-                <Input
-                  value={current.embed_data.footer || ""}
-                  onChange={(e) => updateEmbed({ footer: e.target.value })}
-                  className="bg-muted border-border"
-                  placeholder="{store_name}"
-                />
-              </div>
-            </div>
-
-            {/* Thumbnail + Image */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-bold">Thumbnail (URL)</Label>
-                <Input
-                  value={current.embed_data.thumbnail || ""}
-                  onChange={(e) => updateEmbed({ thumbnail: e.target.value })}
-                  className="bg-muted border-border"
-                  placeholder="https://..."
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-bold">Imagem (URL)</Label>
-                <Input
-                  value={current.embed_data.image || ""}
-                  onChange={(e) => updateEmbed({ image: e.target.value })}
-                  className="bg-muted border-border"
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-
-            {/* Fields */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold">Campos ({(current.embed_data.fields || []).length}/25)</Label>
-                <Button size="sm" variant="outline" onClick={addField} className="h-7 text-xs">
-                  <Plus className="h-3 w-3 mr-1" /> Adicionar campo
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {(current.embed_data.fields || []).map((f, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={f.name}
-                        onChange={(e) => updateField(i, { name: e.target.value })}
-                        placeholder="Nome"
-                        className="bg-muted border-border text-xs"
-                        maxLength={256}
-                      />
-                      <Button size="icon" variant="ghost" onClick={() => removeField(i)} className="h-8 w-8 shrink-0">
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={f.value}
-                      onChange={(e) => updateField(i, { value: e.target.value })}
-                      placeholder="Valor"
-                      className="bg-muted border-border text-xs min-h-[60px]"
-                      maxLength={1024}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Switch checked={!!f.inline} onCheckedChange={(v) => updateField(i, { inline: v })} />
-                      <span className="text-xs text-muted-foreground">Inline</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold">Botões ({(current.embed_data.buttons || []).length}/5)</Label>
-                <Button size="sm" variant="outline" onClick={addButton} className="h-7 text-xs">
-                  <Plus className="h-3 w-3 mr-1" /> Adicionar botão
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {(current.embed_data.buttons || []).map((b, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        value={b.emoji || ""}
-                        onChange={(e) => updateButton(i, { emoji: e.target.value })}
-                        placeholder="😀"
-                        className="bg-muted border-border text-xs w-16"
-                      />
-                      <Input
-                        value={b.label}
-                        onChange={(e) => updateButton(i, { label: e.target.value })}
-                        placeholder="Texto do botão"
-                        className="bg-muted border-border text-xs"
-                        maxLength={80}
-                      />
-                      <Button size="icon" variant="ghost" onClick={() => removeButton(i)} className="h-8 w-8 shrink-0">
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                    <Input
-                      value={b.url}
-                      onChange={(e) => updateButton(i, { url: e.target.value })}
-                      placeholder="https://..."
-                      className="bg-muted border-border text-xs"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-3 border-t border-border">
-              <Button variant="ghost" onClick={handleReset} className="text-xs">
-                <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Restaurar padrão
-              </Button>
-              <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90">
-                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
-                Salvar
-              </Button>
-            </div>
-          </Card>
-
-          {/* Test panel */}
-          <Card className="p-4 bg-card border-border space-y-3">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-bold text-foreground">Enviar DM de teste</h3>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={testUserId}
-                onChange={(e) => setTestUserId(e.target.value)}
-                placeholder="Discord ID do destinatário"
-                className="bg-muted border-border text-sm"
-              />
-              <Button onClick={handleTest} disabled={testing} variant="outline">
-                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Salve antes para testar a versão atual. Você precisa estar no mesmo servidor que o bot e ter DMs abertas.
-            </p>
-          </Card>
-        </div>
-
-        {/* Preview */}
-        <div className="col-span-12 lg:col-span-4">
-          <div className="sticky top-4 space-y-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-              Pré-visualização (Discord)
-            </p>
-            <div className="rounded-2xl bg-[#313338] p-4 shadow-xl border border-black/30">
-              {/* Bot header */}
-              <div className="flex items-start gap-3 mb-2">
-                {tenant?.bot_avatar_url || tenant?.logo_url ? (
-                  <img
-                    src={tenant?.bot_avatar_url || tenant?.logo_url || ""}
-                    alt="bot"
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded-full bg-primary/30 flex items-center justify-center text-white text-sm font-bold">
-                    {(tenant?.bot_name || tenant?.name || "B")[0]}
-                  </div>
-                )}
-                <div className="flex items-baseline gap-2">
-                  <span className="text-white font-semibold text-sm">
-                    {tenant?.bot_name || tenant?.name || "Bot"}
-                  </span>
-                  <span className="text-[10px] px-1 py-px rounded bg-[#5865f2] text-white font-bold">APP</span>
-                  <span className="text-[11px] text-white/40">agora</span>
-                </div>
-              </div>
-
-              {/* Embed */}
-              <div className="ml-[52px]">
-                <div
-                  className="rounded-md bg-[#2b2d31] overflow-hidden border-l-4"
-                  style={{ borderLeftColor: current.embed_data.color || "#2B2D31" }}
                 >
-                  <div className="p-3 space-y-2">
-                    {current.embed_data.title && (
-                      <p className="text-white font-semibold text-[15px] leading-tight">
-                        {applyVars(current.embed_data.title)}
-                      </p>
+                  <span className="text-lg">{tpl.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-sm font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
+                      {tpl.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {row?.enabled === false ? "Desativado" : "Ativo"}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full shrink-0",
+                      row?.enabled === false ? "bg-muted-foreground/40" : "bg-emerald-500"
                     )}
-                    {current.embed_data.description && (
-                      <div>{renderDiscordMarkdown(applyVars(current.embed_data.description))}</div>
-                    )}
-                    {(current.embed_data.fields || []).length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        {current.embed_data.fields!.map((f, i) => (
-                          <div
-                            key={i}
-                            className={cn("space-y-0.5", f.inline ? "col-span-1" : "col-span-2")}
-                          >
-                            <p className="text-white text-xs font-bold">{applyVars(f.name)}</p>
-                            <p className="text-white/70 text-xs whitespace-pre-wrap">{applyVars(f.value)}</p>
-                          </div>
-                        ))}
+                  />
+                </button>
+              );
+            })}
+          </Card>
+
+          {/* Editor */}
+          <div className="col-span-12 lg:col-span-5 space-y-4">
+            <Card className="p-5 space-y-5 bg-card border-border">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <span>{activeMeta.emoji}</span> {activeMeta.label}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">{activeMeta.description}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Label htmlFor="enabled" className="text-xs">Ativo</Label>
+                  <Switch id="enabled" checked={current.enabled} onCheckedChange={setEnabled} />
+                </div>
+              </div>
+
+              {/* Placeholders */}
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                  Placeholders disponíveis
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeMeta.placeholders.map((p) => (
+                    <code
+                      key={p}
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 cursor-pointer hover:bg-primary/20"
+                      onClick={() => navigator.clipboard.writeText(p)}
+                      title="Clique para copiar"
+                    >
+                      {p}
+                    </code>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold">Título</Label>
+                <Input
+                  value={current.embed_data.title || ""}
+                  onChange={(e) => updateEmbed({ title: e.target.value })}
+                  className="bg-muted border-border"
+                  maxLength={256}
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold">Descrição</Label>
+                <Textarea
+                  value={current.embed_data.description || ""}
+                  onChange={(e) => updateEmbed({ description: e.target.value })}
+                  className="bg-muted border-border min-h-[140px] resize-y font-mono text-sm"
+                  maxLength={4096}
+                />
+              </div>
+
+              {/* Color + Footer */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-bold">Cor</Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={current.embed_data.color || "#2B2D31"}
+                      onChange={(e) => updateEmbed({ color: e.target.value })}
+                      className="h-10 w-14 rounded border border-border bg-muted cursor-pointer"
+                    />
+                    <Input
+                      value={current.embed_data.color || ""}
+                      onChange={(e) => updateEmbed({ color: e.target.value })}
+                      className="bg-muted border-border font-mono"
+                      placeholder="#5865F2"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-bold">Rodapé</Label>
+                  <Input
+                    value={current.embed_data.footer || ""}
+                    onChange={(e) => updateEmbed({ footer: e.target.value })}
+                    className="bg-muted border-border"
+                    placeholder="{store_name}"
+                  />
+                </div>
+              </div>
+
+              {/* Thumbnail + Image */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-bold">Thumbnail (URL)</Label>
+                  <Input
+                    value={current.embed_data.thumbnail || ""}
+                    onChange={(e) => updateEmbed({ thumbnail: e.target.value })}
+                    className="bg-muted border-border"
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-bold">Imagem (URL)</Label>
+                  <Input
+                    value={current.embed_data.image || ""}
+                    onChange={(e) => updateEmbed({ image: e.target.value })}
+                    className="bg-muted border-border"
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+
+              {/* Fields */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-bold">Campos ({(current.embed_data.fields || []).length}/25)</Label>
+                  <Button size="sm" variant="outline" onClick={addField} className="h-7 text-xs">
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar campo
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {(current.embed_data.fields || []).map((f, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={f.name}
+                          onChange={(e) => updateField(i, { name: e.target.value })}
+                          placeholder="Nome"
+                          className="bg-muted border-border text-xs"
+                          maxLength={256}
+                        />
+                        <Button size="icon" variant="ghost" onClick={() => removeField(i)} className="h-8 w-8 shrink-0">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
                       </div>
-                    )}
-                    {current.embed_data.image && (
+                      <Textarea
+                        value={f.value}
+                        onChange={(e) => updateField(i, { value: e.target.value })}
+                        placeholder="Valor"
+                        className="bg-muted border-border text-xs min-h-[60px]"
+                        maxLength={1024}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Switch checked={!!f.inline} onCheckedChange={(v) => updateField(i, { inline: v })} />
+                        <span className="text-xs text-muted-foreground">Inline</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-bold">Botões ({(current.embed_data.buttons || []).length}/5)</Label>
+                  <Button size="sm" variant="outline" onClick={addButton} className="h-7 text-xs">
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar botão
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {(current.embed_data.buttons || []).map((b, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={b.emoji || ""}
+                          onChange={(e) => updateButton(i, { emoji: e.target.value })}
+                          placeholder="😀"
+                          className="bg-muted border-border text-xs w-16"
+                        />
+                        <Input
+                          value={b.label}
+                          onChange={(e) => updateButton(i, { label: e.target.value })}
+                          placeholder="Texto do botão"
+                          className="bg-muted border-border text-xs"
+                          maxLength={80}
+                        />
+                        <Button size="icon" variant="ghost" onClick={() => removeButton(i)} className="h-8 w-8 shrink-0">
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                      <Input
+                        value={b.url}
+                        onChange={(e) => updateButton(i, { url: e.target.value })}
+                        placeholder="https://..."
+                        className="bg-muted border-border text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <Button variant="ghost" onClick={handleReset} className="text-xs">
+                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Restaurar padrão
+                </Button>
+                <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90">
+                  {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+                  Salvar
+                </Button>
+              </div>
+            </Card>
+
+            {/* Test panel */}
+            <Card className="p-4 bg-card border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-bold text-foreground">Enviar DM de teste</h3>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={testUserId}
+                  onChange={(e) => setTestUserId(e.target.value)}
+                  placeholder="Discord ID do destinatário"
+                  className="bg-muted border-border text-sm"
+                />
+                <Button onClick={handleTest} disabled={testing} variant="outline">
+                  {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Salve antes para testar a versão atual. Você precisa estar no mesmo servidor que o bot e ter DMs abertas.
+              </p>
+            </Card>
+          </div>
+
+          {/* Preview */}
+          <div className="col-span-12 lg:col-span-4">
+            <div className="sticky top-4 space-y-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                Pré-visualização (Discord)
+              </p>
+              <div className="rounded-2xl bg-[#313338] p-4 shadow-xl border border-black/30">
+                {/* Bot header */}
+                <div className="flex items-start gap-3 mb-2">
+                  {tenant?.bot_avatar_url || tenant?.logo_url ? (
+                    <img
+                      src={tenant?.bot_avatar_url || tenant?.logo_url || ""}
+                      alt="bot"
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-primary/30 flex items-center justify-center text-white text-sm font-bold">
+                      {(tenant?.bot_name || tenant?.name || "B")[0]}
+                    </div>
+                  )}
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-white font-semibold text-sm">
+                      {tenant?.bot_name || tenant?.name || "Bot"}
+                    </span>
+                    <span className="text-[10px] px-1 py-px rounded bg-[#5865f2] text-white font-bold">APP</span>
+                    <span className="text-[11px] text-white/40">agora</span>
+                  </div>
+                </div>
+
+                {/* Embed */}
+                <div className="ml-[52px]">
+                  <div
+                    className="rounded-md bg-[#2b2d31] overflow-hidden border-l-4"
+                    style={{ borderLeftColor: current.embed_data.color || "#2B2D31" }}
+                  >
+                    <div className="p-3 space-y-2">
+                      {current.embed_data.title && (
+                        <p className="text-white font-semibold text-[15px] leading-tight">
+                          {applyVars(current.embed_data.title)}
+                        </p>
+                      )}
+                      {current.embed_data.description && (
+                        <div>{renderDiscordMarkdown(applyVars(current.embed_data.description))}</div>
+                      )}
+                      {(current.embed_data.fields || []).length > 0 && (
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          {current.embed_data.fields!.map((f, i) => (
+                            <div
+                              key={i}
+                              className={cn("space-y-0.5", f.inline ? "col-span-1" : "col-span-2")}
+                            >
+                              <p className="text-white text-xs font-bold">{applyVars(f.name)}</p>
+                              <p className="text-white/70 text-xs whitespace-pre-wrap">{applyVars(f.value)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {current.embed_data.image && (
+                        <img
+                          src={current.embed_data.image}
+                          alt=""
+                          className="rounded mt-2 max-h-60 w-full object-cover"
+                          onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                        />
+                      )}
+                      {current.embed_data.footer && (
+                        <div className="flex items-center gap-1.5 pt-1.5">
+                          {(tenant?.bot_avatar_url || tenant?.logo_url) && (
+                            <img
+                              src={tenant?.bot_avatar_url || tenant?.logo_url || ""}
+                              alt=""
+                              className="h-4 w-4 rounded-full"
+                            />
+                          )}
+                          <p className="text-[11px] text-white/50">{applyVars(current.embed_data.footer)}</p>
+                        </div>
+                      )}
+                    </div>
+                    {current.embed_data.thumbnail && (
                       <img
-                        src={current.embed_data.image}
+                        src={current.embed_data.thumbnail}
                         alt=""
-                        className="rounded mt-2 max-h-60 w-full object-cover"
+                        className="absolute right-3 top-3 h-16 w-16 rounded object-cover"
                         onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
                       />
                     )}
-                    {current.embed_data.footer && (
-                      <div className="flex items-center gap-1.5 pt-1.5">
-                        {(tenant?.bot_avatar_url || tenant?.logo_url) && (
-                          <img
-                            src={tenant?.bot_avatar_url || tenant?.logo_url || ""}
-                            alt=""
-                            className="h-4 w-4 rounded-full"
-                          />
-                        )}
-                        <p className="text-[11px] text-white/50">{applyVars(current.embed_data.footer)}</p>
-                      </div>
-                    )}
                   </div>
-                  {current.embed_data.thumbnail && (
-                    <img
-                      src={current.embed_data.thumbnail}
-                      alt=""
-                      className="absolute right-3 top-3 h-16 w-16 rounded object-cover"
-                      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-                    />
+
+                  {/* Buttons */}
+                  {(current.embed_data.buttons || []).length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {current.embed_data.buttons!.map((b, i) => (
+                        <div
+                          key={i}
+                          className="px-3 py-1.5 rounded bg-[#4e5058] text-white text-[13px] font-medium flex items-center gap-1.5"
+                        >
+                          {b.emoji && <span>{b.emoji}</span>}
+                          <span>{applyVars(b.label) || "Botão"}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-
-                {/* Buttons */}
-                {(current.embed_data.buttons || []).length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {current.embed_data.buttons!.map((b, i) => (
-                      <div
-                        key={i}
-                        className="px-3 py-1.5 rounded bg-[#4e5058] text-white text-[13px] font-medium flex items-center gap-1.5"
-                      >
-                        {b.emoji && <span>{b.emoji}</span>}
-                        <span>{applyVars(b.label) || "Botão"}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            </div>
 
-            <p className="text-[10px] text-muted-foreground italic px-1">
-              Os valores entre chaves são substituídos por dados reais ao enviar (cliente, pedido, total, etc).
-            </p>
+              <p className="text-[10px] text-muted-foreground italic px-1">
+                Os valores entre chaves são substituídos por dados reais ao enviar (cliente, pedido, total, etc).
+              </p>
+            </div>
           </div>
         </div>
       </div>
