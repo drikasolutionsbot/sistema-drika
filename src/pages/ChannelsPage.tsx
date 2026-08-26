@@ -516,8 +516,8 @@ const ChannelsPage = () => {
 
           {/* Save bar */}
           {hasChanges && (
-            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-md px-5 py-3">
-              <p className="text-sm text-foreground font-medium">Você tem alterações não salvas</p>
+            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 backdrop-blur-xl px-5 py-3 shadow-lg shadow-primary/5 animate-fade-in">
+              <p className="text-sm text-primary font-bold">Você tem alterações não salvas</p>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={() => {
                   const initial: Record<string, string> = {};
@@ -546,34 +546,34 @@ const ChannelsPage = () => {
 
                 return (
                   <Collapsible key={section.title} open={isOpen} onOpenChange={() => toggleSection(section.title)}>
-                    <div className={cn("rounded-xl border transition-colors", section.borderColor, "bg-card")}>
+                    <div className={cn("rounded-xl border transition-all duration-300 backdrop-blur-sm bg-card/40 hover:bg-background/60 shadow-sm hover:shadow-md group", isOpen ? "border-primary/30 bg-primary/5" : "border-white/5 hover:border-white/10")}>
                       <CollapsibleTrigger asChild>
-                        <button className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-muted/30 transition-colors rounded-t-xl">
-                          <div className={cn("rounded-lg p-2.5 shrink-0", section.bgColor)}>
-                            <SectionIcon className={cn("h-4.5 w-4.5", section.color)} />
+                        <button className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors rounded-t-xl">
+                          <div className={cn("flex items-center justify-center h-12 w-12 rounded-xl border shadow-inner shrink-0 transition-transform duration-300 group-hover:scale-110", section.bgColor.replace('bg-', 'bg-opacity-20 bg-'))}>
+                            <SectionIcon className={cn("h-5 w-5", section.color)} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-display font-semibold text-foreground">{section.title}</h3>
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-mono">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-bold text-foreground">{section.title}</h3>
+                              <Badge variant="secondary" className={cn("text-[10px] uppercase tracking-wider px-2 py-0.5 shadow-sm border", configuredInSection === section.channels.length ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-primary/10 text-primary border-primary/20")}>
                                 {configuredInSection}/{section.channels.length}
                               </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{section.description}</p>
+                            <p className="text-xs font-medium text-muted-foreground">{section.description}</p>
                           </div>
                           {isOpen ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200" />
                           ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
                           )}
                         </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <div className="px-5 pb-5 pt-1 space-y-3">
+                        <div className="px-5 pb-5 pt-2 space-y-3">
                           {section.channels.map((ch) => {
                             const currentValue = getChannelValue(ch.key);
                             return (
-                              <div key={ch.key} className="flex items-center gap-4 rounded-lg bg-muted/30 px-4 py-3">
+                              <div key={ch.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/5 bg-background/40 hover:bg-background/60 hover:border-white/10 px-4 py-3 transition-all">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <p className="text-sm font-medium text-foreground">{ch.label}</p>
@@ -602,8 +602,8 @@ const ChannelsPage = () => {
                                     handleLocalChange(ch.key, v);
                                   }}>
                                     <SelectTrigger className={cn(
-                                      "h-9 text-sm",
-                                      currentValue ? "border-emerald-500/30 bg-emerald-500/5" : "border-border bg-background"
+                                      "h-9 text-sm transition-all duration-200 shadow-sm",
+                                      currentValue ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-white/10 bg-background/50 hover:bg-background"
                                     )}>
                                       <div className="flex items-center gap-1.5 truncate">
                                         <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
