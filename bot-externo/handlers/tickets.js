@@ -251,6 +251,137 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
   await interaction.editReply({ content: `<a:certopreto:1369628807929008228> Ticket criado! Acesse <#${ticketChannel.id}>` });
 }
 
+// ── Open Ticket From Category (Select Menu) ──
+async function openTicketCategory(interaction, tenant, categoryId) {
+  try {
+    await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, abrindo ticket...", ephemeral: true });
+
+    const userId = interaction.user.id;
+    const username = interaction.user.username;
+
+    const { data: category } = await supabase.from('ticket_categories').select('*').eq('id', categoryId).eq('tenant_id', tenant.id).maybeSingle();
+    if (!category) return interaction.editReply({ content: '❌ Categoria não encontrada.' });
+
+    const topicName = `${category.emoji || '🎫'} ${category.name}`.trim();
+
+    const existing = await getOpenTickets(tenant.id, userId);
+    let realOpenCount = 0;
+    for (const t of existing) {
+      if (!t.discord_channel_id) continue;
+      try {
+        const ch = await interaction.client.channels.fetch(t.discord_channel_id);
+        if (ch && !ch.archived) { realOpenCount++; }
+        else { await closeTicket(t.id, 'system'); }
+      } catch { await closeTicket(t.id, 'system'); }
+    }
+
+    if (realOpenCount >= 3) return interaction.editReply({ content: '⚠️ Você já possui 3 tickets abertos.' });
+
+    const storeConfig = await getStoreConfig(tenant.id);
+    let parentChannelId = storeConfig?.ticket_channel_id || interaction.channel.id;
+    
+    let staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, tenant);
+    if (staffRoleIds.length === 0) {
+      const { data: fallbackRoles } = await supabase
+        .from("tenant_roles")
+        .select("discord_role_id")
+        .eq("tenant_id", tenant.id)
+        .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
+      staffRoleIds = filterTicketStaffRoleIds((fallbackRoles || []).map((r) => r.discord_role_id), storeConfig, tenant);
+    }
+
+    const ticketSuffix = Date.now().toString(36).slice(-4);
+    const safeUsername = username.toLowerCase().replace(/[^a-z0-9-_]/g, '');
+    const threadName = `ticket-${safeUsername}-${ticketSuffix}`.substring(0, 100);
+
+    let ticketChannel;
+    try {
+      const parentCh = await interaction.guild.channels.fetch(parentChannelId).catch(() => null);
+      const parentCategoryId = parentCh?.type === ChannelType.GuildCategory ? parentCh.id : parentCh?.parentId;
+
+      const permissionOverwrites = [
+        { id: interaction.guild.id, deny: ['ViewChannel'] },
+        { id: userId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] },
+        { id: interaction.client.user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageChannels', 'ManageMessages'] }
+      ];
+
+      const guildRoles = interaction.guild.roles.cache;
+      const validStaffRoleIds = staffRoleIds.filter(roleId => guildRoles.has(roleId));
+      for (const roleId of validStaffRoleIds) {
+        permissionOverwrites.push({ id: roleId, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'AttachFiles', 'EmbedLinks'] });
+      }
+
+      ticketChannel = await interaction.guild.channels.create({
+        name: threadName,
+        type: ChannelType.GuildText,
+        parent: parentCategoryId,
+        permissionOverwrites,
+        reason: 'Ticket de suporte',
+      });
+      
+      if (parentCh && parentCh.type !== ChannelType.GuildCategory) {
+        try { await ticketChannel.setPosition(parentCh.position + 1); } catch {}
+      }
+    } catch (err) {
+      return interaction.editReply({ content: '❌ Erro ao criar canal. Verifique as permissões do bot e categorias.' });
+    }
+
+    const ticket = await createTicket({
+      tenant_id: tenant.id, discord_user_id: userId, discord_username: username,
+      discord_channel_id: ticketChannel.id, status: 'open', product_name: topicName, topic_name: topicName
+    });
+
+    const embedColor = parseInt((storeConfig?.ticket_embed_color || storeConfig?.embed_color || '#5865F2').replace('#', ''), 16);
+    const styleMap = { primary: ButtonStyle.Primary, secondary: ButtonStyle.Secondary, success: ButtonStyle.Success, danger: ButtonStyle.Danger, glass: ButtonStyle.Secondary };
+    const btnStyle = styleMap[storeConfig?.ticket_embed_button_style || "glass"] || ButtonStyle.Secondary;
+
+    const welcomeEmbed = new EmbedBuilder()
+      .setTitle(`${category.emoji || '🎫'} Ticket de Suporte`)
+      .setDescription(`**Tipo:** ${topicName}\n\n<@${userId}>\nSeu ticket foi criado com sucesso!\nAguarde atendimento da nossa equipe.`)
+      .setColor(embedColor)
+      .setTimestamp();
+
+    if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
+    if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
+    applyDrikaCover(welcomeEmbed, tenant);
+
+    const row1 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel('Lembrar').setStyle(btnStyle).setEmoji("1521188814498959481"),
+      new ButtonBuilder().setCustomId(`ticket_rename_${ticket.id}`).setLabel('Renomear').setStyle(btnStyle).setEmoji("1521192422753833244"),
+      new ButtonBuilder().setCustomId(`ticket_close_${ticket.id}`).setLabel('Arquivar').setStyle(ButtonStyle.Secondary).setEmoji("1521192463044317376"),
+      new ButtonBuilder().setCustomId(`ticket_delete_${ticket.id}`).setLabel('Apagar').setStyle(ButtonStyle.Danger).setEmoji("1521192495516487932")
+    );
+    const row2 = new ActionRowBuilder().addComponents(
+      new UserSelectMenuBuilder().setCustomId(`ticket_assign_${ticket.id}`).setPlaceholder('Selecione algum membro').setMinValues(1).setMaxValues(1)
+    );
+
+    const staffMentionContent = staffRoleIds.map((rid) => `<@&${rid}>`).join(' ');
+    const ghostContent = `<@${userId}> ${staffMentionContent}`.trim();
+
+    if (ghostContent) {
+      ticketChannel.send({ content: ghostContent }).then(m => setTimeout(() => m.delete().catch(() => {}), 1500)).catch(() => {});
+    }
+
+    const welcomeMsg = await sendWithIdentity(ticketChannel, tenant, { embeds: [welcomeEmbed], components: [row1, row2] });
+    try { await welcomeMsg.pin(); } catch {}
+    
+    setTimeout(async () => {
+      try {
+        const messages = await ticketChannel.messages.fetch({ limit: 5 });
+        const pinMsg = messages.find(m => m.type === 6);
+        if (pinMsg) await pinMsg.delete().catch(() => {});
+      } catch (e) {}
+    }, 2000);
+
+    await interaction.editReply({
+      content: `<a:certopreto:1369628807929008228> Ticket criado! Acesse <#${ticketChannel.id}>`
+    });
+  } catch (e) {
+    console.error('[openTicketCategory] error:', e);
+    await interaction.editReply({ content: '❌ Ocorreu um erro interno.' }).catch(() => {});
+  }
+}
+
 // ── Close Ticket ──
 async function handleCloseTicket(interaction, tenant, ticketId) {
   try {
@@ -1037,6 +1168,201 @@ async function handleTranscriptView(interaction, tenant, ticketId) {
         new ButtonBuilder().setLabel("Abrir Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
       )],
     });
+  const logEmbed = new EmbedBuilder()
+    .setTitle(`${statusEmoji} Ticket - ${statusLabel}`)
+    .setColor(embedColor)
+    .addFields(
+      { name: "Ticket Owner", value: `<@${ticket.discord_user_id}>\n@${ticket.discord_username || "unknown"}`, inline: true },
+      { name: "Ticket Name", value: ticketName, inline: true },
+      { name: "Closed By", value: `<@${closedByUserId}>\n@${closedByUsername}`, inline: true },
+      { name: "📊 Mensagens", value: `${msgs.length}`, inline: true },
+      { name: "⏱️ Duração", value: durationStr, inline: true },
+      { name: "👥 Participantes", value: `${participantIds.size}`, inline: true },
+    )
+    .setTimestamp()
+    .setFooter({ text: `${closedAtStr} • ${tenant.name || "Servidor"}` });
+  applyDrikaCover(logEmbed, tenant);
+
+  // Build transcript and upload
+  let components = [];
+  let transcriptFallbackBuffer = null;
+
+  if (msgs.length > 0) {
+    let htmlTranscript;
+    try {
+      htmlTranscript = generateHtmlTranscript(msgs, tenant.name || "Servidor", `ticket-${ticket.discord_username}`, statusLabel);
+    } catch (genErr) {
+      console.error(`[sendTicketLog] Transcript generation error: ${genErr.message}`);
+    }
+
+    if (htmlTranscript) {
+      const fileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+      const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
+      transcriptFallbackBuffer = htmlBuffer;
+
+      let transcriptUrl = null;
+
+      // Try upload
+      try {
+        // First try to remove existing file (upsert can be unreliable)
+        await supabase.storage.from("tenant-assets").remove([fileName]);
+      } catch {}
+
+      try {
+        const { error: uploadErr } = await supabase.storage
+          .from("tenant-assets")
+          .upload(fileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
+
+        if (uploadErr) {
+          console.error(`[sendTicketLog] Storage upload error: ${uploadErr.message}`);
+        } else {
+          console.log(`[sendTicketLog] Transcript uploaded: ${fileName}`);
+          const panelUrl = process.env.PANEL_URL || "https://www.drikahub.com";
+          transcriptUrl = `${panelUrl}/transcript/${ticket.discord_channel_id}`;
+        }
+      } catch (storageErr) {
+        console.error(`[sendTicketLog] Storage error: ${storageErr.message}`);
+      }
+
+      if (transcriptUrl) {
+        components = [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )];
+      }
+    }
+  }
+
+  try {
+    const sendPayload = { embeds: [logEmbed], components };
+
+    // Não anexar o HTML bruto no Discord para evitar preview com código fonte
+    if (transcriptFallbackBuffer && components.length === 0) {
+      const { AttachmentBuilder } = require("discord.js");
+      sendPayload.files = [new AttachmentBuilder(transcriptFallbackBuffer, { name: `transcript-${ticket.id.slice(0, 8)}.html` })];
+    }
+
+    await logsCh.send(sendPayload);
+    console.log(`[sendTicketLog] Log sent successfully to ${logsChannelId} (hasButton: ${components.length > 0}, hasFile: ${!!sendPayload.files})`);
+  } catch (sendErr) {
+    console.error(`[sendTicketLog] Failed to send log: ${sendErr.message}`);
+    try {
+      await logsCh.send({ embeds: [logEmbed] });
+    } catch (e2) {
+      console.error(`[sendTicketLog] Fallback also failed: ${e2.message}`);
+    }
+  }
+
+  // DM transcript to user
+  if (components.length > 0) {
+    try {
+      const user = await client.users.fetch(ticket.discord_user_id);
+      const transcriptUrl = components[0].components[0].data.url;
+      const dmEmbed = new EmbedBuilder()
+        .setTitle("📜 Transcript do Ticket")
+        .setDescription(`Seu ticket foi **${statusLabel.toLowerCase()}** por **@${closedByUsername}**.\nClique no botão abaixo para visualizar o histórico completo.`)
+        .setColor(embedColor)
+        .addFields(
+          { name: "Produto", value: ticket.product_name || "Suporte Geral", inline: true },
+          { name: "Duração", value: durationStr, inline: true },
+        )
+        .setTimestamp()
+        .setFooter({ text: tenant.name || "Drika Hub" });
+      applyDrikaCover(dmEmbed, tenant);
+      await user.send({
+        embeds: [dmEmbed],
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )],
+      });
+    } catch {}
+  }
+}
+
+// ── Transcript View Button ──
+async function handleTranscriptView(interaction, tenant, ticketId) {
+  await interaction.reply({ content: "<a:loading:1521565470686445678> Carregando transcript...", ephemeral: true });
+
+  const ticket = await getTicketById(ticketId);
+  if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });
+
+  // Try to fetch messages from the ticket channel
+  let msgs = [];
+  if (ticket.discord_channel_id) {
+    try {
+      const ch = await interaction.client.channels.fetch(ticket.discord_channel_id);
+      const fetched = await ch.messages.fetch({ limit: 100 });
+      msgs = [...fetched.values()].reverse();
+    } catch {}
+  }
+
+  const transcriptFileName = `transcripts/${ticket.tenant_id}/${ticket.id}.html`;
+
+  if (msgs.length === 0) {
+    let transcriptUrl = null;
+    try {
+      const { data: signedData, error: signedErr } = await supabase.storage
+        .from("tenant-assets")
+        .createSignedUrl(transcriptFileName, 60 * 60 * 24 * 7);
+
+      if (!signedErr && signedData?.signedUrl) {
+        transcriptUrl = signedData.signedUrl;
+      } else {
+        const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(transcriptFileName);
+        transcriptUrl = urlData?.publicUrl || null;
+      }
+    } catch {}
+
+    if (transcriptUrl) {
+      return interaction.editReply({
+        content: "📜 Clique no botão para abrir o transcript no navegador:",
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setLabel("Abrir Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+        )],
+      });
+    }
+
+    return interaction.editReply({ content: "❌ Transcript ainda não encontrado para este ticket." });
+  }
+
+  const serverName = interaction.guild?.name || "Servidor";
+  const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
+  const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, "Suporte · transcript");
+
+  let transcriptUrl = null;
+  try {
+    const htmlBuffer = Buffer.from(htmlTranscript, "utf-8");
+    const { error: uploadErr } = await supabase.storage
+      .from("tenant-assets")
+      .upload(transcriptFileName, htmlBuffer, { contentType: "text/html; charset=utf-8", upsert: true, cacheControl: "no-cache" });
+
+    if (uploadErr) {
+      console.error(`[handleTranscriptView] Storage upload error: ${uploadErr.message}`);
+    }
+
+    const { data: signedData, error: signedErr } = await supabase.storage
+      .from("tenant-assets")
+      .createSignedUrl(transcriptFileName, 60 * 60 * 24 * 7);
+
+    if (!signedErr && signedData?.signedUrl) {
+      transcriptUrl = signedData.signedUrl;
+    } else {
+      if (signedErr) {
+        console.error(`[handleTranscriptView] Signed URL error: ${signedErr.message}`);
+      }
+      const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(transcriptFileName);
+      transcriptUrl = urlData?.publicUrl || null;
+    }
+  } catch (err) {
+    console.error(`[handleTranscriptView] Transcript upload error: ${err.message}`);
+  }
+
+  if (transcriptUrl) {
+    return interaction.editReply({
+      content: "📜 Clique no botão para abrir o transcript no navegador:",
+      components: [new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel("Abrir Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)
+      )],
+    });
   }
 
   return interaction.editReply({ content: "❌ Não consegui gerar o link do transcript agora. Tente novamente em instantes." });
@@ -1047,5 +1373,5 @@ module.exports = {
   handleRemindTicket, handleAssignTicket,
   showRenameModal, handleRenameModal,
   checkStaffPermission, sendTicketLog,
-  handleTranscriptView,
+  handleTranscriptView, openTicketCategory
 };

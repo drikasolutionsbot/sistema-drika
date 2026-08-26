@@ -106,6 +106,19 @@ module.exports = async function handleInteraction(client, interaction) {
 
   // ── Select Menus ──
   if (interaction.isStringSelectMenu()) {
+    if (interaction.customId.startsWith("ticket_category_select:")) {
+      const parts = interaction.customId.split(":");
+      // ticket_category_select:TENANT:CHANNEL
+      if (parts.length >= 3) {
+        let categoryId = interaction.values[0];
+        // Backward compatibility
+        if (categoryId.startsWith("ticket_cat:")) {
+          const catParts = categoryId.split(":");
+          if (catParts.length >= 4) categoryId = catParts[3];
+        }
+        return ticketsHandler.openTicketCategory(interaction, tenant, categoryId);
+      }
+    }
     if (interaction.customId.startsWith("select_variation:")) {
       const productId = interaction.customId.replace("select_variation:", "");
       const selectedValue = interaction.values[0]; // buy_field:productId:fieldId
