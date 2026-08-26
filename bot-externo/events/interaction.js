@@ -31,6 +31,14 @@ module.exports = async function handleInteraction(client, interaction) {
     return;
   }
 
+  // ── Modal Submits ──
+  if (interaction.isModalSubmit()) {
+    const customId = interaction.customId;
+    if (customId.startsWith("modal_mark_delivered_")) {
+      return checkoutHandler.handleMarkDeliveredModal(interaction, tenant, customId.replace("modal_mark_delivered_", ""));
+    }
+  }
+
   // ── Buttons ──
   if (interaction.isButton()) {
     const customId = interaction.customId;

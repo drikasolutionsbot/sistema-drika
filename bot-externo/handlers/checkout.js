@@ -1060,11 +1060,55 @@ async function handleQuantityModal(interaction, tenant, orderId) {
 
 // ── Mark Delivered ──
 async function markDelivered(interaction, tenant, orderId) {
+  const modal = new ModalBuilder()
+    .setCustomId(`modal_mark_delivered_${orderId}`)
+    .setTitle("Confirmar Entrega");
+
+  const input = new TextInputBuilder()
+    .setCustomId("delivered_content")
+    .setLabel("Produto para enviar na DM (Opcional)")
+    .setPlaceholder("Cole o produto aqui. Deixe vazio p/ não enviar DM.")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(false)
+    .setMaxLength(4000);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+  await interaction.showModal(modal);
+}
+
+// ── Handle Mark Delivered Modal ──
+async function handleMarkDeliveredModal(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
   if (!order) return;
 
-  await updateOrderStatus(orderId, "delivered");
+  const content = interaction.fields.getTextInputValue("delivered_content");
+
+  const archiveAt = order.checkout_thread_id ? new Date(Date.now() + 120000).toISOString() : null;
+  await updateOrderStatus(orderId, "delivered", {
+    checkout_thread_archive_at: archiveAt,
+    checkout_thread_archived_at: null,
+    checkout_thread_archive_attempts: 0,
+    checkout_thread_archive_error: null,
+  });
+
+  // Update ticket to delivered
+  await supabase
+    .from("tickets")
+    .update({ status: "delivered", updated_at: new Date().toISOString() })
+    .eq("order_id", orderId);
+
+  if (content && content.trim() !== "") {
+    try {
+      const user = await interaction.client.users.fetch(order.discord_user_id);
+      await user.send({
+        embeds: [new EmbedBuilder().setTitle("📦 Pedido Entregue").setDescription(`Olá! Seu pedido **#${order.order_number}** foi entregue com sucesso.\n\n**Produto:** ${order.product_name}\n\n\`\`\`\n${content}\n\`\`\``).setColor(0x57F287)]
+      });
+    } catch (err) {
+      console.log("Failed to send DM for manual delivery:", err);
+    }
+  }
 
   await sendWithIdentity(interaction.channel, tenant, {
     embeds: [new EmbedBuilder().setTitle("Entrega Confirmada").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
@@ -1072,9 +1116,24 @@ async function markDelivered(interaction, tenant, orderId) {
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO ticket será fechado em 2 minutos.`).setColor(0x57F287)],
     components: [],
   });
+
+  // Schedule Discord.js thread archive in 2 minutes
+  if (order.checkout_thread_id) {
+    setTimeout(async () => {
+      try {
+        const thread = await interaction.client.channels.fetch(order.checkout_thread_id);
+        if (thread && thread.isThread()) {
+          await thread.setLocked(true);
+          await thread.setArchived(true);
+        }
+      } catch (err) {
+        // ignore errors
+      }
+    }, 120000);
+  }
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {
@@ -1199,6 +1258,6 @@ module.exports = {
   goToPayment, approveOrder, rejectOrder, cancelOrder,
   copyPix, showCouponModal, handleCouponModal,
   showQuantityModal, handleQuantityModal,
-  markDelivered, cancelManual, copyDelivered,
+  markDelivered, handleMarkDeliveredModal, cancelManual, copyDelivered,
   viewVariations, viewDetails,
 };

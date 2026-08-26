@@ -410,17 +410,14 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
         await interaction.channel.setLocked(true);
       } else {
         try {
-          const currentName = interaction.channel.name;
-          if (!currentName.includes("fechado")) {
-            await interaction.channel.setName(`fechado-${currentName}`.substring(0, 100));
-          }
-        } catch (renameErr) {
-          console.error("Failed to rename channel on closure:", renameErr.message);
+          const deleteEmbed = new EmbedBuilder()
+            .setDescription("⏳ O ticket foi arquivado e este canal será excluído automaticamente em 5 segundos...")
+            .setColor(0xED4245);
+          await interaction.channel.send({ embeds: [deleteEmbed] });
+          setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+        } catch (delErr) {
+          console.error("Failed to delete channel on closure:", delErr.message);
         }
-        await interaction.channel.permissionOverwrites.edit(ticket.discord_user_id, {
-          ViewChannel: false,
-          SendMessages: false,
-        }, { reason: "Ticket arquivado" });
       }
     } catch {}
   } catch (err) {
