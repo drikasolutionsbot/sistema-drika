@@ -227,163 +227,172 @@ const SettingsPage = () => {
         <TabsContent value="pix">
           <div className="space-y-6">
             {/* Static PIX Key */}
-            <div className="wallet-section">
-              <div className="wallet-section-header mb-5">
-                <div className="wallet-section-icon">
-                  <QrCode className="h-4 w-4 text-primary" />
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-6 group">
+              {/* Decorative Background Glow */}
+              <div className="absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br from-pink-500/20 to-purple-500/20 rounded-full blur-[60px] pointer-events-none transition-opacity duration-700 opacity-50 group-hover:opacity-100" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex items-center justify-center h-14 w-14 rounded-2xl shadow-inner border bg-pink-500/10 border-pink-500/20 text-pink-500 shrink-0">
+                    <QrCode className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold tracking-tight text-foreground">Chave PIX Estática</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Usada para gerar QR Code e copia e cola manualmente</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-foreground font-display font-semibold text-sm">Chave PIX Estática</h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Usada para gerar QR Code e PIX copia e cola nos produtos</p>
-                </div>
-              </div>
 
-              {/* Como funciona */}
-              <details className="group rounded-xl border border-border bg-muted/30 overflow-hidden">
-                <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  <HelpCircle className="h-4 w-4 text-primary shrink-0" />
-                  Como funciona o PIX Estático?
-                  <ChevronDown className="h-4 w-4 ml-auto transition-transform group-open:rotate-180" />
-                </summary>
-                <div className="px-4 pb-4 space-y-3 text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">
-                  <p>
-                    Com o <span className="text-foreground font-medium">PIX Estático</span>, um QR Code é gerado automaticamente para cada pedido usando sua chave cadastrada. O cliente escaneia e paga normalmente.
-                  </p>
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 mt-0.5 shrink-0" />
-                    <p><span className="text-foreground font-medium">Entregas automáticas</span> — se o produto estiver configurado com entrega automática, o estoque será enviado assim que você aprovar o pagamento.</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Shield className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
-                    <p><span className="text-foreground font-medium">Aprovação manual</span> — como o PIX estático não possui webhook, a confirmação do pagamento é feita manualmente pela aba <span className="text-foreground font-medium">Aprovações</span> no painel ou pelos botões no Discord.</p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Zap className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                    <p><span className="text-foreground font-medium">Quer aprovação automática?</span> — configure um gateway de pagamento (Mercadopago, Efí ou PushinPay) na seção abaixo para receber confirmações instantâneas via webhook.</p>
-                  </div>
-                </div>
-              </details>
-
-              {/* Active PIX display */}
-              {tenant?.pix_key && tenant?.pix_key_type && !editingPix ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-emerald-400">Chave PIX ativa</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {PIX_KEY_TYPES.find(t => t.value === tenant.pix_key_type)?.label || tenant.pix_key_type}
-                      </p>
+                {/* Como funciona (Accordion moderno) */}
+                <details className="group/details rounded-xl border border-border/50 bg-background/50 hover:bg-background/80 transition-colors overflow-hidden mb-6 shadow-sm">
+                  <summary className="flex items-center gap-2 px-5 py-3.5 cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <HelpCircle className="h-4 w-4 text-primary shrink-0" />
+                    Como funciona o PIX Estático?
+                    <ChevronDown className="h-4 w-4 ml-auto transition-transform group-open/details:rotate-180" />
+                  </summary>
+                  <div className="px-5 pb-5 space-y-3.5 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/50 pt-4 bg-muted/20">
+                    <p>
+                      Com o <span className="text-foreground font-semibold">PIX Estático</span>, um QR Code é gerado para cada pedido usando sua chave. O cliente escaneia e paga normalmente.
+                    </p>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                      <p><span className="text-foreground font-semibold">Entregas automáticas</span> — o estoque será enviado assim que você aprovar o pagamento (se configurado).</p>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <Shield className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                      <p><span className="text-foreground font-semibold">Aprovação manual</span> — a confirmação do pagamento é feita manualmente pela aba <span className="text-foreground font-semibold">Aprovações</span> ou Discord.</p>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <Zap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <p><span className="text-foreground font-semibold">Quer aprovação automática?</span> — configure um Gateway de Pagamento na seção abaixo para webhooks instantâneos.</p>
                     </div>
                   </div>
+                </details>
 
-                  <div className="rounded-xl bg-muted/50 border border-border px-4 py-3">
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Chave cadastrada</p>
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm text-foreground flex-1 truncate">{tenant.pix_key}</p>
-                      <Button type="button" size="icon" variant="ghost" onClick={copyPixKey} title="Copiar" className="text-muted-foreground hover:text-foreground h-8 w-8 shrink-0">
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
+                {/* Active PIX display */}
+                {tenant?.pix_key && tenant?.pix_key_type && !editingPix ? (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-5 py-4 shadow-sm">
+                      <div className="p-2 rounded-full bg-emerald-500/20 shrink-0">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-emerald-400">Chave PIX ativa</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {PIX_KEY_TYPES.find(t => t.value === tenant.pix_key_type)?.label || tenant.pix_key_type}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => setEditingPix(true)}
-                      variant="outline"
-                    >
-                      Editar chave
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        setSavingPix(true);
-                        try {
-                          const { data: d, error: e } = await supabase.functions.invoke("update-tenant", {
-                            body: { tenant_id: tenantId, updates: { pix_key: null, pix_key_type: null } },
-                          });
-                          if (e) throw e;
-                          if (d?.error) throw new Error(d.error);
-                          await refetchTenant();
-                          toast({ title: "Chave PIX desativada" });
-                        } catch (err: any) {
-                          toast({ title: "Erro", description: err.message, variant: "destructive" });
-                        } finally {
-                          setSavingPix(false);
-                        }
-                      }}
-                      disabled={savingPix}
-                      variant="outline"
-                      className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                    >
-                      Desativar
-                    </Button>
-                    <PixGeneratorDialog
-                      trigger={
-                        <Button variant="outline">
-                          <QrCode className="h-4 w-4 mr-2" /> Testar QR Code
+                    <div className="rounded-xl bg-background/50 border border-border/50 px-5 py-4 shadow-sm">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Chave cadastrada</p>
+                      <div className="flex items-center gap-3">
+                        <p className="font-mono text-sm sm:text-base text-foreground font-medium flex-1 truncate bg-muted/50 px-3 py-1.5 rounded-md border border-border/50">{tenant.pix_key}</p>
+                        <Button type="button" size="icon" variant="secondary" onClick={copyPixKey} title="Copiar" className="h-9 w-9 shrink-0 shadow-sm hover:shadow">
+                          <Copy className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                      }
-                    />
-                  </div>
-                </div>
-              ) : (
-                /* Edit / Create form */
-                <div className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs uppercase tracking-wider">Tipo de Chave</Label>
-                      <Select value={pixKeyType} onValueChange={setPixKeyType}>
-                        <SelectTrigger className="wallet-input">
-                          <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PIX_KEY_TYPES.map(t => (
-                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs uppercase tracking-wider">Chave PIX</Label>
-                      <Input
-                        value={pixKey}
-                        onChange={e => setPixKey(e.target.value)}
-                        placeholder={
-                          pixKeyType === "cpf" ? "000.000.000-00" :
-                          pixKeyType === "cnpj" ? "00.000.000/0000-00" :
-                          pixKeyType === "email" ? "email@exemplo.com" :
-                          pixKeyType === "telefone" ? "+5511999999999" :
-                          "Cole sua chave aleatória"
+
+                    <div className="flex flex-wrap gap-3 pt-2">
+                      <Button
+                        onClick={() => setEditingPix(true)}
+                        variant="outline"
+                        className="bg-background/50 shadow-sm hover:shadow transition-all"
+                      >
+                        Editar chave
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          setSavingPix(true);
+                          try {
+                            const { data: d, error: e } = await supabase.functions.invoke("update-tenant", {
+                              body: { tenant_id: tenantId, updates: { pix_key: null, pix_key_type: null } },
+                            });
+                            if (e) throw e;
+                            if (d?.error) throw new Error(d.error);
+                            await refetchTenant();
+                            toast({ title: "Chave PIX desativada" });
+                          } catch (err: any) {
+                            toast({ title: "Erro", description: err.message, variant: "destructive" });
+                          } finally {
+                            setSavingPix(false);
+                          }
+                        }}
+                        disabled={savingPix}
+                        variant="outline"
+                        className="border-red-500/30 text-red-400 hover:bg-red-500/10 shadow-sm"
+                      >
+                        Desativar
+                      </Button>
+                      <PixGeneratorDialog
+                        trigger={
+                          <Button variant="outline" className="bg-background/50 shadow-sm hover:shadow transition-all">
+                            <QrCode className="h-4 w-4 mr-2 text-primary" /> Testar QR Code
+                          </Button>
                         }
-                        className="wallet-input font-mono"
                       />
                     </div>
                   </div>
+                ) : (
+                  /* Edit / Create form */
+                  <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="grid gap-5 sm:grid-cols-2 bg-background/30 p-5 rounded-xl border border-border/50 shadow-sm">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de Chave</Label>
+                        <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                          <SelectTrigger className="bg-background/80 border-border/60 focus:ring-primary/20 shadow-sm h-11">
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PIX_KEY_TYPES.map(t => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chave PIX</Label>
+                        <Input
+                          value={pixKey}
+                          onChange={e => setPixKey(e.target.value)}
+                          placeholder={
+                            pixKeyType === "cpf" ? "000.000.000-00" :
+                            pixKeyType === "cnpj" ? "00.000.000/0000-00" :
+                            pixKeyType === "email" ? "email@exemplo.com" :
+                            pixKeyType === "telefone" ? "+5511999999999" :
+                            "Cole sua chave aleatória"
+                          }
+                          className="bg-background/80 border-border/60 font-mono text-sm focus:ring-primary/20 shadow-sm h-11"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleSavePix}
-                      disabled={savingPix || !pixKey.trim() || !pixKeyType}
-                      className="gradient-pink text-primary-foreground border-none hover:opacity-90"
-                    >
-                      {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                      Salvar Chave PIX
-                    </Button>
-                    {editingPix && (
+                    <div className="flex gap-3 pt-2">
                       <Button
-                        onClick={() => {
-                          setPixKey(tenant?.pix_key || "");
-                          setPixKeyType(tenant?.pix_key_type || "");
-                          setEditingPix(false);
-                        }}
-                        variant="outline"
+                        onClick={handleSavePix}
+                        disabled={savingPix || !pixKey.trim() || !pixKeyType}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20 transition-all h-11 px-6"
                       >
-                        Cancelar
+                        {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                        Salvar Chave PIX
                       </Button>
-                    )}
+                      {editingPix && (
+                        <Button
+                          onClick={() => {
+                            setPixKey(tenant?.pix_key || "");
+                            setPixKeyType(tenant?.pix_key_type || "");
+                            setEditingPix(false);
+                          }}
+                          variant="outline"
+                          className="h-11 shadow-sm"
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Payment Gateways */}
