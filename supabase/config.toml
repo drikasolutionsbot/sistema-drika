@@ -91,6 +91,9 @@ verify_jwt = false
 [functions.manage-giveaways]
 verify_jwt = false
 
+[functions.finish-expired-giveaways]
+verify_jwt = false
+
 
 [functions.deliver-order]
 verify_jwt = false
