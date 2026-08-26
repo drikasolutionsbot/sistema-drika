@@ -170,128 +170,152 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
       </div>
 
       {/* Subscription History */}
-      <div className="wallet-section">
-        <div className="wallet-section-header mb-4">
-          <div className="wallet-section-icon">
-            <CreditCard className="h-4 w-4 text-primary" />
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-6 group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-[80px] pointer-events-none opacity-50 transition-opacity duration-700 group-hover:opacity-100" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center h-12 w-12 rounded-xl shadow-inner border bg-primary/10 border-primary/20 text-primary shrink-0">
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                  Histórico de Assinaturas
+                  {subscriptions.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary hover:bg-primary/20 border-0">{subscriptions.length}</Badge>
+                  )}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Pagamentos do plano Pro ou Master</p>
+              </div>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-foreground font-display font-semibold text-sm">Histórico de Assinaturas</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Pagamentos do plano Pro</p>
-          </div>
-          {subscriptions.length > 0 && (
-            <Badge variant="secondary" className="text-[10px]">{subscriptions.length}</Badge>
+
+          {subsLoading ? (
+            <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl bg-muted/50" />)}</div>
+          ) : subscriptions.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/10 bg-background/30 p-8 text-center shadow-inner">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50 mx-auto mb-3">
+                <CreditCard className="h-5 w-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">Nenhuma assinatura encontrada</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {visibleSubs.map((sub) => {
+                const st = statusMap[sub.status] || statusMap.pending;
+                const StatusIcon = st.icon;
+                return (
+                  <div key={sub.id} className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl bg-background/40 border border-white/5 hover:border-white/10 hover:bg-background/60 px-5 py-4 transition-all shadow-sm hover:shadow">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl border shrink-0 shadow-sm ${st.className}`}>
+                        <StatusIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="text-sm font-bold text-foreground capitalize">{sub.plan}</p>
+                          <Badge variant="outline" className="text-[9px] h-4.5 px-1.5 uppercase tracking-wider bg-background/50">{sub.payment_provider}</Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground font-medium">{formatDate(sub.created_at)}</p>
+                      </div>
+                    </div>
+                    <div className="sm:text-right shrink-0 pl-14 sm:pl-0">
+                      <p className="text-sm font-black text-foreground">{formatCurrency(sub.amount_cents)}</p>
+                      <p className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${sub.status === "paid" ? "text-emerald-400" : sub.status === "pending" ? "text-amber-400" : "text-muted-foreground"}`}>
+                        {st.label}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              {subscriptions.length > 5 && (
+                <button
+                  onClick={() => setShowAllSubs(!showAllSubs)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/5 bg-background/30 hover:bg-background/50 hover:border-white/10 transition-all px-4 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer mt-2 shadow-sm"
+                >
+                  {showAllSubs ? "Mostrar menos" : `Ver todas as ${subscriptions.length} assinaturas`}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showAllSubs ? "rotate-180" : ""}`} />
+                </button>
+              )}
+            </div>
           )}
         </div>
-
-        {subsLoading ? (
-          <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-        ) : subscriptions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
-            <CreditCard className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhuma assinatura encontrada</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {visibleSubs.map((sub) => {
-              const st = statusMap[sub.status] || statusMap.pending;
-              const StatusIcon = st.icon;
-              return (
-                <div key={sub.id} className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border px-4 py-3">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg border shrink-0 ${st.className}`}>
-                    <StatusIcon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-foreground capitalize">{sub.plan}</p>
-                      <Badge variant="outline" className="text-[10px] h-5">{sub.payment_provider}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(sub.created_at)}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-foreground">{formatCurrency(sub.amount_cents)}</p>
-                    <p className={`text-[10px] font-medium ${sub.status === "paid" ? "text-emerald-400" : sub.status === "pending" ? "text-amber-400" : "text-muted-foreground"}`}>
-                      {st.label}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            {subscriptions.length > 5 && (
-              <button
-                onClick={() => setShowAllSubs(!showAllSubs)}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-muted/40 transition-colors px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllSubs ? "rotate-180" : ""}`} />
-                {showAllSubs ? "Mostrar menos" : `Ver todas (${subscriptions.length})`}
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Orders History */}
-      <div className="wallet-section">
-        <div className="wallet-section-header mb-4">
-          <div className="wallet-section-icon">
-            <ShoppingBag className="h-4 w-4 text-primary" />
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-6 group">
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-emerald-500/10 to-transparent rounded-full blur-[80px] pointer-events-none opacity-50 transition-opacity duration-700 group-hover:opacity-100" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center h-12 w-12 rounded-xl shadow-inner border bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shrink-0">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                  Histórico de Pedidos
+                  {orders.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-0">{orders.length}</Badge>
+                  )}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Vendas realizadas na sua loja</p>
+              </div>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-foreground font-display font-semibold text-sm">Histórico de Pedidos</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Vendas realizadas na sua loja</p>
-          </div>
-          {orders.length > 0 && (
-            <Badge variant="secondary" className="text-[10px]">{orders.length}</Badge>
+
+          {ordersLoading ? (
+            <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl bg-muted/50" />)}</div>
+          ) : orders.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/10 bg-background/30 p-8 text-center shadow-inner">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50 mx-auto mb-3">
+                <Package className="h-5 w-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground">Nenhum pedido encontrado</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {visibleOrders.map((order) => {
+                const st = orderStatusMap[order.status] || orderStatusMap.pending_payment;
+                return (
+                  <div key={order.id} className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl bg-background/40 border border-white/5 hover:border-white/10 hover:bg-background/60 px-5 py-4 transition-all shadow-sm hover:shadow">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background border border-white/5 shadow-sm shrink-0">
+                        <Hash className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="text-sm font-bold text-foreground truncate">{order.product_name}</p>
+                          <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted/50 px-1.5 py-0.5 rounded uppercase tracking-wider">#{order.order_number}</span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-[11px] font-medium text-muted-foreground">{order.discord_username || order.discord_user_id}</p>
+                          <span className="text-muted-foreground/30 text-[10px]">•</span>
+                          <p className="text-[11px] font-medium text-muted-foreground">{formatDate(order.created_at)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="sm:text-right shrink-0 pl-14 sm:pl-0 flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1">
+                      <p className="text-sm font-black text-foreground">{formatCurrency(order.total_cents)}</p>
+                      <Badge variant="outline" className={`text-[9px] uppercase tracking-wider px-2 py-0.5 border ${st.className} shadow-sm`}>
+                        {st.label}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+              {orders.length > 10 && (
+                <button
+                  onClick={() => setShowAllOrders(!showAllOrders)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-white/5 bg-background/30 hover:bg-background/50 hover:border-white/10 transition-all px-4 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer mt-2 shadow-sm"
+                >
+                  {showAllOrders ? "Mostrar menos" : `Ver todos os ${orders.length} pedidos`}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showAllOrders ? "rotate-180" : ""}`} />
+                </button>
+              )}
+            </div>
           )}
         </div>
-
-        {ordersLoading ? (
-          <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
-        ) : orders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
-            <Package className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhum pedido encontrado</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {visibleOrders.map((order) => {
-              const st = orderStatusMap[order.status] || orderStatusMap.pending_payment;
-              return (
-                <div key={order.id} className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border px-4 py-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted border border-border shrink-0">
-                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-foreground truncate">{order.product_name}</p>
-                      <span className="text-[10px] font-mono text-muted-foreground">#{order.order_number}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <p className="text-xs text-muted-foreground">{order.discord_username || order.discord_user_id}</p>
-                      <span className="text-muted-foreground/30">•</span>
-                      <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-foreground">{formatCurrency(order.total_cents)}</p>
-                    <Badge variant="outline" className={`text-[10px] h-5 border ${st.className}`}>
-                      {st.label}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-            {orders.length > 10 && (
-              <button
-                onClick={() => setShowAllOrders(!showAllOrders)}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-muted/40 transition-colors px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllOrders ? "rotate-180" : ""}`} />
-                {showAllOrders ? "Mostrar menos" : `Ver todos (${orders.length})`}
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
