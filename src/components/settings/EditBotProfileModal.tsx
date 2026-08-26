@@ -138,6 +138,18 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
               placeholder="Drika Bot"
               maxLength={32}
             />
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-[11px] text-amber-200/90 leading-relaxed space-y-1">
+                <p>
+                  <strong className="text-amber-300">O Discord limita trocas de nome a ≈ 2 por hora.</strong>{" "}
+                  Mudar com frequência pode bloquear o bot temporariamente.
+                </p>
+                <p className="text-amber-200/60">
+                  Isso afeta avatar, nome e capa simultaneamente — use com cautela.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Banner — exclusivo Master */}
