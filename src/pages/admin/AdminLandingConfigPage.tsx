@@ -178,10 +178,10 @@ const AdminLandingConfigPage = () => {
           </p>
 
           {/* Trial Toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
-            <div className="space-y-0.5 pr-4">
-              <Label className="text-sm font-semibold">Exibir Plano Trial (Gratuito)</Label>
-              <p className="text-xs text-muted-foreground">
+          <div className="flex items-center justify-between rounded-xl border border-white/5 p-5 bg-background/40 backdrop-blur-sm hover:bg-background/60 hover:border-white/10 transition-all shadow-sm">
+            <div className="space-y-1.5 pr-4">
+              <Label className="text-sm font-bold text-foreground">Exibir Plano Trial (Gratuito)</Label>
+              <p className="text-xs font-medium text-muted-foreground">
                 Se ativado, o plano Trial (4 dias grátis) e o botão de cadastro gratuito serão exibidos na landing page. Se desativado, apenas os planos pagos (Pro e Master) serão mostrados.
               </p>
             </div>
@@ -192,10 +192,10 @@ const AdminLandingConfigPage = () => {
           </div>
 
           {/* Customization on Trial Toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
-            <div className="space-y-0.5 pr-4">
-              <Label className="text-sm font-semibold">Liberar Todas as Abas no Teste Grátis</Label>
-              <p className="text-xs text-muted-foreground">
+          <div className="flex items-center justify-between rounded-xl border border-white/5 p-5 bg-background/40 backdrop-blur-sm hover:bg-background/60 hover:border-white/10 transition-all shadow-sm">
+            <div className="space-y-1.5 pr-4">
+              <Label className="text-sm font-bold text-foreground">Liberar Todas as Abas no Teste Grátis</Label>
+              <p className="text-xs font-medium text-muted-foreground">
                 Se ativado, os clientes poderão acessar todas as telas bloqueadas durante os 4 dias de teste. Se desativado, as telas premium (como Recursos, Loja, etc) ficarão bloqueadas exigindo plano Pro/Master.
               </p>
             </div>
@@ -206,10 +206,10 @@ const AdminLandingConfigPage = () => {
           </div>
 
           {/* Is Free System Toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-muted/20">
-            <div className="space-y-0.5 pr-4">
-              <Label className="text-sm font-semibold">Sistema 100% Gratuito</Label>
-              <p className="text-xs text-muted-foreground">
+          <div className="flex items-center justify-between rounded-xl border border-white/5 p-5 bg-background/40 backdrop-blur-sm hover:bg-background/60 hover:border-white/10 transition-all shadow-sm">
+            <div className="space-y-1.5 pr-4">
+              <Label className="text-sm font-bold text-foreground">Sistema 100% Gratuito</Label>
+              <p className="text-xs font-medium text-muted-foreground">
                 Se ativado, o sistema será 100% gratuito. Contas não terão prazo de validade ou teste de trial, não precisarão assinar plano Pro/Master, e todas as rotas estarão liberadas.
               </p>
             </div>
@@ -220,22 +220,29 @@ const AdminLandingConfigPage = () => {
           </div>
 
           {/* Pro Plan */}
-          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <Crown className="h-4 w-4 text-emerald-500" />
-              <span className="text-sm font-semibold text-emerald-500">Plano Pro</span>
+          <div className="relative rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 space-y-5 overflow-hidden group transition-all hover:bg-emerald-500/10 hover:border-emerald-500/40">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-full blur-[80px] pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+                <Crown className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-lg font-bold text-emerald-400">Plano Pro</span>
+                <p className="text-xs text-emerald-500/70 font-medium">Configuração do plano padrão</p>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nome exibido</Label>
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome exibido</Label>
                 <Input
                   value={form.pro_plan_name}
                   onChange={(e) => setForm((p) => ({ ...p, pro_plan_name: e.target.value }))}
                   placeholder="Pro"
+                  className="bg-background/50 border-emerald-500/20 focus-visible:ring-emerald-500/50"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor em R$</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor em R$</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -249,10 +256,11 @@ const AdminLandingConfigPage = () => {
                     }
                   }}
                   placeholder="26.90"
+                  className="bg-background/50 border-emerald-500/20 focus-visible:ring-emerald-500/50"
                 />
               </div>
               <div className="flex items-end">
-                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-sm font-semibold text-emerald-500 w-full text-center">
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-bold text-emerald-400 w-full text-center flex items-center justify-center h-10 shadow-sm">
                   R$ {(form.pro_price_cents / 100).toFixed(2).replace(".", ",")}/mês
                 </div>
               </div>
@@ -260,22 +268,29 @@ const AdminLandingConfigPage = () => {
           </div>
 
           {/* Master Plan */}
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">Plano Master</span>
+          <div className="relative rounded-2xl border border-primary/20 bg-primary/5 p-6 space-y-5 overflow-hidden group transition-all hover:bg-primary/10 hover:border-primary/40">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/10 to-transparent rounded-full blur-[80px] pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-primary/20 border border-primary/30 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-lg font-bold text-primary">Plano Master</span>
+                <p className="text-xs text-primary/70 font-medium">Acesso total e premium</p>
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nome exibido</Label>
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome exibido</Label>
                 <Input
                   value={form.master_plan_name}
                   onChange={(e) => setForm((p) => ({ ...p, master_plan_name: e.target.value }))}
                   placeholder="Master"
+                  className="bg-background/50 border-primary/20 focus-visible:ring-primary/50"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor em R$</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor em R$</Label>
                 <Input
                   type="text"
                   inputMode="decimal"
@@ -289,10 +304,11 @@ const AdminLandingConfigPage = () => {
                     }
                   }}
                   placeholder="30.90"
+                  className="bg-background/50 border-primary/20 focus-visible:ring-primary/50"
                 />
               </div>
               <div className="flex items-end">
-                <div className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-2 text-sm font-semibold text-primary w-full text-center">
+                <div className="rounded-xl bg-primary/10 border border-primary/30 px-4 py-2.5 text-sm font-bold text-primary w-full text-center flex items-center justify-center h-10 shadow-sm">
                   R$ {(form.master_price_cents / 100).toFixed(2).replace(".", ",")}/mês
                 </div>
               </div>
