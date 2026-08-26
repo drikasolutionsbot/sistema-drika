@@ -323,76 +323,86 @@ const CustomizationPage = () => {
 
         {/* === GERAL === */}
         <TabsContent value="geral" className="mt-6 space-y-6">
-          {/* Discord Server */}
-          <Card className="border-border/50 bg-sidebar">
-            <CardContent className="pt-6 space-y-5">
-               <div>
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Servidor Discord</Label>
-                <div className="flex items-center gap-3 mt-3 p-3 rounded-xl bg-background border border-border">
-                  <div
-                    className="relative h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer group"
-                    onClick={() => guildIconInputRef.current?.click()}
-                    title="Clique para alterar o ícone do servidor"
-                  >
-                    {uploadingIcon ? (
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    ) : guildInfo?.icon ? (
-                      <img
-                        src={guildInfo.icon.startsWith("http") ? guildInfo.icon : `https://cdn.discordapp.com/icons/${tenant?.discord_guild_id}/${guildInfo.icon}.png?size=64`}
-                        alt="" className="h-full w-full object-cover"
-                      />
-                    ) : botAvatar ? (
-                      <img src={botAvatar} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Bot className="h-5 w-5 text-primary" />
-                    )}
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                      <Camera className="h-4 w-4 text-white" />
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-1 sm:p-2">
+            {/* Decorative Background Glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-full blur-[80px] pointer-events-none opacity-50" />
+            
+            <Card className="border-0 bg-transparent shadow-none">
+              <CardContent className="pt-6 space-y-6 relative z-10">
+                 <div>
+                  <Label className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold mb-2 block">Servidor Discord</Label>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-xl bg-background/50 border border-border/50 shadow-sm transition-all hover:bg-background/80 hover:border-primary/30">
+                    <div
+                      className="relative h-14 w-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer group shadow-sm"
+                      onClick={() => guildIconInputRef.current?.click()}
+                      title="Clique para alterar o ícone do servidor"
+                    >
+                      {uploadingIcon ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      ) : guildInfo?.icon ? (
+                        <img
+                          src={guildInfo.icon.startsWith("http") ? guildInfo.icon : `https://cdn.discordapp.com/icons/${tenant?.discord_guild_id}/${guildInfo.icon}.png?size=64`}
+                          alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110"
+                        />
+                      ) : botAvatar ? (
+                        <img src={botAvatar} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                      ) : (
+                        <Bot className="h-6 w-6 text-primary" />
+                      )}
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full backdrop-blur-[2px]">
+                        <Camera className="h-5 w-5 text-white drop-shadow-md" />
+                      </div>
+                    </div>
+                    <input
+                      ref={guildIconInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleGuildIconUpload}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{config.server_name || "Servidor"}</p>
+                      <p className="text-xs font-mono text-muted-foreground/80 mt-0.5 select-all">{guildId}</p>
+                    </div>
+                    <Badge variant={botOnline ? "default" : "secondary"} className={`gap-1.5 shrink-0 px-3 py-1 text-xs shadow-sm ${botOnline ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/20" : "bg-destructive/15 text-destructive hover:bg-destructive/25 border border-destructive/20"}`}>
+                      {botOnline ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+                      {botOnline === null ? "..." : botOnline ? "Online" : "Offline"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="server_name" className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold">Nome do Servidor</Label>
+                  <Input
+                    id="server_name"
+                    value={config.server_name}
+                    onChange={e => update("server_name", e.target.value)}
+                    placeholder="Nome do seu servidor"
+                    className="bg-background/50 border-border/60 focus:bg-background focus:ring-primary/20 shadow-sm h-11"
+                  />
+                </div>
+
+                {guildInfo && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="p-4 rounded-xl bg-background/50 border border-border/50 shadow-sm relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex flex-col relative z-10">
+                        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold mb-1">Membros</span>
+                        <span className="text-2xl font-black text-foreground">{guildInfo.member_count.toLocaleString("pt-BR")}</span>
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-background/50 border border-border/50 shadow-sm relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex flex-col relative z-10">
+                        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-bold mb-1">Online</span>
+                        <span className="text-2xl font-black text-emerald-400">{guildInfo.presence_count.toLocaleString("pt-BR")}</span>
+                      </div>
                     </div>
                   </div>
-                  <input
-                    ref={guildIconInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleGuildIconUpload}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-mono text-muted-foreground">{guildId}</p>
-                  </div>
-                  <Badge variant={botOnline ? "default" : "destructive"} className="gap-1.5 shrink-0">
-                    {botOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-                    {botOnline === null ? "..." : botOnline ? "Online" : "Offline"}
-                  </Badge>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="server_name" className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Nome do Servidor</Label>
-                <Input
-                  id="server_name"
-                  value={config.server_name}
-                  onChange={e => update("server_name", e.target.value)}
-                  placeholder="Nome do seu servidor"
-                  className="mt-2"
-                />
-              </div>
-
-              {guildInfo && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-lg bg-background border border-border">
-                    <p className="text-xs text-muted-foreground">Membros</p>
-                    <p className="text-lg font-bold">{guildInfo.member_count.toLocaleString("pt-BR")}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-background border border-border">
-                    <p className="text-xs text-muted-foreground">Online</p>
-                    <p className="text-lg font-bold text-emerald-500">{guildInfo.presence_count.toLocaleString("pt-BR")}</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
