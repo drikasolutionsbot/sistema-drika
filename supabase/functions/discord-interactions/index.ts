@@ -932,12 +932,14 @@ serve(async (req: Request) => {
     try {
       // ─── TICKET CATEGORY SELECT (tipo de atendimento) ───
       if (customId.startsWith("ticket_category_select:")) {
+        const customParts = customId.split(":");
+        if (customParts.length < 3) return ok();
+        const tenantId = customParts[1];
+        const supportChannelId = customParts[2];
+        
         const values = interaction.data?.values || [];
         if (values.length === 0) return ok();
-        const selectedValue = values[0] as string;
-        const parts = selectedValue.split(":");
-        if (parts.length < 4) return ok();
-        const [, tenantId, supportChannelId, categoryId] = parts;
+        const categoryId = values[0] as string;
         const guildId = interaction.guild_id;
         await respondDeferred(interaction, botToken);
         const { data: category } = await supabase
