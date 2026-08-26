@@ -901,22 +901,23 @@ const AdminClientsPage = () => {
         </CardContent>
       </Card>
 
-      {/* Renew/Add Days Dialog */}
       <Dialog open={!!renewDialogTenantId} onOpenChange={(open) => { if (!open) setRenewDialogTenantId(null); }}>
-        <DialogContent className="bg-card border-border sm:max-w-sm">
+        <DialogContent className="bg-card border-border max-w-md w-full">
           <DialogHeader>
-            <DialogTitle>Adicionar Dias</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg font-bold">Adicionar Dias</DialogTitle>
+            <DialogDescription className="text-sm">
               {renewDialogTenantId && (() => {
                 const t = tenants.find(x => x.id === renewDialogTenantId);
                 return t ? `Cliente: ${t.name} (${(t.plan || "free").toUpperCase()})` : "";
               })()}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <div className="space-y-5 py-2">
+            {/* Plan selector */}
             <div className="space-y-2">
-              <Label>Plano</Label>
-              <div className="flex gap-2">
+              <Label className="text-sm font-semibold">Plano</Label>
+              <div className="flex flex-wrap gap-2">
                 {PLANS.map(p => (
                   <Button
                     key={p.value}
@@ -930,8 +931,10 @@ const AdminClientsPage = () => {
                 ))}
               </div>
             </div>
+
+            {/* Days input */}
             <div className="space-y-2">
-              <Label>Quantidade de dias</Label>
+              <Label className="text-sm font-semibold">Quantidade de dias</Label>
               <Input
                 type="number"
                 min="1"
@@ -941,38 +944,42 @@ const AdminClientsPage = () => {
                 placeholder="Ex: 30"
                 className="bg-muted border-none"
               />
-            </div>
-            <div className="flex gap-2">
-              {[7, 15, 30, 60, 90].map(d => (
-                <Button
-                  key={d}
-                  size="sm"
-                  variant={renewDays === String(d) ? "default" : "outline"}
-                  className="text-xs h-7 px-2"
-                  onClick={() => setRenewDays(String(d))}
-                >
-                  {d}d
-                </Button>
-              ))}
+              {/* Quick picks */}
+              <div className="flex flex-wrap gap-2">
+                {[7, 15, 30, 60, 90, 180, 365].map(d => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant={renewDays === String(d) ? "default" : "outline"}
+                    className={`text-xs h-7 px-2.5 ${renewDays === String(d) ? "gradient-pink text-primary-foreground border-none" : ""}`}
+                    onClick={() => setRenewDays(String(d))}
+                  >
+                    {d}d
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
-          <DialogFooter>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 pt-2 border-t border-border mt-2">
             <DialogClose asChild>
-              <Button variant="ghost">Cancelar</Button>
+              <Button variant="ghost" size="sm">Cancelar</Button>
             </DialogClose>
             <Button
+              size="sm"
               onClick={() => {
                 const days = parseInt(renewDays);
                 if (!days || days < 1 || !renewDialogTenantId) return;
                 handleRenewPlan(renewDialogTenantId, days);
               }}
               disabled={savingPlan || !renewDays || parseInt(renewDays) < 1}
-              className="gradient-pink text-primary-foreground border-none hover:opacity-90"
+              className="gradient-pink text-primary-foreground border-none hover:opacity-90 gap-2"
             >
-              {savingPlan ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarClock className="mr-2 h-4 w-4" />}
+              {savingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
               Adicionar +{renewDays || 0} dias
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
