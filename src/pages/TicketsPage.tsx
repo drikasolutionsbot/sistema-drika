@@ -201,7 +201,6 @@ const TicketsPage = () => {
           const sc = statusConfig[ticket.status] || statusConfig.open;
           const Icon = sc.icon;
           return (
-          return (
             <div
               key={ticket.id}
               onClick={() => openDetail(ticket)}
