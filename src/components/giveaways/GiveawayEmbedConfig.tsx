@@ -16,7 +16,7 @@ interface GiveawayEmbedConfigProps {
   onChange: (config: EmbedConfig) => void;
 }
 
-function ImageUploadField({
+export function ImageUploadField({
   label,
   value,
   onChangeUrl,
@@ -252,13 +252,13 @@ export default function GiveawayEmbedConfigForm({ config, onChange }: GiveawayEm
 
       <div className="grid gap-4 sm:grid-cols-2">
         <ImageUploadField
-          label="Thumbnail (pequena)"
+          label="Thumbnail (miniatura no canto do embed)"
           value={config.thumbnail_url}
           onChangeUrl={(url) => update("thumbnail_url", url)}
           fieldKey="thumbnail"
         />
         <ImageUploadField
-          label="Imagem (grande)"
+          label="Imagem / GIF principal (aparece grande no embed)"
           value={config.image_url}
           onChangeUrl={(url) => update("image_url", url)}
           fieldKey="image"

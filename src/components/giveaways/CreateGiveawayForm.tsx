@@ -10,14 +10,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Gift, Loader2, ShieldCheck, ChevronDown, Eye, RotateCcw } from "lucide-react";
+import { CalendarIcon, Gift, Loader2, ShieldCheck, ChevronDown, Eye, RotateCcw, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
 import GiveawayEmbedPreview, { defaultEmbedConfig, type GiveawayEmbedConfig } from "./GiveawayEmbedPreview";
-import GiveawayEmbedConfigForm from "./GiveawayEmbedConfig";
+import GiveawayEmbedConfigForm, { ImageUploadField } from "./GiveawayEmbedConfig";
 
 interface Channel { id: string; name: string; }
 
@@ -231,6 +231,32 @@ export default function CreateGiveawayForm({ onCreated }: CreateGiveawayFormProp
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Apenas membros com este cargo poderão participar</p>
+            </div>
+          </div>
+
+          {/* Image / GIF section — always visible */}
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Imagem / GIF do Sorteio</span>
+              <span className="text-xs text-muted-foreground">(opcional)</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Adicione uma imagem ou GIF que aparecerá no embed do sorteio no Discord.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ImageUploadField
+                label="Imagem principal (aparece grande no embed)"
+                value={draft.embedConfig.image_url}
+                onChangeUrl={(url) => updateField("embedConfig", { ...draft.embedConfig, image_url: url })}
+                fieldKey="image"
+              />
+              <ImageUploadField
+                label="Thumbnail (miniatura no canto)"
+                value={draft.embedConfig.thumbnail_url}
+                onChangeUrl={(url) => updateField("embedConfig", { ...draft.embedConfig, thumbnail_url: url })}
+                fieldKey="thumbnail"
+              />
             </div>
           </div>
 
