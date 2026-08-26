@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { User, Mail, Phone, Calendar, ShoppingBag, CreditCard, Clock, Package, ChevronDown, CheckCircle2, XCircle, AlertCircle, Hash } from "lucide-react";
+import { User, Mail, Phone, Calendar, ShoppingBag, CreditCard, Clock, Package, ChevronDown, CheckCircle2, XCircle, AlertCircle, Hash, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -30,6 +32,31 @@ const orderStatusMap: Record<string, { label: string; className: string }> = {
 const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
   const [showAllSubs, setShowAllSubs] = useState(false);
   const [showAllOrders, setShowAllOrders] = useState(false);
+  const [isDeletingOrders, setIsDeletingOrders] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const handleClearOrders = async () => {
+    if (!tenantId) return;
+    if (!window.confirm("Tem certeza que deseja apagar TODO o histórico de pedidos? Esta ação não pode ser desfeita e excluirá todas as vendas do banco de dados.")) return;
+    
+    setIsDeletingOrders(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .delete()
+        .eq("tenant_id", tenantId);
+        
+      if (error) throw error;
+      
+      toast({ title: "Histórico de pedidos limpo com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["profile-orders", tenantId] });
+    } catch (err: any) {
+      toast({ title: "Erro ao limpar pedidos", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDeletingOrders(false);
+    }
+  };
 
   // Fetch subscription payments
   const { data: subscriptions = [], isLoading: subsLoading } = useQuery({
@@ -247,7 +274,7 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-emerald-500/10 to-transparent rounded-full blur-[80px] pointer-events-none opacity-50 transition-opacity duration-700 group-hover:opacity-100" />
         
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center h-12 w-12 rounded-xl shadow-inner border bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shrink-0">
                 <ShoppingBag className="h-5 w-5" />
@@ -262,6 +289,19 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
                 <p className="text-xs text-muted-foreground mt-0.5">Vendas realizadas na sua loja</p>
               </div>
             </div>
+            
+            {orders.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearOrders}
+                disabled={isDeletingOrders}
+                className="h-9 sm:h-8 text-xs bg-background/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 border-white/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                {isDeletingOrders ? "Limpando..." : "Limpar Histórico"}
+              </Button>
+            )}
           </div>
 
           {ordersLoading ? (
