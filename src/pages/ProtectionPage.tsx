@@ -469,22 +469,57 @@ const ProtectionPage = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-          <div className="rounded-lg p-2.5 bg-primary/10"><ShieldCheck className="h-5 w-5 text-primary" /></div>
-          <div><p className="text-2xl font-bold">{enabledCount}</p><p className="text-xs text-muted-foreground">Módulos Ativos</p></div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-xl border shadow-inner bg-primary/10 text-primary border-primary/20">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover/stat:text-foreground transition-colors">Módulos Ativos</p>
+            </div>
+            <p className="text-3xl font-black tracking-tighter text-foreground">{enabledCount}</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-          <div className="rounded-lg p-2.5 bg-emerald-500/10"><Users className="h-5 w-5 text-emerald-400" /></div>
-          <div><p className="text-2xl font-bold">{whitelist.length}</p><p className="text-xs text-muted-foreground">Na Whitelist</p></div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-xl border shadow-inner bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                <Users className="h-4 w-4" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover/stat:text-foreground transition-colors">Na Whitelist</p>
+            </div>
+            <p className="text-3xl font-black tracking-tighter text-foreground">{whitelist.length}</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-          <div className="rounded-lg p-2.5 bg-yellow-500/10"><Activity className="h-5 w-5 text-yellow-400" /></div>
-          <div><p className="text-2xl font-bold">{logs.length}</p><p className="text-xs text-muted-foreground">Logs Recentes</p></div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-xl border shadow-inner bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                <Activity className="h-4 w-4" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover/stat:text-foreground transition-colors">Logs Recentes</p>
+            </div>
+            <p className="text-3xl font-black tracking-tighter text-foreground">{logs.length}</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-          <div className="rounded-lg p-2.5 bg-blue-500/10"><Globe className="h-5 w-5 text-blue-400" /></div>
-          <div><p className="text-2xl font-bold">{MODULES.length}</p><p className="text-xs text-muted-foreground">Total de Módulos</p></div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
+          <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center h-10 w-10 rounded-xl border shadow-inner bg-blue-500/10 text-blue-400 border-blue-500/20">
+                <Globe className="h-4 w-4" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover/stat:text-foreground transition-colors">Total de Módulos</p>
+            </div>
+            <p className="text-3xl font-black tracking-tighter text-foreground">{MODULES.length}</p>
+          </div>
         </div>
       </div>
 
@@ -521,22 +556,22 @@ const ProtectionPage = () => {
 
                     return (
                       <Collapsible key={mod.key} open={isExpanded} onOpenChange={() => toggleExpand(mod.key)}>
-                        <div className={`rounded-xl border transition-all duration-300 ${isEnabled ? "border-primary/30 bg-card" : "border-border bg-card/50"}`}>
+                        <div className={`rounded-xl border transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow ${isEnabled ? "border-primary/30 bg-primary/5" : "border-white/5 bg-card/40 hover:bg-background/60 hover:border-white/10"}`}>
                           {/* Module Header */}
-                          <div className="flex items-center justify-between p-4">
+                          <div className="flex items-center justify-between p-4 group">
                             <CollapsibleTrigger asChild>
-                              <button className="flex items-center gap-3 flex-1 text-left group">
-                                <div className={`rounded-lg p-2.5 transition-all duration-300 ${mod.color} ${isEnabled ? "scale-110" : "opacity-50"}`}>
-                                  <Icon className="h-4 w-4" />
+                              <button className="flex items-center gap-4 flex-1 text-left">
+                                <div className={`flex items-center justify-center h-12 w-12 rounded-xl shadow-inner border transition-all duration-300 ${mod.color.replace('bg-', 'bg-opacity-20 bg-')} ${isEnabled ? "scale-110" : "opacity-50 grayscale group-hover:grayscale-0 group-hover:opacity-100"}`}>
+                                  <Icon className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-sm font-semibold">{mod.name}</p>
-                                    {isEnabled && <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">ATIVO</Badge>}
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-sm font-bold text-foreground">{mod.name}</p>
+                                    {isEnabled && <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px] uppercase tracking-wider px-2 py-0.5 shadow-sm">ATIVO</Badge>}
                                   </div>
-                                  <p className="text-xs text-muted-foreground">{mod.description}</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground">{mod.description}</p>
                                 </div>
-                                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />}
+                                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto shrink-0 transition-transform duration-200" /> : <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />}
                               </button>
                             </CollapsibleTrigger>
                             <div className="flex items-center gap-2 ml-3">
