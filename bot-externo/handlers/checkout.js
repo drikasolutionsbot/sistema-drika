@@ -25,7 +25,7 @@ function outOfStockPayload(productId, tenantId, fieldId = null) {
     : `notify_restock:${productId}`;
     
   return {
-    content: "<a:close:1521186425662472212> | Este produto está sem estoque. Aguarde um reabastecimento!",
+    content: "❌ | Este produto está sem estoque. Aguarde um reabastecimento!",
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
