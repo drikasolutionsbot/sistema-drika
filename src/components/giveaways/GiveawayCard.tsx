@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Gift, Users, Clock, Hash, Trophy, XCircle, Pencil, ChevronRight, Loader2, UserCircle2, X } from "lucide-react";
+import { Gift, Users, Clock, Hash, Trophy, XCircle, Pencil, ChevronRight, Loader2, UserCircle2, X, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -25,6 +25,7 @@ interface GiveawayCardProps {
   onDraw: (id: string) => void;
   onCancel: (id: string) => void;
   onEdit: (giveaway: Giveaway) => void;
+  onDelete: (id: string) => void;
   tenantId?: string | null;
 }
 
@@ -146,10 +147,11 @@ function useCountdown(endsAt: string) {
   return { timeLeft, isExpired };
 }
 
-export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, tenantId }: GiveawayCardProps) {
+export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, onDelete, tenantId }: GiveawayCardProps) {
   const { timeLeft, isExpired } = useCountdown(giveaway.ends_at);
   const isEnded = giveaway.status === "ended";
-  const isFinished = isEnded || isExpired;
+  const isCanceled = giveaway.status === "canceled";
+  const isFinished = isEnded || isExpired || isCanceled;
   const [participantsOpen, setParticipantsOpen] = useState(false);
 
   return (
@@ -162,7 +164,7 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, tenan
             {giveaway.title}
           </CardTitle>
           <Badge variant={isFinished ? "secondary" : "default"} className={isFinished ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" : ""}>
-            {isEnded ? "Encerrado" : isExpired ? "⏰ Finalizado" : "Ativo"}
+            {isCanceled ? "Cancelado" : isEnded ? "Encerrado" : isExpired ? "⏰ Finalizado" : "Ativo"}
           </Badge>
         </div>
       </CardHeader>
@@ -179,8 +181,8 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, tenan
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="h-4 w-4" />
-            <span className={isFinished ? "text-yellow-500 font-medium animate-pulse" : ""}>
-              {isEnded ? "⏰ Encerrado" : isExpired ? "🎲 Sorteando ganhador..." : timeLeft}
+            <span className={isExpired && !isEnded && !isCanceled ? "text-yellow-500 font-medium animate-pulse" : ""}>
+              {isCanceled ? "Cancelado" : isEnded ? "⏰ Encerrado" : isExpired ? "🎲 Sorteando ganhador..." : timeLeft}
             </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -206,21 +208,28 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, tenan
           )}
         </div>
 
-        {isExpired && !isEnded && (
+        {isExpired && !isEnded && !isCanceled && (
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-2 text-xs text-yellow-500 text-center font-medium">
             ⚠️ Tempo esgotado — clique em "Sortear" para finalizar
           </div>
         )}
 
         <div className="flex gap-2 pt-2">
-          <Button size="sm" onClick={() => onDraw(giveaway.id)} className="flex-1" variant={isExpired && !isEnded ? "default" : "default"}>
-            <Trophy className="h-4 w-4 mr-1" /> Sortear
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onEdit(giveaway)}>
+          {!isEnded && !isCanceled && (
+            <Button size="sm" onClick={() => onDraw(giveaway.id)} className="flex-1" variant={isExpired ? "default" : "default"}>
+              <Trophy className="h-4 w-4 mr-1" /> Sortear
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => onEdit(giveaway)} className={isEnded || isCanceled ? "flex-1" : ""}>
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="destructive" onClick={() => onCancel(giveaway.id)}>
-            <XCircle className="h-4 w-4" />
+          {!isEnded && !isCanceled && (
+            <Button size="sm" variant="outline" onClick={() => onCancel(giveaway.id)} title="Cancelar sorteio">
+              <XCircle className="h-4 w-4 text-orange-500" />
+            </Button>
+          )}
+          <Button size="sm" variant="destructive" onClick={() => onDelete(giveaway.id)} title="Excluir sorteio">
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </CardContent>

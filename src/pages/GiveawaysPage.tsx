@@ -60,6 +60,20 @@ export default function GiveawaysPage() {
     }
   }, [tenantId, refetch]);
 
+  const handleDelete = useCallback(async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este sorteio? Isso não pode ser desfeito.")) return;
+    try {
+      const { error } = await supabase.functions.invoke("manage-giveaways", {
+        body: { action: "delete", tenant_id: tenantId, giveaway_id: id },
+      });
+      if (error) throw error;
+      toast({ title: "Sorteio excluído" });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.message, variant: "destructive" });
+    }
+  }, [tenantId, refetch]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -87,7 +101,7 @@ export default function GiveawaysPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {activeGiveaways.map((g: any) => (
-                <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onEdit={setEditGiveaway} />
+                <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onDelete={handleDelete} onEdit={setEditGiveaway} />
               ))}
             </div>
           )}
@@ -102,7 +116,7 @@ export default function GiveawaysPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {historyGiveaways.map((g: any) => (
-                <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onEdit={setEditGiveaway} />
+                <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onDelete={handleDelete} onEdit={setEditGiveaway} />
               ))}
             </div>
           )}
