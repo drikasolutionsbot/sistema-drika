@@ -251,7 +251,10 @@ async function startCheckout(interaction, tenant, productId) {
   const fields = await getProductFields(product.id, tenant.id);
 
   // ── Check stock before proceeding ──
-  if (product.auto_delivery) {
+  const embedConfig = getProductEmbedConfig(product);
+  const checkStock = product.auto_delivery || embedConfig.show_stock_field !== false;
+
+  if (checkStock) {
     if (fields.length > 0) {
       // Check if ALL fields have 0 stock
       let totalStock = 0;
@@ -321,7 +324,10 @@ async function selectVariation(interaction, tenant, productId, fieldId) {
   if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
 
   // Check stock for this specific field
-  if (product.auto_delivery) {
+  const embedConfig = getProductEmbedConfig(product);
+  const checkStock = product.auto_delivery || embedConfig.show_stock_field !== false;
+
+  if (checkStock) {
     const sc = await countStock(product.id, tenant.id, fieldId);
     if (sc !== null && sc <= 0) {
       return interaction.editReply(outOfStockPayload(product.id, tenant.id, fieldId));
