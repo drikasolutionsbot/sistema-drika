@@ -201,40 +201,46 @@ const TicketsPage = () => {
           const sc = statusConfig[ticket.status] || statusConfig.open;
           const Icon = sc.icon;
           return (
+          return (
             <div
               key={ticket.id}
               onClick={() => openDetail(ticket)}
-              className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-all duration-200 cursor-pointer group"
+              className="flex items-center justify-between rounded-xl border border-white/5 bg-card/40 backdrop-blur-sm p-4 hover:border-white/10 hover:bg-background/60 hover:shadow transition-all duration-200 cursor-pointer group"
             >
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <div className={`rounded-lg p-2 sm:p-2.5 ${sc.cls} transition-transform group-hover:scale-110 shrink-0`}>
-                  <Icon className="h-4 w-4" />
+              <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
+                <div className={`flex items-center justify-center h-12 w-12 rounded-xl border shadow-inner shrink-0 transition-transform duration-300 group-hover:scale-110 ${sc.cls.replace('bg-', 'bg-opacity-20 bg-')}`}>
+                  <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-sm font-bold text-foreground truncate mb-1">
                     {ticket.product_name || "Suporte Geral"}
                   </p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted-foreground truncate">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-muted-foreground font-medium truncate">
                       {ticket.discord_username || ticket.discord_user_id}
                     </p>
                     {ticket.discord_channel_id && (
-                      <span className="text-xs text-muted-foreground/50 flex items-center gap-0.5">
-                        <Hash className="h-3 w-3" />
-                        {ticket.discord_channel_id.slice(-6)}
-                      </span>
+                      <>
+                        <span className="text-muted-foreground/30 text-[10px]">•</span>
+                        <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <Hash className="h-3 w-3" />
+                          {ticket.discord_channel_id.slice(-6)}
+                        </span>
+                      </>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <Badge variant="outline" className={`${sc.badgeCls} text-[10px] sm:text-xs`}>
+              <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                <Badge variant="outline" className={`${sc.badgeCls} text-[9px] uppercase tracking-wider px-2 py-0.5 border shadow-sm`}>
                   {sc.label}
                 </Badge>
-                <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
+                <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap hidden sm:inline">
                   {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true, locale: ptBR })}
                 </span>
-                <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
+                <div className="h-8 w-8 rounded-lg bg-background/50 border border-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex">
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
             </div>
           );
@@ -281,18 +287,25 @@ const TicketsPage = () => {
 
         <TabsContent value="tickets" className="space-y-6 mt-4">
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {(["open", "in_progress", "delivered", "closed"] as const).map((status) => {
               const sc = statusConfig[status];
               const Icon = sc.icon;
+              // Extract the color name from the cls to create the gradient (e.g. text-yellow-400 -> yellow)
+              const colorPrefix = sc.cls.match(/text-([a-z]+)-/)?.[1] || "gray";
+              const gradientClass = `from-${colorPrefix}-500/10`;
+
               return (
-                <div key={status} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-                  <div className={`rounded-lg p-2 ${sc.cls}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{counts[status]}</p>
-                    <p className="text-xs text-muted-foreground">{sc.label}</p>
+                <div key={status} className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
+                  <div className={`absolute inset-0 bg-gradient-to-tr ${gradientClass} to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500`} />
+                  <div className="relative z-10 flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center justify-center h-10 w-10 rounded-xl border shadow-inner ${sc.badgeCls}`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover/stat:text-foreground transition-colors">{sc.label}</p>
+                    </div>
+                    <p className="text-3xl font-black tracking-tighter text-foreground">{counts[status]}</p>
                   </div>
                 </div>
               );
