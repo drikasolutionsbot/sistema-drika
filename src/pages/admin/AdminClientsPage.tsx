@@ -12,7 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign } from "lucide-react";
+import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import TrashIcon from "@/components/ui/trash-icon";
 import { logAudit } from "@/lib/auditLog";
 import * as XLSX from "xlsx";
@@ -33,6 +34,9 @@ const AdminClientsPage = () => {
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // New tenant form
   const [newTenantName, setNewTenantName] = useState("");
@@ -332,6 +336,29 @@ const AdminClientsPage = () => {
     setDeletingTenant(null);
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    const ids = Array.from(selectedIds);
+    let deleted = 0;
+    for (const tenantId of ids) {
+      try {
+        const tenantName = tenants.find(t => t.id === tenantId)?.name || tenantId;
+        const { data, error } = await supabase.functions.invoke("delete-tenant", {
+          body: { tenant_id: tenantId },
+        });
+        if (error || data?.error) continue;
+        await logAudit("tenant_deleted", "tenant", tenantId, tenantName);
+        deleted++;
+      } catch { /* continue */ }
+    }
+    setTenants(prev => prev.filter(t => !selectedIds.has(t.id)));
+    setSelectedIds(new Set());
+    setBulkDeleteConfirm(false);
+    setBulkDeleting(false);
+    toast({ title: `${deleted} cliente(s) excluído(s) ✅` });
+  };
+
   const toggleExpand = (tenantId: string) => {
     if (expandedTenant === tenantId) {
       setExpandedTenant(null);
@@ -511,6 +538,53 @@ const AdminClientsPage = () => {
               </span>
             )}
           </CardTitle>
+
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+              <span className="text-sm font-medium text-destructive flex-1">
+                {selectedIds.size} cliente(s) selecionado(s)
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Limpar seleção
+              </Button>
+              <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="text-xs h-7 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Excluir {selectedIds.size} selecionado(s)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-card border-border max-w-sm">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir {selectedIds.size} cliente(s)?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação é irreversível. Todos os dados, tokens e configurações desses clientes serão removidos permanentemente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+                    >
+                      {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      Confirmar Exclusão
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -521,6 +595,25 @@ const AdminClientsPage = () => {
             <p className="text-center text-muted-foreground py-8">Nenhum cliente encontrado.</p>
           ) : (
             <div className="space-y-3">
+              {/* Select all */}
+              {filteredTenants.length > 0 && (
+                <div className="flex items-center gap-2 px-1 pb-1 border-b border-border">
+                  <Checkbox
+                    id="select-all"
+                    checked={filteredTenants.every(t => selectedIds.has(t.id))}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedIds(new Set(filteredTenants.map(t => t.id)));
+                      } else {
+                        setSelectedIds(new Set());
+                      }
+                    }}
+                  />
+                  <label htmlFor="select-all" className="text-xs text-muted-foreground cursor-pointer select-none">
+                    Selecionar todos ({filteredTenants.length})
+                  </label>
+                </div>
+              )}
               {filteredTenants.map((tenant) => {
                 const isExpanded = expandedTenant === tenant.id;
                 const tenantTokens = tokens[tenant.id] || [];
@@ -533,12 +626,26 @@ const AdminClientsPage = () => {
                   : null;
 
                 return (
-                  <div key={tenant.id} className={`rounded-lg border overflow-hidden ${isExpired ? "border-destructive/50 bg-destructive/5" : "border-border"}`}>
+                  <div key={tenant.id} className={`rounded-lg border overflow-hidden ${isExpired ? "border-destructive/50 bg-destructive/5" : selectedIds.has(tenant.id) ? "border-primary/50 bg-primary/5" : "border-border"}`}>
                     {/* Tenant row */}
                     <div
                       className="flex flex-col sm:flex-row sm:items-center justify-between px-3 sm:px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
                       onClick={() => toggleExpand(tenant.id)}
                     >
+                      {/* Checkbox */}
+                      <div
+                        className="shrink-0 mr-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedIds(prev => {
+                            const next = new Set(prev);
+                            next.has(tenant.id) ? next.delete(tenant.id) : next.add(tenant.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        <Checkbox checked={selectedIds.has(tenant.id)} />
+                      </div>
                       <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
