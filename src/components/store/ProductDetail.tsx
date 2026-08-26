@@ -177,7 +177,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
                 <AlertDialogDescription className="text-center text-sm leading-relaxed">
                   Tem certeza que deseja excluir <span className="font-semibold text-foreground">"{edited.name}"</span>?
                   <br />
-                  Esta ação não pode ser desfeita. Todo o estoque e campos serão removidos permanentemente.
+                  Esta ação não pode ser desfeita. Todo o estoque e variedades serão removidos permanentemente.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="mt-2 flex gap-3 sm:justify-center">
@@ -248,7 +248,7 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
             <TabsList className="bg-muted w-max min-w-full sm:w-auto">
               <TabsTrigger value="geral">Geral</TabsTrigger>
               <TabsTrigger value="embed">Embed</TabsTrigger>
-              <TabsTrigger value="campos">Campos</TabsTrigger>
+              <TabsTrigger value="campos">Variedades</TabsTrigger>
               <TabsTrigger value="estoque">Estoque</TabsTrigger>
               <TabsTrigger value="cupons">Cupons</TabsTrigger>
             </TabsList>

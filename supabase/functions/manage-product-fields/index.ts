@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // GET STOCK COUNT + items for a product (general stock)
+    // GET STOCK COUNT + items (filters by field_id when provided)
     if (action === "get_stock") {
       if (!product_id) {
         return new Response(JSON.stringify({ error: "product_id obrigatório" }), {
@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { data, error } = await supabase
+      let query = supabase
         .from("product_stock_items")
         .select("id, content, created_at")
         .eq("product_id", product_id)
@@ -193,6 +193,14 @@ Deno.serve(async (req) => {
         .eq("delivered", false)
         .order("created_at", { ascending: false })
         .limit(500);
+      // Filter by field_id when viewing a specific variation
+      if (field_id) {
+        query = query.eq("field_id", field_id);
+      } else {
+        // General stock tab: show items with no field (unassigned) OR all items
+        query = query.is("field_id", null);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return new Response(JSON.stringify({ stock: data?.length || 0, items: data || [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -231,7 +239,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // CLEAR STOCK for a product
+    // CLEAR STOCK (by field_id when provided, otherwise all unassigned items for product)
     if (action === "clear_stock") {
       if (!product_id) {
         return new Response(JSON.stringify({ error: "product_id obrigatório" }), {
@@ -239,12 +247,18 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { error } = await supabase
+      let deleteQuery = supabase
         .from("product_stock_items")
         .delete()
         .eq("product_id", product_id)
         .eq("tenant_id", tenant_id)
         .eq("delivered", false);
+      if (field_id) {
+        deleteQuery = deleteQuery.eq("field_id", field_id);
+      } else {
+        deleteQuery = deleteQuery.is("field_id", null);
+      }
+      const { error } = await deleteQuery;
       if (error) throw error;
       // Sync stock count and Discord embeds
       await syncStockAndEmbed(supabase, product_id, tenant_id);

@@ -74,7 +74,7 @@ const FieldGeralTab = ({
       <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
         <div className="space-y-2">
           <Label className="text-sm font-bold">
-            Nome do Campo{" "}
+            Nome da Variedade{" "}
             <span className="font-normal text-muted-foreground">
               ({(field.name || "").length}/{nameMaxLen})
             </span>
@@ -111,7 +111,7 @@ const FieldGeralTab = ({
           onChange={(e) => {
             if (e.target.value.length <= descMaxLen) updateField(field.id, { description: e.target.value });
           }}
-          placeholder="Descrição do campo..."
+          placeholder="Descrição da variedade..."
           className="bg-muted border-border min-h-[100px] resize-y"
         />
       </div>
@@ -205,7 +205,7 @@ const FieldEstoqueTab = ({
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("manage-product-fields", {
-        body: { action: "get_stock", tenant_id: tenantId, product_id: field.product_id },
+        body: { action: "get_stock", tenant_id: tenantId, product_id: field.product_id, field_id: field.id },
       });
       if (!error && !data?.error) {
         const count = data?.stock || 0;
@@ -250,7 +250,7 @@ const FieldEstoqueTab = ({
     setClearing(true);
     try {
       const { error } = await supabase.functions.invoke("manage-product-fields", {
-        body: { action: "clear_stock", tenant_id: tenantId, product_id: field.product_id },
+        body: { action: "clear_stock", tenant_id: tenantId, product_id: field.product_id, field_id: field.id },
       });
       if (!error) {
         setStockItems([]);
@@ -280,7 +280,7 @@ const FieldEstoqueTab = ({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold">Estoque Fictício</p>
-            <p className="text-xs text-muted-foreground">Ativar estoque fictício para este campo</p>
+            <p className="text-xs text-muted-foreground">Ativar estoque fictício para esta variedade</p>
           </div>
           <Switch
             checked={field.show_stock}
@@ -570,11 +570,11 @@ const FieldExpandedContent = ({
     setDirty(true);
   };
 
-  // Fetch stock count for tab label
+  // Fetch stock count for tab label (per-variation)
   useEffect(() => {
     if (!tenantId || !field.product_id) return;
     supabase.functions.invoke("manage-product-fields", {
-      body: { action: "get_stock", tenant_id: tenantId, product_id: field.product_id },
+      body: { action: "get_stock", tenant_id: tenantId, product_id: field.product_id, field_id: field.id },
     }).then(({ data }) => {
       if (data?.stock !== undefined) setStockCount(data.stock);
     });
@@ -678,7 +678,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
           action: "create",
           tenant_id: tenantId,
           product_id: productId,
-          field: { name: "Novo", description: "Descrição do novo campo", price_cents: 0, sort_order: fields.length },
+          field: { name: "Nova Variedade", description: "Descrição da variedade", price_cents: 0, sort_order: fields.length },
         },
       });
       if (error) throw error;
@@ -686,7 +686,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       setFields([...fields, data]);
       setExpandedId(data.id);
     } catch (e: any) {
-      toast({ title: "Erro ao criar campo", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao criar variedade", description: e.message, variant: "destructive" });
     }
   };
 
@@ -725,7 +725,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
         },
       });
       if (error) throw error;
-      toast({ title: "Campo salvo! ✅" });
+      toast({ title: "Variedade salva! ✅" });
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     }
@@ -740,9 +740,9 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       if (error) throw error;
       setFields(fields.filter((f) => f.id !== id));
       if (expandedId === id) setExpandedId(null);
-      toast({ title: "Campo removido" });
+      toast({ title: "Variedade removida" });
     } catch (e: any) {
-      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao remover variedade", description: e.message, variant: "destructive" });
     }
   };
 
@@ -790,7 +790,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setFields([...fields, data]);
-      toast({ title: "Campo duplicado!" });
+      toast({ title: "Variedade duplicada!" });
     } catch (e: any) {
       toast({ title: "Erro ao duplicar", description: e.message, variant: "destructive" });
     }
@@ -806,7 +806,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Pesquisar campos..."
+          placeholder="Pesquisar variedades..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9 bg-muted border-border"
@@ -818,7 +818,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
         onClick={addField}
         className="w-full rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground hover:border-foreground/20 hover:text-foreground transition-colors flex items-center justify-center gap-2"
       >
-        Adicionar Campo <Plus className="h-4 w-4" />
+        Adicionar Variedade <Plus className="h-4 w-4" />
       </button>
 
       {/* Fields list */}
@@ -828,7 +828,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
         </div>
       ) : filtered.length > 0 ? (
         <div className="space-y-2">
-          <h4 className="text-sm font-bold">Campos</h4>
+          <h4 className="text-sm font-bold">Variedades</h4>
           {filtered.map((field, idx) => {
             const isExpanded = expandedId === field.id;
             const realIndex = fields.findIndex((f) => f.id === field.id);
@@ -921,12 +921,12 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
         </div>
       ) : fields.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          <p className="text-sm">Nenhum campo adicionado ainda</p>
-          <p className="text-xs mt-1">Campos são variações do produto (ex: 30 dias, 90 dias)</p>
+          <p className="text-sm">Nenhuma variedade adicionada ainda</p>
+          <p className="text-xs mt-1">Variedades são opções do produto (ex: 30 dias, 90 dias, 1 mês)</p>
         </div>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
-          <p className="text-sm">Nenhum campo encontrado</p>
+          <p className="text-sm">Nenhuma variedade encontrada</p>
         </div>
       )}
     </div>

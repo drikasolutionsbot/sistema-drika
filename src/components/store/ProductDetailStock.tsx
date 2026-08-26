@@ -100,7 +100,7 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
       <div>
         <h3 className="text-lg font-bold">Estoque Geral</h3>
         <p className="text-sm text-muted-foreground">
-          Gerencie o estoque do produto. Os campos (variações) configuram apenas a quantidade enviada por entrega.
+          Gerencie o estoque do produto. As variedades configuram a quantidade enviada por entrega.
         </p>
       </div>
 
@@ -217,7 +217,7 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
             <ul className="text-xs text-muted-foreground space-y-1.5">
               <li>• O estoque é <strong>geral</strong> para o produto inteiro.</li>
               <li>• Cada arquivo .txt ou item adicionado entra no pool geral.</li>
-              <li>• Nas variações (campos), configure a <strong>"Quantidade por Entrega"</strong> para definir quantos itens serão enviados por compra.</li>
+              <li>• Nas variedades, configure a <strong>"Quantidade por Entrega"</strong> para definir quantos itens serão enviados por compra.</li>
               <li>• Na entrega automática, o sistema puxa a quantidade configurada do estoque geral.</li>
             </ul>
           </div>
