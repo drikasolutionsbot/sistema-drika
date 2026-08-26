@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/dialog";
 import { isMaster } from "@/lib/plans";
 
-// Cooldown em segundos (60 min para nome/avatar — limite Discord ≈ 2/hora)
-const NAME_AVATAR_COOLDOWN_S = 60 * 60; // 60 min
-// Cooldown de capa (≈ 10 min é o mínimo seguro)
-const BANNER_COOLDOWN_S = 10 * 60; // 10 min
+// Cooldown em segundos
+const NAME_AVATAR_COOLDOWN_S = 0;
+// Cooldown de capa
+const BANNER_COOLDOWN_S = 0;
 
 function getCooldownKey(tenantId: string) {
   return `bot_profile_cooldown_${tenantId}`;
