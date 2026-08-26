@@ -467,61 +467,76 @@ const SettingsPage = () => {
         {/* Advanced Tab - Cache */}
         <TabsContent value="advanced">
           <div className="space-y-6">
-            <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-              <div>
-                <h3 className="text-lg font-semibold">Limpeza de Cache</h3>
-                <p className="text-sm text-muted-foreground mt-1">Resolva conflitos de dados, sessões obsoletas ou bugs visuais limpando o cache do navegador.</p>
-              </div>
-
-              <div className="space-y-3">
-                {/* Clear drafts */}
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
-                      <Trash2 className="h-4 w-4 text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Limpar Rascunhos</p>
-                      <p className="text-xs text-muted-foreground">Remove rascunhos salvos localmente (formulários não enviados)</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const keysToRemove: string[] = [];
-                    for (let i = 0; i < localStorage.length; i++) {
-                      const key = localStorage.key(i);
-                      if (key && key.startsWith("draft:")) keysToRemove.push(key);
-                    }
-                    keysToRemove.forEach(k => localStorage.removeItem(k));
-                    toast({ title: `${keysToRemove.length} rascunho(s) removido(s) ✅` });
-                  }}>
-                    Limpar
-                  </Button>
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-6 sm:p-8 group">
+              {/* Background Glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full blur-[80px] pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+              
+              <div className="relative z-10">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                    <Database className="h-5 w-5 text-indigo-400" />
+                    Limpeza de Cache
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">Resolva conflitos de dados, sessões obsoletas ou bugs visuais limpando o cache do navegador.</p>
                 </div>
 
-                {/* Clear tenant cache */}
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
-                      <Database className="h-4 w-4 text-blue-400" />
+                <div className="space-y-3">
+                  {/* Clear drafts */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/5 bg-background/40 hover:bg-background/60 hover:border-white/10 transition-all p-4 shadow-sm hover:shadow">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-inner shrink-0">
+                        <Trash2 className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Limpar Rascunhos</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Remove rascunhos salvos localmente (formulários não enviados)</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">Limpar Cache do Servidor</p>
-                      <p className="text-xs text-muted-foreground">Remove dados em cache do servidor/tenant atual</p>
-                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="shrink-0 bg-background/50 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/20 transition-colors"
+                      onClick={() => {
+                        const keysToRemove: string[] = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                          const key = localStorage.key(i);
+                          if (key && key.startsWith("draft:")) keysToRemove.push(key);
+                        }
+                        keysToRemove.forEach(k => localStorage.removeItem(k));
+                        toast({ title: `${keysToRemove.length} rascunho(s) removido(s) ✅` });
+                      }}
+                    >
+                      Limpar
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    const keysToRemove: string[] = [];
-                    for (let i = 0; i < localStorage.length; i++) {
-                      const key = localStorage.key(i);
-                      if (key && tenantId && key.includes(tenantId)) keysToRemove.push(key);
-                    }
-                    keysToRemove.forEach(k => localStorage.removeItem(k));
-                    toast({ title: `Cache do servidor limpo (${keysToRemove.length} itens) ✅` });
-                  }}>
-                    Limpar
-                  </Button>
-                </div>
 
+                  {/* Clear tenant cache */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/5 bg-background/40 hover:bg-background/60 hover:border-white/10 transition-all p-4 shadow-sm hover:shadow">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 shadow-inner shrink-0">
+                        <Database className="h-5 w-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Limpar Cache do Servidor</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Remove dados em cache do servidor/tenant atual</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="shrink-0 bg-background/50 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20 transition-colors"
+                      onClick={() => {
+                        const keysToRemove: string[] = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                          const key = localStorage.key(i);
+                          if (key && tenantId && key.includes(tenantId)) keysToRemove.push(key);
+                        }
+                        keysToRemove.forEach(k => localStorage.removeItem(k));
+                        toast({ title: `Cache do servidor limpo (${keysToRemove.length} itens) ✅` });
+                      }}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
