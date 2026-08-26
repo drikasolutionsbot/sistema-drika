@@ -8,6 +8,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   tenant: any;
@@ -38,7 +49,6 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
 
   const handleClearOrders = async () => {
     if (!tenantId) return;
-    if (!window.confirm("Tem certeza que deseja apagar TODO o histórico de pedidos? Esta ação não pode ser desfeita e excluirá todas as vendas do banco de dados.")) return;
     
     setIsDeletingOrders(true);
     try {
@@ -291,16 +301,42 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
             </div>
             
             {orders.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearOrders}
-                disabled={isDeletingOrders}
-                className="h-9 sm:h-8 text-xs bg-background/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 border-white/10 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                {isDeletingOrders ? "Limpando..." : "Limpar Histórico"}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isDeletingOrders}
+                    className="h-9 sm:h-8 text-xs bg-background/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 border-white/10 transition-colors"
+                  >
+                    {isDeletingOrders ? (
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-destructive border-t-transparent mr-2" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    )}
+                    Limpar Histórico
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-card/95 backdrop-blur-xl border-white/10">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-foreground">Deseja apagar TODO o histórico de pedidos?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita e excluirá permanentemente todas as vendas da sua loja do banco de dados. Os clientes não poderão mais consultar o status desses pedidos.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-background/50 border-white/10 hover:bg-background/80 hover:text-foreground">
+                      Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleClearOrders}
+                      className="bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-white"
+                    >
+                      Sim, apagar tudo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
 
