@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Gift, Users, Clock, Hash, Trophy, XCircle, Pencil } from "lucide-react";
+import { Gift, Users, Clock, Hash, Trophy, XCircle, Pencil, ChevronRight, Loader2, UserCircle2, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Giveaway {
   id: string;
@@ -23,6 +25,93 @@ interface GiveawayCardProps {
   onDraw: (id: string) => void;
   onCancel: (id: string) => void;
   onEdit: (giveaway: Giveaway) => void;
+  tenantId?: string | null;
+}
+
+// ── Participants Modal ──
+function ParticipantsModal({ open, onClose, giveawayId, giveawayTitle }: {
+  open: boolean;
+  onClose: () => void;
+  giveawayId: string;
+  giveawayTitle: string;
+}) {
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    supabase
+      .from("giveaway_entries")
+      .select("discord_user_id, discord_username, discord_avatar, ticket_count")
+      .eq("giveaway_id", giveawayId)
+      .order("discord_username", { ascending: true })
+      .then(({ data }) => {
+        setParticipants(data || []);
+        setLoading(false);
+      });
+  }, [open, giveawayId]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md bg-card border-border max-h-[80vh] flex flex-col">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Participantes — {giveawayTitle}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto space-y-1 pr-1 min-h-0">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : participants.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+              <Users className="h-10 w-10 mb-2 opacity-30" />
+              <p className="text-sm">Nenhum participante ainda</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground pb-2 sticky top-0 bg-card">
+                {participants.length} participante{participants.length !== 1 ? "s" : ""}
+              </p>
+              {participants.map((p, i) => {
+                const avatarUrl = p.discord_avatar
+                  ? `https://cdn.discordapp.com/avatars/${p.discord_user_id}/${p.discord_avatar}.webp?size=64`
+                  : null;
+                return (
+                  <div key={p.discord_user_id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="shrink-0">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={p.discord_username} className="h-8 w-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                          <UserCircle2 className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{p.discord_username || p.discord_user_id}</p>
+                      {p.discord_user_id && (
+                        <p className="text-[10px] text-muted-foreground font-mono">{p.discord_user_id}</p>
+                      )}
+                    </div>
+                    {p.ticket_count > 1 && (
+                      <Badge variant="outline" className="text-[10px] shrink-0 gap-1 border-primary/30 text-primary">
+                        🎟 {p.ticket_count}x
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function useCountdown(endsAt: string) {
@@ -57,10 +146,11 @@ function useCountdown(endsAt: string) {
   return { timeLeft, isExpired };
 }
 
-export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit }: GiveawayCardProps) {
+export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, tenantId }: GiveawayCardProps) {
   const { timeLeft, isExpired } = useCountdown(giveaway.ends_at);
   const isEnded = giveaway.status === "ended";
   const isFinished = isEnded || isExpired;
+  const [participantsOpen, setParticipantsOpen] = useState(false);
 
   return (
     <Card className={`relative overflow-hidden border-border/60 hover:shadow-lg transition-shadow ${isFinished ? "opacity-80" : ""}`}>
@@ -95,7 +185,14 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit }: Giv
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
-            <span>{giveaway.entries_count} participantes</span>
+            <button
+              type="button"
+              onClick={() => setParticipantsOpen(true)}
+              className="flex items-center gap-1 hover:text-primary transition-colors group"
+            >
+              <span>{giveaway.entries_count} participante{giveaway.entries_count !== 1 ? "s" : ""}</span>
+              <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Trophy className="h-4 w-4" />
@@ -127,6 +224,13 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit }: Giv
           </Button>
         </div>
       </CardContent>
+
+      <ParticipantsModal
+        open={participantsOpen}
+        onClose={() => setParticipantsOpen(false)}
+        giveawayId={giveaway.id}
+        giveawayTitle={giveaway.title}
+      />
     </Card>
   );
 }
