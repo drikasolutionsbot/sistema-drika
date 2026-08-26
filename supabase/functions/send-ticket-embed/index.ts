@@ -49,7 +49,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get existing message_id and use external bot token
     const { data: storeConfig } = await supabase
       .from("store_configs")
       .select("ticket_message_id, ticket_channel_id")
@@ -59,11 +58,21 @@ Deno.serve(async (req) => {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
     if (!botToken) {
-      return new Response(JSON.stringify({ error: "Bot externo não configurado (DISCORD_BOT_TOKEN)" }), {
+      return new Response(JSON.stringify({ error: "Bot externo nao configurado (DISCORD_BOT_TOKEN)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Fetch active ticket categories
+    const { data: categories } = await supabase
+      .from("ticket_categories")
+      .select("id, emoji, name, description")
+      .eq("tenant_id", tenant_id)
+      .eq("active", true)
+      .order("sort_order", { ascending: true });
+
+    const hasCategories = categories && categories.length > 0;
 
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
     const safeImageUrl = typeof image_url === "string" && image_url.trim() ? image_url.trim() : null;
@@ -81,53 +90,66 @@ Deno.serve(async (req) => {
     if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
     if (footer) embed.footer = { text: footer };
 
-    const styleMap: Record<string, number> = {
-      primary: 1,
-      secondary: 2,
-      success: 3,
-      danger: 4,
-      glass: 2,
-      link: 2,
-    };
+    let components: any[];
 
-    const discordStyle = styleMap[button_style || "glass"] || 2;
+    if (hasCategories) {
+      // String Select Menu with categories
+      const options = (categories as any[]).slice(0, 25).map((cat: any) => {
+        const opt: any = {
+          label: cat.name,
+          value: `ticket_cat:${tenant_id}:${channel_id}:${cat.id}`,
+        };
+        if (cat.description) opt.description = cat.description.slice(0, 100);
+        if (cat.emoji) {
+          const unicodeMatch = String(cat.emoji).match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)/u);
+          if (unicodeMatch) opt.emoji = { name: unicodeMatch[1] };
+        }
+        return opt;
+      });
 
-    const rawLabel = button_label || `📩 ${tr(lang, "open_ticket")}`;
-    const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(rawLabel);
-
-    const ticketButton: any = {
-      type: 2,
-      style: discordStyle,
-      label: btnLabel || tr(lang, "open_ticket"),
-      custom_id: `ticket_open_${tenant_id}_${channel_id}`,
-    };
-
-    // Force the custom mail emoji for the ticket open button
-    ticketButton.emoji = { id: "1521240067064987669", name: "mail", animated: false };
-
-    const payload: any = {
-      embeds: [embed],
-      components: [
+      components = [
         {
           type: 1,
-          components: [ticketButton],
+          components: [{
+            type: 3,
+            custom_id: `ticket_category_select:${tenant_id}:${channel_id}`,
+            placeholder: "Selecione o tipo de atendimento",
+            min_values: 1,
+            max_values: 1,
+            options,
+          }],
         },
-      ],
-    };
+      ];
+    } else {
+      // No categories — button (original behavior)
+      const styleMap: Record<string, number> = {
+        primary: 1, secondary: 2, success: 3, danger: 4, glass: 2, link: 2,
+      };
+      const discordStyle = styleMap[button_style || "glass"] || 2;
+      const rawLabel = button_label || ("open_ticket");
+      const { cleanLabel: btnLabel } = parseEmojiFromLabel(rawLabel);
+
+      const ticketButton: any = {
+        type: 2,
+        style: discordStyle,
+        label: btnLabel || tr(lang, "open_ticket"),
+        custom_id: `ticket_open_${tenant_id}_${channel_id}`,
+      };
+      ticketButton.emoji = { id: "1521240067064987669", name: "mail", animated: false };
+      components = [{ type: 1, components: [ticketButton] }];
+    }
+
+    const payload: any = { embeds: [embed], components };
 
     const existingMessageId = storeConfig?.ticket_message_id;
     const existingChannelId = storeConfig?.ticket_channel_id;
     let messageId: string;
 
-    // Delete old message if exists (any channel)
     if (existingMessageId && existingChannelId) {
       try {
         await fetch(
           `https://discord.com/api/v10/channels/${existingChannelId}/messages/${existingMessageId}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bot ${botToken}` },
-          }
+          { method: "DELETE", headers: { Authorization: `Bot ${botToken}` } }
         );
         console.log("Deleted old ticket embed from channel", existingChannelId);
       } catch (err) {
@@ -135,13 +157,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Always send a NEW message
     const res = await fetch(`https://discord.com/api/v10/channels/${channel_id}/messages`, {
       method: "POST",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
@@ -157,13 +175,12 @@ Deno.serve(async (req) => {
     const result = await res.json();
     messageId = result.id;
 
-    // Save the message_id AND channel_id for future edits
     await supabase
       .from("store_configs")
       .update({ ticket_message_id: messageId!, ticket_channel_id: channel_id })
       .eq("tenant_id", tenant_id);
 
-    return new Response(JSON.stringify({ success: true, message_id: messageId! }), {
+    return new Response(JSON.stringify({ success: true, message_id: messageId!, used_categories: hasCategories }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

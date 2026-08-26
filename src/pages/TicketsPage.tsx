@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Ticket, Clock, CheckCircle, MessageSquare, AlertCircle, Eye, RefreshCw, Search, Settings, Hash } from "lucide-react";
+import { Ticket, Clock, CheckCircle, MessageSquare, AlertCircle, Eye, RefreshCw, Search, Settings, Hash, Tag } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TicketEmbedConfig from "@/components/tickets/TicketEmbedConfig";
+import TicketCategories from "@/components/tickets/TicketCategories";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,6 +272,10 @@ const TicketsPage = () => {
               <Settings className="h-3.5 w-3.5" />
               Configuração
             </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-1.5">
+              <Tag className="h-3.5 w-3.5" />
+              Categorias
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -328,6 +333,10 @@ const TicketsPage = () => {
 
         <TabsContent value="config" className="mt-4">
           <TicketEmbedConfig />
+        </TabsContent>
+
+        <TabsContent value="categories" className="mt-4">
+          <TicketCategories />
         </TabsContent>
       </Tabs>
 
