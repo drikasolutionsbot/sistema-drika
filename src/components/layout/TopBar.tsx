@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Globe } from "lucide-react";
 import { useTheme } from "next-themes";
 import { differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
-import { WalletBadge } from "@/components/wallet/WalletBadge";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -309,9 +308,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         </div>
       </div>
       <div className="flex items-center gap-1.5 md:gap-3">
-        {/* Plan Badge moved into profile dropdown */}
-        {/* Wallet */}
-        <WalletBadge />
+        <div className="hidden sm:block h-6 w-px bg-border mx-1" />
         {/* Language Switcher */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

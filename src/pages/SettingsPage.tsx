@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Bot, Palette, LayoutTemplate, Trash2, Database, HardDrive, Plug, Wallet } from "lucide-react";
-import { WalletTab } from "@/components/wallet/WalletTab";
 import PaymentsPage from "@/pages/PaymentsPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import "@/components/wallet/wallet-card.css";
 import SettingsPlanTab from "@/components/settings/SettingsPlanTab";
 import SettingsProfileTab from "@/components/settings/SettingsProfileTab";
 
@@ -195,9 +193,6 @@ const SettingsPage = () => {
               <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <User className="h-4 w-4" /> Perfil
               </TabsTrigger>
-              <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <Wallet className="h-4 w-4" /> Carteira
-              </TabsTrigger>
               <TabsTrigger value="pix" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <QrCode className="h-4 w-4" /> PIX
               </TabsTrigger>
@@ -216,11 +211,6 @@ const SettingsPage = () => {
         {/* Profile Tab */}
         <TabsContent value="profile">
           <SettingsProfileTab tenant={tenant} tenantId={tenantId} />
-        </TabsContent>
-
-        {/* Wallet Tab */}
-        <TabsContent value="wallet">
-          <WalletTab />
         </TabsContent>
 
         {/* PIX Tab */}
