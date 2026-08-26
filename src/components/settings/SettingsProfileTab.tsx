@@ -86,63 +86,85 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
   return (
     <div className="space-y-6">
       {/* Profile Info */}
-      <div className="wallet-section">
-        <div className="wallet-section-header mb-5">
-          <div className="wallet-section-icon">
-            <User className="h-4 w-4 text-primary" />
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-6 group">
+        {/* Decorative Background Glow */}
+        <div className="absolute -top-16 -left-16 w-64 h-64 bg-gradient-to-br from-primary/20 to-pink-500/20 rounded-full blur-[80px] pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center justify-center h-14 w-14 rounded-2xl shadow-inner border bg-primary/10 border-primary/20 text-primary shrink-0">
+              <User className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold tracking-tight text-foreground">Dados do Perfil</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">Informações da sua conta e loja</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-foreground font-display font-semibold text-sm">Dados do Perfil</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Informações da sua conta e loja</p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border px-4 py-3">
-            <User className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Nome da Loja</p>
-              <p className="text-sm font-medium text-foreground truncate">{tenant.name || "—"}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-4 rounded-xl bg-background/50 border border-border/50 px-5 py-4 shadow-sm hover:bg-background/80 transition-colors">
+              <div className="p-2.5 rounded-full bg-muted/50 shrink-0">
+                <User className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Nome da Loja</p>
+                <p className="text-sm font-medium text-foreground truncate mt-0.5">{tenant.name || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 rounded-xl bg-background/50 border border-border/50 px-5 py-4 shadow-sm hover:bg-background/80 transition-colors">
+              <div className="p-2.5 rounded-full bg-muted/50 shrink-0">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Email</p>
+                <p className="text-sm font-medium text-foreground truncate mt-0.5">{tenant.email || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 rounded-xl bg-background/50 border border-border/50 px-5 py-4 shadow-sm hover:bg-background/80 transition-colors">
+              <div className="p-2.5 rounded-full bg-muted/50 shrink-0">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">WhatsApp</p>
+                <p className="text-sm font-medium text-foreground truncate mt-0.5">{tenant.whatsapp || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 rounded-xl bg-background/50 border border-border/50 px-5 py-4 shadow-sm hover:bg-background/80 transition-colors">
+              <div className="p-2.5 rounded-full bg-muted/50 shrink-0">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Membro desde</p>
+                <p className="text-sm font-medium text-foreground mt-0.5">
+                  {tenant.created_at ? format(new Date(tenant.created_at), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border px-4 py-3">
-            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Email</p>
-              <p className="text-sm font-medium text-foreground truncate">{tenant.email || "—"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border px-4 py-3">
-            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">WhatsApp</p>
-              <p className="text-sm font-medium text-foreground truncate">{tenant.whatsapp || "—"}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border px-4 py-3">
-            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Membro desde</p>
-              <p className="text-sm font-medium text-foreground">
-                {tenant.created_at ? format(new Date(tenant.created_at), "dd/MM/yyyy", { locale: ptBR }) : "—"}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="rounded-xl bg-primary/5 border border-primary/10 p-3 text-center">
-            <p className="text-lg font-bold text-foreground">{totalPaidSubs}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Assinaturas</p>
-          </div>
-          <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/10 p-3 text-center">
-            <p className="text-lg font-bold text-foreground">{totalOrders}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Pedidos</p>
-          </div>
-          <div className="rounded-xl bg-amber-500/5 border border-amber-500/10 p-3 text-center">
-            <p className="text-lg font-bold text-foreground">{formatCurrency(totalRevenue)}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Receita</p>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-primary/5 p-4 text-center group/stat hover:bg-primary/10 transition-colors shadow-sm">
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <p className="text-2xl font-black text-foreground">{totalPaidSubs}</p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-1">Assinaturas</p>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center group/stat hover:bg-emerald-500/10 transition-colors shadow-sm">
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <p className="text-2xl font-black text-foreground">{totalOrders}</p>
+                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Pedidos</p>
+              </div>
+            </div>
+            <div className="relative overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-center group/stat hover:bg-amber-500/10 transition-colors shadow-sm">
+              <div className="absolute inset-0 bg-gradient-to-t from-amber-500/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity" />
+              <div className="relative z-10">
+                <p className="text-2xl font-black text-foreground">{formatCurrency(totalRevenue)}</p>
+                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mt-1">Receita</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
