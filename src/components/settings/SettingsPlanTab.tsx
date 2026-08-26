@@ -193,49 +193,88 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         </div>
       )}
 
-      {/* Plan info card */}
-      <div className="rounded-xl bg-muted/50 border border-border p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xl font-bold text-gradient-pink capitalize">
-              {isExpired ? "Expirado" : tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free (Trial)"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Plano ativo</p>
+      {/* Plan info card Premium */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl p-6 group">
+        {/* Decorative Background Effects */}
+        <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br rounded-full blur-[80px] opacity-20 pointer-events-none transition-opacity duration-700 group-hover:opacity-40
+          ${isExpired ? 'from-red-500 to-orange-500' : tenant.plan === 'master' ? 'from-pink-500 to-purple-500' : 'from-emerald-500 to-teal-500'}`} />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          
+          <div className="flex items-center gap-5">
+            {/* Plan Icon / Badge */}
+            <div className={`flex items-center justify-center h-16 w-16 rounded-2xl shadow-inner border 
+              ${isExpired ? 'bg-red-500/10 border-red-500/20 text-red-500' : 
+                tenant.plan === 'master' ? 'bg-pink-500/10 border-pink-500/20 text-pink-400' : 
+                'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+              <Sparkles className="h-7 w-7" />
+            </div>
+
+            <div>
+              <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">
+                Plano atual
+              </p>
+              <div className="flex items-center gap-3">
+                <h2 className={`text-3xl font-black tracking-tight ${isExpired ? "text-red-500" : tenant.plan === "master" ? "text-gradient-pink" : "text-emerald-400"}`}>
+                  {isExpired ? "Expirado" : tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free (Trial)"}
+                </h2>
+                <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border
+                  ${isExpired ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                  {isExpired ? "INATIVO" : "ATIVO"}
+                </div>
+              </div>
+            </div>
           </div>
-          <span className={`wallet-tx-badge ${isExpired ? "failed" : "completed"}`}>
-            {isExpired ? "Expirado" : "Ativo"}
-          </span>
-        </div>
 
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
-          {tenant.plan_started_at && (
-            <div className="rounded-lg bg-muted/50 border border-border p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Início</p>
-              <p className="text-sm font-medium text-foreground mt-1">
-                {new Date(tenant.plan_started_at).toLocaleDateString("pt-BR")}
-              </p>
-            </div>
-          )}
-          {tenant.plan_expires_at && (
-            <div className="rounded-lg bg-muted/50 border border-border p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Expira em</p>
-              <p className={`text-sm font-medium mt-1 ${new Date(tenant.plan_expires_at) < new Date() ? "text-destructive" : "text-emerald-400"}`}>
-                {new Date(tenant.plan_expires_at).toLocaleDateString("pt-BR")}
-              </p>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                {(() => {
-                  const diff = Math.ceil((new Date(tenant.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  if (diff < 0) return `Expirou há ${Math.abs(diff)} dia(s)`;
-                  if (diff === 0) return "Expira hoje";
-                  return `Faltam ${diff} dia(s)`;
-                })()}
-              </p>
-            </div>
-          )}
-        </div>
+          {/* Dates & Progress */}
+          <div className="flex flex-col gap-3 min-w-[240px]">
+            {tenant.plan_started_at && tenant.plan_expires_at && (
+              <>
+                <div className="flex justify-between text-xs font-medium">
+                  <span className="text-muted-foreground">Progresso do Ciclo</span>
+                  <span className={isExpired ? "text-red-400" : "text-foreground"}>
+                    {(() => {
+                      const diff = Math.ceil((new Date(tenant.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                      if (diff < 0) return `Expirado há ${Math.abs(diff)} dias`;
+                      if (diff === 0) return "Expira hoje!";
+                      return `Faltam ${diff} dias`;
+                    })()}
+                  </span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.3)]
+                      ${isExpired ? 'bg-red-500 w-full' : tenant.plan === 'master' ? 'bg-gradient-to-r from-pink-500 to-purple-500' : 'bg-emerald-400'}`}
+                    style={{ 
+                      width: isExpired ? '100%' : `${(() => {
+                        const start = new Date(tenant.plan_started_at).getTime();
+                        const end = new Date(tenant.plan_expires_at).getTime();
+                        const now = Date.now();
+                        const total = Math.max(1, end - start);
+                        const elapsed = Math.max(0, now - start);
+                        return Math.min(100, (elapsed / total) * 100);
+                      })()}%` 
+                    }}
+                  />
+                </div>
 
-        {/* Subscribe button inside plan card - hidden in favor of cards below */}
+                <div className="flex justify-between text-[10px] text-muted-foreground/70 uppercase font-medium">
+                  <div>
+                    <span className="block text-foreground/80 mb-0.5">{new Date(tenant.plan_started_at).toLocaleDateString("pt-BR")}</span>
+                    Início
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-foreground/80 mb-0.5">{new Date(tenant.plan_expires_at).toLocaleDateString("pt-BR")}</span>
+                    Vencimento
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+        </div>
       </div>
 
       {/* Upgrade section (Plans side by side) */}
