@@ -38,8 +38,21 @@ interface PixParams {
   description?: string;
 }
 
+// Sanitiza o nome do comerciante para o campo 59 do BRCode (apenas ASCII imprimivel, max 25)
+function sanitizePIXName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")       // remove acentos
+    .replace(/[^\x20-\x7E]/g, "")          // remove emojis e nao-ASCII
+    .replace(/\s+/g, " ")                  // colapsa espacos
+    .trim()
+    .substring(0, 25) || "Loja";
+}
+
 function generateStaticBRCode(params: PixParams): string {
   const { pixKey, merchantName, merchantCity, amount, txId, description } = params;
+  const safeName = sanitizePIXName(merchantName);
+  const safeCity = sanitizePIXName(merchantCity).substring(0, 15) || "Brasil";
   let payload = tlv("00", "01");
   payload += tlv("01", amount ? "12" : "11");
   let mai = tlv("00", "br.gov.bcb.pix");
@@ -50,8 +63,8 @@ function generateStaticBRCode(params: PixParams): string {
   payload += tlv("53", "986");
   if (amount && amount > 0) payload += tlv("54", amount.toFixed(2));
   payload += tlv("58", "BR");
-  payload += tlv("59", merchantName.substring(0, 25));
-  payload += tlv("60", merchantCity.substring(0, 15));
+  payload += tlv("59", safeName);
+  payload += tlv("60", safeCity);
   const refLabel = txId || "***";
   payload += tlv("62", tlv("05", refLabel.substring(0, 25)));
   payload += "6304";
