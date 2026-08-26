@@ -16,7 +16,7 @@ interface WithdrawBody {
   amount_cents: number;
   pix_key: string;
   pix_key_type?: "cpf" | "cnpj" | "email" | "telefone" | "aleatoria";
-  provider_key: string; // efi | lofypay | misticpay
+  provider_key: string; // efi | misticpay
   description?: string;
 }
 
@@ -108,7 +108,6 @@ async function withdrawViaEfi(opts: {
   return { payment_id: data.e2eId || idEnvio, status: data.status || "EM_PROCESSAMENTO" };
 }
 
-// ─── LofyPay — POST /api/c1/cashout/ (api-key no body, valor em REAIS) ──
 function mapLofyPixKeyType(t: string): string {
   const v = (t || "").toLowerCase();
   if (v === "cpf") return "cpf";
@@ -226,7 +225,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Source of truth for wallet funds is the GATEWAY balance (Efí/LofyPay/MisticPay),
+    // Source of truth for wallet funds is the GATEWAY balance (Efí/MisticPay),
     // not the local `wallets.balance_cents`. Verify the gateway has enough to send.
     try {
       const balRes = await supabase.functions.invoke("wallet-gateway-balance", {
@@ -277,14 +276,6 @@ Deno.serve(async (req) => {
           pixKey: provider.efi_pix_key,
           destinationKey: pix_key,
           amountBRL: amount_cents / 100,
-          description,
-        });
-      } else if (provider_key === "lofypay") {
-        result = await withdrawViaLofyPay({
-          apiKey: provider.api_key_encrypted || "",
-          destinationKey: pix_key,
-          destinationKeyType: keyType,
-          amountCents: amount_cents,
           description,
         });
       } else if (provider_key === "misticpay") {

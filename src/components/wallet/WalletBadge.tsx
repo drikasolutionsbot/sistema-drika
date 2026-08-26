@@ -11,7 +11,7 @@ interface WalletData {
   total_withdrawn_cents: number;
 }
 
-const PIX_OUT_CAPABLE = ["efi", "lofypay", "misticpay"];
+const PIX_OUT_CAPABLE = ["efi", "misticpay"];
 
 export const WalletBadge = () => {
   const { tenantId } = useTenant();

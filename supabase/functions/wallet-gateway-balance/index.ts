@@ -1,4 +1,4 @@
-// Fetches the CURRENT BALANCE on the selected PIX OUT gateway (Efí, LofyPay, MisticPay)
+// Fetches the CURRENT BALANCE on the selected PIX OUT gateway (Efí, MisticPay)
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -13,7 +13,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 interface Body {
   tenant_id: string;
-  provider_key: string; // efi | lofypay | misticpay
+  provider_key: string; // efi | misticpay
 }
 
 async function efiBalance(p: any): Promise<{ balance_cents: number; currency: string; raw?: any }> {
@@ -132,7 +132,6 @@ Deno.serve(async (req) => {
 
     let result;
     if (body.provider_key === "efi") result = await efiBalance(provider);
-    else if (body.provider_key === "lofypay") result = await lofyBalance(provider);
     else if (body.provider_key === "mistic_pay" || body.provider_key === "misticpay") result = await misticBalance(provider);
     else {
       return new Response(JSON.stringify({ error: "Gateway não suporta consulta de saldo" }), {

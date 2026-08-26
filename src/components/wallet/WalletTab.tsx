@@ -64,7 +64,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 // Only these gateways have automated PIX OUT support
-const PIX_OUT_CAPABLE = new Set(["efi", "lofypay", "misticpay"]);
+const PIX_OUT_CAPABLE = new Set(["efi", "misticpay"]);
 
 const DetailRow = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
   <div className="flex items-start justify-between gap-3 py-1.5 border-b border-border/50 last:border-0">

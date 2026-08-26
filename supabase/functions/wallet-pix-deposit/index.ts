@@ -39,7 +39,7 @@ serve(async (req) => {
     // Only credit wallet from gateways that ALSO support automated PIX OUT (saque).
     // Other gateways (PushinPay, MercadoPago, AbacatePay, etc.) still process sales for
     // financial reports/charts, but the money does NOT enter the wallet.
-    const PIX_OUT_CAPABLE = ["efi", "lofypay", "misticpay"];
+    const PIX_OUT_CAPABLE = ["efi", "misticpay"];
     const { data: compatible } = await supabase
       .from("payment_providers")
       .select("provider_key, pix_out_enabled, active, api_key_encrypted")
@@ -52,7 +52,7 @@ serve(async (req) => {
     );
     if (!eligible) {
       throw new Error(
-        "Nenhum gateway compatível com PIX OUT está ativo. Habilite Efí, LofyPay ou MisticPay com saída PIX para depositar na carteira."
+        "Nenhum gateway compatível com PIX OUT está ativo. Habilite Efí ou MisticPay com saída PIX para depositar na carteira."
       );
     }
 
