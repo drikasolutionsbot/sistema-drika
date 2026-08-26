@@ -939,7 +939,15 @@ serve(async (req: Request) => {
         
         const values = interaction.data?.values || [];
         if (values.length === 0) return ok();
-        const categoryId = values[0] as string;
+        let categoryId = values[0] as string;
+
+        // Backward compatibility for old embed messages where value was ticket_cat:TENANT:CHANNEL:CAT_ID
+        if (categoryId.startsWith("ticket_cat:")) {
+          const parts = categoryId.split(":");
+          if (parts.length >= 4) {
+            categoryId = parts[3];
+          }
+        }
         const guildId = interaction.guild_id;
         await respondDeferred(interaction, botToken);
         const { data: category } = await supabase
