@@ -27,6 +27,7 @@ interface GiveawayCardProps {
   onEdit: (giveaway: Giveaway) => void;
   onDelete: (id: string) => void;
   tenantId?: string | null;
+  channelName?: string;
 }
 
 // ── Participants Modal ──
@@ -147,7 +148,7 @@ function useCountdown(endsAt: string) {
   return { timeLeft, isExpired };
 }
 
-export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, onDelete, tenantId }: GiveawayCardProps) {
+export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, onDelete, tenantId, channelName }: GiveawayCardProps) {
   const { timeLeft, isExpired } = useCountdown(giveaway.ends_at);
   const isEnded = giveaway.status === "ended";
   const isCanceled = giveaway.status === "canceled";
@@ -201,12 +202,36 @@ export default function GiveawayCard({ giveaway, onDraw, onCancel, onEdit, onDel
             <span>{giveaway.winners_count} vencedor{giveaway.winners_count > 1 ? "es" : ""}</span>
           </div>
           {giveaway.channel_id && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Hash className="h-4 w-4" />
-              <span className="truncate">Canal vinculado</span>
+            <div className="flex items-center gap-2 text-muted-foreground" title={channelName || "Canal vinculado"}>
+              <Hash className="h-4 w-4 shrink-0" />
+              <span className="truncate">{channelName || "Canal vinculado"}</span>
             </div>
           )}
         </div>
+
+        {/* Exibição dos vencedores caso finalizado e haja vencedores */}
+        {isEnded && giveaway.winners && giveaway.winners.length > 0 && (
+          <div className="pt-2 border-t border-border/40 space-y-2">
+            <p className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
+              <Trophy className="h-3 w-3" />
+              Ganhador{giveaway.winners.length !== 1 ? "es" : ""}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {giveaway.winners.map((w: any, idx: number) => (
+                <div key={w.discord_user_id || idx} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-full py-1 pr-3 pl-1 text-xs">
+                  {w.discord_avatar ? (
+                    <img src={w.discord_avatar} alt="avatar" className="h-5 w-5 rounded-full object-cover" />
+                  ) : (
+                    <div className="h-5 w-5 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+                      <UserCircle2 className="h-3 w-3" />
+                    </div>
+                  )}
+                  <span className="font-medium truncate max-w-[120px]">{w.discord_username || w.discord_user_id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {isExpired && !isEnded && !isCanceled && (
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-2 text-xs text-yellow-500 text-center font-medium">

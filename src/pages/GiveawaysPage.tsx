@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Gift, History, PlusCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,14 @@ export default function GiveawaysPage() {
     },
     enabled: !!tenantId,
   });
+
+  const [channels, setChannels] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase.functions.invoke("discord-channels", { body: { tenant_id: tenantId } })
+      .then(({ data }) => { if (data?.channels) setChannels(data.channels); })
+      .catch(console.error);
+  }, [tenantId]);
 
   const activeGiveaways = giveaways.filter((g: any) => g.status === "active");
   const historyGiveaways = giveaways.filter((g: any) => g.status !== "active");
@@ -100,9 +108,12 @@ export default function GiveawaysPage() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {activeGiveaways.map((g: any) => (
-                <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onDelete={handleDelete} onEdit={setEditGiveaway} />
-              ))}
+              {activeGiveaways.map((g: any) => {
+                const cName = channels.find(c => c.id === g.channel_id)?.name;
+                return (
+                  <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onDelete={handleDelete} onEdit={setEditGiveaway} channelName={cName ? `#${cName}` : undefined} />
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -115,9 +126,12 @@ export default function GiveawaysPage() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {historyGiveaways.map((g: any) => (
-                <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onDelete={handleDelete} onEdit={setEditGiveaway} />
-              ))}
+              {historyGiveaways.map((g: any) => {
+                const cName = channels.find(c => c.id === g.channel_id)?.name;
+                return (
+                  <GiveawayCard key={g.id} giveaway={g} onDraw={handleDraw} onCancel={handleCancel} onDelete={handleDelete} onEdit={setEditGiveaway} channelName={cName ? `#${cName}` : undefined} />
+                );
+              })}
             </div>
           )}
         </TabsContent>
