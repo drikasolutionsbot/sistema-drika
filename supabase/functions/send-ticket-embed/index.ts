@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
       const options = (categories as any[]).slice(0, 25).map((cat: any) => {
         const opt: any = {
           label: cat.name,
-          value: `ticket_cat:${tenant_id}:${channel_id}:${cat.id}`,
+          value: cat.id,
         };
         if (cat.description) opt.description = cat.description.slice(0, 100);
         if (cat.emoji) {
