@@ -948,87 +948,105 @@ serve(async (req: Request) => {
             categoryId = parts[3];
           }
         }
+        
         const guildId = interaction.guild_id;
-        await respondDeferred(interaction, botToken);
-        const { data: category } = await supabase
-          .from("ticket_categories")
-          .select("emoji, name, description")
-          .eq("id", categoryId)
-          .eq("tenant_id", tenantId)
-          .maybeSingle();
-        if (!category) { await editFollowup(interaction, botToken, "❌ Categoria não encontrada."); return ok(); }
-        const topicName = `${category.emoji} ${category.name}`;
-        const { data: existingTickets } = await supabase
-          .from("tickets")
-          .select("id, discord_channel_id")
-          .eq("tenant_id", tenantId)
-          .eq("discord_user_id", userId)
-          .in("status", ["open", "in_progress"]);
-        let hasRealOpenTicket = false;
-        for (const t of existingTickets || []) {
-          if (!t.discord_channel_id) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); continue; }
+
+        // Process in background to avoid Discord's 3-second timeout
+        const processTicket = async () => {
           try {
-            const chRes = await fetch(`${DISCORD_API}/channels/${t.discord_channel_id}`, { headers: { Authorization: `Bot ${botToken}` } });
-            if (!chRes.ok) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); }
-            else { const chData = await chRes.json(); if (chData.thread_metadata?.archived) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); } else { hasRealOpenTicket = true; } }
-          } catch { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); }
-        }
-        if (hasRealOpenTicket) { await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto."); return ok(); }
-        const { data: storeConfig } = await supabase
-          .from("store_configs")
-          .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer")
-          .eq("tenant_id", tenantId).single();
-        let parentChannelId = storeConfig?.ticket_channel_id || supportChannelId;
-        try {
-          const chInfoRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}`, { headers: { Authorization: `Bot ${botToken}` } });
-          if (chInfoRes.ok) {
-            const chInfo = await chInfoRes.json();
-            if (chInfo.type === 4) {
-              const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, { headers: { Authorization: `Bot ${botToken}` } });
-              if (guildChRes.ok) { const allCh = await guildChRes.json(); const textCh = allCh.find((c: any) => c.parent_id === parentChannelId && c.type === 0); if (textCh) parentChannelId = textCh.id; }
+            const { data: category } = await supabase
+              .from("ticket_categories")
+              .select("emoji, name, description")
+              .eq("id", categoryId)
+              .eq("tenant_id", tenantId)
+              .maybeSingle();
+            if (!category) { await editFollowup(interaction, botToken, "❌ Categoria não encontrada."); return; }
+            const topicName = `${category.emoji || ""} ${category.name}`.trim();
+            const { data: existingTickets } = await supabase
+              .from("tickets")
+              .select("id, discord_channel_id")
+              .eq("tenant_id", tenantId)
+              .eq("discord_user_id", userId)
+              .in("status", ["open", "in_progress"]);
+            let hasRealOpenTicket = false;
+            for (const t of existingTickets || []) {
+              if (!t.discord_channel_id) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); continue; }
+              try {
+                const chRes = await fetch(`${DISCORD_API}/channels/${t.discord_channel_id}`, { headers: { Authorization: `Bot ${botToken}` } });
+                if (!chRes.ok) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); }
+                else { const chData = await chRes.json(); if (chData.thread_metadata?.archived) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); } else { hasRealOpenTicket = true; } }
+              } catch { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); }
             }
+            if (hasRealOpenTicket) { await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto."); return; }
+            const { data: storeConfig } = await supabase
+              .from("store_configs")
+              .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer")
+              .eq("tenant_id", tenantId).single();
+            let parentChannelId = storeConfig?.ticket_channel_id || supportChannelId;
+            try {
+              const chInfoRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}`, { headers: { Authorization: `Bot ${botToken}` } });
+              if (chInfoRes.ok) {
+                const chInfo = await chInfoRes.json();
+                if (chInfo.type === 4) {
+                  const guildChRes = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, { headers: { Authorization: `Bot ${botToken}` } });
+                  if (guildChRes.ok) { const allCh = await guildChRes.json(); const textCh = allCh.find((c: any) => c.parent_id === parentChannelId && c.type === 0); if (textCh) parentChannelId = textCh.id; }
+                }
+              }
+            } catch (e) { console.error("Channel check error:", e); }
+            const ticketSuffix = Date.now().toString(36).slice(-4);
+            const threadName = `${category.emoji || "🎫"} ${username || userId}-${ticketSuffix}`.substring(0, 100);
+            const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ name: threadName, type: 12, auto_archive_duration: 10080 }),
+            });
+            if (!createThreadRes.ok) { await editFollowup(interaction, botToken, "❌ Não foi possível criar o ticket."); return; }
+            const ticketThread = await createThreadRes.json();
+            await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${userId}`, { method: "PUT", headers: { Authorization: `Bot ${botToken}` } });
+            const { data: ticket } = await supabase
+              .from("tickets")
+              .insert({ tenant_id: tenantId, discord_user_id: userId, discord_username: username, discord_channel_id: ticketThread.id, status: "open", product_name: topicName, topic_name: topicName })
+              .select().single();
+            if (ticket) {
+              const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
+              const staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, {});
+              const staffMentions = staffRoleIds.map((rid: string) => `<@&${rid}>`).join(" ");
+              const contentMention = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
+              await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
+                method: "POST",
+                headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  content: contentMention,
+                  allowed_mentions: { users: [userId], roles: staffRoleIds },
+                  embeds: [{ title: `${category.emoji || "🎫"} ${storeConfig?.ticket_embed_title || "Ticket de Suporte"}`, description: `**Tipo:** ${topicName}\n\n${(storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8))}`, color: embedColor }],
+                  components: [
+                    { type: 1, components: [{ type: 2, style: 2, label: "Lembrar", custom_id: `ticket_remind_${ticket.id}` }, { type: 2, style: 2, label: "Renomear", custom_id: `ticket_rename_${ticket.id}` }, { type: 2, style: 2, label: "Arquivar", custom_id: `ticket_close_${ticket.id}` }, { type: 2, style: 4, label: "Deletar", custom_id: `ticket_delete_${ticket.id}` }] },
+                    { type: 1, components: [{ type: 5, custom_id: `ticket_assign_${ticket.id}`, placeholder: "Selecione algum membro", min_values: 1, max_values: 1 }] },
+                  ],
+                }),
+              });
+              await addTicketStaffToThread(supabase, botToken, tenantId, guildId, ticketThread.id, userId, staffRoleIds);
+            }
+            const threadLink = `https://discord.com/channels/${guildId}/${ticketThread.id}`;
+            await editFollowup(interaction, botToken, {
+              embeds: [{ title: `${category.emoji || "🎫"} Ticket Aberto!`, description: `**Tipo:** ${topicName}\n\nSeu canal foi criado!\n\n👉 **Acesse:** <#${ticketThread.id}>`, color: 0x57F287 }],
+              components: [{ type: 1, components: [{ type: 2, style: 5, label: "Ir para o ticket", url: threadLink }] }]
+            });
+          } catch (e) {
+            console.error("Background ticket processing error:", e);
+            await editFollowup(interaction, botToken, "❌ Ocorreu um erro interno ao criar seu ticket.");
           }
-        } catch (e) { console.error("Channel check error:", e); }
-        const ticketSuffix = Date.now().toString(36).slice(-4);
-        const threadName = `${category.emoji} ${username || userId}-${ticketSuffix}`.substring(0, 100);
-        const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ name: threadName, type: 12, auto_archive_duration: 10080 }),
-        });
-        if (!createThreadRes.ok) { await editFollowup(interaction, botToken, "❌ Não foi possível criar o ticket."); return ok(); }
-        const ticketThread = await createThreadRes.json();
-        await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${userId}`, { method: "PUT", headers: { Authorization: `Bot ${botToken}` } });
-        const { data: ticket } = await supabase
-          .from("tickets")
-          .insert({ tenant_id: tenantId, discord_user_id: userId, discord_username: username, discord_channel_id: ticketThread.id, status: "open", product_name: topicName, topic_name: topicName })
-          .select().single();
-        if (ticket) {
-          const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
-          const staffRoleIds = filterTicketStaffRoleIds(normalizeRoleIds(storeConfig?.ticket_staff_role_id), storeConfig, {});
-          const staffMentions = staffRoleIds.map((rid: string) => `<@&${rid}>`).join(" ");
-          const contentMention = staffMentions ? `<@${userId}> ${staffMentions}` : `<@${userId}>`;
-          await fetch(`${DISCORD_API}/channels/${ticketThread.id}/messages`, {
-            method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: contentMention,
-              allowed_mentions: { users: [userId], roles: staffRoleIds },
-              embeds: [{ title: `${category.emoji} ${storeConfig?.ticket_embed_title || "Ticket de Suporte"}`, description: `**Tipo:** ${topicName}\n\n${(storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8))}`, color: embedColor }],
-              components: [
-                { type: 1, components: [{ type: 2, style: 2, label: "Lembrar", custom_id: `ticket_remind_${ticket.id}` }, { type: 2, style: 2, label: "Renomear", custom_id: `ticket_rename_${ticket.id}` }, { type: 2, style: 2, label: "Arquivar", custom_id: `ticket_close_${ticket.id}` }, { type: 2, style: 4, label: "Deletar", custom_id: `ticket_delete_${ticket.id}` }] },
-                { type: 1, components: [{ type: 5, custom_id: `ticket_assign_${ticket.id}`, placeholder: "Selecione algum membro", min_values: 1, max_values: 1 }] },
-              ],
-            }),
-          });
-          await addTicketStaffToThread(supabase, botToken, tenantId, guildId, ticketThread.id, userId, staffRoleIds);
+        };
+
+        if (typeof (globalThis as any).EdgeRuntime !== "undefined" && typeof (globalThis as any).EdgeRuntime.waitUntil === "function") {
+          (globalThis as any).EdgeRuntime.waitUntil(processTicket());
+        } else {
+          processTicket().catch(console.error);
         }
-        const threadLink = `https://discord.com/channels/${guildId}/${ticketThread.id}`;
-        await editFollowup(interaction, botToken, {
-          embeds: [{ title: `${category.emoji} Ticket Aberto!`, description: `**Tipo:** ${topicName}\n\nSeu canal foi criado!\n\n👉 **Acesse:** <#${ticketThread.id}>`, color: 0x57F287 }],
-          components: [{ type: 1, components: [{ type: 2, style: 5, label: "Ir para o ticket", url: threadLink }] }],
+
+        return new Response(JSON.stringify({ type: 6 }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
-        return ok();
       }
 
       // ─── BUY GLOBAL MARKETPLACE LISTING ─────────────
