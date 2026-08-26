@@ -671,6 +671,7 @@ const DashboardPage = () => {
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] sm:text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> {guildInfo?.presence_count ?? 0} {t.dashboard.online}</span>
                 </div>
               </div>
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" className="gap-2 text-sm bg-primary/10 border-primary/20 text-primary hover:bg-primary/20 hover:border-primary/30 transition-colors" onClick={handleAddBot}>
                   <ExternalLink className="h-3.5 w-3.5" /> {t.dashboard.addDrikaBot}
                 </Button>
@@ -678,7 +679,7 @@ const DashboardPage = () => {
                   <Unplug className="h-3.5 w-3.5" /> {t.dashboard.disconnectServer}
                 </Button>
               </div>
-            </div>
+            </>
           ) : (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
