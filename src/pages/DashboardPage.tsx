@@ -636,10 +636,14 @@ const DashboardPage = () => {
 
       {/* Server Info + Audit */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3">{t.dashboard.mainServer}</h2>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={openServerModal}><Settings2 className="h-4 w-4" /></Button>
+        <div className="group/stat relative rounded-xl border border-white/5 bg-card/40 backdrop-blur-md p-5 space-y-4 overflow-hidden transition-all hover:bg-card/60 hover:border-white/10 hover:shadow-[0_0_30px_rgba(var(--primary),0.1)]">
+          <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl transition-all group-hover/stat:bg-primary/10" />
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3 text-white/90">{t.dashboard.mainServer}</h2>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/5 transition-colors" onClick={openServerModal}>
+              <Settings2 className="h-4 w-4" />
+            </Button>
           </div>
           {tenant.discord_guild_id ? (
             <>
@@ -667,15 +671,14 @@ const DashboardPage = () => {
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] sm:text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> {guildInfo?.presence_count ?? 0} {t.dashboard.online}</span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="gap-2 text-sm" onClick={handleAddBot}>
+                <Button variant="outline" className="gap-2 text-sm bg-primary/10 border-primary/20 text-primary hover:bg-primary/20 hover:border-primary/30 transition-colors" onClick={handleAddBot}>
                   <ExternalLink className="h-3.5 w-3.5" /> {t.dashboard.addDrikaBot}
                 </Button>
-                <Button variant="outline" className="gap-2 text-sm text-destructive hover:text-destructive" onClick={() => setDisconnectModalOpen(true)}>
+                <Button variant="outline" className="gap-2 text-sm text-destructive border-destructive/20 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors" onClick={() => setDisconnectModalOpen(true)}>
                   <Unplug className="h-3.5 w-3.5" /> {t.dashboard.disconnectServer}
                 </Button>
               </div>
-            </>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
@@ -705,26 +708,31 @@ const DashboardPage = () => {
             </div>
           )}
         </div>
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-          <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3">{t.dashboard.auditLog}</h2>
+        
+        <div className="group/stat relative rounded-xl border border-white/5 bg-card/40 backdrop-blur-md p-5 space-y-4 overflow-hidden transition-all hover:bg-card/60 hover:border-white/10 hover:shadow-[0_0_30px_rgba(var(--primary),0.1)]">
+          <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl transition-all group-hover/stat:bg-primary/10" />
+          
+          <h2 className="relative z-10 font-display text-lg font-semibold border-l-2 border-primary pl-3 text-white/90">{t.dashboard.auditLog}</h2>
+          
+          <div className="relative z-10">
           {auditLoading ? (
-            <div className="space-y-2"><Skeleton className="h-8" /><Skeleton className="h-8" /><Skeleton className="h-8" /></div>
+            <div className="space-y-2"><Skeleton className="h-8 bg-white/5" /><Skeleton className="h-8 bg-white/5" /><Skeleton className="h-8 bg-white/5" /></div>
           ) : auditLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t.dashboard.noAuditLogs}</p>
           ) : (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-none">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto scrollbar-none pr-1">
               {auditLogs.map(log => (
-                <div key={log.id} className="flex items-start gap-3 rounded-lg bg-muted/50 px-3 py-2.5 text-sm">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase">
+                <div key={log.id} className="flex items-start gap-3 rounded-lg bg-background/40 border border-white/5 px-3 py-2.5 text-sm transition-all hover:bg-background/60 hover:border-white/10">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase shadow-[0_0_10px_rgba(var(--primary),0.2)]">
                     {(log.actor_name || "S")[0]}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">
-                      <span className="text-primary">{log.actor_name || t.dashboard.system}</span>{" "}
+                      <span className="text-primary font-semibold">{log.actor_name || t.dashboard.system}</span>{" "}
                       <span className="text-muted-foreground font-normal">{getAuditActionLabel(log.action)}</span>{" "}
-                      {log.entity_name && <span className="font-semibold">{log.entity_name}</span>}
+                      {log.entity_name && <span className="font-semibold text-white/80">{log.entity_name}</span>}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">
                       {log.entity_type} • {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBRLocale })}
                     </p>
                   </div>
@@ -732,6 +740,7 @@ const DashboardPage = () => {
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -762,10 +771,10 @@ const DashboardPage = () => {
         {/* ===== MEMBROS ===== */}
         {activeTab === "membros" && (
           <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="rounded-xl border border-white/5 bg-card/40 backdrop-blur-md p-4 space-y-3 shadow-lg">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold border-l-2 border-primary pl-3">{t.dashboard.membersList}</h3>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => setMemberSearchOpen(true)}>
+                <h3 className="text-sm font-semibold border-l-2 border-primary pl-3 text-white/90">{t.dashboard.membersList}</h3>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:bg-white/5 hover:text-white transition-colors" onClick={() => setMemberSearchOpen(true)}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -782,11 +791,13 @@ const DashboardPage = () => {
                     <button
                       key={perm.id}
                       onClick={() => { setSelectedMemberId(perm.id); setMemberDraft({}); }}
-                      className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors ${
-                        selectedMemberId === perm.id ? "bg-primary/10 border border-primary/20" : "hover:bg-accent/50"
+                      className={`group flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-all ${
+                        selectedMemberId === perm.id 
+                          ? "bg-primary/20 border border-primary/30 shadow-[0_0_15px_rgba(var(--primary),0.1)]" 
+                          : "border border-transparent hover:bg-white/5 hover:border-white/10"
                       }`}
                     >
-                      <Avatar className="h-7 w-7">
+                      <Avatar className="h-7 w-7 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
                         {perm.discord_avatar_url && <AvatarImage src={perm.discord_avatar_url} />}
                         <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold uppercase">
                           {(perm.discord_display_name || perm.discord_username)?.[0] || "?"}
@@ -822,10 +833,10 @@ const DashboardPage = () => {
         {/* ===== CARGOS ===== */}
         {activeTab === "cargos" && (
           <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="rounded-xl border border-white/5 bg-card/40 backdrop-blur-md p-4 space-y-3 shadow-lg">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold border-l-2 border-primary pl-3">{t.dashboard.rolesList}</h3>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => setCreateRoleOpen(true)}>
+                <h3 className="text-sm font-semibold border-l-2 border-primary pl-3 text-white/90">{t.dashboard.rolesList}</h3>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:bg-white/5 hover:text-white transition-colors" onClick={() => setCreateRoleOpen(true)}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -842,11 +853,13 @@ const DashboardPage = () => {
                     <button
                       key={role.id}
                       onClick={() => { setSelectedRoleId(role.id); setRoleDraft({}); }}
-                      className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-colors ${
-                        selectedRoleId === role.id ? "bg-primary/10 border border-primary/20" : "hover:bg-accent/50"
+                      className={`group flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-all ${
+                        selectedRoleId === role.id 
+                          ? "bg-primary/20 border border-primary/30 shadow-[0_0_15px_rgba(var(--primary),0.1)]" 
+                          : "border border-transparent hover:bg-white/5 hover:border-white/10"
                       }`}
                     >
-                      <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: role.color }} />
+                      <div className="h-3 w-3 rounded-full shrink-0 group-hover:scale-110 transition-transform" style={{ backgroundColor: role.color }} />
                       <span className="text-sm font-medium truncate">{role.name}</span>
                       {role.synced && (
                         <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">sync</span>
@@ -1031,7 +1044,7 @@ function PermissionPanel({
 }) {
   const { t } = useLanguage();
   return (
-    <div className="rounded-xl border border-border bg-card p-5 relative">
+    <div className="rounded-xl border border-white/5 bg-card/40 backdrop-blur-md p-5 relative shadow-lg">
       {title ? (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
@@ -1055,13 +1068,13 @@ function PermissionPanel({
           </div>
 
           <div>
-            <p className="text-sm font-bold mb-3">Principal</p>
-            <div className="space-y-1">
+            <p className="text-sm font-bold mb-3 text-white/90">Principal</p>
+            <div className="space-y-1.5">
               {PERMISSION_LABELS.map(({ key, label, description }) => (
-                <div key={key} className="flex items-center justify-between rounded-lg border border-border px-3 sm:px-4 py-2.5 sm:py-3">
+                <div key={key} className="flex items-center justify-between rounded-lg border border-white/5 bg-background/30 hover:bg-background/50 px-3 sm:px-4 py-2.5 sm:py-3 transition-colors">
                   <div className="pr-3 sm:pr-4 min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-semibold">{label}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">{description}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-white/90">{label}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground/80 line-clamp-2">{description}</p>
                   </div>
                   <Switch checked={getValue(key)} onCheckedChange={() => onToggle(key)} />
                 </div>
@@ -1070,10 +1083,10 @@ function PermissionPanel({
           </div>
 
           {hasChanges && (
-            <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-3 border-t border-border bg-card/95 backdrop-blur flex items-center justify-end gap-3 rounded-b-xl">
+            <div className="sticky bottom-0 -mx-5 -mb-5 px-5 py-3 border-t border-white/10 bg-card/60 backdrop-blur-xl flex items-center justify-end gap-3 rounded-b-xl shadow-[0_-10px_30px_rgba(var(--primary),0.1)]">
               <span className="text-xs text-muted-foreground mr-auto">{t.dashboard.unsavedChanges}</span>
-              <Button variant="ghost" size="sm" onClick={onDiscard} disabled={saving}>{t.dashboard.discardChanges}</Button>
-              <Button size="sm" onClick={onSave} disabled={saving}>
+              <Button variant="ghost" size="sm" onClick={onDiscard} disabled={saving} className="hover:bg-white/5">{t.dashboard.discardChanges}</Button>
+              <Button size="sm" onClick={onSave} disabled={saving} className="bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30 transition-all shadow-[0_0_15px_rgba(var(--primary),0.2)]">
                 {saving ? t.dashboard.saving : t.common.save}
               </Button>
             </div>
