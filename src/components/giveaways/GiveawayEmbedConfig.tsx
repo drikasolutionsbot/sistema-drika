@@ -32,21 +32,57 @@ export function ImageUploadField({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  /** Compress raster images (not GIF) to WebP at max 1200px */
+  const compressImage = useCallback((file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      // GIFs can't be meaningfully compressed via canvas (loses animation)
+      if (file.type === "image/gif") { resolve(file); return; }
+
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width >= height) { height = Math.round((height / width) * MAX); width = MAX; }
+          else { width = Math.round((width / height) * MAX); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { resolve(file); return; }
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
+            resolve(compressed);
+          },
+          "image/webp",
+          0.82
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }, []);
+
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith("image/")) {
         toast({ title: "Formato inválido", description: "Selecione PNG, JPG, GIF ou WebP", variant: "destructive" });
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        toast({ title: "Arquivo muito grande", description: "Máximo 10MB", variant: "destructive" });
+      if (file.size > 2 * 1024 * 1024) {
+        toast({ title: "Arquivo muito grande", description: "Máximo 2MB (use URL externa para arquivos maiores)", variant: "destructive" });
         return;
       }
       setUploading(true);
       try {
-        const ext = file.name.split(".").pop() || "png";
+        // Compress before upload (skips GIFs)
+        const toUpload = await compressImage(file);
+        const ext = toUpload.name.split(".").pop() || "webp";
         const path = `${tenantId}/giveaways/${fieldKey}-${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from("tenant-assets").upload(path, file, { upsert: true });
+        const { error } = await supabase.storage.from("tenant-assets").upload(path, toUpload, { upsert: true });
         if (error) throw error;
         const { data: publicData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
         onChangeUrl(publicData.publicUrl);
@@ -57,7 +93,7 @@ export function ImageUploadField({
         setUploading(false);
       }
     },
-    [tenantId, fieldKey, onChangeUrl]
+    [tenantId, fieldKey, onChangeUrl, compressImage]
   );
 
   const handleDrop = useCallback(
