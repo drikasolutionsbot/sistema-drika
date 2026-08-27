@@ -122,6 +122,12 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
 
   const handleUpload = async (file: File, kind: "avatar" | "banner") => {
     if (!tenantId) return;
+    
+    if (file.size > 1 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "O tamanho máximo permitido é 1MB.", variant: "destructive" });
+      return;
+    }
+
     const setUploading = kind === "avatar" ? setUploadingAvatar : setUploadingBanner;
     setUploading(true);
     try {
@@ -263,7 +269,7 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
                 Escolher Imagem
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground">PNG, JPG até 10MB</p>
+            <p className="text-[11px] text-muted-foreground">PNG, JPG até 1MB</p>
           </div>
 
           {/* Name */}
@@ -375,7 +381,7 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
             ) : !isBlocked ? (
               <>
                 <p className="text-[11px] text-muted-foreground">
-                  PNG, JPG até 10MB. Recomendado 960×540px.
+                  PNG, JPG até 1MB. Recomendado 960×540px.
                   {botBannerUrl && " Clique no X para remover."}
                 </p>
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/8 p-2.5 flex items-start gap-2">
