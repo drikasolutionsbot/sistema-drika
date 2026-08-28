@@ -16,4 +16,4 @@ WITH CHECK (true);
 -- Allow only super admins to view feedbacks
 CREATE POLICY "Super admins can view platform feedbacks"
 ON public.platform_feedbacks FOR SELECT
-USING (auth.uid() IN (SELECT id FROM admin_users));
+USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'super_admin'));
