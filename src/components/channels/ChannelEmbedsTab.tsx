@@ -32,10 +32,50 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
 
   const getDefaultContent = (key: string) => {
     switch (key) {
-      case "member_join": return "Olá {user}, seja bem-vindo(a) ao **{server}**! 🎉";
-      case "member_leave": return "O membro {user} saiu do servidor.";
-      case "logs_sales": return "🎉 Nova compra confirmada!";
+      case "member_join": return "{user}";
+      case "member_leave": return "";
+      case "logs_sales": return "";
       default: return "";
+    }
+  };
+
+  const getFactoryEmbed = (key: string): Partial<EmbedData> => {
+    switch (key) {
+      case "member_join":
+        return {
+          color: "#FF1493",
+          title: "Bem-vindo(a)! 🎉",
+          description: "Olá {username}, ficamos felizes em ter você aqui no **{server}**!\n\nVocê é o nosso membro de número **{memberCount}**.",
+          footer_text: "Aproveite sua estadia!",
+          timestamp: true,
+          // Use a generic placeholder or leaving it blank, the bot injects DRIKA_COVER automatically, 
+          // but we can put the user's bot_banner_url or a placeholder here so they see it.
+          // Wait, we don't have bot_banner_url in this component context directly, but we can just say "Imagem Padrão do Bot".
+          // Actually, leaving image_url blank will render without image, but they want it to look like Image 2.
+          // Let's set a placeholder image URL for the preview.
+          image_url: "https://krudxivcuygykoswjbbx.supabase.co/storage/v1/object/public/tenant-assets/drika-placeholder-banner.png" 
+        };
+      case "member_leave":
+        return {
+          color: "#ED4245",
+          title: "Membro Saiu",
+          description: "O membro **{username}** saiu do servidor.",
+          footer_text: "Sentiremos saudades!",
+          timestamp: true,
+        };
+      case "logs_sales":
+        return {
+          color: "#57F287",
+          title: "Compra Confirmada ✅",
+          description: "O pedido de **{username}** foi aprovado com sucesso!",
+          fields: [
+            { id: "1", name: "Produto", value: "{product_name}", inline: true },
+            { id: "2", name: "Valor", value: "R$ {price}", inline: true }
+          ],
+          timestamp: true,
+        };
+      default:
+        return {};
     }
   };
 
@@ -52,7 +92,8 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
       // Merge with default to ensure all properties exist
       setEmbed({ ...defaultEmbed, ...config.embed_config });
     } else {
-      setEmbed({ ...defaultEmbed });
+      // Apply factory defaults for the specific channel
+      setEmbed({ ...defaultEmbed, ...getFactoryEmbed(selectedKey) });
     }
     
     setContent(config?.content !== undefined && config?.content !== null ? config.content : getDefaultContent(selectedKey));
