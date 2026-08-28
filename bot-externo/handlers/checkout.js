@@ -179,12 +179,23 @@ function crc16(payload) {
   }
   return crc.toString(16).toUpperCase().padStart(4, "0");
 }
+function sanitizePIXName(name) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")       // remove accents
+    .replace(/[^\x20-\x7E]/g, "")          // remove emojis and non-ASCII
+    .replace(/\s+/g, " ")                  // collapse spaces
+    .trim()
+    .substring(0, 25) || "Loja";
+}
+
 function generateStaticBRCode(pixKey, name, amount, txId) {
+  const safeName = sanitizePIXName(name);
   let p = tlv("00", "01") + tlv("01", amount ? "12" : "11");
   p += tlv("26", tlv("00", "br.gov.bcb.pix") + tlv("01", pixKey));
   p += tlv("52", "0000") + tlv("53", "986");
   if (amount && amount > 0) p += tlv("54", amount.toFixed(2));
-  p += tlv("58", "BR") + tlv("59", name.substring(0, 25)) + tlv("60", "Brasil");
+  p += tlv("58", "BR") + tlv("59", safeName) + tlv("60", "Brasil");
   p += tlv("62", tlv("05", (txId || "***").substring(0, 25)));
   p += "6304";
   return p + crc16(p);
