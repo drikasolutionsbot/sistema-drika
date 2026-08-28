@@ -12,6 +12,8 @@ import type { EmbedData, EmbedField, EmbedButton } from "./types";
 interface EmbedFormProps {
   embed: EmbedData;
   onChange: (embed: EmbedData) => void;
+  hideFields?: boolean;
+  hideButtons?: boolean;
 }
 
 const BUTTON_STYLES = [
@@ -23,7 +25,7 @@ const BUTTON_STYLES = [
   { value: "link", label: "Link (URL)", color: "#4f545c" },
 ];
 
-const EmbedForm = ({ embed, onChange }: EmbedFormProps) => {
+const EmbedForm = ({ embed, onChange, hideFields = false, hideButtons = false }: EmbedFormProps) => {
   const update = <K extends keyof EmbedData>(key: K, value: EmbedData[K]) => {
     onChange({ ...embed, [key]: value });
   };
@@ -138,10 +140,11 @@ const EmbedForm = ({ embed, onChange }: EmbedFormProps) => {
         </AccordionItem>
 
         {/* Fields */}
-        <AccordionItem value="fields" className="border border-border rounded-lg px-4">
-          <AccordionTrigger className="text-sm font-medium py-3">
-            Campos ({embed.fields.length}/25)
-          </AccordionTrigger>
+        {!hideFields && (
+          <AccordionItem value="fields" className="border border-border rounded-lg px-4">
+            <AccordionTrigger className="text-sm font-medium py-3">
+              Campos ({embed.fields.length}/25)
+            </AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">
             {embed.fields.map((field, idx) => (
               <div key={field.id} className="rounded-lg border border-border bg-background p-3 space-y-2">
@@ -168,10 +171,11 @@ const EmbedForm = ({ embed, onChange }: EmbedFormProps) => {
         </AccordionItem>
 
         {/* Buttons */}
-        <AccordionItem value="buttons" className="border border-border rounded-lg px-4">
-          <AccordionTrigger className="text-sm font-medium py-3">
-            Botões ({buttons.length}/6)
-          </AccordionTrigger>
+        {!hideButtons && (
+          <AccordionItem value="buttons" className="border border-border rounded-lg px-4">
+            <AccordionTrigger className="text-sm font-medium py-3">
+              Botões ({buttons.length}/6)
+            </AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">
             {buttons.map((btn, idx) => (
               <div key={btn.id} className="rounded-lg border border-border bg-background p-3 space-y-3">
@@ -231,6 +235,7 @@ const EmbedForm = ({ embed, onChange }: EmbedFormProps) => {
             )}
           </AccordionContent>
         </AccordionItem>
+        )}
 
         {/* Footer */}
         <AccordionItem value="footer" className="border border-border rounded-lg px-4">

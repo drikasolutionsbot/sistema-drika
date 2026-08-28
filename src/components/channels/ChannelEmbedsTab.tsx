@@ -131,6 +131,12 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
     }
   };
 
+  const handleRestoreDefault = () => {
+    setEmbed({ ...defaultEmbed, ...getFactoryEmbed(selectedKey) });
+    setContent(getDefaultContent(selectedKey));
+    toast({ title: "Preview restaurado para o padrão de fábrica. Clique em Salvar para confirmar." });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row gap-4 items-end">
@@ -156,10 +162,16 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={handleSave} disabled={saving || !selectedKey} className="gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar Personalização
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRestoreDefault} disabled={saving || !selectedKey} variant="outline" className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Restaurar Padrão
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !selectedKey} className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Salvar
+          </Button>
+        </div>
       </div>
 
       {!selectedKey ? (
@@ -182,7 +194,7 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
               </p>
             </div>
             
-            <EmbedForm embed={embed} onChange={setEmbed} />
+            <EmbedForm embed={embed} onChange={setEmbed} hideFields hideButtons />
           </div>
 
           <div className="sticky top-6 h-fit max-h-[800px] overflow-y-auto custom-scrollbar">
