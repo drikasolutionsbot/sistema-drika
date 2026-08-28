@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, getTenantLang } from "../_shared/i18n.ts";
+import { formatCdnUrl } from "../_shared/utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,8 +76,8 @@ Deno.serve(async (req) => {
     const hasCategories = categories && categories.length > 0;
 
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? image_url.trim() : null;
-    const safeThumbnailUrl = typeof thumbnail_url === "string" && thumbnail_url.trim() ? thumbnail_url.trim() : null;
+    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
+    const safeThumbnailUrl = typeof thumbnail_url === "string" && thumbnail_url.trim() ? formatCdnUrl(thumbnail_url.trim()) : null;
 
     const lang = await getTenantLang(supabase, tenant_id);
 

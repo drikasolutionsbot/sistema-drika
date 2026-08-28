@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { formatCdnUrl } from "../_shared/utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? image_url.trim() : null;
+    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
 
     const embed: any = {
       title: title || "👑 Verificação",
