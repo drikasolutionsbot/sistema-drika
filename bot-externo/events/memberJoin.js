@@ -35,6 +35,11 @@ function replacePlaceholders(text, member) {
     .replace(/\{guild_id\}/gi, member.guild.id);
 }
 
+function formatCdnUrl(url) {
+  if (!url) return url;
+  return url.replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev");
+}
+
 // ── Build embed from config ──
 function buildEmbed(embedData, member, tenant) {
   if (!embedData) return null;
@@ -48,18 +53,18 @@ function buildEmbed(embedData, member, tenant) {
   if (embedData.description) embed.setDescription(replacePlaceholders(embedData.description, member));
 
   if (embedData.thumbnail_url) {
-    const thumbUrl = replacePlaceholders(embedData.thumbnail_url, member);
+    const thumbUrl = formatCdnUrl(replacePlaceholders(embedData.thumbnail_url, member));
     if (thumbUrl) embed.setThumbnail(thumbUrl);
   }
 
   if (embedData.image_url) {
-    const imgUrl = replacePlaceholders(embedData.image_url, member);
+    const imgUrl = formatCdnUrl(replacePlaceholders(embedData.image_url, member));
     if (imgUrl) embed.setImage(imgUrl);
   }
 
   if (embedData.footer_text) {
     const footer = { text: replacePlaceholders(embedData.footer_text, member) };
-    if (embedData.footer_icon_url) footer.iconURL = replacePlaceholders(embedData.footer_icon_url, member);
+    if (embedData.footer_icon_url) footer.iconURL = formatCdnUrl(replacePlaceholders(embedData.footer_icon_url, member));
     embed.setFooter(footer);
   }
 
