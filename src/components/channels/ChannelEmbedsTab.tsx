@@ -32,7 +32,7 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
 
   const getDefaultContent = (key: string) => {
     switch (key) {
-      case "member_join": return "{user}";
+      case "welcome": return "{user}";
       case "member_leave": return "";
       case "logs_sales": return "";
       default: return "";
@@ -41,7 +41,7 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
 
   const getFactoryEmbed = (key: string): Partial<EmbedData> => {
     switch (key) {
-      case "member_join":
+      case "welcome":
         return {
           color: "#FF1493",
           title: "Bem-vindo(a)! 🎉",
