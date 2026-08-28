@@ -59,7 +59,7 @@ function buildEmbed(embedData, member, tenant) {
 
   if (embedData.footer_text) {
     const footer = { text: replacePlaceholders(embedData.footer_text, member) };
-    if (embedData.footer_icon_url) footer.icon_url = replacePlaceholders(embedData.footer_icon_url, member);
+    if (embedData.footer_icon_url) footer.iconURL = replacePlaceholders(embedData.footer_icon_url, member);
     embed.setFooter(footer);
   }
 
@@ -75,7 +75,10 @@ function buildEmbed(embedData, member, tenant) {
     }
   }
 
-  applyDrikaCover(embed, tenant);
+  if (!embedData.image_url) {
+    applyDrikaCover(embed, tenant);
+  }
+  
   return embed;
 }
 
