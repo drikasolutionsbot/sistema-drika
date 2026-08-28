@@ -196,11 +196,11 @@ async function getStoreConfig(tenantId) {
 async function getChannelConfig(tenantId, channelKey) {
   return withCache(`channel_config_${tenantId}_${channelKey}`, async () => {
     const { data } = await supabase.from("channel_configs")
-      .select("discord_channel_id")
+      .select("discord_channel_id, embed_config, content")
       .eq("tenant_id", tenantId)
       .eq("channel_key", channelKey)
       .maybeSingle();
-    return data ? data.discord_channel_id : null;
+    return data || null;
   });
 }
 

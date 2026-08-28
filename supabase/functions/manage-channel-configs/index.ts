@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     if (action === "list") {
       const { data, error } = await supabase
         .from("channel_configs")
-        .select("id, channel_key, discord_channel_id, created_at")
+        .select("id, channel_key, discord_channel_id, embed_config, content, created_at")
         .eq("tenant_id", tenant_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Get existing configs for this tenant
     const { data: existing, error: fetchErr } = await supabase
       .from("channel_configs")
-      .select("id, channel_key, discord_channel_id")
+      .select("id, channel_key, discord_channel_id, embed_config, content")
       .eq("tenant_id", tenant_id);
 
     if (fetchErr) throw fetchErr;
@@ -65,26 +65,43 @@ Deno.serve(async (req) => {
     const inserts: any[] = [];
     const deletes: string[] = [];
 
-    for (const [key, value] of Object.entries(channels)) {
+    for (const [key, rawValue] of Object.entries(channels)) {
       const ex = existingMap.get(key);
+      const isObj = typeof rawValue === "object" && rawValue !== null;
+      const channelId = isObj ? (rawValue as any).discord_channel_id : rawValue;
+      const embedConfig = isObj ? (rawValue as any).embed_config : undefined;
+      const content = isObj ? (rawValue as any).content : undefined;
+
       if (ex) {
-        if (ex.discord_channel_id !== value) {
-          if (value) {
-            updates.push({ id: ex.id, tenant_id, channel_key: key, discord_channel_id: value });
+        if (ex.discord_channel_id !== channelId || 
+            (embedConfig !== undefined && JSON.stringify(ex.embed_config) !== JSON.stringify(embedConfig)) || 
+            (content !== undefined && ex.content !== content)) {
+          if (channelId) {
+            const updatePayload: any = { id: ex.id, tenant_id, channel_key: key, discord_channel_id: channelId };
+            if (embedConfig !== undefined) updatePayload.embed_config = embedConfig;
+            if (content !== undefined) updatePayload.content = content;
+            updates.push(updatePayload);
           } else {
             deletes.push(ex.id);
           }
         }
-      } else if (value) {
-        inserts.push({ tenant_id, channel_key: key, discord_channel_id: value });
+      } else if (channelId) {
+        const insertPayload: any = { tenant_id, channel_key: key, discord_channel_id: channelId };
+        if (embedConfig !== undefined) insertPayload.embed_config = embedConfig;
+        if (content !== undefined) insertPayload.content = content;
+        inserts.push(insertPayload);
       }
     }
 
     if (updates.length > 0) {
       for (const up of updates) {
+        const payload: any = { discord_channel_id: up.discord_channel_id };
+        if (up.embed_config !== undefined) payload.embed_config = up.embed_config;
+        if (up.content !== undefined) payload.content = up.content;
+        
         const { error: upErr } = await supabase
           .from("channel_configs")
-          .update({ discord_channel_id: up.discord_channel_id })
+          .update(payload)
           .eq("id", up.id);
         if (upErr) throw upErr;
       }

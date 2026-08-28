@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Hash, Shield, Users, Volume2, Plus, Loader2, RefreshCw, Megaphone, Mic,
   MessageSquare, Save, Settings2, ShoppingBag, UserCheck, Gavel, Tag,
-  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle
+  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle, LayoutTemplate
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChannelPermissionsTab from "@/components/channels/ChannelPermissionsTab";
+import ChannelEmbedsTab from "@/components/channels/ChannelEmbedsTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -499,6 +500,9 @@ const ChannelsPage = () => {
           <TabsTrigger value="permissions" className="gap-2">
             <Shield className="h-3.5 w-3.5" /> Permissões
           </TabsTrigger>
+          <TabsTrigger value="embeds" className="gap-2">
+            <LayoutTemplate className="h-3.5 w-3.5" /> Personalização de Embed
+          </TabsTrigger>
         </TabsList>
 
         {/* ========= TAB: Mapeamento ========= */}
@@ -661,6 +665,15 @@ const ChannelsPage = () => {
           <ChannelPermissionsTab
             discordChannels={discordChannels}
             discordCategories={discordCategories}
+          />
+        </TabsContent>
+
+        {/* ========= TAB: Embeds ========= */}
+        <TabsContent value="embeds" className="mt-4">
+          <ChannelEmbedsTab 
+            configs={configs} 
+            refetchConfigs={refetch} 
+            channelSections={channelSections} 
           />
         </TabsContent>
       </Tabs>

@@ -484,24 +484,30 @@ export type Database = {
       channel_configs: {
         Row: {
           channel_key: string
+          content: string | null
           created_at: string
           discord_channel_id: string | null
+          embed_config: Json | null
           id: string
           tenant_id: string
           updated_at: string
         }
         Insert: {
           channel_key: string
+          content?: string | null
           created_at?: string
           discord_channel_id?: string | null
+          embed_config?: Json | null
           id?: string
           tenant_id: string
           updated_at?: string
         }
         Update: {
           channel_key?: string
+          content?: string | null
           created_at?: string
           discord_channel_id?: string | null
+          embed_config?: Json | null
           id?: string
           tenant_id?: string
           updated_at?: string
