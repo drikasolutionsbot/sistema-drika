@@ -30,6 +30,15 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
     channels: section.channels
   }));
 
+  const getDefaultContent = (key: string) => {
+    switch (key) {
+      case "member_join": return "Olá {user}, seja bem-vindo(a) ao **{server}**! 🎉";
+      case "member_leave": return "O membro {user} saiu do servidor.";
+      case "logs_sales": return "🎉 Nova compra confirmada!";
+      default: return "";
+    }
+  };
+
   // When selected key changes, load its config
   useEffect(() => {
     if (!selectedKey) {
@@ -46,7 +55,7 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
       setEmbed({ ...defaultEmbed });
     }
     
-    setContent(config?.content || "");
+    setContent(config?.content !== undefined && config?.content !== null ? config.content : getDefaultContent(selectedKey));
   }, [selectedKey, configs]);
 
   const handleSave = async () => {

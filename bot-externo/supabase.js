@@ -6,6 +6,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// ── CDN Helper ──
+function applyCdn(url) {
+  if (!url || !process.env.CDN_URL) return url;
+  try {
+    const originalUrl = new URL(url);
+    const cdnUrl = new URL(process.env.CDN_URL);
+    // Only replace if it's pointing to our supabase domain
+    if (originalUrl.hostname.includes('supabase.co')) {
+      originalUrl.hostname = cdnUrl.hostname;
+      return originalUrl.toString();
+    }
+  } catch (e) {}
+  return url;
+}
+
 // ── In-Memory Cache ──
 const cache = new Map();
 const CACHE_TTL = 60 * 1000; // 1 minuto
@@ -332,6 +347,10 @@ module.exports = {
   getProtectionSettings,
   getProtectionWhitelist,
   logProtection,
+  deleteTicket,
+  verifyTenantConfig,
+  clearCache,
+  applyCdn,
   createTicket,
   getOpenTickets,
   closeTicket,

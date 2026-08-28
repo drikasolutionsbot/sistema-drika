@@ -76,17 +76,13 @@ Deno.serve(async (req) => {
         if (ex.discord_channel_id !== channelId || 
             (embedConfig !== undefined && JSON.stringify(ex.embed_config) !== JSON.stringify(embedConfig)) || 
             (content !== undefined && ex.content !== content)) {
-          if (channelId) {
-            const updatePayload: any = { id: ex.id, tenant_id, channel_key: key, discord_channel_id: channelId };
-            if (embedConfig !== undefined) updatePayload.embed_config = embedConfig;
-            if (content !== undefined) updatePayload.content = content;
-            updates.push(updatePayload);
-          } else {
-            deletes.push(ex.id);
-          }
+          const updatePayload: any = { id: ex.id, tenant_id, channel_key: key, discord_channel_id: channelId };
+          if (embedConfig !== undefined) updatePayload.embed_config = embedConfig;
+          if (content !== undefined) updatePayload.content = content;
+          updates.push(updatePayload);
         }
-      } else if (channelId) {
-        const insertPayload: any = { tenant_id, channel_key: key, discord_channel_id: channelId };
+      } else if (channelId || embedConfig !== undefined || content !== undefined) {
+        const insertPayload: any = { tenant_id, channel_key: key, discord_channel_id: channelId || null };
         if (embedConfig !== undefined) insertPayload.embed_config = embedConfig;
         if (content !== undefined) insertPayload.content = content;
         inserts.push(insertPayload);
