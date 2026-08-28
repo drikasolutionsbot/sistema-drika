@@ -18,7 +18,7 @@ interface ChannelEmbedsTabProps {
 }
 
 export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSections }: ChannelEmbedsTabProps) {
-  const { tenantId } = useTenant();
+  const { tenantId, tenant, globalBotBanner } = useTenant();
   const [selectedKey, setSelectedKey] = useState<string>("");
   const [embed, setEmbed] = useState<EmbedData>({ ...defaultEmbed });
   const [content, setContent] = useState<string>("");
@@ -48,12 +48,8 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
           description: "Olá {username}, ficamos felizes em ter você aqui no **{server}**!\n\nVocê é o nosso membro de número **{memberCount}**.",
           footer_text: "Aproveite sua estadia!",
           timestamp: true,
-          // Use a generic placeholder or leaving it blank, the bot injects DRIKA_COVER automatically, 
-          // but we can put the user's bot_banner_url or a placeholder here so they see it.
-          // Wait, we don't have bot_banner_url in this component context directly, but we can just say "Imagem Padrão do Bot".
-          // Actually, leaving image_url blank will render without image, but they want it to look like Image 2.
-          // Let's set a placeholder image URL for the preview.
-          image_url: "https://krudxivcuygykoswjbbx.supabase.co/storage/v1/object/public/tenant-assets/drika-placeholder-banner.png" 
+          // Use globalBotBanner if available, else tenant banner
+          image_url: globalBotBanner || tenant?.banner_url || ""
         };
       case "member_leave":
         return {
