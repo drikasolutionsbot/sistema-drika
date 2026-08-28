@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, useMemo, type RefObject } from "react";
-import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus, Gift, ShieldCheck } from "lucide-react";
+import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus, Gift, ShieldCheck, MessageSquareHeart } from "lucide-react";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QRCode from "qrcode";
+import { FeedbackModal } from "@/components/landing/FeedbackModal";
 
 /* ── Scroll reveal ── */
 function useScrollReveal<T extends HTMLElement>(): RefObject<T> {
@@ -389,6 +390,7 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [videoOpen, setVideoOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"pro" | "master">("pro");
   const [landingConfig, setLandingConfig] = useState<{
     stat_servers: number; stat_servers_label: string;
@@ -857,6 +859,18 @@ const LandingPage = () => {
           </div>
         </ScrollReveal>
       </footer>
+
+      {/* Floating Feedback Button */}
+      <button
+        onClick={() => setFeedbackOpen(true)}
+        className="fixed bottom-6 right-6 z-[60] flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-primary to-purple-600 text-white font-bold shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:scale-105 hover:shadow-[0_0_30px_rgba(var(--primary),0.6)] active:scale-95 transition-all duration-300 border border-white/20"
+      >
+        <MessageSquareHeart className="h-5 w-5" />
+        <span className="hidden sm:inline-block">Feedback</span>
+      </button>
+
+      {/* Feedback Modal */}
+      <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </div>
   );
 };

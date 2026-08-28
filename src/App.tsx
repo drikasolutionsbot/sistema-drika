@@ -23,6 +23,7 @@ import AdminAuditLogsPage from "./pages/admin/AdminAuditLogsPage";
 import AdminPermissionsPage from "./pages/admin/AdminPermissionsPage";
 import AdminMarketplacePage from "./pages/admin/AdminMarketplacePage";
 import AdminTutorialsPage from "./pages/admin/AdminTutorialsPage";
+import AdminFeedbacksPage from "./pages/admin/AdminFeedbacksPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import StorePage from "./pages/StorePage";
@@ -115,6 +116,7 @@ const AppRoutes = () => (
       <Route path="/admin/permissoes" element={<AdminPermissionsPage />} />
       <Route path="/admin/tutoriais" element={<AdminTutorialsPage />} />
       <Route path="/admin/marketplace" element={<AdminMarketplacePage />} />
+      <Route path="/admin/feedbacks" element={<AdminFeedbacksPage />} />
 
       <Route path="/admin/bot-config" element={<AdminBotConfigPage />} />
       <Route path="/admin/marketplace-global" element={<AdminGlobalMarketplacePage />} />
