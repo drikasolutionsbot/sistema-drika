@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, getTenantLang } from "../_shared/i18n.ts";
+import { formatCdnUrl } from "../_shared/utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -196,11 +197,11 @@ function buildEmbed(embedData: any, replaceVars: (t: string) => string, tenant: 
     description: embedData.description ? replaceVars(embedData.description) : replaceVars(tr(lang, "welcome_desc")),
   };
 
-  if (embedData.image_url) embed.image = { url: replaceVars(embedData.image_url) };
-  if (embedData.thumbnail_url) embed.thumbnail = { url: replaceVars(embedData.thumbnail_url) };
+  if (embedData.image_url) embed.image = { url: formatCdnUrl(replaceVars(embedData.image_url)) };
+  if (embedData.thumbnail_url) embed.thumbnail = { url: formatCdnUrl(replaceVars(embedData.thumbnail_url)) };
   if (embedData.footer_text) {
     embed.footer = { text: replaceVars(embedData.footer_text) };
-    if (embedData.footer_icon_url) embed.footer.icon_url = replaceVars(embedData.footer_icon_url);
+    if (embedData.footer_icon_url) embed.footer.icon_url = formatCdnUrl(replaceVars(embedData.footer_icon_url));
   }
   if (embedData.timestamp) embed.timestamp = new Date().toISOString();
   if (embedData.fields?.length) {
