@@ -48,15 +48,55 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
           description: "Olá {username}, ficamos felizes em ter você aqui no **{server}**!\n\nVocê é o nosso membro de número **{memberCount}**.",
           footer_text: "Aproveite sua estadia!",
           timestamp: true,
-          // Use globalBotBanner if available, else tenant banner
           image_url: globalBotBanner || tenant?.banner_url || ""
+        };
+      case "member_join":
+        return {
+          color: "#3ba55c",
+          title: "Membro Entrou",
+          description: "**{username}** (`{user_id}`) entrou no servidor.",
+          timestamp: true,
         };
       case "member_leave":
         return {
-          color: "#ED4245",
+          color: "#ed4245",
           title: "Membro Saiu",
-          description: "O membro **{username}** saiu do servidor.",
-          footer_text: "Sentiremos saudades!",
+          description: "**{username}** (`{user_id}`) saiu do servidor.",
+          timestamp: true,
+        };
+      case "member_messages":
+        return {
+          color: "#fee75c",
+          title: "Mensagem Alterada",
+          description: "Mensagem editada ou excluída no servidor.",
+          timestamp: true,
+        };
+      case "traffic":
+        return {
+          color: "#5865F2",
+          title: "Tráfego do Servidor",
+          description: "Relatório de fluxo de membros.",
+          timestamp: true,
+        };
+      case "verification":
+        return {
+          color: "#57F287",
+          title: "Verificação Concluída",
+          description: "O membro **{username}** concluiu a verificação com sucesso.",
+          timestamp: true,
+        };
+      case "logs_system":
+        return {
+          color: "#5865F2",
+          title: "Log de Sistema",
+          description: "Registro de operação do sistema.",
+          timestamp: true,
+        };
+      case "logs_commands":
+        return {
+          color: "#EB459E",
+          title: "Uso de Comando",
+          description: "O membro **{username}** utilizou um comando.",
           timestamp: true,
         };
       case "logs_sales":
@@ -70,8 +110,62 @@ export default function ChannelEmbedsTab({ configs, refetchConfigs, channelSecti
           ],
           timestamp: true,
         };
+      case "logs_events":
+        return {
+          color: "#fee75c",
+          title: "Evento de Compra",
+          description: "Registro de etapa no fluxo de compras.",
+          timestamp: true,
+        };
+      case "logs_feedback":
+        return {
+          color: "#FEE75C",
+          title: "Novo Feedback",
+          description: "Uma nova avaliação foi enviada por **{username}**.",
+          timestamp: true,
+        };
+      case "logs_moderation_bans":
+        return {
+          color: "#ED4245",
+          title: "Membro Banido",
+          description: "**{username}** foi banido(a) do servidor.",
+          timestamp: true,
+        };
+      case "logs_moderation_kicks":
+        return {
+          color: "#ED4245",
+          title: "Membro Expulso",
+          description: "**{username}** foi expulso(a) do servidor.",
+          timestamp: true,
+        };
+      case "logs_moderation_timeouts":
+        return {
+          color: "#FEE75C",
+          title: "Membro Silenciado",
+          description: "**{username}** recebeu um timeout.",
+          timestamp: true,
+        };
+      case "logs_roles_added":
+        return { color: "#57F287", title: "Cargo Adicionado", description: "Um cargo foi adicionado a um membro.", timestamp: true };
+      case "logs_roles_removed":
+        return { color: "#ED4245", title: "Cargo Removido", description: "Um cargo foi removido de um membro.", timestamp: true };
+      case "logs_roles_created":
+      case "logs_roles_deleted":
+      case "logs_roles_edited":
+        return { color: "#5865F2", title: "Alteração de Cargos", description: "Um cargo foi criado, deletado ou editado no servidor.", timestamp: true };
+      case "logs_channels_created":
+      case "logs_channels_edited":
+      case "logs_channels_deleted":
+        return { color: "#5865F2", title: "Alteração de Canais", description: "Um canal foi modificado no servidor.", timestamp: true };
+      case "logs_perms_added":
+      case "logs_perms_removed":
+        return { color: "#FEE75C", title: "Alteração de Permissões", description: "Permissões de membro ou cargo modificadas.", timestamp: true };
+      case "logs_tickets_opened":
+        return { color: "#5865F2", title: "Ticket Aberto", description: "Um novo ticket de suporte foi aberto.", timestamp: true };
+      case "logs_tickets_closed":
+        return { color: "#ED4245", title: "Ticket Fechado", description: "Um ticket de suporte foi encerrado.", timestamp: true };
       default:
-        return {};
+        return { color: "#2B2D31", title: "Título do Embed", description: "Esta é a descrição do embed. Você pode usar **negrito**, *itálico* e outros formatos." };
     }
   };
 
