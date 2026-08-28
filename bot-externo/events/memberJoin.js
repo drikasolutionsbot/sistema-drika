@@ -92,8 +92,7 @@ module.exports = async function handleMemberJoin(client, member) {
   }
 
   // ── Welcome System ──
-  const welcomeConfig = await getWelcomeConfig(tenant.id);
-  if (!welcomeConfig || !welcomeConfig.enabled) return;
+  const welcomeConfig = await getWelcomeConfig(tenant.id) || {};
 
   // 1. Auto Role
   if (welcomeConfig.auto_role_enabled && welcomeConfig.auto_role_id) {
@@ -141,12 +140,11 @@ module.exports = async function handleMemberJoin(client, member) {
   }
 
   // 2. Channel Welcome Message
-  if (welcomeConfig.channel_enabled) {
-    try {
-      const welcomeConf = await getChannelConfig(tenant.id, "welcome");
-      const targetChannelId = (welcomeConf && welcomeConf.discord_channel_id) || welcomeConfig.channel_id;
-      if (targetChannelId) {
-        const channel = await member.guild.channels.fetch(targetChannelId);
+  try {
+    const welcomeConf = await getChannelConfig(tenant.id, "welcome");
+    const targetChannelId = (welcomeConf && welcomeConf.discord_channel_id) || (welcomeConfig.channel_enabled ? welcomeConfig.channel_id : null);
+    if (targetChannelId) {
+      const channel = await member.guild.channels.fetch(targetChannelId).catch(()=>null);
       if (channel) {
         const finalEmbedData = (welcomeConf && welcomeConf.embed_config) ? welcomeConf.embed_config : welcomeConfig.embed_data;
         const finalContentText = (welcomeConf && welcomeConf.content !== undefined && welcomeConf.content !== null) ? welcomeConf.content : welcomeConfig.content;
@@ -162,10 +160,9 @@ module.exports = async function handleMemberJoin(client, member) {
           await sendWithIdentity(channel, tenant, payload);
         }
       }
-      }
-    } catch (e) {
-      console.error(`[welcome] Channel message error:`, e.message);
     }
+  } catch (e) {
+    console.error(`[welcome] Channel message error:`, e.message);
   }
 
   // 3. DM Welcome Message
@@ -230,13 +227,12 @@ module.exports.handleMemberLeave = async function handleMemberLeave(client, memb
     console.error(`[memberLeave] Log error:`, e.message);
   }
 
-  const welcomeConfig = await getWelcomeConfig(tenant.id);
-  if (!welcomeConfig || !welcomeConfig.enabled || !welcomeConfig.goodbye_enabled) return;
-
-  if (!welcomeConfig.goodbye_channel_id) return;
+  const welcomeConfig = await getWelcomeConfig(tenant.id) || {};
+  const goodbyeChannelId = welcomeConfig.goodbye_enabled ? welcomeConfig.goodbye_channel_id : null;
+  if (!goodbyeChannelId) return;
 
   try {
-    const channel = await member.guild.channels.fetch(welcomeConfig.goodbye_channel_id);
+    const channel = await member.guild.channels.fetch(goodbyeChannelId).catch(()=>null);
     if (!channel) return;
 
     const embed = buildEmbed(welcomeConfig.goodbye_embed_data, member, tenant);
