@@ -4,7 +4,7 @@ const {
 } = require("discord.js");
 const {
   getStoreConfig, createTicket, getOpenTickets, closeTicket,
-  getTicketById, supabase,
+  getTicketById, supabase, applyCdn
 } = require("../supabase");
 const { sendWithIdentity } = require("./webhookSender");
 const { applyDrikaCover } = require("../drikaTemplate");
@@ -202,7 +202,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     .setTimestamp();
 
   if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
-  if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(storeConfig.ticket_embed_thumbnail_url);
+  if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(applyCdn(storeConfig.ticket_embed_thumbnail_url));
   applyDrikaCover(welcomeEmbed, tenant);
 
   const row1 = new ActionRowBuilder().addComponents(

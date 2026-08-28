@@ -6,6 +6,8 @@
  * Para trocar a imagem oficial, edite apenas a constante DRIKA_COVER_URL abaixo.
  */
 
+const { applyCdn } = require("./supabase");
+
 let DRIKA_COVER_URL = process.env.DRIKA_COVER_URL || null;
 
 function setGlobalCover(url) {
@@ -40,7 +42,7 @@ function applyDrikaCover(embed, tenant = null) {
   // Isso remove o banner global "Drika Hub" de todas as mensagens.
   if (tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master" && tenant.bot_banner_url) {
     if (embed && typeof embed.setImage === "function") {
-      embed.setImage(tenant.bot_banner_url);
+      embed.setImage(applyCdn(tenant.bot_banner_url));
     }
   }
   return embed;
@@ -56,7 +58,7 @@ function applyDrikaTemplate(embed, type) {
   if (typeof embed.setDescription === "function") embed.setDescription(tpl.description);
   
   // Here we don't have tenant, but this function is actually unused right now.
-  if (DRIKA_COVER_URL && typeof embed.setImage === "function") embed.setImage(DRIKA_COVER_URL);
+  if (DRIKA_COVER_URL && typeof embed.setImage === "function") embed.setImage(applyCdn(DRIKA_COVER_URL));
   return embed;
 }
 

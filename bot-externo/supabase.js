@@ -8,17 +8,8 @@ const supabase = createClient(
 
 // ── CDN Helper ──
 function applyCdn(url) {
-  if (!url || !process.env.CDN_URL) return url;
-  try {
-    const originalUrl = new URL(url);
-    const cdnUrl = new URL(process.env.CDN_URL);
-    // Only replace if it's pointing to our supabase domain
-    if (originalUrl.hostname.includes('supabase.co')) {
-      originalUrl.hostname = cdnUrl.hostname;
-      return originalUrl.toString();
-    }
-  } catch (e) {}
-  return url;
+  if (!url) return url;
+  return url.replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev");
 }
 
 // ── In-Memory Cache ──

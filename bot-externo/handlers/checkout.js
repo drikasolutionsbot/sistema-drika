@@ -7,7 +7,7 @@ const {
   getProducts, getProductById, getProductFields, countStock, getAvailableStock,
   createOrder, getOrder, updateOrderStatus, deliverStockItems,
   getStoreConfig, getCoupon, incrementCouponUsage,
-  getActivePaymentProvider, triggerAutomation, deliverOrder, supabase,
+  getActivePaymentProvider, triggerAutomation, deliverOrder, supabase, applyCdn
 } = require("../supabase");
 const { sendWithIdentity, editWithIdentity } = require("./webhookSender");
 
@@ -308,8 +308,8 @@ async function startCheckout(interaction, tenant, productId) {
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
       .setColor(embedColor);
-    if (product.banner_url) embed.setImage(product.banner_url);
-    if (product.icon_url) embed.setThumbnail(product.icon_url);
+    if (product.banner_url) embed.setImage(applyCdn(product.banner_url));
+    if (product.icon_url) embed.setThumbnail(applyCdn(product.icon_url));
 
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder().setCustomId(`select_variation:${productId}`).setPlaceholder("Clique aqui para ver as opções").addOptions(options)
@@ -1264,8 +1264,8 @@ async function viewDetails(interaction, tenant, productId) {
   if (fields.length > 0) {
     embed.addFields({ name: "📋 Variações", value: `${fields.length} opções disponíveis`, inline: true });
   }
-  if (product.banner_url) embed.setImage(product.banner_url);
-  if (product.icon_url) embed.setThumbnail(product.icon_url);
+  if (product.banner_url) embed.setImage(applyCdn(product.banner_url));
+  if (product.icon_url) embed.setThumbnail(applyCdn(product.icon_url));
 
   return interaction.reply({ embeds: [embed], ephemeral: true });
 }

@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { supabase, getStoreConfig, getChannelConfig } = require("../supabase");
+const { supabase, getStoreConfig, getChannelConfig, applyCdn } = require("../supabase");
 const { sendWithIdentity } = require("../handlers/webhookSender");
 const { applyDrikaCover } = require("../drikaTemplate");
 
@@ -35,10 +35,7 @@ function replacePlaceholders(text, member) {
     .replace(/\{guild_id\}/gi, member.guild.id);
 }
 
-function formatCdnUrl(url) {
-  if (!url) return url;
-  return url.replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev");
-}
+
 
 // ── Build embed from config ──
 function buildEmbed(embedData, member, tenant) {
@@ -53,18 +50,18 @@ function buildEmbed(embedData, member, tenant) {
   if (embedData.description) embed.setDescription(replacePlaceholders(embedData.description, member));
 
   if (embedData.thumbnail_url) {
-    const thumbUrl = formatCdnUrl(replacePlaceholders(embedData.thumbnail_url, member));
+    const thumbUrl = applyCdn(replacePlaceholders(embedData.thumbnail_url, member));
     if (thumbUrl) embed.setThumbnail(thumbUrl);
   }
 
   if (embedData.image_url) {
-    const imgUrl = formatCdnUrl(replacePlaceholders(embedData.image_url, member));
+    const imgUrl = applyCdn(replacePlaceholders(embedData.image_url, member));
     if (imgUrl) embed.setImage(imgUrl);
   }
 
   if (embedData.footer_text) {
     const footer = { text: replacePlaceholders(embedData.footer_text, member) };
-    if (embedData.footer_icon_url) footer.iconURL = formatCdnUrl(replacePlaceholders(embedData.footer_icon_url, member));
+    if (embedData.footer_icon_url) footer.iconURL = applyCdn(replacePlaceholders(embedData.footer_icon_url, member));
     embed.setFooter(footer);
   }
 
