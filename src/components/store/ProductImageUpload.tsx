@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import imageCompression from "browser-image-compression";
 
 interface ProductImageUploadProps {
   label: string;
@@ -49,14 +50,37 @@ export const ProductImageUpload = ({
 
       setUploading(true);
       try {
-        const ext = file.name.split(".").pop() || "png";
+        let fileToUpload = file;
+        let ext = file.name.split(".").pop() || "png";
+
+        try {
+          const options = {
+            maxSizeMB: 0.2,
+            maxWidthOrHeight: aspect === "square" ? 600 : 1200,
+            useWebWorker: true,
+            fileType: "image/webp"
+          };
+          fileToUpload = await imageCompression(file, options);
+          ext = "webp";
+        } catch (err) {
+          console.error("Compression error", err);
+        }
+
         const path = `${tenantId}/products/${productId}/${aspect}-${Date.now()}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from("tenant-assets")
-          .upload(path, file, { upsert: true });
+          .upload(path, fileToUpload, { upsert: true });
 
         if (uploadError) throw uploadError;
+
+        // Delete old file if it exists
+        if (currentUrl && currentUrl.includes("/tenant-assets/")) {
+          const oldPath = currentUrl.split("/tenant-assets/")[1]?.split("?")[0];
+          if (oldPath) {
+            await supabase.storage.from("tenant-assets").remove([oldPath]).catch(console.error);
+          }
+        }
 
         const { data: publicData } = supabase.storage
           .from("tenant-assets")

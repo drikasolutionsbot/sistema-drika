@@ -84,6 +84,15 @@ export function ImageUploadField({
         const path = `${tenantId}/giveaways/${fieldKey}-${Date.now()}.${ext}`;
         const { error } = await supabase.storage.from("tenant-assets").upload(path, toUpload, { upsert: true });
         if (error) throw error;
+
+        // Delete old file if it exists
+        if (value && value.includes("/tenant-assets/")) {
+          const oldPath = value.split("/tenant-assets/")[1]?.split("?")[0];
+          if (oldPath) {
+            await supabase.storage.from("tenant-assets").remove([oldPath]).catch(console.error);
+          }
+        }
+
         const { data: publicData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
         onChangeUrl(publicData.publicUrl);
         toast({ title: "Imagem enviada! ✅" });

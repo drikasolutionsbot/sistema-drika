@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
+import imageCompression from "browser-image-compression";
 
 interface ImageUploadFieldProps {
   label: string;
@@ -29,15 +30,42 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds", maxSizeKB
     
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "png";
+      let fileToUpload = file;
+      let ext = file.name.split(".").pop() || "png";
+      
+      // Compress if it's a standard image (not a QR code with maxSizeKB)
+      if (!maxSizeKB && file.type.startsWith("image/")) {
+        try {
+          const options = {
+            maxSizeMB: 0.2, // ~200KB
+            maxWidthOrHeight: folder === "avatars" ? 512 : 1200,
+            useWebWorker: true,
+            fileType: "image/webp"
+          };
+          fileToUpload = await imageCompression(file, options);
+          ext = "webp";
+        } catch (err) {
+          console.error("Compression error", err);
+        }
+      }
+
       const path = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage
         .from("tenant-assets")
-        .upload(path, file, { upsert: true });
+        .upload(path, fileToUpload, { upsert: true });
       if (error) throw error;
+      
+      // Delete old file if it exists and is hosted on our Supabase bucket
+      if (value && value.includes("/tenant-assets/")) {
+        const oldPath = value.split("/tenant-assets/")[1]?.split("?")[0];
+        if (oldPath) {
+          await supabase.storage.from("tenant-assets").remove([oldPath]).catch(console.error);
+        }
+      }
+
       const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
       onChange(data.publicUrl);
-      toast.success("Imagem enviada!");
+      toast.success("Imagem enviada com sucesso!");
     } catch (err: any) {
       toast.error("Erro ao enviar: " + (err.message || "Tente novamente"));
     } finally {
