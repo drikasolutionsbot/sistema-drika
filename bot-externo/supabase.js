@@ -347,7 +347,6 @@ module.exports = {
   getProtectionSettings,
   getProtectionWhitelist,
   logProtection,
-  deleteTicket,
   verifyTenantConfig,
   clearCache,
   applyCdn,
