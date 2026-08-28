@@ -36,7 +36,7 @@ function replacePlaceholders(text, member) {
 }
 
 // ── Build embed from config ──
-function buildEmbed(embedData, member) {
+function buildEmbed(embedData, member, tenant) {
   if (!embedData) return null;
 
   let fallbackColor = embedData.color || "#FF69B4";
@@ -109,7 +109,7 @@ module.exports = async function handleMemberJoin(client, member) {
     try {
       const channel = await member.guild.channels.fetch(welcomeConfig.channel_id);
       if (channel) {
-        const embed = buildEmbed(welcomeConfig.embed_data, member);
+        const embed = buildEmbed(welcomeConfig.embed_data, member, tenant);
         const content = replacePlaceholders(welcomeConfig.content || "", member);
 
         const payload = {};
@@ -128,7 +128,7 @@ module.exports = async function handleMemberJoin(client, member) {
   // 3. DM Welcome Message
   if (welcomeConfig.dm_enabled) {
     try {
-      const embed = buildEmbed(welcomeConfig.dm_embed_data, member);
+      const embed = buildEmbed(welcomeConfig.dm_embed_data, member, tenant);
       const content = replacePlaceholders(welcomeConfig.dm_content || "", member);
 
       const payload = {};
@@ -160,7 +160,7 @@ module.exports.handleMemberLeave = async function handleMemberLeave(client, memb
     const channel = await member.guild.channels.fetch(welcomeConfig.goodbye_channel_id);
     if (!channel) return;
 
-    const embed = buildEmbed(welcomeConfig.goodbye_embed_data, member);
+    const embed = buildEmbed(welcomeConfig.goodbye_embed_data, member, tenant);
     const content = replacePlaceholders(welcomeConfig.goodbye_content || "", member);
 
     const payload = {};
