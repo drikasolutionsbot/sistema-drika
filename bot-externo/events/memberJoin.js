@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { supabase, getStoreConfig } = require("../supabase");
+const { supabase, getStoreConfig, getChannelConfig } = require("../supabase");
 const { sendWithIdentity } = require("../handlers/webhookSender");
 const { applyDrikaCover } = require("../drikaTemplate");
 
@@ -104,10 +104,34 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   }
 
+  // ── Log de Entrada (channel_configs: member_join) ──
+  try {
+    const joinChannelId = await getChannelConfig(tenant.id, "member_join");
+    if (joinChannelId) {
+      const joinChannel = await member.guild.channels.fetch(joinChannelId).catch(() => null);
+      if (joinChannel) {
+        const joinEmbed = new EmbedBuilder()
+          .setColor("#3ba55c")
+          .setAuthor({ name: "Membro Entrou", iconURL: member.user.displayAvatarURL() || undefined })
+          .setDescription(`**${member.user.username}** (\`${member.user.id}\`) entrou no servidor.`)
+          .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }) || null)
+          .addFields({ name: "Conta criada em", value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>` })
+          .setTimestamp();
+        
+        applyDrikaCover(joinEmbed, tenant);
+        await joinChannel.send({ embeds: [joinEmbed] }).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.error(`[memberJoin] Log error:`, e.message);
+  }
+
   // 2. Channel Welcome Message
-  if (welcomeConfig.channel_enabled && welcomeConfig.channel_id) {
+  if (welcomeConfig.channel_enabled) {
     try {
-      const channel = await member.guild.channels.fetch(welcomeConfig.channel_id);
+      const targetChannelId = await getChannelConfig(tenant.id, "welcome") || welcomeConfig.channel_id;
+      if (targetChannelId) {
+        const channel = await member.guild.channels.fetch(targetChannelId);
       if (channel) {
         const embed = buildEmbed(welcomeConfig.embed_data, member, tenant);
         const content = replacePlaceholders(welcomeConfig.content || "", member);
@@ -119,6 +143,7 @@ module.exports = async function handleMemberJoin(client, member) {
         if (payload.content || payload.embeds) {
           await sendWithIdentity(channel, tenant, payload);
         }
+      }
       }
     } catch (e) {
       console.error(`[welcome] Channel message error:`, e.message);
@@ -150,6 +175,28 @@ module.exports = async function handleMemberJoin(client, member) {
 module.exports.handleMemberLeave = async function handleMemberLeave(client, member) {
   const tenant = await client.resolveTenant(member.guild.id);
   if (!tenant) return;
+
+  // ── Log de Saída (channel_configs: member_leave) ──
+  try {
+    const leaveChannelId = await getChannelConfig(tenant.id, "member_leave");
+    if (leaveChannelId) {
+      const leaveChannel = await member.guild.channels.fetch(leaveChannelId).catch(() => null);
+      if (leaveChannel) {
+        const leaveEmbed = new EmbedBuilder()
+          .setColor("#ed4245")
+          .setAuthor({ name: "Membro Saiu", iconURL: member.user.displayAvatarURL() || undefined })
+          .setDescription(`**${member.user.username}** (\`${member.user.id}\`) saiu do servidor.`)
+          .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }) || null)
+          .addFields({ name: "Entrou em", value: member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : "Desconhecido" })
+          .setTimestamp();
+        
+        applyDrikaCover(leaveEmbed, tenant);
+        await leaveChannel.send({ embeds: [leaveEmbed] }).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.error(`[memberLeave] Log error:`, e.message);
+  }
 
   const welcomeConfig = await getWelcomeConfig(tenant.id);
   if (!welcomeConfig || !welcomeConfig.enabled || !welcomeConfig.goodbye_enabled) return;
