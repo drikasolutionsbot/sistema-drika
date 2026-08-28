@@ -169,6 +169,7 @@ const EmbedForm = ({ embed, onChange, hideFields = false, hideButtons = false }:
             )}
           </AccordionContent>
         </AccordionItem>
+        )}
 
         {/* Buttons */}
         {!hideButtons && (
