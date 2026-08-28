@@ -1,4 +1,5 @@
 const { WebhookClient } = require("discord.js");
+const { applyCdn } = require("../supabase");
 
 // Cache de webhooks por canal-base (canal pai quando for tópico)
 const webhookCache = new Map();
@@ -23,7 +24,7 @@ async function resolveChannelWebhooks(channel) {
  */
 async function sendWithIdentity(channel, tenant, options) {
   const botName = tenant?.bot_name || tenant?.name || "Drika Bot";
-  const botAvatar = tenant?.bot_avatar_url || null;
+  const botAvatar = applyCdn(tenant?.bot_avatar_url) || null;
   const webhookChannel = resolveWebhookChannel(channel);
   const isThreadTarget = channel?.isThread?.();
   const cacheKey = webhookChannel?.id || channel?.id;
