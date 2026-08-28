@@ -148,8 +148,11 @@ module.exports = async function handleMemberJoin(client, member) {
       if (targetChannelId) {
         const channel = await member.guild.channels.fetch(targetChannelId);
       if (channel) {
-        const embed = buildEmbed(welcomeConfig.embed_data, member, tenant);
-        const content = replacePlaceholders(welcomeConfig.content || "", member);
+        const finalEmbedData = (welcomeConf && welcomeConf.embed_config) ? welcomeConf.embed_config : welcomeConfig.embed_data;
+        const finalContentText = (welcomeConf && welcomeConf.content !== undefined && welcomeConf.content !== null) ? welcomeConf.content : welcomeConfig.content;
+        
+        const embed = buildEmbed(finalEmbedData, member, tenant);
+        const content = replacePlaceholders(finalContentText || "", member);
 
         const payload = {};
         if (content) payload.content = content;
