@@ -36,13 +36,12 @@ const DRIKA_TEMPLATES = {
  * Chamar SEMPRE depois das outras configurações para garantir override.
  */
 function applyDrikaCover(embed, tenant = null) {
-  let coverToUse = DRIKA_COVER_URL;
+  // Aplica a capa APENAS se o cliente for Master e tiver um banner personalizado.
+  // Isso remove o banner global "Drika Hub" de todas as mensagens.
   if (tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master" && tenant.bot_banner_url) {
-    coverToUse = tenant.bot_banner_url;
-  }
-  
-  if (coverToUse && embed && typeof embed.setImage === "function") {
-    embed.setImage(coverToUse);
+    if (embed && typeof embed.setImage === "function") {
+      embed.setImage(tenant.bot_banner_url);
+    }
   }
   return embed;
 }
