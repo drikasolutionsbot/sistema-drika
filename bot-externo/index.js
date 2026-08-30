@@ -43,6 +43,7 @@ const verificationHandler = require("./handlers/verification");
 
 // ── Status polling ──
 let lastAppliedStatus = null;
+let lastForceReapplyAt = null;
 
 function normalizeStatus(rawStatus) {
   const fallback = "/panel";
@@ -67,6 +68,20 @@ async function syncBotStatus() {
       if (client.user && typeof client.user.setBanner === "function") {
         try { await client.user.setBanner(config.global_bot_banner_url); } catch (e) { console.error("Banner set err:", e.message); }
       }
+    }
+
+    if (config?.global_bot_banner_force_reapply_at) {
+      if (lastForceReapplyAt !== null && lastForceReapplyAt !== config.global_bot_banner_force_reapply_at) {
+        console.log("[BANNER] Detectada solicitação de reaplicação global do banner. Invocando edge function...");
+        fetch(`${process.env.SUPABASE_URL}/functions/v1/sync-global-banner`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+          }
+        }).catch(err => console.error("[BANNER] Falha ao invocar edge function:", err.message));
+      }
+      lastForceReapplyAt = config.global_bot_banner_force_reapply_at;
     }
 
     if (status === lastAppliedStatus) return;

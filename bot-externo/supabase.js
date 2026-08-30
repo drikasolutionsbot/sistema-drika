@@ -303,7 +303,7 @@ async function deliverOrder(orderId, tenantId) {
 
 // ── Global Bot Config ──
 async function getGlobalBotConfig() {
-  const { data } = await supabase.from("landing_config").select("global_bot_status, global_bot_banner_url").limit(1).single();
+  const { data } = await supabase.from("landing_config").select("global_bot_status, global_bot_banner_url, global_bot_banner_force_reapply_at").limit(1).single();
   return data;
 }
 
