@@ -31,7 +31,11 @@ const SettingsBotCustomizationTab = ({ tenant, tenantId, refetchTenant }: Props)
         .upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      setBotAvatarUrl(data.publicUrl);
+      const cdnUrl = import.meta.env.VITE_CDN_URL;
+      const finalUrl = cdnUrl 
+        ? data.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
+        : data.publicUrl;
+      setBotAvatarUrl(finalUrl);
       toast({ title: "Avatar enviado!" });
     } catch (err: any) {
       toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });

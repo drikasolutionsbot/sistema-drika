@@ -102,7 +102,11 @@ const AdminBotConfigPage = () => {
         .upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      setBannerUrl(data.publicUrl);
+      const cdnUrl = import.meta.env.VITE_CDN_URL;
+      const finalUrl = cdnUrl 
+        ? data.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
+        : data.publicUrl;
+      setBannerUrl(finalUrl);
       toast({ title: "Banner enviado!" });
     } catch (err: any) {
       toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
@@ -207,7 +211,7 @@ const AdminBotConfigPage = () => {
           {bannerUrl ? (
             <div className="relative">
               <img 
-                src={bannerUrl.startsWith("http") ? bannerUrl : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bannerUrl.startsWith("tenant-assets") ? bannerUrl : `tenant-assets/${bannerUrl}`}`}
+                src={bannerUrl.startsWith("http") ? bannerUrl : `${import.meta.env.VITE_CDN_URL || import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bannerUrl.startsWith("tenant-assets") ? bannerUrl : `tenant-assets/${bannerUrl}`}`}
                 alt="Banner" 
                 className="h-20 w-40 rounded-lg object-cover border border-border" 
               />
