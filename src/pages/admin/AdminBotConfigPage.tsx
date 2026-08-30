@@ -206,7 +206,11 @@ const AdminBotConfigPage = () => {
         <div className="flex items-center gap-3">
           {bannerUrl ? (
             <div className="relative">
-              <img src={bannerUrl} alt="Banner" className="h-20 w-40 rounded-lg object-cover border border-border" />
+              <img 
+                src={bannerUrl.startsWith("http") ? bannerUrl : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${bannerUrl.startsWith("tenant-assets") ? bannerUrl : `tenant-assets/${bannerUrl}`}`}
+                alt="Banner" 
+                className="h-20 w-40 rounded-lg object-cover border border-border" 
+              />
               <button
                 onClick={() => setBannerUrl("")}
                 className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive flex items-center justify-center"
