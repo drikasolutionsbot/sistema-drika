@@ -207,14 +207,20 @@ serve(async (req) => {
       }
     }
 
-    // If bot_name, bot_avatar_url or bot_banner_url was updated, sync in Discord server
-    if ((safeUpdates.bot_name || safeUpdates.bot_avatar_url || "bot_banner_url" in safeUpdates) && data.discord_guild_id && tenantBotToken) {
+    // Se o cliente alterou informações do bot OU acabou de vincular o bot (discord_guild_id)
+    const guildIdChanged = "discord_guild_id" in safeUpdates;
+    const shouldSyncDiscordProfile = "bot_name" in safeUpdates || 
+                                     "bot_avatar_url" in safeUpdates || 
+                                     "bot_banner_url" in safeUpdates || 
+                                     guildIdChanged;
+
+    if (shouldSyncDiscordProfile && data.discord_guild_id && tenantBotToken) {
       try {
         const memberPatch: Record<string, any> = {};
 
-        if (safeUpdates.bot_name) {
-          memberPatch.nick = safeUpdates.bot_name;
-        }
+        // Usa o nome novo ou o que já estava no banco
+        const newBotName = "bot_name" in safeUpdates ? safeUpdates.bot_name : data.bot_name;
+        if (newBotName) memberPatch.nick = newBotName;
 
         // Helper: download URL → data URI base64 (chunked p/ evitar stack overflow)
         const urlToDataUri = async (url: string): Promise<string | null> => {
@@ -239,9 +245,12 @@ serve(async (req) => {
           }
         };
 
-        if (safeUpdates.bot_avatar_url) {
-          const dataUri = await urlToDataUri(safeUpdates.bot_avatar_url);
+        const newAvatarUrl = "bot_avatar_url" in safeUpdates ? safeUpdates.bot_avatar_url : data.bot_avatar_url;
+        if (newAvatarUrl) {
+          const dataUri = await urlToDataUri(newAvatarUrl);
           if (dataUri) memberPatch.avatar = dataUri;
+        } else if ("bot_avatar_url" in safeUpdates && !safeUpdates.bot_avatar_url) {
+          memberPatch.avatar = null;
         }
 
         // Banner é Master-only (já validado acima, então se chegou aqui é permitido)
@@ -252,12 +261,20 @@ serve(async (req) => {
           } else {
             memberPatch.banner = null; // remover banner
           }
-        } else if (data?.plan !== "master") {
-          // Fallback para a capa global se o cliente for padrão e estiver atualizando o bot
-          const { data: config } = await supabase.from("landing_config").select("global_bot_banner_url").limit(1).single();
-          if (config?.global_bot_banner_url) {
-            const dataUri = await urlToDataUri(config.global_bot_banner_url);
-            if (dataUri) memberPatch.banner = dataUri;
+        } else if (guildIdChanged) {
+          // Se for uma nova vinculação (guildIdChanged), precisamos aplicar o banner correto
+          if (data?.plan === "master") {
+            if (data.bot_banner_url) {
+              const dataUri = await urlToDataUri(data.bot_banner_url);
+              if (dataUri) memberPatch.banner = dataUri;
+            }
+          } else {
+            // Fallback para a capa global se o cliente for padrão e acabou de adicionar o bot
+            const { data: config } = await supabase.from("landing_config").select("global_bot_banner_url").limit(1).single();
+            if (config?.global_bot_banner_url) {
+              const dataUri = await urlToDataUri(config.global_bot_banner_url);
+              if (dataUri) memberPatch.banner = dataUri;
+            }
           }
         }
 

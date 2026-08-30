@@ -34,13 +34,36 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    // 2) Remove a capa do bot na guild via Discord API
+    // 2) Remove a capa do bot na guild via Discord API (e reaplica a global)
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
     let discordCleared = false;
     let discordError: string | null = null;
 
     if (tenant?.discord_guild_id && botToken) {
       try {
+        let bannerDataUri: string | null = null;
+        
+        // Obter capa global para fallback
+        const { data: config } = await supabase.from("landing_config").select("global_bot_banner_url").limit(1).single();
+        if (config?.global_bot_banner_url) {
+          try {
+            const r = await fetch(config.global_bot_banner_url);
+            if (r.ok) {
+              const buf = new Uint8Array(await r.arrayBuffer());
+              let binary = "";
+              const chunk = 8192;
+              for (let i = 0; i < buf.length; i += chunk) {
+                binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+              }
+              const base64 = btoa(binary);
+              const ct = r.headers.get("content-type") || "image/png";
+              bannerDataUri = `data:${ct};base64,${base64}`;
+            }
+          } catch (e) {
+            console.error("Failed to download global banner:", e);
+          }
+        }
+
         const res = await fetch(
           `https://discord.com/api/v10/guilds/${tenant.discord_guild_id}/members/@me`,
           {
@@ -49,7 +72,7 @@ Deno.serve(async (req) => {
               Authorization: `Bot ${botToken}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ banner: null }),
+            body: JSON.stringify({ banner: bannerDataUri }),
           }
         );
         const body = await res.text();
