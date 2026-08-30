@@ -271,11 +271,8 @@ const DashboardPage = () => {
   const disconnectedGuildStorageKey = tenantId ? `last_disconnected_guild:${tenantId}` : null;
 
   const getPreferredReconnectGuildId = useCallback(() => {
-    if (!disconnectedGuildStorageKey) return null;
-    const value = localStorage.getItem(disconnectedGuildStorageKey);
-    if (!value || !/^\d{17,20}$/.test(value)) return null;
-    return value;
-  }, [disconnectedGuildStorageKey]);
+    return null; // Disabled aggressive reconnect to prevent re-linking wrong servers
+  }, []);
 
   const clearPreferredReconnectGuildId = useCallback(() => {
     if (!disconnectedGuildStorageKey) return;
