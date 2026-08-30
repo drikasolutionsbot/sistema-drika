@@ -480,35 +480,9 @@ serve(async (req) => {
       // pode ser vinculado ao tenant atual, mesmo para clientes por e-mail/token sem Discord OAuth.
 
       if (allowStoredReconnect) {
-        const { data: lastDisconnectLog } = await admin
-          .from("tenant_audit_logs")
-          .select("entity_id, entity_name")
-          .eq("tenant_id", resolvedTenantId)
-          .eq("action", "disconnect_server")
-          .not("entity_id", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const previousGuildId = lastDisconnectLog?.entity_id;
-        if (previousGuildId && /^\d{17,20}$/.test(previousGuildId)) {
-          const claimedByOther = (claimedRows || []).some((row: any) => row.id !== resolvedTenantId && row.discord_guild_id === previousGuildId && !canReclaimStaleClaim(previousGuildId));
-          if (!claimedByOther) {
-            const guild = await verifyBotGuild(previousGuildId);
-            if (guild) {
-              const { error: reconnectError } = await admin
-                .from("tenants")
-                .update({ discord_guild_id: previousGuildId, updated_at: new Date().toISOString() })
-                .eq("id", resolvedTenantId)
-                .is("discord_guild_id", null);
-              if (!reconnectError) {
-                return new Response(JSON.stringify({ guilds: [guild], auto_linked: true, source: "stored_reconnect" }), {
-                  headers: { ...corsHeaders, "Content-Type": "application/json" },
-                });
-              }
-            }
-          }
-        }
+        // Aggressive reconnect based on audit logs is disabled
+        // to prevent users from getting stuck in an infinite loop
+        // if they accidentally connected to a wrong server.
       }
 
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
