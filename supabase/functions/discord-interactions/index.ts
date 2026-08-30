@@ -2761,48 +2761,58 @@ serve(async (req: Request) => {
 
         await sendTicketLog(supabase, botToken, ticket, channelId, userId, username, "closed", closeTenant?.name || "Servidor");
 
-        // Archive: send closing message and lock thread
+        // Archive or Delete depending on channel type
         if (channelId) {
-          await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              embeds: [{
-                title: "📁 Ticket Arquivado",
-                description: `Este ticket foi arquivado por <@${userId}>.\nO tópico está agora somente leitura.`,
-                color: 0xFEE75C,
-              }],
-            }),
-          });
-
           try {
             const chanRes = await fetch(`${DISCORD_API}/channels/${channelId}`, {
               headers: { Authorization: `Bot ${botToken}` }
             });
             if (chanRes.ok) {
               const chanData = await chanRes.json();
-              const currentName = chanData.name || "";
-              const newName = currentName.startsWith("🔄 • ") 
-                ? currentName.replace("🔄 • ", "🔒 • ") 
-                : `🔒 • ${currentName}`;
-              await fetch(`${DISCORD_API}/channels/${channelId}`, {
-                method: "PATCH",
-                headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ name: newName.substring(0, 100), archived: true, locked: true }),
-              });
-            } else {
-              await fetch(`${DISCORD_API}/channels/${channelId}`, {
-                method: "PATCH",
-                headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ archived: true, locked: true }),
-              });
+              if (chanData.type === 0) { // GuildText
+                await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+                  method: "POST",
+                  headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    embeds: [{
+                      description: "⏳ O ticket foi arquivado e este canal será excluído automaticamente em 5 segundos...",
+                      color: 0xED4245,
+                    }],
+                  }),
+                });
+                
+                await new Promise(r => setTimeout(r, 4500));
+                
+                await fetch(`${DISCORD_API}/channels/${channelId}`, {
+                  method: "DELETE",
+                  headers: { Authorization: `Bot ${botToken}` }
+                });
+              } else {
+                await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+                  method: "POST",
+                  headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    embeds: [{
+                      title: "📁 Ticket Arquivado",
+                      description: `Este ticket foi arquivado por <@${userId}>.\nO tópico está agora somente leitura.`,
+                      color: 0xFEE75C,
+                    }],
+                  }),
+                });
+
+                const currentName = chanData.name || "";
+                const newName = currentName.startsWith("🔄 • ") 
+                  ? currentName.replace("🔄 • ", "🔒 • ") 
+                  : `🔒 • ${currentName}`;
+                await fetch(`${DISCORD_API}/channels/${channelId}`, {
+                  method: "PATCH",
+                  headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: newName.substring(0, 100), archived: true, locked: true }),
+                });
+              }
             }
-          } catch {
-            await fetch(`${DISCORD_API}/channels/${channelId}`, {
-              method: "PATCH",
-              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ archived: true, locked: true }),
-            });
+          } catch (e) {
+            console.error("Error archiving/deleting channel:", e);
           }
         }
 
