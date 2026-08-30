@@ -395,9 +395,7 @@ const DashboardPage = () => {
 
     const autoGuilds = Array.isArray(autoData.guilds) ? autoData.guilds : [];
     if (autoGuilds.length === 1) {
-      if (autoGuilds[0].name.trim().toLowerCase() === tenant?.name?.trim().toLowerCase()) {
-        return await autoLinkGuild(autoGuilds[0]);
-      }
+      return await autoLinkGuild(autoGuilds[0]);
     }
 
     return false;
@@ -438,30 +436,19 @@ const DashboardPage = () => {
 
           if (newGuilds.length > 0) {
             const guild = newGuilds[0];
-            
-            // Só fazemos auto-link cego no front se o nome bater exatamente
-            if (guild.name.trim().toLowerCase() === tenant?.name?.trim().toLowerCase()) {
-              const { data: verifyData } = await supabase.functions.invoke("discord-bot-guilds", {
-                body: { ...getDiscordRequestBody(), action: "verify_guild", guild_id: guild.id },
-              });
+            const { data: verifyData } = await supabase.functions.invoke("discord-bot-guilds", {
+              body: { ...getDiscordRequestBody(), action: "verify_guild", guild_id: guild.id },
+            });
 
-              if (verifyData?.error) {
-                stopPolling();
-                setWaitingForBot(false);
-                toast.error(verifyData.error);
-                return;
-              }
-
-              const linked = await autoLinkGuild(guild);
-              if (linked) return;
-            } else {
-              // É perigoso auto-linkar um server com nome diferente (pode ser de outro cliente)
+            if (verifyData?.error) {
               stopPolling();
               setWaitingForBot(false);
-              toast.info("Servidor detectado. Selecione qual é o seu na lista abaixo.");
-              openServerModal();
+              toast.error(verifyData.error);
               return;
             }
+
+            const linked = await autoLinkGuild(guild);
+            if (linked) return;
           }
         }
 

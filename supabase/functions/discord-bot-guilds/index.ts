@@ -552,32 +552,28 @@ serve(async (req) => {
         });
       }
 
-      let safeMatchFound = false;
-
       if (discordOwnerCandidates.size > 0) {
         const ownedAvailable = await getOwnedGuilds(finalGuilds, Array.from(discordOwnerCandidates));
         if (ownedAvailable.length > 0) {
           finalGuilds = ownedAvailable;
-          safeMatchFound = true;
         }
       }
 
       // Fallback: when owner mapping isn't available, try exact tenant-name match.
-      if (!safeMatchFound && currentTenant?.name) {
+      if (finalGuilds.length > 1 && currentTenant?.name) {
         const normalizedTenantName = String(currentTenant.name).trim().toLowerCase();
         const nameMatched = finalGuilds.filter((guild: any) => guild.name?.trim().toLowerCase() === normalizedTenantName);
-        if (nameMatched.length > 0) {
+        if (nameMatched.length === 1) {
           finalGuilds = nameMatched;
-          safeMatchFound = true;
         }
       }
 
       // Auto-link seguro: quando há exatamente 1 guild novo E um pending_bot_invite
-      // recente para este tenant, vincula automaticamente, MAS APENAS se o nome bater
-      // ou se o usuário discord for o dono. Evita auto-link de guilds de terceiros!
+      // recente para este tenant, vincula automaticamente. Cobre email/token users
+      // onde o bot-externo guildCreate pode não ter conseguido resolver o owner.
       let autoLinked = false;
 
-      if (safeMatchFound && finalGuilds.length === 1 && pendingInvite) {
+      if (finalGuilds.length === 1 && pendingInvite) {
         const candidateGuild = finalGuilds[0];
         const storedBaseline = Array.isArray((pendingInvite.details as any)?.baseline_guild_ids)
           ? (pendingInvite.details as any).baseline_guild_ids
