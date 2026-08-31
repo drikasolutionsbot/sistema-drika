@@ -681,6 +681,7 @@ const FinancePage = () => {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
