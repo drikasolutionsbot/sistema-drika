@@ -64,6 +64,12 @@ const TicketCategories = () => {
       });
       if (error) {
         console.error("Erro ao carregar emojis:", error);
+        toast.error("Erro ao carregar emojis: " + error.message);
+        return [];
+      }
+      if (data?.error) {
+        console.error("Erro da API:", data.error);
+        toast.error("Erro do Bot: " + data.error);
         return [];
       }
       return data?.emojis || [];
