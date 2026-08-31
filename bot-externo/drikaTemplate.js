@@ -12,6 +12,7 @@ let DRIKA_COVER_URL = process.env.DRIKA_COVER_URL || null;
 
 function setGlobalCover(url) {
   DRIKA_COVER_URL = url;
+  console.log(`[DRIKA_COVER] setGlobalCover chamado → ${url ? url.substring(0, 80) + '...' : 'null'}`);
 }
 
 const DRIKA_TEMPLATES = {
@@ -45,13 +46,18 @@ function applyDrikaCover(embed, tenant = null) {
   if (!embed || typeof embed.setImage !== "function") return embed;
 
   const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
+  const plan = tenant?.plan ?? "(sem tenant)";
 
   if (isMaster && tenant.bot_banner_url) {
     // Master com banner próprio → usa o banner do cliente
+    console.log(`[DRIKA_COVER] Master com banner próprio → ${tenant.bot_banner_url.substring(0, 60)}`);
     embed.setImage(applyCdn(tenant.bot_banner_url));
   } else if (DRIKA_COVER_URL) {
     // Free / Pro (ou master sem banner) → aplica a capa global do bot
+    console.log(`[DRIKA_COVER] Aplicando capa global (plano: ${plan}) → ${DRIKA_COVER_URL.substring(0, 60)}`);
     embed.setImage(applyCdn(DRIKA_COVER_URL));
+  } else {
+    console.warn(`[DRIKA_COVER] ⚠️ Nenhuma capa aplicada! DRIKA_COVER_URL=${DRIKA_COVER_URL}, plano=${plan}, master=${isMaster}`);
   }
 
   return embed;
