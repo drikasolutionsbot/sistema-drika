@@ -329,3 +329,29 @@ div[style*="Edit with Lovable"],
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Custom Scrollbar for DRIKA HUB Theme */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(330 100% 50% / 0.5) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(330 100% 50% / 0.4);
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(330 100% 50% / 0.8);
+}
