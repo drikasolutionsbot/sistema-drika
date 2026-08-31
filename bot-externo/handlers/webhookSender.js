@@ -35,40 +35,24 @@ async function sendWithIdentity(channel, tenant, options) {
     if (!webhook) {
       const webhooks = await resolveChannelWebhooks(channel).catch(() => null);
       const botUserId = channel.client.user?.id;
-      // Procura um webhook nosso no canal
       const existing = webhooks?.find(
-        (w) => w.token && (!botUserId || w.owner?.id === botUserId)
+        (w) => w.name === "Drika Webhook" && w.token && (!botUserId || w.owner?.id === botUserId)
       );
 
       if (existing) {
-        webhook = existing; // Use the full Webhook object to allow editing
+        webhook = new WebhookClient({ id: existing.id, token: existing.token });
       } else {
-        webhook = await webhookChannel.createWebhook({ name: botName.substring(0, 32) });
+        const created = await webhookChannel.createWebhook({ name: "Drika Webhook" });
+        webhook = new WebhookClient({ id: created.id, token: created.token });
       }
-      
+
       webhookCache.set(cacheKey, webhook);
     }
 
-    // Burlação: O Discord remove a capa e biografia se usarmos `username` e `avatarURL` no .send().
-    // Se nós alterarmos o NOME REAL do webhook, ele pode puxar o perfil do App nativamente.
-    // Atualiza apenas se estiver diferente para evitar rate limits pesados do Discord.
-    let needsUpdate = false;
-    if (webhook.name !== botName.substring(0, 32)) needsUpdate = true;
-    
-    if (needsUpdate && typeof webhook.edit === "function") {
-      try {
-        await webhook.edit({ name: botName.substring(0, 32) });
-      } catch (e) {
-        console.warn("Failed to edit webhook name:", e.message);
-      }
-    }
-
-    // Usa o WebhookClient para enviar caso o objeto não tenha o método send (se vier de cache puro)
-    const whClient = new WebhookClient({ id: webhook.id, token: webhook.token });
-    
-    return await whClient.send({
+    return await webhook.send({
       ...options,
-      // REMOVIDO: username e avatarURL daqui. O webhook usará seu nome real editado acima.
+      username: botName,
+      avatarURL: botAvatar,
       ...(isThreadTarget ? { threadId: channel.id } : {}),
     });
   } catch (err) {
