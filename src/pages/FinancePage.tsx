@@ -445,6 +445,7 @@ const FinancePage = () => {
                 <RechartsTooltip
                   contentStyle={{ backgroundColor: "rgba(10,10,15,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: 13, backdropFilter: "blur(10px)" }}
                   itemStyle={{ color: "hsl(330 100% 71%)", fontWeight: "bold" }}
+                  labelStyle={{ color: "rgba(255,255,255,0.6)" }}
                   formatter={(value: number) => [`R$ ${value.toFixed(2)}`, "Receita"]}
                 />
                 <Area type="monotone" dataKey="value" stroke="hsl(330 100% 71%)" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
@@ -494,6 +495,8 @@ const FinancePage = () => {
                   />
                   <RechartsTooltip
                     contentStyle={{ backgroundColor: "rgba(10,10,15,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: 13, backdropFilter: "blur(10px)" }}
+                    itemStyle={{ color: "rgba(255,255,255,0.9)", fontWeight: "bold" }}
+                    labelStyle={{ color: "rgba(255,255,255,0.6)" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -540,6 +543,7 @@ const FinancePage = () => {
                   cursor={{ fill: "rgba(255,255,255,0.05)", radius: 8 }}
                   contentStyle={{ backgroundColor: "rgba(10,10,15,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: 13, backdropFilter: "blur(10px)" }}
                   itemStyle={{ color: "hsl(330 100% 71%)", fontWeight: "bold" }}
+                  labelStyle={{ color: "rgba(255,255,255,0.6)" }}
                   formatter={(value: number) => [value, "Pedidos"]}
                 />
                 <Bar dataKey="count" fill="url(#ordersBarGrad)" radius={[6, 6, 0, 0]} maxBarSize={40} />
