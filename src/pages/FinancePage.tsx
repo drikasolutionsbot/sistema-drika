@@ -305,9 +305,17 @@ const FinancePage = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header - Glassmorphic pill */}
-      <div className="relative rounded-[24px] overflow-hidden p-6 pb-5 border border-white/5 bg-card/30 backdrop-blur-2xl shadow-2xl">
+    <div className="relative min-h-[calc(100vh-100px)]">
+      {/* Ambient background blobs to make glassmorphism visible */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] opacity-70" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px] opacity-70" />
+        <div className="absolute top-[30%] left-[60%] w-[30%] h-[30%] bg-blue-500/15 rounded-full blur-[120px] opacity-60" />
+      </div>
+
+      <div className="space-y-6 animate-fade-in relative z-0">
+        {/* Header - Glassmorphic pill */}
+        <div className="relative rounded-[24px] overflow-hidden p-6 pb-5 border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-primary/10" />
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -383,7 +391,7 @@ const FinancePage = () => {
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
-          <div key={card.label} className="group relative rounded-[20px] border border-white/5 bg-card/20 backdrop-blur-xl overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-card/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/20">
+          <div key={card.label} className="group relative rounded-[20px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden transition-all duration-300 hover:border-white/20 hover:bg-white/[0.05] hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10">
             <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
             <div className="relative p-6">
               <div className="flex items-center justify-between mb-4">
@@ -411,8 +419,8 @@ const FinancePage = () => {
       {/* Charts row */}
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Revenue chart - Area chart like reference */}
-        <div className="lg:col-span-2 rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+        <div className="lg:col-span-2 rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div>
               <h3 className="font-display text-lg font-bold text-white/95">Receita ao longo do tempo</h3>
@@ -450,8 +458,8 @@ const FinancePage = () => {
         </div>
 
         {/* Status distribution - Donut with center label */}
-        <div className="rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden flex flex-col">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -z-10 -translate-x-1/2 -translate-y-1/2" />
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-xl relative overflow-hidden flex flex-col">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 -translate-x-1/2 -translate-y-1/2" />
           <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
               <h3 className="font-display text-lg font-bold text-white/95">Status dos Pedidos</h3>
@@ -508,8 +516,8 @@ const FinancePage = () => {
       {/* Orders per day + Top products */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Orders bar chart */}
-        <div className="lg:col-span-2 rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
+        <div className="lg:col-span-2 rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div>
               <h3 className="font-display text-lg font-bold text-white/95">Pedidos por dia</h3>
@@ -545,8 +553,8 @@ const FinancePage = () => {
         </div>
 
         {/* Top products */}
-        <div className="rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -z-10 -translate-x-1/2 -translate-y-1/2" />
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -z-10 -translate-x-1/2 -translate-y-1/2" />
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div>
               <h3 className="font-display text-lg font-bold text-white/95">Top Produtos</h3>
@@ -579,7 +587,7 @@ const FinancePage = () => {
       </div>
 
       {/* Filters + Table - Card list style */}
-      <div className="rounded-[24px] border border-white/5 bg-card/20 backdrop-blur-md overflow-hidden shadow-2xl">
+      <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden shadow-2xl">
         {/* Filters bar */}
         <div className="flex flex-col sm:flex-row gap-4 p-5 border-b border-white/5 bg-background/40">
           <div className="relative flex-1">
@@ -685,6 +693,7 @@ const FinancePage = () => {
           </div>
         )}
         </div>
+      </div>
       </div>
     </div>
   );
