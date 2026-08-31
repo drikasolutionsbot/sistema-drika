@@ -55,7 +55,7 @@ export default function ApprovalsPage() {
 
   const { data: orders = [], isLoading, isFetching, refetch } = useTenantQuery<any>(
     "approval-orders", "orders",
-    { select: "*", orderBy: "created_at", ascending: false, limit: 1000 }
+    { select: "*, products(icon_url)", orderBy: "created_at", ascending: false, limit: 1000 }
   );
 
   const filteredOrders = orders.filter(o => {
@@ -280,7 +280,11 @@ export default function ApprovalsPage() {
 
                     <div className="flex items-center gap-4 text-sm flex-wrap">
                       <span className="flex items-center gap-1.5 text-foreground">
-                        <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                        {order.products?.icon_url ? (
+                          <img src={order.products.icon_url} alt={order.product_name} className="h-4 w-4 rounded-sm object-cover bg-muted" />
+                        ) : (
+                          <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
                         {order.product_name}
                       </span>
                       <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -416,7 +420,14 @@ export default function ApprovalsPage() {
                       label="Username" 
                       value={order.discord_username || "—"} 
                     />
-                    <DetailItem icon={Package} label="Produto" value={order.product_name} />
+                    <DetailItem 
+                      icon={({ className }) => order.products?.icon_url 
+                        ? <img src={order.products.icon_url} alt="Produto" className={`${className} rounded-sm object-cover bg-muted`} /> 
+                        : <Package className={className} />
+                      }
+                      label="Produto" 
+                      value={order.product_name} 
+                    />
                     <DetailItem icon={Hash} label="Produto ID" value={order.product_id || "—"} mono />
                     <DetailItem icon={DollarSign} label="Total" value={formatBRL(order.total_cents)} highlight />
                     <DetailItem icon={CreditCard} label="Provedor" value={order.payment_provider || "—"} />
