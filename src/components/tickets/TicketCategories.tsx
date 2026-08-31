@@ -22,6 +22,16 @@ interface TicketCategory {
 
 const EMOJI_SUGGESTIONS = ["🎫", "🛒", "🏦", "🤝", "⚡", "💬", "🔧", "📦", "💳", "🌐", "🎮", "📞"];
 
+const renderEmoji = (emoji: string) => {
+  if (!emoji) return null;
+  const match = emoji.match(/<a?:.+?:(\d+)>/);
+  if (match) {
+    const isAnimated = emoji.startsWith("<a:");
+    return <img src={`https://cdn.discordapp.com/emojis/${match[1]}.${isAnimated ? 'gif' : 'png'}`} className="w-6 h-6 object-contain inline-block" alt="emoji" />;
+  }
+  return <span>{emoji}</span>;
+};
+
 const TicketCategories = () => {
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
@@ -144,7 +154,7 @@ const TicketCategories = () => {
           <div className="space-y-1.5">
             {categories.filter(c => c.active).map(cat => (
               <div key={cat.id} className="flex items-center gap-3 rounded-lg bg-[#2B2D31] px-3 py-2.5 hover:bg-[#404249] transition-colors cursor-pointer">
-                <span className="text-lg leading-none">{cat.emoji}</span>
+                <span className="text-lg leading-none flex items-center justify-center">{renderEmoji(cat.emoji)}</span>
                 <div>
                   <p className="text-sm text-white font-medium">{cat.name}</p>
                   {cat.description && <p className="text-xs text-[#B5BAC1]">{cat.description}</p>}
@@ -177,7 +187,7 @@ const TicketCategories = () => {
               className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all ${cat.active ? "border-border bg-card" : "border-border/40 bg-card/50 opacity-60"}`}
             >
               <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0 cursor-grab" />
-              <span className="text-xl leading-none shrink-0">{cat.emoji}</span>
+              <span className="text-xl leading-none shrink-0 flex items-center justify-center w-6 h-6">{renderEmoji(cat.emoji)}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{cat.name}</p>
                 {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
@@ -226,8 +236,8 @@ const TicketCategories = () => {
               <Input
                 value={form.emoji}
                 onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
-                placeholder="🎫"
-                maxLength={8}
+                placeholder="🎫 ou <:nome:123456...>"
+                maxLength={64}
                 className="text-lg"
               />
               <div className="flex flex-wrap gap-1.5 mt-1">
@@ -270,7 +280,7 @@ const TicketCategories = () => {
             {/* Live preview */}
             {(form.emoji || form.name) && (
               <div className="rounded-lg border border-border bg-[#2B2D31] px-3 py-2.5 flex items-center gap-3">
-                <span className="text-lg leading-none">{form.emoji || "🎫"}</span>
+                <span className="text-lg leading-none flex items-center justify-center">{renderEmoji(form.emoji || "🎫")}</span>
                 <div>
                   <p className="text-sm text-white font-medium">{form.name || "Nome da categoria"}</p>
                   {form.description && <p className="text-xs text-[#B5BAC1]">{form.description}</p>}
