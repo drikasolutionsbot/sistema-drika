@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { generateReceipt } from "@/lib/pdfReceipt";
+import { DiscordAvatar } from "@/components/DiscordAvatar";
 
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -410,7 +411,11 @@ export default function ApprovalsPage() {
                     <DetailItem icon={Hash} label="ID do Pedido" value={order.id} mono />
                     <DetailItem icon={Hash} label="Número" value={`#${order.order_number}`} />
                     <DetailItem icon={User} label="Discord ID" value={order.discord_user_id} mono />
-                    <DetailItem icon={User} label="Username" value={order.discord_username || "—"} />
+                    <DetailItem 
+                      icon={({ className }) => <DiscordAvatar userId={order.discord_user_id} className={className} />} 
+                      label="Username" 
+                      value={order.discord_username || "—"} 
+                    />
                     <DetailItem icon={Package} label="Produto" value={order.product_name} />
                     <DetailItem icon={Hash} label="Produto ID" value={order.product_id || "—"} mono />
                     <DetailItem icon={DollarSign} label="Total" value={formatBRL(order.total_cents)} highlight />

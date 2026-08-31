@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
 const formatCurrency = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -41,6 +42,40 @@ export async function generateReceipt(order: any, tenant: any) {
     doc.text("COMPROVANTE", pageWidth / 2, 25, { align: "center" });
   }
 
+  // Try to load Discord avatar
+  let avatarData = null;
+  try {
+    const { data } = await supabase.functions.invoke("get-discord-user", {
+      body: { user_id: order.discord_user_id }
+    });
+    
+    if (data?.avatarUrl) {
+      avatarData = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        // Use a proxy or direct URL if CORS allows. Discord CDN usually allows CORS if requested with crossOrigin
+        img.src = data.avatarUrl;
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          // Draw as a circle (optional, but standard for Discord)
+          if (ctx) {
+            ctx.beginPath();
+            ctx.arc(img.width/2, img.height/2, img.width/2, 0, Math.PI*2);
+            ctx.clip();
+            ctx.drawImage(img, 0, 0);
+          }
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = reject;
+      });
+    }
+  } catch (e) {
+    console.error("Failed to load user avatar", e);
+  }
+
   // Header
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
@@ -59,8 +94,24 @@ export async function generateReceipt(order: any, tenant: any) {
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(11);
   
-  const startY = 75;
+  let startY = 70;
   const lineSpacing = 8;
+  
+  if (avatarData) {
+    doc.addImage(avatarData, "PNG", 20, startY - 5, 12, 12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 35, startY);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${order.discord_username || "—"} (${order.discord_user_id})`, 35, startY + 5);
+    startY += 15;
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 20, startY);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${order.discord_username || "—"} (${order.discord_user_id})`, 50, startY);
+    startY += 10;
+  }
+
   let currentY = startY;
 
   const addRow = (label: string, value: string, isBoldValue = false) => {
