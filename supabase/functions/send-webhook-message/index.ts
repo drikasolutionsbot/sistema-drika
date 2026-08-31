@@ -334,7 +334,11 @@ async function buildProductPayload(
   };
 
   if (btnEmoji) {
-    buyButton.emoji = btnEmoji;
+    if (isCustom && customId) {
+      buyButton.emoji = { id: customId, name: customName, animated };
+    } else {
+      buyButton.emoji = { name: btnEmoji };
+    }
   }
 
   // Fields (variations) check
