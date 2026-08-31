@@ -56,6 +56,22 @@ const TicketCategories = () => {
     },
   });
 
+  const { data: customEmojis = [] } = useQuery<{id: string, name: string, format: string, animated: boolean}[]>({
+    queryKey: ["discord_emojis", tenantId],
+    enabled: Boolean(tenantId),
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("discord-emojis", {
+        body: { tenant_id: tenantId }
+      });
+      if (error) {
+        console.error("Erro ao carregar emojis:", error);
+        return [];
+      }
+      return data?.emojis || [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 min
+  });
+
   const openNew = () => {
     setEditing(null);
     setForm({ emoji: "🎫", name: "", description: "" });
@@ -240,7 +256,7 @@ const TicketCategories = () => {
                 maxLength={64}
                 className="text-lg"
               />
-              <div className="flex flex-wrap gap-1.5 mt-1">
+              <div className="flex flex-wrap gap-1.5 mt-1 max-h-40 overflow-y-auto p-1">
                 {EMOJI_SUGGESTIONS.map(e => (
                   <button
                     key={e}
@@ -248,6 +264,16 @@ const TicketCategories = () => {
                     className={`text-lg px-1.5 py-0.5 rounded-lg transition-colors ${form.emoji === e ? "bg-primary/20 ring-1 ring-primary" : "hover:bg-muted"}`}
                   >
                     {e}
+                  </button>
+                ))}
+                {customEmojis.map(e => (
+                  <button
+                    key={e.format}
+                    onClick={() => setForm(f => ({ ...f, emoji: e.format }))}
+                    className={`px-1.5 py-0.5 rounded-lg transition-colors flex items-center justify-center ${form.emoji === e.format ? "bg-primary/20 ring-1 ring-primary" : "hover:bg-muted"}`}
+                    title={e.name}
+                  >
+                    {renderEmoji(e.format)}
                   </button>
                 ))}
               </div>
