@@ -52,7 +52,7 @@ export default function ApprovalsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(15);
 
-  const { data: orders = [], isLoading, refetch } = useTenantQuery<any>(
+  const { data: orders = [], isLoading, isFetching, refetch } = useTenantQuery<any>(
     "approval-orders", "orders",
     { select: "*", orderBy: "created_at", ascending: false, limit: 1000 }
   );
@@ -206,8 +206,8 @@ export default function ApprovalsPage() {
             <SelectItem value="all">Todos</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" size="icon" onClick={() => refetch()} className="shrink-0">
-          <RefreshCw className="h-4 w-4" />
+        <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching} className="shrink-0">
+          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
