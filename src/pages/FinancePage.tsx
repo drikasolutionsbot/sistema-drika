@@ -474,8 +474,8 @@ const FinancePage = () => {
                     data={pieData}
                     cx="50%"
                     cy="45%"
-                    innerRadius={70}
-                    outerRadius={95}
+                    innerRadius={65}
+                    outerRadius={85}
                     paddingAngle={5}
                     dataKey="value"
                     strokeWidth={0}
