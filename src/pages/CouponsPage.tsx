@@ -208,19 +208,22 @@ const CouponsPage = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm shadow-xl p-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl -z-10 translate-x-1/3 -translate-y-1/3" />
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
             <Tag className="h-3.5 w-3.5" /> Total
           </div>
           <p className="text-2xl font-bold font-display">{coupons.length}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm shadow-xl p-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl -z-10 translate-x-1/3 -translate-y-1/3" />
           <div className="flex items-center gap-2 text-emerald-400 text-xs mb-1">
             <Ticket className="h-3.5 w-3.5" /> Ativos
           </div>
           <p className="text-2xl font-bold font-display">{activeCount}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-sm shadow-xl p-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl -z-10 translate-x-1/3 -translate-y-1/3" />
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
             <Hash className="h-3.5 w-3.5" /> Usos totais
           </div>
@@ -235,7 +238,7 @@ const CouponsPage = () => {
           placeholder="Buscar cupons..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 bg-muted border-none"
+          className="pl-9 bg-white/[0.02] border-white/5 h-11 rounded-xl"
         />
       </div>
 
@@ -247,10 +250,11 @@ const CouponsPage = () => {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Ticket className="h-12 w-12 mb-3 opacity-20" />
-          <p className="font-medium">Nenhum cupom encontrado</p>
-          <p className="text-xs mt-1">Crie seu primeiro cupom de desconto</p>
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground relative">
+          <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
+          <Ticket className="h-12 w-12 mb-3 text-primary/40 relative z-10" />
+          <p className="font-medium text-white/80 relative z-10">Nenhum cupom encontrado</p>
+          <p className="text-xs mt-1 text-white/50 relative z-10">Crie seu primeiro cupom de desconto</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -262,10 +266,10 @@ const CouponsPage = () => {
             return (
               <div
                 key={coupon.id}
-                className={`rounded-xl border transition-all duration-200 ${
+                className={`rounded-2xl border transition-all duration-300 relative overflow-hidden shadow-sm ${
                   isExpanded
-                    ? "border-primary/30 bg-card"
-                    : "border-border bg-card/50 hover:bg-card"
+                    ? "border-primary/30 bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.05)]"
+                    : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10"
                 }`}
               >
                 {/* Row */}

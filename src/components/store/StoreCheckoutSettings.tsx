@@ -229,7 +229,7 @@ const StoreCheckoutSettings = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Canais (placeholder to maintain grid) */}
-        <Card className="border-border/50">
+        <Card className="border-white/5 bg-white/[0.02] backdrop-blur-sm shadow-xl rounded-2xl">
           <CardHeader className="pb-4">
             <CardTitle className="text-base flex items-center gap-2">
               <Truck className="h-4 w-4 text-primary" />
@@ -308,7 +308,7 @@ const StoreCheckoutSettings = () => {
 
 
         {/* Embed de Compra */}
-        <Card className="border-border/50">
+        <Card className="border-white/5 bg-white/[0.02] backdrop-blur-sm shadow-xl rounded-2xl">
           <CardHeader className="pb-4">
             <CardTitle className="text-base flex items-center gap-2">
               <ShoppingBag className="h-4 w-4 text-primary" />

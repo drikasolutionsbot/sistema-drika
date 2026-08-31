@@ -204,28 +204,45 @@ const StorePage = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Loja</h1>
-        <p className="text-muted-foreground">
-          Configure a loja da <strong>{tenant?.name || "..."}</strong>.
-        </p>
+    <div className="relative min-h-[calc(100vh-100px)]">
+      {/* Ambient background blobs to make glassmorphism visible */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] opacity-70" />
+        <div className="absolute bottom-[-5%] right-[-5%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px] opacity-70" />
+        <div className="absolute top-[30%] left-[60%] w-[30%] h-[30%] bg-blue-500/15 rounded-full blur-[120px] opacity-60" />
       </div>
+
+      <div className="space-y-6 animate-fade-in relative z-0">
+        <div className="relative rounded-[24px] overflow-hidden p-6 pb-5 border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-emerald-500/10" />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-primary/10 border border-primary/20 shadow-[0_0_20px_rgba(var(--primary),0.15)]">
+              <Package className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <h1 className="font-display text-3xl font-bold tracking-tight text-white/95">Loja</h1>
+              <p className="text-sm text-muted-foreground/80 font-medium">
+                Configure a loja da <strong>{tenant?.name || "..."}</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
 
       <Tabs defaultValue="products">
         <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
-            <TabsTrigger value="products">Produtos</TabsTrigger>
-            <TabsTrigger value="categories">Categorias</TabsTrigger>
-            <TabsTrigger value="general">Geral</TabsTrigger>
-            <TabsTrigger value="checkout">Checkout</TabsTrigger>
-            <TabsTrigger value="coupons">Cupons</TabsTrigger>
+          <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl w-max min-w-full sm:w-auto p-1.5 h-auto">
+            <TabsTrigger value="products" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Produtos</TabsTrigger>
+            <TabsTrigger value="categories" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Categorias</TabsTrigger>
+            <TabsTrigger value="general" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
+            <TabsTrigger value="checkout" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Checkout</TabsTrigger>
+            <TabsTrigger value="coupons" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Cupons</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="products" className="mt-4">
-          <div className="rounded-xl border border-border bg-card overflow-hidden h-[calc(100vh-220px)] min-h-[500px]">
-            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] h-full">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden h-[calc(100vh-220px)] min-h-[500px] shadow-2xl relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] h-full relative z-10">
               {/* Em mobile, esconde a lista quando um produto está selecionado */}
               <div className={selectedProduct ? "hidden lg:block h-full" : "block h-full"}>
                   <ProductList
@@ -269,29 +286,41 @@ const StorePage = () => {
         </TabsContent>
 
         <TabsContent value="categories" className="mt-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <CategoryManager
-              categories={categories}
-              onCategoriesChange={setCategories}
-            />
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+            <div className="relative z-10">
+              <CategoryManager
+                categories={categories}
+                onCategoriesChange={setCategories}
+              />
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="general" className="mt-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <StoreGeneralSettings />
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+            <div className="relative z-10">
+              <StoreGeneralSettings />
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="checkout" className="mt-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <StoreCheckoutSettings />
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+            <div className="relative z-10">
+              <StoreCheckoutSettings />
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent value="coupons" className="mt-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <CouponsPage />
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+            <div className="relative z-10">
+              <CouponsPage />
+            </div>
           </div>
         </TabsContent>
       </Tabs>
@@ -303,6 +332,7 @@ const StorePage = () => {
         onSelect={handleSelectProduct}
         onCreateNew={handleCreateNew}
       />
+      </div>
     </div>
   );
 };

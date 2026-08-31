@@ -140,14 +140,22 @@ export const ProductList = ({
                   key={product.id}
                   onClick={() => onSelect(product)}
                   className={cn(
-                    "w-full flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-all duration-150 group",
+                    "w-full flex items-center gap-4 rounded-xl px-4 py-3 text-left transition-all duration-300 relative overflow-hidden group border",
                     selectedId === product.id
-                      ? "bg-primary/10 border border-primary/20"
-                      : "hover:bg-muted/60 border border-transparent"
+                      ? "bg-primary/20 border-primary/30 shadow-[0_0_20px_rgba(var(--primary),0.1)]"
+                      : "bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10"
                   )}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
-                    <Package className="h-4 w-4 text-muted-foreground" />
+                  {selectedId === product.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent pointer-events-none" />
+                  )}
+                  <div className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl shrink-0 transition-colors relative z-10",
+                    selectedId === product.id 
+                      ? "bg-primary/20 text-primary border border-primary/30 shadow-inner"
+                      : "bg-white/5 border border-white/10 text-muted-foreground group-hover:text-primary/70 group-hover:bg-primary/10 group-hover:border-primary/20"
+                  )}>
+                    <Package className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{product.name}</p>

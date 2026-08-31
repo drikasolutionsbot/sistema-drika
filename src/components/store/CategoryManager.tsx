@@ -118,17 +118,18 @@ export const CategoryManager = ({ categories, onCategoriesChange }: CategoryMana
 
       {/* Categories list */}
       {categories.length === 0 && !showCreate ? (
-        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-          <FolderOpen className="h-10 w-10 mb-3 opacity-20" />
-          <p className="text-sm font-medium">Nenhuma categoria criada</p>
-          <p className="text-xs mt-1">Categorias ajudam a organizar seus produtos</p>
+        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground relative">
+          <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
+          <FolderOpen className="h-10 w-10 mb-3 text-primary/40 relative z-10" />
+          <p className="text-sm font-medium text-white/80 relative z-10">Nenhuma categoria criada</p>
+          <p className="text-xs mt-1 text-white/50 relative z-10">Categorias ajudam a organizar seus produtos</p>
         </div>
       ) : (
         <div className="space-y-1">
           {categories.map((cat) => (
             <div
               key={cat.id}
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 px-3 py-2.5 transition-colors"
+              className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 px-4 py-3 transition-all duration-300 shadow-sm"
             >
               <GripVertical className="h-4 w-4 text-muted-foreground/40 cursor-grab shrink-0" />
               {editingId === cat.id ? (
