@@ -87,9 +87,6 @@ export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guild
               className="pl-8 h-9 bg-[#1E1F22] border-none focus-visible:ring-1 focus-visible:ring-primary/50 text-sm text-white placeholder:text-muted-foreground"
             />
           </div>
-          <div className="mt-2 text-[10px] text-red-500 font-mono overflow-hidden">
-            DEBUG: length={customEmojis?.length ?? 'undefined'}, guildId={debugGuildId ?? 'null'}
-          </div>
         </div>
         <div className="h-[300px] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
           <div className="p-3 space-y-5">

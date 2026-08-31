@@ -241,10 +241,6 @@ const TicketCategories = () => {
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
-              {/* DEBUG DIV - TEMPORARY */}
-              <div className="bg-red-500/10 text-red-500 text-xs p-2 rounded mt-2 font-mono">
-                DEBUG discordEmojis: {JSON.stringify(emojiData)}
-              </div>
             </div>
           ))}
         </div>
@@ -270,7 +266,6 @@ const TicketCategories = () => {
                   onChange={(val) => setForm(f => ({ ...f, emoji: val }))}
                   customEmojis={customEmojis}
                   guildName={tenant?.name}
-                  debugGuildId={emojiData.debug_guild_id}
                 />
                 <Input
                   value={form.emoji}
