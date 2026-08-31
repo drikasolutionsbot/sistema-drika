@@ -21,7 +21,15 @@ interface TicketCategory {
   active: boolean;
 }
 
-
+const renderEmoji = (emoji: string) => {
+  if (!emoji) return null;
+  const match = emoji.match(/<a?:.+?:(\d+)>/);
+  if (match) {
+    const isAnimated = emoji.startsWith("<a:");
+    return <img src={`https://cdn.discordapp.com/emojis/${match[1]}.${isAnimated ? 'gif' : 'png'}`} className="w-6 h-6 object-contain inline-block" alt="emoji" />;
+  }
+  return <span>{emoji}</span>;
+};
 
 const TicketCategories = () => {
   const { tenantId, tenant } = useTenant();
