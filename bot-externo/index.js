@@ -67,16 +67,24 @@ async function syncBotStatus() {
       setGlobalCover(config.global_bot_banner_url);
       if (client.user && typeof client.user.setBanner === "function") {
         try { 
+          console.log("[BANNER] Tentando baixar banner para o perfil do bot...");
           const { applyCdn } = require("./supabase");
           const bannerUrl = applyCdn(config.global_bot_banner_url);
           const res = await fetch(bannerUrl);
           if (res.ok) {
             const arrayBuffer = await res.arrayBuffer();
+            console.log(`[BANNER] Imagem baixada (${arrayBuffer.byteLength} bytes). Aplicando no Discord...`);
             await client.user.setBanner(Buffer.from(arrayBuffer));
+            console.log("[BANNER] Capa de perfil do bot atualizada com sucesso!");
           } else {
-            await client.user.setBanner(bannerUrl);
+            console.error(`[BANNER] Falha ao baixar imagem do CDN. Status: ${res.status}`);
           }
-        } catch (e) { console.error("Banner set err:", e.message); }
+        } catch (e) { 
+          console.error("Banner set err:", e.message); 
+          if (e.message.includes('RATE_LIMIT')) {
+            console.warn("[ALERTA] O Discord bloqueou a troca de capa do perfil por excesso de tentativas (Rate Limit). Você precisa esperar algumas horas.");
+          }
+        }
       }
     }
 
