@@ -76,6 +76,34 @@ export async function generateReceipt(order: any, tenant: any) {
     console.error("Failed to load user avatar", e);
   }
 
+  // Try to load Product Image
+  let productImgData = null;
+  const productImageUrl = order.products?.icon_url || order.products?.banner_url;
+  
+  if (productImageUrl) {
+    try {
+      productImgData = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        img.src = productImageUrl;
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            // Draw as a rounded rectangle or just normally
+            ctx.drawImage(img, 0, 0);
+          }
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = reject;
+      });
+    } catch (e) {
+      console.error("Failed to load product image", e);
+    }
+  }
+
   // Header
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
@@ -124,7 +152,20 @@ export async function generateReceipt(order: any, tenant: any) {
 
   addRow("Nº do Pedido", `#${order.order_number}`, true);
   addRow("ID do Pedido", order.id);
-  addRow("Produto", order.product_name);
+  
+  // Custom addRow for Product to include the image if available
+  doc.setFont("helvetica", "bold");
+  doc.text("Produto:", 20, currentY);
+  if (productImgData) {
+    doc.addImage(productImgData, "PNG", 65, currentY - 4, 6, 6);
+    doc.setFont("helvetica", "normal");
+    doc.text(order.product_name || "—", 73, currentY);
+  } else {
+    doc.setFont("helvetica", "normal");
+    doc.text(order.product_name || "—", 65, currentY);
+  }
+  currentY += lineSpacing;
+
   addRow("Cliente", order.discord_username || order.discord_user_id);
   addRow("Discord ID", order.discord_user_id);
   addRow("Data da Compra", format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }));
