@@ -65,7 +65,7 @@ export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guild
   const filteredCustom = customEmojis.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         {trigger || (
           <button
@@ -88,7 +88,12 @@ export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guild
             />
           </div>
         </div>
-        <div className="h-[300px] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
+        <div 
+          className="h-[300px] overflow-y-auto overflow-x-hidden" 
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}
+          onWheelCapture={(e) => e.stopPropagation()}
+          onTouchMoveCapture={(e) => e.stopPropagation()}
+        >
           <div className="p-3 space-y-5">
             {/* Custom Emojis Section */}
             {filteredCustom.length > 0 && (
