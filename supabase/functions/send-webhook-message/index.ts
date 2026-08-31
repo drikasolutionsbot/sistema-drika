@@ -566,7 +566,7 @@ serve(async (req) => {
 
     if (!tenant_id) throw new Error("Missing tenant_id");
     if (!channel_id) throw new Error("Missing channel_id");
-    if (!content && (!embeds || embeds.length === 0)) {
+    if (!product_id && !content && (!embeds || embeds.length === 0)) {
       throw new Error("Missing content or embeds");
     }
 
