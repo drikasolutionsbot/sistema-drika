@@ -155,16 +155,17 @@ export async function generateReceipt(order: any, tenant: any) {
   
   // Custom addRow for Product to include the image if available
   doc.setFont("helvetica", "bold");
-  doc.text("Produto:", 20, currentY);
+  doc.text("Produto:", 20, currentY + 2); // adjusted Y to align text with larger image
   if (productImgData) {
-    doc.addImage(productImgData, "PNG", 65, currentY - 4, 6, 6);
+    doc.addImage(productImgData, "PNG", 65, currentY - 3, 10, 10);
     doc.setFont("helvetica", "normal");
-    doc.text(order.product_name || "—", 73, currentY);
+    doc.text(order.product_name || "—", 77, currentY + 2);
+    currentY += lineSpacing + 4;
   } else {
     doc.setFont("helvetica", "normal");
-    doc.text(order.product_name || "—", 65, currentY);
+    doc.text(order.product_name || "—", 65, currentY + 2);
+    currentY += lineSpacing;
   }
-  currentY += lineSpacing;
 
   addRow("Cliente", order.discord_username || order.discord_user_id);
   addRow("Discord ID", order.discord_user_id);

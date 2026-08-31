@@ -279,11 +279,11 @@ export default function ApprovalsPage() {
                     </div>
 
                     <div className="flex items-center gap-4 text-sm flex-wrap">
-                      <span className="flex items-center gap-1.5 text-foreground">
+                      <span className="flex items-center gap-2 text-foreground font-medium">
                         {(order.products?.icon_url || order.products?.banner_url) ? (
-                          <img src={order.products.icon_url || order.products.banner_url} alt={order.product_name} className="h-4 w-4 rounded-sm object-cover bg-muted" />
+                          <img src={order.products.icon_url || order.products.banner_url} alt={order.product_name} className="h-8 w-8 rounded object-cover shadow-sm ring-1 ring-border/50" />
                         ) : (
-                          <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Package className="h-4 w-4 text-muted-foreground mr-1" />
                         )}
                         {order.product_name}
                       </span>
@@ -422,7 +422,7 @@ export default function ApprovalsPage() {
                     />
                     <DetailItem 
                       icon={({ className }) => (order.products?.icon_url || order.products?.banner_url)
-                        ? <img src={order.products.icon_url || order.products.banner_url} alt="Produto" className={`${className} rounded-sm object-cover bg-muted`} /> 
+                        ? <img src={order.products.icon_url || order.products.banner_url} alt="Produto" className={`h-6 w-6 rounded object-cover shadow-sm ring-1 ring-border/50`} /> 
                         : <Package className={className} />
                       }
                       label="Produto" 
