@@ -55,7 +55,7 @@ const TicketCategories = () => {
     },
   });
 
-  const { data: customEmojis = [] } = useQuery<{id: string, name: string, format: string, animated: boolean}[]>({
+  const { data: emojiData = { emojis: [], debug_guild_id: null } } = useQuery<{emojis: any[], debug_guild_id?: string | null}>({
     queryKey: ["discord_emojis", tenantId],
     enabled: Boolean(tenantId),
     queryFn: async () => {
@@ -67,17 +67,19 @@ const TicketCategories = () => {
       if (error) {
         console.error("Erro ao carregar emojis:", error);
         toast.error("Erro ao carregar emojis: " + error.message);
-        return [];
+        return { emojis: [], debug_guild_id: null };
       }
       if (data?.error) {
         console.error("Erro da API:", data.error);
         toast.error("Erro do Bot: " + data.error);
-        return [];
+        return { emojis: [], debug_guild_id: null };
       }
-      return data?.emojis || [];
+      return data || { emojis: [], debug_guild_id: null };
     },
     staleTime: 1000 * 60 * 5, // 5 min
   });
+
+  const customEmojis = emojiData.emojis || [];
 
   const openNew = () => {
     setEditing(null);
@@ -239,6 +241,10 @@ const TicketCategories = () => {
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
+              {/* DEBUG DIV - TEMPORARY */}
+              <div className="bg-red-500/10 text-red-500 text-xs p-2 rounded mt-2 font-mono">
+                DEBUG discordEmojis: {JSON.stringify(emojiData)}
+              </div>
             </div>
           ))}
         </div>
@@ -264,6 +270,7 @@ const TicketCategories = () => {
                   onChange={(val) => setForm(f => ({ ...f, emoji: val }))}
                   customEmojis={customEmojis}
                   guildName={tenant?.name}
+                  debugGuildId={emojiData.debug_guild_id}
                 />
                 <Input
                   value={form.emoji}

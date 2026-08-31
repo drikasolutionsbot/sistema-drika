@@ -44,9 +44,10 @@ interface EmojiPickerProps {
   customEmojis?: { id: string; name: string; format: string; animated: boolean }[];
   trigger?: React.ReactNode;
   guildName?: string;
+  debugGuildId?: string | null;
 }
 
-export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guildName }: EmojiPickerProps) {
+export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guildName, debugGuildId }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -87,7 +88,7 @@ export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guild
             />
           </div>
           <div className="mt-2 text-[10px] text-red-500 font-mono overflow-hidden">
-            DEBUG customEmojis.length: {customEmojis?.length ?? 'undefined'}
+            DEBUG: length={customEmojis?.length ?? 'undefined'}, guildId={debugGuildId ?? 'null'}
           </div>
         </div>
         <div className="h-[300px] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
