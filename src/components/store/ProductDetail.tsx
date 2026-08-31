@@ -242,8 +242,8 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
       </div>
 
       {/* Tabs content */}
-      <div className="flex-1 overflow-y-auto">
-        <Tabs defaultValue="geral" className="h-full">
+      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+        <Tabs defaultValue="geral" className="h-full flex flex-col min-h-0">
           <div className="px-4 sm:px-6 pt-4 overflow-x-auto scrollbar-none border-b border-white/5 pb-0">
             <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-xl w-max min-w-full sm:w-auto p-1 h-auto mb-[-1px]">
               <TabsTrigger value="geral" className="rounded-lg px-3 py-1.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>

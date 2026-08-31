@@ -117,7 +117,7 @@ export const ProductList = ({
       </div>
 
       {/* Product list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
         {isLoading ? (
           <div className="p-3 space-y-2">
             {[1, 2, 3].map((i) => (
