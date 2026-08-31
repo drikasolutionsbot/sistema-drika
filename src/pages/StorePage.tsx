@@ -244,7 +244,7 @@ const StorePage = () => {
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
             <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] h-full relative z-10">
               {/* Em mobile, esconde a lista quando um produto está selecionado */}
-              <div className={selectedProduct ? "hidden lg:block h-full min-h-0" : "block h-full min-h-0"}>
+              <div className={selectedProduct ? "hidden lg:block h-full min-h-0 overflow-hidden" : "block h-full min-h-0 overflow-hidden"}>
                   <ProductList
                   products={products}
                   isLoading={isLoading}
@@ -263,7 +263,7 @@ const StorePage = () => {
                 />
               </div>
 
-              <div className="flex-1 min-w-0 h-full min-h-0">
+              <div className="h-full min-h-0 overflow-hidden">
                 {selectedProduct ? (
                   <ProductDetail
                     key={selectedProduct.id}
