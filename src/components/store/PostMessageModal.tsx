@@ -123,9 +123,9 @@ export const PostMessageModal = ({
         }
       }
 
+      const desc = `${autoDeliveryLine}${product.description || ""}`.trim();
       const embed: Record<string, any> = {
         title: `${product.name}`,
-        description: `${autoDeliveryLine}${product.description || ""}`,
         fields: [
           {
             name: "**Valor à vista**",
@@ -134,6 +134,10 @@ export const PostMessageModal = ({
           },
         ],
       };
+      
+      if (desc) {
+        embed.description = desc;
+      }
 
       if (showFooter && footerText) {
         embed.footer = { text: footerText };
@@ -162,7 +166,19 @@ export const PostMessageModal = ({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        if (typeof error === 'object' && error !== null && 'context' in error) {
+          try {
+            const errData = await (error as any).context.json();
+            if (errData?.error) {
+              throw new Error(errData.error);
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+        throw error;
+      }
       if (data?.error) throw new Error(data.error);
 
       toast({ title: "Mensagem postada no Discord! ✅" });

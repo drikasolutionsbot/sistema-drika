@@ -226,11 +226,15 @@ async function buildProductPayload(
     }
   }
 
+  const desc = `${deliveryLine}${product.description || ""}`.trim();
   const embed: Record<string, any> = {
     title: product.name,
-    description: `${deliveryLine}${product.description || ""}`,
     fields: [],
   };
+
+  if (desc) {
+    embed.description = desc;
+  }
 
   // Price field
   if (embedConfig.show_price !== false) {
