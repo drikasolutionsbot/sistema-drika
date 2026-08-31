@@ -15,7 +15,7 @@ client.once("ready", async () => {
   console.log(`\n🤖 Bot logado como ${client.user.tag}`);
   console.log("🔍 Buscando clientes no banco de dados...\n");
 
-  const { data: tenants, error } = await supabase.from("tenants").select("id, name, guild_id, plan");
+  const { data: tenants, error } = await supabase.from("tenants").select("id, name, discord_guild_id, plan");
   if (error) {
     console.error("Erro ao buscar clientes:", error);
     process.exit(1);
@@ -25,10 +25,10 @@ client.once("ready", async () => {
   let desconectados = [];
 
   for (const tenant of tenants) {
-    if (!tenant.guild_id) continue;
+    if (!tenant.discord_guild_id) continue;
 
     // Verifica se o bot está no servidor
-    const isConnected = client.guilds.cache.has(tenant.guild_id);
+    const isConnected = client.guilds.cache.has(tenant.discord_guild_id);
 
     if (isConnected) {
       conectados++;
@@ -46,7 +46,7 @@ client.once("ready", async () => {
   if (desconectados.length > 0) {
     console.log("⚠️ LISTA DE CLIENTES DESCONECTADOS (Para você remover):");
     desconectados.forEach((t, i) => {
-      console.log(`   ${i + 1}. Loja: "${t.name}" | Plano: ${t.plan} | ID do Servidor: ${t.guild_id}`);
+      console.log(`   ${i + 1}. Loja: "${t.name}" | Plano: ${t.plan} | ID do Servidor: ${t.discord_guild_id}`);
     });
   } else {
     console.log("🎉 Nenhum cliente desconectado encontrado!");
