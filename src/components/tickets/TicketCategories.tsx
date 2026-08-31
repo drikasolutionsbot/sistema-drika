@@ -59,9 +59,11 @@ const TicketCategories = () => {
     queryKey: ["discord_emojis", tenantId],
     enabled: Boolean(tenantId),
     queryFn: async () => {
+      console.log("Chamando edge function discord-emojis para tenant:", tenantId);
       const { data, error } = await supabase.functions.invoke("discord-emojis", {
         body: { tenant_id: tenantId }
       });
+      console.log("Resposta da edge function:", data, error);
       if (error) {
         console.error("Erro ao carregar emojis:", error);
         toast.error("Erro ao carregar emojis: " + error.message);
