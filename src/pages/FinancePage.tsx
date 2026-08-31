@@ -18,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval, eachDayOfInterval } from "date-fns";
@@ -306,18 +306,17 @@ const FinancePage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="relative rounded-2xl overflow-hidden p-6 pb-4">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-transparent to-primary/5" />
-        <div className="absolute inset-0 border border-emerald-500/10 rounded-2xl" />
-        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/15">
-              <DollarSign className="h-5 w-5 text-emerald-400" />
+      {/* Header - Glassmorphic pill */}
+      <div className="relative rounded-[24px] overflow-hidden p-6 pb-5 border border-white/5 bg-card/30 backdrop-blur-2xl shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-primary/10" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              <DollarSign className="h-7 w-7 text-emerald-400" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold">Finanças</h1>
-              <p className="text-sm text-muted-foreground">Acompanhe receitas, pedidos e métricas de vendas</p>
+              <h1 className="font-display text-3xl font-bold tracking-tight text-white/95">Finanças</h1>
+              <p className="text-sm text-muted-foreground/80 font-medium">Acompanhe receitas, pedidos e métricas de vendas</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -384,110 +383,122 @@ const FinancePage = () => {
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
-          <div key={card.label} className="group relative rounded-2xl border border-border/50 bg-card overflow-hidden transition-all hover:border-border hover:shadow-lg hover:shadow-black/5">
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
-            <div className="relative p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconBg} transition-transform group-hover:scale-110`}>
-                  <card.icon className={`h-5 w-5 ${card.iconColor}`} />
-                </div>
-                <div className={`flex items-center gap-1 text-xs font-medium ${card.trendUp ? "text-emerald-400" : "text-red-400"}`}>
-                  {card.trendUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                  {card.trend}
+          <div key={card.label} className="group relative rounded-[20px] border border-white/5 bg-card/20 backdrop-blur-xl overflow-hidden transition-all duration-300 hover:border-white/10 hover:bg-card/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/20">
+            <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+            <div className="relative p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[13px] font-semibold text-muted-foreground/80 uppercase tracking-wider">{card.label}</p>
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${card.iconBg} ring-1 ring-white/5 transition-transform group-hover:scale-110`}>
+                  <card.icon className={`h-4 w-4 ${card.iconColor}`} />
                 </div>
               </div>
-              <p className="text-2xl font-bold font-display tracking-tight">{card.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{card.label}</p>
+              <p className="text-3xl font-display font-bold text-white/95 tracking-tight">{card.value}</p>
+              
+              <div className="mt-3 flex items-center gap-1.5">
+                <div className={`flex items-center justify-center rounded-full px-1.5 py-0.5 ${card.trendUp ? "bg-emerald-500/10" : "bg-red-500/10"}`}>
+                  {card.trendUp ? <ArrowUpRight className={`h-3 w-3 ${card.trendUp ? "text-emerald-400" : "text-red-400"}`} /> : <ArrowDownRight className={`h-3 w-3 ${card.trendUp ? "text-emerald-400" : "text-red-400"}`} />}
+                </div>
+                <span className={`text-xs font-semibold ${card.trendUp ? "text-emerald-400" : "text-red-400"}`}>
+                  {card.trend}
+                </span>
+                <span className="text-xs text-muted-foreground/60">vs último período</span>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Charts row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Revenue chart - Bar chart like reference */}
-        <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card p-5">
-          <div className="flex items-center justify-between mb-4">
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Revenue chart - Area chart like reference */}
+        <div className="lg:col-span-2 rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <div>
-              <h3 className="font-display font-semibold text-sm">Receita ao longo do tempo</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Valores em R$ por dia</p>
+              <h3 className="font-display text-lg font-bold text-white/95">Receita ao longo do tempo</h3>
+              <p className="text-xs font-medium text-muted-foreground/80 mt-1 uppercase tracking-wider">Valores em R$ por dia</p>
             </div>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <div className="h-10 w-10 rounded-xl bg-background/50 border border-white/5 flex items-center justify-center">
+              <BarChart3 className="h-5 w-5 text-primary" />
+            </div>
           </div>
           {revenueChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={revenueChartData} barCategoryGap="20%">
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="revenueBarGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(330 100% 71%)" stopOpacity={1} />
-                    <stop offset="100%" stopColor="hsl(280 80% 55%)" stopOpacity={0.7} />
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(330 100% 71%)" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="hsl(330 100% 71%)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225 15% 18%)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} tickFormatter={(v) => `R$${v}`} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} dy={10} />
+                <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} tickFormatter={(v) => `R$${v}`} axisLine={false} tickLine={false} dx={-10} />
                 <RechartsTooltip
-                  cursor={{ fill: "hsl(225 15% 18%)", opacity: 0.4 }}
-                  contentStyle={{ backgroundColor: "hsl(225 25% 11%)", border: "1px solid hsl(225 15% 18%)", borderRadius: "12px", fontSize: 12 }}
+                  contentStyle={{ backgroundColor: "rgba(10,10,15,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: 13, backdropFilter: "blur(10px)" }}
+                  itemStyle={{ color: "hsl(330 100% 71%)", fontWeight: "bold" }}
                   formatter={(value: number) => [`R$ ${value.toFixed(2)}`, "Receita"]}
                 />
-                <Bar dataKey="value" fill="url(#revenueBarGrad)" radius={[4, 4, 0, 0]} maxBarSize={32} />
-              </BarChart>
+                <Area type="monotone" dataKey="value" stroke="hsl(330 100% 71%)" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+              </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[260px] text-muted-foreground text-sm">
+            <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm font-medium">
               Sem dados para exibir
             </div>
           )}
         </div>
 
         {/* Status distribution - Donut with center label */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden flex flex-col">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -z-10 -translate-x-1/2 -translate-y-1/2" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
-              <h3 className="font-display font-semibold text-sm">Status dos Pedidos</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Distribuição por status</p>
+              <h3 className="font-display text-lg font-bold text-white/95">Status dos Pedidos</h3>
+              <p className="text-xs font-medium text-muted-foreground/80 mt-1 uppercase tracking-wider">Distribuição por status</p>
             </div>
           </div>
           {pieData.length > 0 ? (
-            <div className="relative">
-              <ResponsiveContainer width="100%" height={260}>
+            <div className="relative flex-1 flex flex-col justify-center">
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="45%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={3}
+                    innerRadius={70}
+                    outerRadius={95}
+                    paddingAngle={5}
                     dataKey="value"
                     strokeWidth={0}
+                    cornerRadius={8}
                   >
                     {pieData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
+                      <Cell key={i} fill={entry.fill} style={{ filter: "drop-shadow(0px 4px 6px rgba(0,0,0,0.3))" }} />
                     ))}
                   </Pie>
                   <Legend
                     verticalAlign="bottom"
                     iconType="circle"
                     iconSize={8}
-                    formatter={(val) => <span className="text-xs text-muted-foreground ml-1">{val}</span>}
+                    wrapperStyle={{ paddingTop: "20px" }}
+                    formatter={(val) => <span className="text-xs font-semibold text-muted-foreground/90 ml-1">{val}</span>}
                   />
                   <RechartsTooltip
-                    contentStyle={{ backgroundColor: "hsl(225 25% 11%)", border: "1px solid hsl(225 15% 18%)", borderRadius: "12px", fontSize: 12 }}
+                    contentStyle={{ backgroundColor: "rgba(10,10,15,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: 13, backdropFilter: "blur(10px)" }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               {/* Center label */}
-              <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: "none", paddingBottom: "40px" }}>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
                 <div className="text-center">
-                  <p className="text-2xl font-bold font-display">{totalOrders}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+                  <p className="text-3xl font-bold font-display text-white">{totalOrders}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-1">Total</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-[260px] text-muted-foreground text-sm">
+            <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm font-medium">
               Sem dados
             </div>
           )}
@@ -564,21 +575,21 @@ const FinancePage = () => {
         </div>
       </div>
 
-      {/* Filters + Table */}
-      <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+      {/* Filters + Table - Card list style */}
+      <div className="rounded-[24px] border border-white/5 bg-card/20 backdrop-blur-md overflow-hidden shadow-2xl">
         {/* Filters bar */}
-        <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-border/50 bg-muted/20">
+        <div className="flex flex-col sm:flex-row gap-4 p-5 border-b border-white/5 bg-background/40">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar por pedido, usuário ou produto..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-card border-border/50 h-9"
+              className="pl-10 bg-background/50 border-white/10 h-10 rounded-xl focus-visible:ring-primary/30"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-44 bg-card border-border/50 h-9">
+            <SelectTrigger className="w-full sm:w-48 bg-background/50 border-white/10 h-10 rounded-xl focus:ring-primary/30">
               <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -589,17 +600,18 @@ const FinancePage = () => {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-            <Receipt className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-2 px-4 rounded-xl bg-background/30 border border-white/5 text-sm font-semibold text-white/90 shrink-0">
+            <Receipt className="h-4 w-4 text-primary" />
             {filtered.length} pedido{filtered.length !== 1 ? "s" : ""}
           </div>
         </div>
 
-        {/* Table */}
-        {isLoading ? (
-          <div className="p-4 space-y-3">
-            {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
-          </div>
+        {/* Table/List */}
+        <div className="p-5">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 rounded-xl bg-white/5" />)}
+            </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <ShoppingCart className="h-10 w-10 mb-3 opacity-30" />
@@ -607,49 +619,49 @@ const FinancePage = () => {
             <p className="text-xs mt-1">Tente ajustar os filtros ou o período</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="w-full min-w-[700px]">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px] border-separate border-spacing-y-2">
               <thead>
-                <tr className="border-b border-border/50">
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Pedido</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Usuário</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] hidden sm:table-cell">Produto</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Total</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] hidden md:table-cell">Gateway</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Status</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em] hidden sm:table-cell">Data</th>
+                <tr>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest w-[100px]">Pedido</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest w-[200px]">Usuário</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest hidden sm:table-cell">Produto</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest w-[120px]">Total</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest w-[100px] hidden md:table-cell">Gateway</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest w-[130px]">Status</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest w-[140px] hidden sm:table-cell">Data</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/30">
+              <tbody>
                 {filtered.slice(0, displayLimit).map((order) => (
-                  <tr key={order.id} className="group hover:bg-muted/30 transition-colors">
-                    <td className="px-3 sm:px-4 py-3">
-                      <span className="text-xs sm:text-sm font-mono font-semibold text-primary">#{order.order_number}</span>
+                  <tr key={order.id} className="group bg-background/40 hover:bg-white/5 transition-all duration-300 rounded-xl overflow-hidden shadow-sm hover:shadow-md">
+                    <td className="px-4 py-3.5 rounded-l-xl border-y border-l border-transparent group-hover:border-white/5">
+                      <span className="text-sm font-mono font-bold text-primary drop-shadow-sm">#{order.order_number}</span>
                     </td>
-                    <td className="px-3 sm:px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary shrink-0">
+                    <td className="px-4 py-3.5 border-y border-transparent group-hover:border-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-xs font-bold text-primary shadow-inner border border-primary/10 shrink-0">
                           {(order.discord_username || "?")[0].toUpperCase()}
                         </div>
-                        <span className="text-xs sm:text-sm truncate max-w-[100px] sm:max-w-[120px]">{order.discord_username || "-"}</span>
+                        <span className="text-sm font-medium text-white/90 truncate max-w-[120px]">{order.discord_username || "-"}</span>
                       </div>
                     </td>
-                    <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">
-                      <span className="text-sm text-muted-foreground truncate max-w-[150px] block">{order.product_name || "-"}</span>
+                    <td className="px-4 py-3.5 hidden sm:table-cell border-y border-transparent group-hover:border-white/5">
+                      <span className="text-sm font-medium text-muted-foreground truncate max-w-[180px] block">{order.product_name || "-"}</span>
                     </td>
-                    <td className="px-3 sm:px-4 py-3">
-                      <span className="text-xs sm:text-sm font-semibold">{formatCurrency(order.total_cents)}</span>
+                    <td className="px-4 py-3.5 border-y border-transparent group-hover:border-white/5">
+                      <span className="text-sm font-bold text-emerald-400 drop-shadow-sm">{formatCurrency(order.total_cents)}</span>
                     </td>
-                    <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
-                      <span className="text-xs text-muted-foreground capitalize">{order.payment_provider || "—"}</span>
+                    <td className="px-4 py-3.5 hidden md:table-cell border-y border-transparent group-hover:border-white/5">
+                      <span className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wider bg-white/5 px-2 py-1 rounded-md">{order.payment_provider || "—"}</span>
                     </td>
-                    <td className="px-3 sm:px-4 py-3">
+                    <td className="px-4 py-3.5 border-y border-transparent group-hover:border-white/5">
                       <StatusBadge status={order.status} />
                     </td>
-                    <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">
-                      <div className="text-xs text-muted-foreground">
-                        <p>{format(parseISO(order.created_at), "dd/MM/yyyy")}</p>
-                        <p className="text-[10px] opacity-60">{format(parseISO(order.created_at), "HH:mm")}</p>
+                    <td className="px-4 py-3.5 hidden sm:table-cell rounded-r-xl border-y border-r border-transparent group-hover:border-white/5">
+                      <div className="text-sm font-medium text-muted-foreground">
+                        <span>{format(parseISO(order.created_at), "dd/MM/yyyy")}</span>
+                        <span className="text-xs opacity-50 ml-2">{format(parseISO(order.created_at), "HH:mm")}</span>
                       </div>
                     </td>
                   </tr>
