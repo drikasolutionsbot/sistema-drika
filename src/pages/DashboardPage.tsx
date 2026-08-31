@@ -645,9 +645,6 @@ const DashboardPage = () => {
               </div>
               <h2 className="font-display text-lg font-bold tracking-wide text-white/95">{t.dashboard.mainServer}</h2>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors rounded-xl" onClick={openServerModal}>
-              <Settings2 className="h-4 w-4" />
-            </Button>
           </div>
           
           {tenant.discord_guild_id ? (
