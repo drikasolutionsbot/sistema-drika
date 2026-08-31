@@ -70,10 +70,15 @@ export default function ApprovalsPage() {
   const handleApprove = async (orderId: string) => {
     setProcessing(orderId);
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "paid" as any, payment_provider: "manual_approval" })
-        .eq("id", orderId);
+      const { error } = await supabase.functions.invoke("manage-orders", {
+        body: {
+          action: "update-status",
+          tenant_id: tenantId,
+          order_id: orderId,
+          status: "paid",
+          payment_provider: "manual_approval"
+        }
+      });
       if (error) throw error;
 
       try {
@@ -94,10 +99,14 @@ export default function ApprovalsPage() {
   const handleCancel = async (orderId: string) => {
     setProcessing(orderId);
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "canceled" as any })
-        .eq("id", orderId);
+      const { error } = await supabase.functions.invoke("manage-orders", {
+        body: {
+          action: "update-status",
+          tenant_id: tenantId,
+          order_id: orderId,
+          status: "canceled"
+        }
+      });
       if (error) throw error;
       toast({ title: "❌ Pedido cancelado" });
       refetch();
@@ -111,10 +120,13 @@ export default function ApprovalsPage() {
   const handleDelete = async (orderId: string) => {
     setProcessing(orderId);
     try {
-      const { error } = await supabase
-        .from("orders")
-        .delete()
-        .eq("id", orderId);
+      const { error } = await supabase.functions.invoke("manage-orders", {
+        body: {
+          action: "delete",
+          tenant_id: tenantId,
+          order_id: orderId
+        }
+      });
       if (error) throw error;
       toast({ title: "🗑️ Pedido excluído" });
       if (expandedId === orderId) setExpandedId(null);
@@ -129,10 +141,14 @@ export default function ApprovalsPage() {
   const handleMarkDelivered = async (orderId: string) => {
     setProcessing(orderId);
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "delivered" as any, updated_at: new Date().toISOString() })
-        .eq("id", orderId);
+      const { error } = await supabase.functions.invoke("manage-orders", {
+        body: {
+          action: "update-status",
+          tenant_id: tenantId,
+          order_id: orderId,
+          status: "delivered"
+        }
+      });
       if (error) throw error;
       toast({ title: "📦 Pedido marcado como entregue!" });
       refetch();
