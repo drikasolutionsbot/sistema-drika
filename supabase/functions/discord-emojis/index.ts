@@ -32,15 +32,13 @@ serve(async (req) => {
     }
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
-    
-    // Hardcoded emoji server ID requested by the user
-    const emojiGuildId = "1185673258775883816";
+    const guildId = tenant.discord_guild_id;
 
     if (!botToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN).");
-    if (!emojiGuildId) throw new Error("ID do servidor de emojis não configurado.");
+    if (!guildId) throw new Error("Nenhum servidor Discord conectado a este painel.");
 
     const discordRes = await fetch(
-      `https://discord.com/api/v10/guilds/${emojiGuildId}/emojis`,
+      `https://discord.com/api/v10/guilds/${guildId}/emojis`,
       {
         headers: { Authorization: `Bot ${botToken}` },
       }
@@ -61,7 +59,7 @@ serve(async (req) => {
       format: `<${e.animated ? "a" : ""}:${e.name}:${e.id}>`
     }));
 
-    return new Response(JSON.stringify({ emojis, debug_guild_id: emojiGuildId }), {
+    return new Response(JSON.stringify({ emojis, debug_guild_id: guildId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
