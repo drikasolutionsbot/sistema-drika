@@ -64,7 +64,13 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds", maxSizeKB
       }
 
       const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      onChange(data.publicUrl);
+      
+      const cdnUrl = import.meta.env.VITE_CDN_URL;
+      const finalUrl = cdnUrl 
+        ? data.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
+        : data.publicUrl;
+
+      onChange(finalUrl);
       toast.success("Imagem enviada com sucesso!");
     } catch (err: any) {
       toast.error("Erro ao enviar: " + (err.message || "Tente novamente"));

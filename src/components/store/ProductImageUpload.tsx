@@ -86,7 +86,12 @@ export const ProductImageUpload = ({
           .from("tenant-assets")
           .getPublicUrl(path);
 
-        onUploaded(publicData.publicUrl);
+        const cdnUrl = import.meta.env.VITE_CDN_URL;
+        const finalUrl = cdnUrl 
+          ? publicData.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
+          : publicData.publicUrl;
+
+        onUploaded(finalUrl);
         setDialogOpen(false);
         toast({ title: "Imagem enviada! ✅" });
       } catch (err: any) {
