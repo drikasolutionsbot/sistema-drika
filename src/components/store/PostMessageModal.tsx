@@ -167,17 +167,17 @@ export const PostMessageModal = ({
       });
 
       if (error) {
+        // Extract real error message from the edge function response body
+        let realMessage: string | null = null;
         if (typeof error === 'object' && error !== null && 'context' in error) {
           try {
             const errData = await (error as any).context.json();
-            if (errData?.error) {
-              throw new Error(errData.error);
-            }
-          } catch (e) {
-            // ignore
+            if (errData?.error) realMessage = errData.error;
+          } catch {
+            // couldn't parse body, fall through
           }
         }
-        throw error;
+        throw new Error(realMessage || (error as any).message || 'Erro desconhecido');
       }
       if (data?.error) throw new Error(data.error);
 
