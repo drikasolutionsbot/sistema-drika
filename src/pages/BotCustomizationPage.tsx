@@ -209,29 +209,29 @@ const BotCustomizationPage = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">Personalização</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Configure o <strong className="text-foreground">{botName}</strong> para o seu estilo.
+      <div className="flex flex-col gap-1">
+        <h1 className="font-display text-3xl font-bold text-foreground tracking-tight">Personalização</h1>
+        <p className="text-muted-foreground text-sm">
+          Configure a identidade visual do <strong className="text-foreground">{botName}</strong> no Discord.
         </p>
       </div>
 
-      {/* Hero Card */}
-      <div className="relative rounded-2xl overflow-hidden border border-border bg-card min-h-[280px]">
+      {/* Hero Card - Discord Profile Style */}
+      <div className="relative rounded-[24px] overflow-hidden border border-border/50 bg-card shadow-xl min-h-[340px] group transition-all duration-300 hover:border-primary/30">
         {/* Banner background (preview tem prioridade) */}
         {(bannerPreview || effectiveBanner) ? (
           <div className="absolute inset-0">
             <img
               src={bannerPreview || effectiveBanner!}
               alt="Capa do bot"
-              className={`w-full h-full object-cover transition-opacity duration-300 ${
-                !userIsMaster && effectiveBanner && !bannerPreview ? "blur-md scale-110" : ""
-              } ${uploadingBanner ? "opacity-90" : "opacity-100"}`}
+              className={`w-full h-full object-cover transition-all duration-500 ${
+                !userIsMaster && effectiveBanner && !bannerPreview ? "blur-xl scale-110 opacity-60" : "group-hover:scale-[1.02]"
+              } ${uploadingBanner ? "opacity-50 blur-sm" : "opacity-100"}`}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
           </div>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-muted/40 to-card" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-muted/40 to-background" />
         )}
 
         {/* Overlay de upload em andamento */}
@@ -303,35 +303,45 @@ const BotCustomizationPage = () => {
         </div>
 
         {/* Foreground content - aligned left like Discord embed */}
-        <div className="relative flex flex-col items-start pt-16 pb-8 pl-6 sm:pl-10 gap-3 text-left">
+        <div className="relative flex flex-col items-start pt-24 pb-8 pl-8 sm:pl-12 gap-4 text-left h-full justify-end min-h-[340px]">
           {/* Avatar */}
-          <div className="relative">
+          <div className="relative group/avatar cursor-pointer transition-transform hover:scale-105" onClick={() => setEditOpen(true)}>
             {botAvatar ? (
               <img
                 src={botAvatar}
                 alt="Bot avatar"
-                className="h-24 w-24 rounded-full object-cover border-4 border-card shadow-xl"
+                className="h-28 w-28 rounded-full object-cover border-[6px] border-background shadow-2xl bg-muted"
               />
             ) : (
-              <div className="h-24 w-24 rounded-full bg-muted border-4 border-card shadow-xl flex items-center justify-center">
-                <Bot className="h-10 w-10 text-muted-foreground" />
+              <div className="h-28 w-28 rounded-full bg-muted border-[6px] border-background shadow-2xl flex items-center justify-center">
+                <Bot className="h-12 w-12 text-muted-foreground" />
               </div>
             )}
-            <div className="absolute bottom-1 right-1 h-5 w-5 rounded-full bg-emerald-500 border-[3px] border-card" />
+            <div className="absolute bottom-1 right-1 h-6 w-6 rounded-full bg-emerald-500 border-[4px] border-background shadow-sm" />
+            
+            {/* Avatar Hover Edit Overlay */}
+            <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+              <Pencil className="h-6 w-6 text-white" />
+            </div>
           </div>
 
-          {/* Name */}
-          <h2 className="text-xl font-bold text-foreground drop-shadow-lg">{botName}</h2>
+          <div className="flex flex-col gap-1">
+            {/* Name */}
+            <h2 className="text-3xl font-display font-bold text-foreground drop-shadow-xl flex items-center gap-2">
+              {botName}
+              <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-primary/30 text-[10px] px-2 py-0 h-5">BOT</Badge>
+            </h2>
+          </div>
 
           {/* Edit Button */}
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="gap-2 mt-1 bg-background/60 backdrop-blur-sm"
+            className="gap-2 mt-2 bg-background/80 hover:bg-background border border-border/50 shadow-sm backdrop-blur-md rounded-full px-5 transition-all hover:border-primary/50"
             onClick={() => setEditOpen(true)}
           >
-            <Pencil className="h-3.5 w-3.5" />
-            Editar Perfil
+            <Pencil className="h-3.5 w-3.5 text-primary" />
+            <span>Editar Perfil</span>
           </Button>
         </div>
 
@@ -363,23 +373,34 @@ const BotCustomizationPage = () => {
       </div>
 
       {/* Informações Card */}
-      <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+      <div className="rounded-2xl border border-border/40 bg-card/40 backdrop-blur-sm p-6 space-y-6 shadow-sm">
         <div>
-          <h3 className="text-base font-bold text-foreground">Informações</h3>
-          <p className="text-xs text-muted-foreground">Dados da aplicação.</p>
+          <h3 className="text-lg font-display font-semibold text-foreground flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
+            Informações do Bot
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">Detalhes técnicos da sua aplicação conectada.</p>
         </div>
-        <div className="divide-y divide-border">
-          <div className="flex items-center justify-between py-3">
-            <span className="text-sm text-muted-foreground">Nome da Aplicação</span>
-            <span className="text-sm font-semibold text-foreground">{botName}</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-background/60 border border-border/50 rounded-xl p-4 flex flex-col gap-1.5 transition-colors hover:border-primary/30">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome da Aplicação</span>
+            <span className="text-base font-semibold text-foreground truncate">{botName}</span>
           </div>
-          <div className="flex items-center justify-between py-3">
-            <span className="text-sm text-muted-foreground">ID da Aplicação</span>
-            <span className="text-sm font-mono text-foreground">{botId}</span>
+          <div className="bg-background/60 border border-border/50 rounded-xl p-4 flex flex-col gap-1.5 transition-colors hover:border-primary/30">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              ID da Aplicação
+            </span>
+            <span className="text-sm font-mono text-foreground/80 truncate" title={botId}>{botId}</span>
           </div>
-          <div className="flex items-center justify-between py-3">
-            <span className="text-sm text-muted-foreground">Status</span>
-            <span className="text-sm font-semibold text-emerald-400">Online</span>
+          <div className="bg-background/60 border border-border/50 rounded-xl p-4 flex flex-col gap-1.5 transition-colors hover:border-emerald-500/30">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status do Bot</span>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-base font-semibold text-emerald-500">Online & Operante</span>
+            </div>
           </div>
         </div>
       </div>
