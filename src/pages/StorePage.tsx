@@ -224,10 +224,10 @@ const StorePage = () => {
         </div>
 
         <TabsContent value="products" className="mt-4">
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] min-h-[400px] lg:min-h-[600px]">
+          <div className="rounded-xl border border-border bg-card overflow-hidden h-[calc(100vh-220px)] min-h-[500px]">
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] h-full">
               {/* Em mobile, esconde a lista quando um produto está selecionado */}
-              <div className={selectedProduct ? "hidden lg:block" : "block"}>
+              <div className={selectedProduct ? "hidden lg:block h-full" : "block h-full"}>
                   <ProductList
                   products={products}
                   isLoading={isLoading}
