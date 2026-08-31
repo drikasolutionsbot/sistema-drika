@@ -10,6 +10,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
 
 interface TicketCategory {
   id: string;
@@ -20,20 +21,10 @@ interface TicketCategory {
   active: boolean;
 }
 
-const EMOJI_SUGGESTIONS = ["🎫", "🛒", "🏦", "🤝", "⚡", "💬", "🔧", "📦", "💳", "🌐", "🎮", "📞"];
 
-const renderEmoji = (emoji: string) => {
-  if (!emoji) return null;
-  const match = emoji.match(/<a?:.+?:(\d+)>/);
-  if (match) {
-    const isAnimated = emoji.startsWith("<a:");
-    return <img src={`https://cdn.discordapp.com/emojis/${match[1]}.${isAnimated ? 'gif' : 'png'}`} className="w-6 h-6 object-contain inline-block" alt="emoji" />;
-  }
-  return <span>{emoji}</span>;
-};
 
 const TicketCategories = () => {
-  const { tenantId } = useTenant();
+  const { tenantId, tenant } = useTenant();
   const queryClient = useQueryClient();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -170,7 +161,9 @@ const TicketCategories = () => {
           <div className="space-y-1.5">
             {categories.filter(c => c.active).map(cat => (
               <div key={cat.id} className="flex items-center gap-3 rounded-lg bg-[#2B2D31] px-3 py-2.5 hover:bg-[#404249] transition-colors cursor-pointer">
-                <span className="text-lg leading-none flex items-center justify-center">{renderEmoji(cat.emoji)}</span>
+                <span className="text-lg leading-none flex items-center justify-center">
+                  <EmojiPicker value={cat.emoji} onChange={() => {}} trigger={<span className="pointer-events-none">{cat.emoji}</span>} />
+                </span>
                 <div>
                   <p className="text-sm text-white font-medium">{cat.name}</p>
                   {cat.description && <p className="text-xs text-[#B5BAC1]">{cat.description}</p>}
@@ -249,33 +242,20 @@ const TicketCategories = () => {
             {/* Emoji */}
             <div className="space-y-2">
               <Label>Emoji</Label>
-              <Input
-                value={form.emoji}
-                onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
-                placeholder="🎫 ou <:nome:123456...>"
-                maxLength={64}
-                className="text-lg"
-              />
-              <div className="flex flex-wrap gap-1.5 mt-1 max-h-40 overflow-y-auto p-1">
-                {EMOJI_SUGGESTIONS.map(e => (
-                  <button
-                    key={e}
-                    onClick={() => setForm(f => ({ ...f, emoji: e }))}
-                    className={`text-lg px-1.5 py-0.5 rounded-lg transition-colors ${form.emoji === e ? "bg-primary/20 ring-1 ring-primary" : "hover:bg-muted"}`}
-                  >
-                    {e}
-                  </button>
-                ))}
-                {customEmojis.map(e => (
-                  <button
-                    key={e.format}
-                    onClick={() => setForm(f => ({ ...f, emoji: e.format }))}
-                    className={`px-1.5 py-0.5 rounded-lg transition-colors flex items-center justify-center ${form.emoji === e.format ? "bg-primary/20 ring-1 ring-primary" : "hover:bg-muted"}`}
-                    title={e.name}
-                  >
-                    {renderEmoji(e.format)}
-                  </button>
-                ))}
+              <div className="flex gap-2">
+                <EmojiPicker
+                  value={form.emoji}
+                  onChange={(val) => setForm(f => ({ ...f, emoji: val }))}
+                  customEmojis={customEmojis}
+                  guildName={tenant?.name}
+                />
+                <Input
+                  value={form.emoji}
+                  onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
+                  placeholder="🎫 ou <:nome:123456...>"
+                  maxLength={64}
+                  className="text-lg flex-1 h-12 bg-[#1E1F22] border-none"
+                />
               </div>
             </div>
 
