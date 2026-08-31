@@ -71,6 +71,7 @@ const FinancePage = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(subDays(new Date(), 30));
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(15);
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
 
@@ -620,7 +621,7 @@ const FinancePage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
-                {filtered.map((order) => (
+                {filtered.slice(0, displayLimit).map((order) => (
                   <tr key={order.id} className="group hover:bg-muted/30 transition-colors">
                     <td className="px-3 sm:px-4 py-3">
                       <span className="text-xs sm:text-sm font-mono font-semibold text-primary">#{order.order_number}</span>
@@ -655,6 +656,17 @@ const FinancePage = () => {
                 ))}
               </tbody>
             </table>
+            {filtered.length > displayLimit && (
+              <div className="flex justify-center p-4 border-t border-border/50 bg-card/40">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setDisplayLimit(filtered.length)}
+                  className="w-full sm:w-auto gap-2 bg-muted/30 border-white/5 hover:bg-primary/10 hover:text-primary transition-all duration-300"
+                >
+                  Ver todos ({filtered.length - displayLimit} restantes)
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
