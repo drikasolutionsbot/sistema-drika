@@ -21,7 +21,7 @@ client.once("ready", async () => {
     process.exit(1);
   }
 
-  let conectados = 0;
+  let conectados = [];
   let desconectados = [];
 
   for (const tenant of tenants) {
@@ -31,7 +31,7 @@ client.once("ready", async () => {
     const isConnected = client.guilds.cache.has(tenant.discord_guild_id);
 
     if (isConnected) {
-      conectados++;
+      conectados.push(tenant);
     } else {
       desconectados.push(tenant);
     }
@@ -39,17 +39,17 @@ client.once("ready", async () => {
 
   console.log("==========================================");
   console.log(`📊 TOTAL DE LOJAS NO BANCO: ${tenants.length}`);
-  console.log(`✅ CONECTADOS (Bot presente): ${conectados}`);
+  console.log(`✅ CONECTADOS (Bot presente): ${conectados.length}`);
   console.log(`❌ DESCONECTADOS (Bot ausente/expulso): ${desconectados.length}`);
   console.log("==========================================\n");
 
-  if (desconectados.length > 0) {
-    console.log("⚠️ LISTA DE CLIENTES DESCONECTADOS (Para você remover):");
-    desconectados.forEach((t, i) => {
+  if (conectados.length > 0) {
+    console.log("✅ LISTA DE CLIENTES CONECTADOS (Bot Ativo):");
+    conectados.forEach((t, i) => {
       console.log(`   ${i + 1}. Loja: "${t.name}" | Plano: ${t.plan} | ID do Servidor: ${t.discord_guild_id}`);
     });
   } else {
-    console.log("🎉 Nenhum cliente desconectado encontrado!");
+    console.log("⚠️ Nenhum cliente conectado encontrado!");
   }
 
   process.exit(0);

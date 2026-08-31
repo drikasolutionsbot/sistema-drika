@@ -569,7 +569,7 @@ serve(async (req) => {
     // Fetch tenant customization
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("bot_name, bot_avatar_url, banner_url, name, language")
+      .select("bot_name, bot_avatar_url, banner_url, name, language, plan, bot_banner_url")
       .eq("id", tenant_id)
       .single();
 
@@ -578,6 +578,28 @@ serve(async (req) => {
     const customBotName = tenant?.bot_name || tenant?.name || undefined;
     const customAvatarUrl = tenant?.bot_avatar_url || undefined;
 
+    // Função applyCdn embutida
+    const applyCdnInline = (url: string | null | undefined) => {
+      if (!url) return url;
+      let newUrl = url.replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev").trim();
+      if (newUrl.startsWith("http") && !newUrl.match(/\.(png|jpg|jpeg|webp|gif)($|\?)/i)) {
+        newUrl += (newUrl.includes('?') ? '&' : '?') + 'ext=.png';
+      }
+      return newUrl;
+    };
+
+    // Lógica Drika Cover
+    const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
+    const globalBannerUrl = globalConfig?.global_bot_banner_url;
+    
+    const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
+    let coverUrl: string | null = null;
+    if (isMaster && tenant.bot_banner_url) {
+      coverUrl = applyCdnInline(tenant.bot_banner_url);
+    } else if (globalBannerUrl) {
+      coverUrl = applyCdnInline(globalBannerUrl);
+    }
+
     // Build payload
     const payload: Record<string, any> = {};
     if (content) payload.content = content;
@@ -585,6 +607,10 @@ serve(async (req) => {
       for (const embed of embeds) {
         if (embed.color === 0x2B2D31 || embed.color === 2829105) {
           delete embed.color;
+        }
+        // Aplica a capa em embeds customizados (garante sobreposição igual aos outros lugares)
+        if (coverUrl) {
+          embed.image = { url: coverUrl };
         }
       }
       payload.embeds = embeds;
