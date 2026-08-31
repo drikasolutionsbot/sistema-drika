@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useTenantQuery } from "@/hooks/useSupabaseQuery";
 import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle, PackageCheck } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
@@ -49,34 +50,20 @@ export default function ApprovalsPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data: orders, isLoading, refetch } = useQuery({
-    queryKey: ["approval-orders", tenantId, statusFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from("orders")
-        .select("*")
-        .eq("tenant_id", tenantId!)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter as any);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!tenantId,
-  });
-
-  const filteredOrders = (orders || []).filter(o =>
-    !search ||
-    o.product_name.toLowerCase().includes(search.toLowerCase()) ||
-    o.discord_username?.toLowerCase().includes(search.toLowerCase()) ||
-    String(o.order_number).includes(search) ||
-    o.discord_user_id.includes(search)
+  const { data: orders = [], isLoading, refetch } = useTenantQuery<any>(
+    "approval-orders", "orders",
+    { select: "*", orderBy: "created_at", ascending: false, limit: 1000 }
   );
+
+  const filteredOrders = orders.filter(o => {
+    const matchStatus = statusFilter === "all" || o.status === statusFilter;
+    const matchSearch = !search ||
+      o.product_name?.toLowerCase().includes(search.toLowerCase()) ||
+      o.discord_username?.toLowerCase().includes(search.toLowerCase()) ||
+      String(o.order_number).includes(search) ||
+      o.discord_user_id?.includes(search);
+    return matchStatus && matchSearch;
+  });
 
   const handleApprove = async (orderId: string) => {
     setProcessing(orderId);
