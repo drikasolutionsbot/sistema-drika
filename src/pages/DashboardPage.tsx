@@ -820,9 +820,11 @@ const DashboardPage = () => {
               {permLoading ? (
                 <div className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
               ) : permissions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <UserPlus className="h-10 w-10 text-muted-foreground/40 mb-2" />
-                  <p className="text-xs text-muted-foreground">{t.dashboard.noMembersInList}</p>
+                <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl bg-background/20 border border-white/5 border-dashed">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                    <UserPlus className="h-6 w-6 text-primary" />
+                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">{t.dashboard.noMembersInList}</p>
                 </div>
               ) : (
                 <div className="space-y-0.5">
@@ -882,9 +884,11 @@ const DashboardPage = () => {
               {rolesLoading ? (
                 <div className="space-y-2"><Skeleton className="h-10" /><Skeleton className="h-10" /></div>
               ) : roles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Shield className="h-10 w-10 text-muted-foreground/40 mb-2" />
-                  <p className="text-xs text-muted-foreground">{t.dashboard.noRolesCreated}</p>
+                <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl bg-background/20 border border-white/5 border-dashed">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                    <Shield className="h-6 w-6 text-primary" />
+                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">{t.dashboard.noRolesCreated}</p>
                 </div>
               ) : (
                 <div className="space-y-0.5">
@@ -1108,14 +1112,14 @@ function PermissionPanel({
 
           <div>
             <p className="text-sm font-bold mb-3 text-white/90">Principal</p>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {PERMISSION_LABELS.map(({ key, label, description }) => (
-                <div key={key} className="flex items-center justify-between rounded-lg border border-white/5 bg-background/30 hover:bg-background/50 px-3 sm:px-4 py-2.5 sm:py-3 transition-colors">
-                  <div className="pr-3 sm:pr-4 min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-semibold text-white/90">{label}</p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground/80 line-clamp-2">{description}</p>
+                <div key={key} className="group flex items-center justify-between rounded-xl border border-white/5 bg-background/30 hover:bg-background/60 hover:border-primary/40 hover:shadow-[0_0_15px_rgba(var(--primary),0.1)] px-4 py-3 transition-all">
+                  <div className="pr-4 min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white/90 group-hover:text-primary transition-colors">{label}</p>
+                    <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-0.5">{description}</p>
                   </div>
-                  <Switch checked={getValue(key)} onCheckedChange={() => onToggle(key)} />
+                  <Switch checked={getValue(key)} onCheckedChange={() => onToggle(key)} className="data-[state=checked]:bg-primary" />
                 </div>
               ))}
             </div>
@@ -1132,9 +1136,15 @@ function PermissionPanel({
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center text-center py-16">
-          <Settings2 className="h-12 w-12 text-muted-foreground/40 mb-3" />
-          <p className="text-sm text-muted-foreground">{emptyText}</p>
+        <div className="flex flex-col items-center justify-center text-center py-20 min-h-[400px]">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+            <div className="relative h-20 w-20 rounded-full bg-card/80 border border-white/10 flex items-center justify-center backdrop-blur-xl shadow-2xl">
+              <Settings2 className="h-10 w-10 text-primary animate-pulse" />
+            </div>
+          </div>
+          <h3 className="text-lg font-display font-semibold text-foreground mb-1">Nenhum item selecionado</h3>
+          <p className="text-sm text-muted-foreground max-w-[250px]">{emptyText}</p>
         </div>
       )}
     </div>
