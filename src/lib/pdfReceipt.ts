@@ -119,29 +119,64 @@ export async function generateReceipt(order: any, tenant: any) {
   doc.setDrawColor(200, 200, 200);
   doc.line(20, 60, pageWidth - 20, 60);
 
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(11);
-  
-  let startY = 70;
-  const lineSpacing = 8;
-  
-  if (avatarData) {
-    doc.addImage(avatarData, "PNG", 20, startY - 5, 12, 12);
+  let currentY = 70;
+
+  // --- SHOPEE STYLE PRODUCT BLOCK ---
+  if (productImgData) {
+    doc.addImage(productImgData, "PNG", 20, currentY, 25, 25); // 25x25 big image
+    
+    // Product Name
     doc.setFont("helvetica", "bold");
-    doc.text("Cliente:", 35, startY);
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text(order.product_name || "—", 50, currentY + 10);
+    
+    // Product Price
     doc.setFont("helvetica", "normal");
-    doc.text(`${order.discord_username || "—"} (${order.discord_user_id})`, 35, startY + 5);
-    startY += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 150, 0); // Green price
+    doc.text(`Total: ${(order.total_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`, 50, currentY + 18);
+    
+    currentY += 35;
   } else {
     doc.setFont("helvetica", "bold");
-    doc.text("Cliente:", 20, startY);
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text(order.product_name || "—", 20, currentY + 10);
+    
     doc.setFont("helvetica", "normal");
-    doc.text(`${order.discord_username || "—"} (${order.discord_user_id})`, 50, startY);
-    startY += 10;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 150, 0);
+    doc.text(`Total: ${(order.total_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`, 20, currentY + 18);
+    
+    currentY += 30;
   }
 
-  let currentY = startY;
+  doc.setDrawColor(230, 230, 230);
+  doc.line(20, currentY - 5, pageWidth - 20, currentY - 5);
+  // ----------------------------------
 
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
+  const lineSpacing = 8;
+  
+  // --- CUSTOMER INFO ---
+  if (avatarData) {
+    doc.addImage(avatarData, "PNG", 20, currentY, 12, 12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 35, currentY + 5);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${order.discord_username || "—"} (${order.discord_user_id})`, 35, currentY + 10);
+    currentY += 20;
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 20, currentY + 5);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${order.discord_username || "—"} (${order.discord_user_id})`, 50, currentY + 5);
+    currentY += 15;
+  }
+
+  // Start listing table rows
   const addRow = (label: string, value: string, isBoldValue = false) => {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, 20, currentY);
@@ -152,20 +187,7 @@ export async function generateReceipt(order: any, tenant: any) {
 
   addRow("Nº do Pedido", `#${order.order_number}`, true);
   addRow("ID do Pedido", order.id);
-  
-  // Custom addRow for Product to include the image if available
-  doc.setFont("helvetica", "bold");
-  doc.text("Produto:", 20, currentY + 2); // adjusted Y to align text with larger image
-  if (productImgData) {
-    doc.addImage(productImgData, "PNG", 65, currentY - 3, 10, 10);
-    doc.setFont("helvetica", "normal");
-    doc.text(order.product_name || "—", 77, currentY + 2);
-    currentY += lineSpacing + 4;
-  } else {
-    doc.setFont("helvetica", "normal");
-    doc.text(order.product_name || "—", 65, currentY + 2);
-    currentY += lineSpacing;
-  }
+  // Product is already prominently shown at the top, but we can add ID here if we want. Let's just omit it.
 
   addRow("Cliente", order.discord_username || order.discord_user_id);
   addRow("Discord ID", order.discord_user_id);
