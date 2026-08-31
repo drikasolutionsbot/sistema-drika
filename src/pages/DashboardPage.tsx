@@ -633,50 +633,94 @@ const DashboardPage = () => {
 
       {/* Server Info + Audit */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="group/stat relative rounded-xl border border-white/5 bg-card/40 backdrop-blur-md p-5 space-y-4 overflow-hidden transition-all hover:bg-card/60 hover:border-white/10 hover:shadow-[0_0_30px_rgba(var(--primary),0.1)]">
-          <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl transition-all group-hover/stat:bg-primary/10" />
+        <div className="group/stat relative rounded-2xl border border-white/[0.08] bg-[#111214]/60 backdrop-blur-xl p-6 space-y-6 overflow-hidden transition-all duration-500 hover:bg-[#111214]/80 hover:border-primary/20 hover:shadow-[0_0_40px_rgba(var(--primary),0.15)]">
+          {/* Animated background glow */}
+          <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-gradient-to-br from-primary/10 to-transparent blur-[50px] transition-all duration-700 group-hover/stat:bg-primary/20 group-hover/stat:scale-150" />
+          <div className="absolute -left-20 -bottom-20 h-40 w-40 rounded-full bg-gradient-to-tr from-[#5865F2]/10 to-transparent blur-[40px] transition-all duration-700 group-hover/stat:bg-[#5865F2]/20" />
           
-          <div className="relative z-10 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold border-l-2 border-primary pl-3 text-white/90">{t.dashboard.mainServer}</h2>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/5 transition-colors" onClick={openServerModal}>
+          <div className="relative z-10 flex items-center justify-between border-b border-white/[0.04] pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                <Server className="h-4 w-4" />
+              </div>
+              <h2 className="font-display text-lg font-bold tracking-wide text-white/95">{t.dashboard.mainServer}</h2>
+            </div>
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors rounded-xl" onClick={openServerModal}>
               <Settings2 className="h-4 w-4" />
             </Button>
           </div>
+          
           {tenant.discord_guild_id ? (
-            <>
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                {guildInfo?.icon ? (
-                  <img
-                    src={guildInfo.icon}
-                    alt="Server icon"
-                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-full shrink-0"
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm shrink-0">
-                    {(guildInfo?.name || tenant.name)[0]?.toUpperCase()}
+            <div className="relative z-10 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-primary/20 blur-md rounded-full scale-110 opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500" />
+                  {guildInfo?.icon ? (
+                    <img
+                      src={guildInfo.icon}
+                      alt="Server icon"
+                      className="relative h-14 w-14 rounded-full border-2 border-white/10 shadow-lg object-cover ring-2 ring-transparent group-hover/stat:ring-primary/30 transition-all duration-300"
+                    />
+                  ) : (
+                    <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-white/10 text-primary font-bold text-xl shadow-lg ring-2 ring-transparent group-hover/stat:ring-primary/30 transition-all duration-300">
+                      {(guildInfo?.name || tenant.name)[0]?.toUpperCase()}
+                    </div>
+                  )}
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-[#111214] flex items-center justify-center">
+                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
                   </div>
-                )}
-                <div>
-                  <p className="font-medium">{guildInfo?.name || tenant.name}</p>
-                  <p className="text-xs font-mono text-muted-foreground">({tenant.discord_guild_id})</p>
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold text-white/95 truncate group-hover/stat:text-transparent group-hover/stat:bg-clip-text group-hover/stat:bg-gradient-to-r group-hover/stat:from-white group-hover/stat:to-primary/80 transition-all duration-300">
+                    {guildInfo?.name || tenant.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="text-[10px] font-mono text-muted-foreground/80 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 truncate">
+                      ID: {tenant.discord_guild_id}
+                    </code>
+                  </div>
                 </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground border-l-2 border-primary pl-2 mb-2">{t.dashboard.serverInfo}</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] sm:text-xs font-medium text-muted-foreground"><Users className="h-3 w-3" /> {guildInfo?.member_count ?? 0} {t.dashboard.membersCount}</span>
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] sm:text-xs font-medium text-muted-foreground"><UserCheck className="h-3 w-3" /> {guildInfo?.presence_count ?? 0} {t.dashboard.online}</span>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1 rounded-xl bg-white/[0.02] border border-white/[0.04] p-3 transition-colors hover:bg-white/[0.04]">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Users className="h-3 w-3 text-primary/70" />
+                    {t.dashboard.membersCount}
+                  </span>
+                  <span className="text-lg font-bold text-white/90">
+                    {guildInfo?.member_count ? new Intl.NumberFormat('pt-BR').format(guildInfo.member_count) : 0}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-xl bg-white/[0.02] border border-white/[0.04] p-3 transition-colors hover:bg-white/[0.04]">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <UserCheck className="h-3 w-3 text-emerald-400/70" />
+                    {t.dashboard.online}
+                  </span>
+                  <span className="text-lg font-bold text-white/90">
+                    {guildInfo?.presence_count ? new Intl.NumberFormat('pt-BR').format(guildInfo.presence_count) : 0}
+                  </span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="gap-2 text-sm bg-primary/10 border-primary/20 text-primary hover:bg-primary/20 hover:border-primary/30 transition-colors" onClick={handleAddBot}>
-                  <ExternalLink className="h-3.5 w-3.5" /> {t.dashboard.addDrikaBot}
+              
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button 
+                  className="flex-1 gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-[0_0_20px_rgba(88,101,242,0.3)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] transition-all duration-300 rounded-xl" 
+                  onClick={handleAddBot}
+                >
+                  <ExternalLink className="h-4 w-4" /> 
+                  <span className="font-semibold">{t.dashboard.addDrikaBot}</span>
                 </Button>
-                <Button variant="outline" className="gap-2 text-sm text-destructive border-destructive/20 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors" onClick={() => setDisconnectModalOpen(true)}>
-                  <Unplug className="h-3.5 w-3.5" /> {t.dashboard.disconnectServer}
+                <Button 
+                  variant="outline" 
+                  className="gap-2 rounded-xl text-muted-foreground border-white/10 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors duration-300" 
+                  onClick={() => setDisconnectModalOpen(true)}
+                >
+                  <Unplug className="h-4 w-4" />
                 </Button>
               </div>
-            </>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
