@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
-import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle, PackageCheck } from "lucide-react";
+import { Check, X, Clock, Package, User, DollarSign, RefreshCw, Search, Filter, ChevronDown, ChevronUp, Hash, CreditCard, Calendar, AlertTriangle, PackageCheck, Receipt } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { generateReceipt } from "@/lib/pdfReceipt";
 
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -325,6 +326,24 @@ export default function ApprovalsPage() {
                         Cancelar
                       </Button>
                     )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async (e) => { 
+                        e.stopPropagation(); 
+                        try {
+                          await generateReceipt(order, { id: tenantId });
+                          toast({ title: "Comprovante gerado!" });
+                        } catch (err) {
+                          toast({ title: "Erro ao gerar comprovante", variant: "destructive" });
+                        }
+                      }}
+                      className="border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+                    >
+                      <Receipt className="h-3.5 w-3.5" />
+                      Comprovante
+                    </Button>
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
