@@ -73,6 +73,14 @@ module.exports = async function handleInteraction(client, interaction) {
 
     // Ticket buttons
     if (customId.startsWith("ticket_open_")) return ticketsHandler.openTicket(interaction, tenant);
+    
+    // Ticket category buttons
+    if (customId.startsWith("ticket_category_btn:")) {
+      const parts = customId.split(":");
+      const categoryId = parts[1];
+      if (categoryId) return ticketsHandler.openTicketCategory(interaction, tenant, categoryId);
+    }
+
     if (customId.startsWith("ticket_close_")) return ticketsHandler.handleCloseTicket(interaction, tenant, customId.replace("ticket_close_", ""));
     if (customId.startsWith("ticket_delete_")) return ticketsHandler.handleDeleteTicket(interaction, tenant, customId.replace("ticket_delete_", ""));
     if (customId.startsWith("ticket_remind_")) return ticketsHandler.handleRemindTicket(interaction, tenant, customId.replace("ticket_remind_", ""));

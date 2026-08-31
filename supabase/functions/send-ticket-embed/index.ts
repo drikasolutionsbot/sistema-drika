@@ -94,33 +94,44 @@ Deno.serve(async (req) => {
     let components: any[];
 
     if (hasCategories) {
-      // String Select Menu with categories
-      const options = (categories as any[]).slice(0, 25).map((cat: any) => {
-        const opt: any = {
-          label: cat.name,
-          value: cat.id,
-        };
-        if (cat.description) opt.description = cat.description.slice(0, 100);
-        if (cat.emoji) {
-          const unicodeMatch = String(cat.emoji).match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)/u);
-          if (unicodeMatch) opt.emoji = { name: unicodeMatch[1] };
-        }
-        return opt;
-      });
+      // Buttons for categories (max 25 buttons = 5 rows of 5)
+      const styleMap: Record<string, number> = {
+        primary: 1, secondary: 2, success: 3, danger: 4, glass: 2, link: 2,
+      };
+      const discordStyle = styleMap[button_style || "glass"] || 2;
 
-      components = [
-        {
+      components = [];
+      const cats = (categories as any[]).slice(0, 25);
+      
+      for (let i = 0; i < cats.length; i += 5) {
+        const rowButtons = cats.slice(i, i + 5).map((cat: any) => {
+          const btn: any = {
+            type: 2,
+            style: discordStyle,
+            label: cat.name.slice(0, 80),
+            custom_id: `ticket_category_btn:${cat.id}:${tenant_id}:${channel_id}`,
+          };
+          if (cat.emoji) {
+            const customEmojiMatch = String(cat.emoji).match(/<a?:(.+?):(\d+)>/);
+            if (customEmojiMatch) {
+              btn.emoji = { 
+                name: customEmojiMatch[1], 
+                id: customEmojiMatch[2],
+                animated: String(cat.emoji).startsWith("<a:")
+              };
+            } else {
+              const unicodeMatch = String(cat.emoji).match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)/u);
+              if (unicodeMatch) btn.emoji = { name: unicodeMatch[1] };
+            }
+          }
+          return btn;
+        });
+        
+        components.push({
           type: 1,
-          components: [{
-            type: 3,
-            custom_id: `ticket_category_select:${tenant_id}:${channel_id}`,
-            placeholder: "Selecione o tipo de atendimento",
-            min_values: 1,
-            max_values: 1,
-            options,
-          }],
-        },
-      ];
+          components: rowButtons
+        });
+      }
     } else {
       // No categories — button (original behavior)
       const styleMap: Record<string, number> = {

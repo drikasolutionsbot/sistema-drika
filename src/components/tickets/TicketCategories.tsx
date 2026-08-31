@@ -179,8 +179,8 @@ const TicketCategories = () => {
           <div className="space-y-1.5">
             {categories.filter(c => c.active).map(cat => (
               <div key={cat.id} className="flex items-center gap-3 rounded-lg bg-[#2B2D31] px-3 py-2.5 hover:bg-[#404249] transition-colors cursor-pointer">
-                <span className="text-lg leading-none flex items-center justify-center">
-                  <EmojiPicker value={cat.emoji} onChange={() => {}} trigger={<span className="pointer-events-none">{cat.emoji}</span>} />
+                <span className="text-lg leading-none flex items-center justify-center w-6 h-6">
+                  {renderEmoji(cat.emoji)}
                 </span>
                 <div>
                   <p className="text-sm text-white font-medium">{cat.name}</p>
