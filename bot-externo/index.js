@@ -190,7 +190,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interactionHandler(client, interaction);
   } catch (err) {
     console.error("Erro na interação:", err);
-    const reply = { content: "❌ Ocorreu um erro ao processar esta ação.", ephemeral: true };
+    const reply = { content: "<:close:1521192513048674505> Ocorreu um erro ao processar esta ação.", ephemeral: true };
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp(reply).catch(() => {});
     } else {
@@ -286,6 +286,6 @@ client.on(Events.GuildRoleDelete, async (role) => {
 
 // ── Login ──
 client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {
-  console.error("❌ Falha ao fazer login:", err.message);
+  console.error("<:close:1521192513048674505> Falha ao fazer login:", err.message);
   process.exit(1);
 });

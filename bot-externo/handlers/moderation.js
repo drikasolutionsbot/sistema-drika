@@ -9,20 +9,20 @@ async function handleClear(interaction, tenant) {
       interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 
     if (!hasPermission) {
-      return interaction.reply({ content: "❌ Você não tem permissão para limpar mensagens.", ephemeral: true });
+      return interaction.reply({ content: "<:close:1521192513048674505> Você não tem permissão para limpar mensagens.", ephemeral: true });
     }
 
     await interaction.reply({ content: "<a:loading:1521565470686445678> Limpando mensagens...", ephemeral: true });
 
     const channel = interaction.channel;
     if (!channel || !channel.isTextBased()) {
-      return interaction.editReply({ content: "❌ Este comando só funciona em canais de texto." });
+      return interaction.editReply({ content: "<:close:1521192513048674505> Este comando só funciona em canais de texto." });
     }
 
     const botMember = interaction.guild?.members?.me;
     const botCanManage = channel.permissionsFor(botMember)?.has(PermissionFlagsBits.ManageMessages);
     if (!botCanManage) {
-      return interaction.editReply({ content: "❌ Não tenho permissão de **Gerenciar Mensagens** neste canal." });
+      return interaction.editReply({ content: "<:close:1521192513048674505> Não tenho permissão de **Gerenciar Mensagens** neste canal." });
     }
 
     let totalDeleted = 0;
@@ -64,9 +64,9 @@ async function handleClear(interaction, tenant) {
   } catch (err) {
     console.error("[handleClear] Error:", err.message);
     if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content: "❌ Erro ao limpar o canal. Verifique permissões do bot e tente novamente." }).catch(() => {});
+      await interaction.editReply({ content: "<:close:1521192513048674505> Erro ao limpar o canal. Verifique permissões do bot e tente novamente." }).catch(() => {});
     } else {
-      await interaction.reply({ content: "❌ Erro ao limpar o canal.", ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: "<:close:1521192513048674505> Erro ao limpar o canal.", ephemeral: true }).catch(() => {});
     }
   }
 }
@@ -74,12 +74,12 @@ async function handleClear(interaction, tenant) {
 // ── /ban ──
 async function handleBan(interaction, tenant) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.BanMembers)) {
-    return interaction.reply({ content: "❌ Você não tem permissão para banir membros.", ephemeral: true });
+    return interaction.reply({ content: "<:close:1521192513048674505> Você não tem permissão para banir membros.", ephemeral: true });
   }
 
   const targetUser = interaction.options.getUser("usuario");
   const reason = interaction.options.getString("motivo") || "Sem motivo especificado";
-  if (!targetUser) return interaction.reply({ content: "❌ Especifique um usuário.", ephemeral: true });
+  if (!targetUser) return interaction.reply({ content: "<:close:1521192513048674505> Especifique um usuário.", ephemeral: true });
 
   await interaction.reply({ content: "<a:loading:1521565470686445678> Aplicando ban...", ephemeral: true });
 
@@ -91,19 +91,19 @@ async function handleBan(interaction, tenant) {
       embeds: [embed],
     });
   } catch {
-    await interaction.editReply({ content: "❌ Erro ao banir o usuário." });
+    await interaction.editReply({ content: "<:close:1521192513048674505> Erro ao banir o usuário." });
   }
 }
 
 // ── /kick ──
 async function handleKick(interaction, tenant) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) {
-    return interaction.reply({ content: "❌ Você não tem permissão para expulsar membros.", ephemeral: true });
+    return interaction.reply({ content: "<:close:1521192513048674505> Você não tem permissão para expulsar membros.", ephemeral: true });
   }
 
   const targetUser = interaction.options.getUser("usuario");
   const reason = interaction.options.getString("motivo") || "Sem motivo especificado";
-  if (!targetUser) return interaction.reply({ content: "❌ Especifique um usuário.", ephemeral: true });
+  if (!targetUser) return interaction.reply({ content: "<:close:1521192513048674505> Especifique um usuário.", ephemeral: true });
 
   await interaction.reply({ content: "<a:loading:1521565470686445678> Aplicando kick...", ephemeral: true });
 
@@ -115,7 +115,7 @@ async function handleKick(interaction, tenant) {
       embeds: [embed],
     });
   } catch {
-    await interaction.editReply({ content: "❌ Erro ao expulsar o usuário." });
+    await interaction.editReply({ content: "<:close:1521192513048674505> Erro ao expulsar o usuário." });
   }
 }
 

@@ -25,7 +25,7 @@ function outOfStockPayload(productId, tenantId, fieldId = null) {
     : `notify_restock:${productId}`;
     
   return {
-    content: "❌ | Este produto está sem estoque. Aguarde um reabastecimento!",
+    content: "<:close:1521192513048674505> | Este produto está sem estoque. Aguarde um reabastecimento!",
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -254,10 +254,10 @@ async function startCheckout(interaction, tenant, productId) {
 
   if (!product) {
     console.error(`[CHECKOUT] Product not found for rawId=${productId} tenantId=${tenant.id}`);
-    return interaction.editReply({ content: "❌ Produto não encontrado." });
+    return interaction.editReply({ content: "<:close:1521192513048674505> Produto não encontrado." });
   }
 
-  if (!product.active) return interaction.editReply({ content: "❌ Este produto está indisponível." });
+  if (!product.active) return interaction.editReply({ content: "<:close:1521192513048674505> Este produto está indisponível." });
 
   const fields = await getProductFields(product.id, tenant.id);
 
@@ -328,11 +328,11 @@ async function selectVariation(interaction, tenant, productId, fieldId) {
 
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.editReply({ content: "❌ Produto não encontrado." });
+  if (!product) return interaction.editReply({ content: "<:close:1521192513048674505> Produto não encontrado." });
 
   const fields = await getProductFields(product.id, tenant.id);
   const field = fields.find((f) => f.id === fieldId);
-  if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
+  if (!field) return interaction.editReply({ content: "<:close:1521192513048674505> Variação não encontrada." });
 
   // Check stock for this specific field
   const embedConfig = getProductEmbedConfig(product);
@@ -386,7 +386,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     await checkoutThread.members.add(userId).catch(() => {});
   } catch (err) {
     console.error("[CHECKOUT] create thread error:", err.message);
-    return interaction.editReply({ content: "❌ Erro ao criar o tópico de checkout." });
+    return interaction.editReply({ content: "<:close:1521192513048674505> Erro ao criar o tópico de checkout." });
   }
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
@@ -584,7 +584,7 @@ async function goToPayment(interaction, tenant, orderId) {
   await interaction.deferUpdate();
 
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   const channel = interaction.channel;
@@ -643,7 +643,7 @@ async function goToPayment(interaction, tenant, orderId) {
   } else {
     // Static PIX
     if (!tenant.pix_key) {
-      return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
+      return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
     }
     brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
     await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix", pix_brcode: brcode });
@@ -651,7 +651,7 @@ async function goToPayment(interaction, tenant, orderId) {
     const storeConfig = await getStoreConfig(tenant.id);
     const approvalRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("1521190651146801222").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("<:close:1521192513048674505>").setStyle(ButtonStyle.Danger),
     );
 
     await sendLog(interaction.guild, tenant, {
@@ -849,7 +849,7 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
 async function approveOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "static_pix" });
@@ -902,18 +902,18 @@ async function approveOrder(interaction, tenant, orderId) {
 async function rejectOrder(interaction, tenant, orderId) {
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0xED4245).setTimestamp()] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0xED4245).setTimestamp()] });
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
+    embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
     components: [],
   });
 
@@ -943,7 +943,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
 
   // Log: Pedido cancelado pelo cliente
   await sendLog(interaction.guild, tenant, {
@@ -965,7 +965,7 @@ async function cancelOrder(interaction, tenant, orderId) {
 // ── Copy PIX ──
 async function copyPix(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.reply({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
 
   // 1. Try to use the saved brcode from the database
   if (order.pix_brcode) {
@@ -978,7 +978,7 @@ async function copyPix(interaction, tenant, orderId) {
     return interaction.reply({ content: brcode, ephemeral: true });
   }
 
-  return interaction.reply({ content: "❌ Código PIX não disponível. Copie manualmente da mensagem acima.", ephemeral: true });
+  return interaction.reply({ content: "<:close:1521192513048674505> Código PIX não disponível. Copie manualmente da mensagem acima.", ephemeral: true });
 }
 
 // ── Coupon Modal ──
@@ -993,14 +993,14 @@ async function showCouponModal(interaction, orderId) {
 async function handleCouponModal(interaction, tenant, orderId) {
   await interaction.reply({ content: "<a:loading:1521565470686445678> Verificando cupom...", ephemeral: true });
   const couponCode = interaction.fields.getTextInputValue("coupon_code").trim().toUpperCase();
-  if (!couponCode) return interaction.editReply({ content: "❌ Código inválido." });
+  if (!couponCode) return interaction.editReply({ content: "<:close:1521192513048674505> Código inválido." });
 
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "<:close:1521192513048674505> Pedido não encontrado ou já processado." });
 
   const coupon = await getCoupon(tenant.id, couponCode);
-  if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
-  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "❌ Este cupom não é válido para este produto." });
+  if (!coupon) return interaction.editReply({ content: "<:close:1521192513048674505> Cupom não encontrado ou inativo." });
+  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "<:close:1521192513048674505> Este cupom não é válido para este produto." });
 
   let discount = coupon.type === "percent" ? Math.floor(order.total_cents * coupon.value / 100) : coupon.value;
   const newTotal = Math.max(0, order.total_cents - discount);
@@ -1039,10 +1039,10 @@ async function showQuantityModal(interaction, orderId) {
 async function handleQuantityModal(interaction, tenant, orderId) {
   await interaction.reply({ content: "<a:loading:1521565470686445678> Atualizando quantidade...", ephemeral: true });
   const qty = parseInt(interaction.fields.getTextInputValue("quantity_value").trim());
-  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "❌ Quantidade inválida (1-99)." });
+  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "<:close:1521192513048674505> Quantidade inválida (1-99)." });
 
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "<:close:1521192513048674505> Pedido não encontrado ou já processado." });
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1175,11 +1175,11 @@ async function cancelManual(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`).setColor(0xED4245)] });
+    await user.send({ embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Cancelado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`).setColor(0xED4245)] });
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
+    embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
     components: [],
   });
 
@@ -1202,14 +1202,14 @@ async function copyDelivered(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
 
   const order = await getOrder(orderId);
-  if (!order) return interaction.editReply({ content: "❌ Pedido não encontrado." });
+  if (!order) return interaction.editReply({ content: "<:close:1521192513048674505> Pedido não encontrado." });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
     .eq("delivered_to", order.discord_user_id).eq("delivered", true)
     .order("delivered_at", { ascending: false }).limit(10);
 
-  if (!items?.length) return interaction.editReply({ content: "❌ Nenhum conteúdo entregue encontrado." });
+  if (!items?.length) return interaction.editReply({ content: "<:close:1521192513048674505> Nenhum conteúdo entregue encontrado." });
   const content = items.map((i) => i.content).join("\n");
   return interaction.editReply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\`` });
 }
@@ -1217,7 +1217,7 @@ async function copyDelivered(interaction, tenant, orderId) {
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
   const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
-  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+  if (!product) return interaction.reply({ content: "<:close:1521192513048674505> Produto não encontrado.", ephemeral: true });
 
   const fields = await getProductFields(productId, product.tenant_id);
   if (!fields.length) return interaction.reply({ content: "Este produto não tem variações.", ephemeral: true });
@@ -1242,7 +1242,7 @@ async function viewVariations(interaction, tenant, productId) {
 async function viewDetails(interaction, tenant, productId) {
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
+  if (!product) return interaction.reply({ content: "<:close:1521192513048674505> Produto não encontrado.", ephemeral: true });
 
   const fields = await getProductFields(productId, tenant.id);
   const storeConfig = await getStoreConfig(tenant.id);

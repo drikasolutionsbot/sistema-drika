@@ -221,7 +221,7 @@ async function onMessage(client, message) {
 
   const tenant = await client.resolveTenant(message.guild.id);
   if (!tenant) {
-    console.log(`[protection] ❌ Tenant não encontrado para guild ${message.guild.id} (${message.guild.name})`);
+    console.log(`[protection] <:close:1521192513048674505> Tenant não encontrado para guild ${message.guild.id} (${message.guild.name})`);
     return;
   }
 
@@ -350,7 +350,7 @@ async function onMessage(client, message) {
       try {
         // Always try to delete the message
         const deleted = await message.delete().catch(e => { 
-          console.error(`[anti_link] ❌ Delete FALHOU: ${e.message} — O bot precisa da permissão "Gerenciar Mensagens"`); 
+          console.error(`[anti_link] <:close:1521192513048674505> Delete FALHOU: ${e.message} — O bot precisa da permissão "Gerenciar Mensagens"`); 
           return null; 
         });
         console.log(`[anti_link] 🗑️ Deletado: ${deleted ? 'SIM' : 'FALHOU'}`);
@@ -374,7 +374,7 @@ async function onMessage(client, message) {
           content: content.slice(0, 200), reason: blockReason,
         });
         console.log(`[anti_link] ✅ Ação concluída com sucesso`);
-      } catch (e) { console.error("[anti_link] ❌ Error geral:", e.message); }
+      } catch (e) { console.error("[anti_link] <:close:1521192513048674505> Error geral:", e.message); }
     } else {
       // Log when anti-link is active but message passed
       if (content.includes("discord.gg") || content.includes("http")) {

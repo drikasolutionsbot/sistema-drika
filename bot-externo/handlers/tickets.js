@@ -174,13 +174,13 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     console.error(`[TICKET_OPEN] Falha ao criar canal do ticket | code=${errCode} | msg=${errMsg}`);
 
     // Mensagem amigavel com dica baseada no codigo de erro Discord
-    let userMsg = "❌ Não foi possível criar o canal do ticket.";
+    let userMsg = "<:close:1521192513048674505> Não foi possível criar o canal do ticket.";
     if (errCode === 30013) {
-      userMsg = "❌ Não foi possível criar o canal do ticket. O servidor atingiu o limite máximo de canais do Discord (500). Apague canais antigos de tickets para liberar espaço.";
+      userMsg = "<:close:1521192513048674505> Não foi possível criar o canal do ticket. O servidor atingiu o limite máximo de canais do Discord (500). Apague canais antigos de tickets para liberar espaço.";
     } else if (errCode === 50013) {
-      userMsg = "❌ Não foi possível criar o canal do ticket. O bot não tem permissão de **Gerenciar Canais** no servidor.";
+      userMsg = "<:close:1521192513048674505> Não foi possível criar o canal do ticket. O bot não tem permissão de **Gerenciar Canais** no servidor.";
     } else if (errCode === 50035) {
-      userMsg = "❌ Não foi possível criar o canal do ticket. Configuração inválida (verifique a categoria de tickets no painel).";
+      userMsg = "<:close:1521192513048674505> Não foi possível criar o canal do ticket. Configuração inválida (verifique a categoria de tickets no painel).";
     }
     return interaction.editReply({ content: userMsg });
   }
@@ -261,7 +261,7 @@ async function openTicketCategory(interaction, tenant, categoryId) {
     const username = interaction.user.username;
 
     const { data: category } = await supabase.from('ticket_categories').select('*').eq('id', categoryId).eq('tenant_id', tenant.id).maybeSingle();
-    if (!category) return interaction.editReply({ content: '❌ Categoria não encontrada.' });
+    if (!category) return interaction.editReply({ content: '<:close:1521192513048674505> Categoria não encontrada.' });
 
     const topicName = `${category.emoji || '🎫'} ${category.name}`.trim();
 
@@ -311,7 +311,7 @@ async function openTicketCategory(interaction, tenant, categoryId) {
         reason: 'Ticket de suporte',
       });
     } catch (err) {
-      return interaction.editReply({ content: '❌ Erro ao criar canal. Verifique as permissões do bot e categorias.' });
+      return interaction.editReply({ content: '<:close:1521192513048674505> Erro ao criar canal. Verifique as permissões do bot e categorias.' });
     }
 
     const ticket = await createTicket({
@@ -354,7 +354,7 @@ async function openTicketCategory(interaction, tenant, categoryId) {
     });
   } catch (e) {
     console.error('[openTicketCategory] error:', e);
-    await interaction.editReply({ content: '❌ Ocorreu um erro interno.' }).catch(() => {});
+    await interaction.editReply({ content: '<:close:1521192513048674505> Ocorreu um erro interno.' }).catch(() => {});
   }
 }
 
@@ -365,9 +365,9 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
     const isStaff = await checkStaffPermission(tenant, interaction);
     if (!isStaff) {
       if (interaction.deferred || interaction.replied) {
-        return interaction.followUp({ content: "❌ Você não tem permissão para fechar tickets.", ephemeral: true });
+        return interaction.followUp({ content: "<:close:1521192513048674505> Você não tem permissão para fechar tickets.", ephemeral: true });
       }
-      return interaction.reply({ content: "❌ Você não tem permissão para fechar tickets.", ephemeral: true });
+      return interaction.reply({ content: "<:close:1521192513048674505> Você não tem permissão para fechar tickets.", ephemeral: true });
     }
 
     if (!interaction.deferred && !interaction.replied) {
@@ -375,7 +375,7 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
     }
 
     const ticket = await getTicketById(ticketId);
-    if (!ticket) return interaction.followUp({ content: "❌ Ticket não encontrado.", ephemeral: true });
+    if (!ticket) return interaction.followUp({ content: "<:close:1521192513048674505> Ticket não encontrado.", ephemeral: true });
 
     await closeTicket(ticketId, interaction.user.username);
 
@@ -424,9 +424,9 @@ async function handleCloseTicket(interaction, tenant, ticketId) {
     console.error("[handleCloseTicket] Error:", err);
     try {
       if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: "❌ Erro ao arquivar o ticket.", ephemeral: true });
+        await interaction.followUp({ content: "<:close:1521192513048674505> Erro ao arquivar o ticket.", ephemeral: true });
       } else {
-        await interaction.reply({ content: "❌ Erro ao arquivar o ticket.", ephemeral: true });
+        await interaction.reply({ content: "<:close:1521192513048674505> Erro ao arquivar o ticket.", ephemeral: true });
       }
     } catch {}
   }
@@ -439,9 +439,9 @@ async function handleDeleteTicket(interaction, tenant, ticketId) {
     const isStaff = await checkStaffPermission(tenant, interaction);
     if (!isStaff) {
       if (interaction.deferred || interaction.replied) {
-        return interaction.followUp({ content: "❌ Você não tem permissão para deletar tickets.", ephemeral: true });
+        return interaction.followUp({ content: "<:close:1521192513048674505> Você não tem permissão para deletar tickets.", ephemeral: true });
       }
-      return interaction.reply({ content: "❌ Você não tem permissão para deletar tickets.", ephemeral: true });
+      return interaction.reply({ content: "<:close:1521192513048674505> Você não tem permissão para deletar tickets.", ephemeral: true });
     }
 
     if (!interaction.deferred && !interaction.replied) {
@@ -449,7 +449,7 @@ async function handleDeleteTicket(interaction, tenant, ticketId) {
     }
 
     const ticket = await getTicketById(ticketId);
-    if (!ticket) return interaction.followUp({ content: "❌ Ticket não encontrado.", ephemeral: true });
+    if (!ticket) return interaction.followUp({ content: "<:close:1521192513048674505> Ticket não encontrado.", ephemeral: true });
 
     await closeTicket(ticketId, interaction.user.username);
 
@@ -470,9 +470,9 @@ async function handleDeleteTicket(interaction, tenant, ticketId) {
     console.error("[handleDeleteTicket] Error:", err);
     try {
       if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: "❌ Erro ao deletar o ticket.", ephemeral: true });
+        await interaction.followUp({ content: "<:close:1521192513048674505> Erro ao deletar o ticket.", ephemeral: true });
       } else {
-        await interaction.reply({ content: "❌ Erro ao deletar o ticket.", ephemeral: true });
+        await interaction.reply({ content: "<:close:1521192513048674505> Erro ao deletar o ticket.", ephemeral: true });
       }
     } catch {}
   }
@@ -482,14 +482,14 @@ async function handleDeleteTicket(interaction, tenant, ticketId) {
 async function handleRemindTicket(interaction, tenant, ticketId) {
   const isStaff = await checkStaffPermission(tenant, interaction);
   if (!isStaff) {
-    return interaction.reply({ content: "❌ Apenas membros da equipe podem enviar lembretes.", ephemeral: true });
+    return interaction.reply({ content: "<:close:1521192513048674505> Apenas membros da equipe podem enviar lembretes.", ephemeral: true });
   }
 
   await interaction.reply({ content: "<a:loading:1521565470686445678> Enviando lembrete...", ephemeral: true });
   const storeConfig = await getStoreConfig(tenant.id);
 
   const ticket = await getTicketById(ticketId);
-  if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });
+  if (!ticket) return interaction.editReply({ content: "<:close:1521192513048674505> Ticket não encontrado." });
   if (ticket.status === "closed") return interaction.editReply({ content: "ℹ️ Este ticket já está fechado." });
 
   const hour = new Date().getUTCHours() - 3;
@@ -518,13 +518,13 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
   // Only staff can add members
   const isStaff = await checkStaffPermission(tenant, interaction);
   if (!isStaff) {
-    return interaction.reply({ content: "❌ Apenas membros da equipe podem adicionar pessoas ao ticket.", ephemeral: true });
+    return interaction.reply({ content: "<:close:1521192513048674505> Apenas membros da equipe podem adicionar pessoas ao ticket.", ephemeral: true });
   }
 
   await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, adicionando membro...", ephemeral: true });
 
   const ticket = await getTicketById(ticketId);
-  if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });
+  if (!ticket) return interaction.editReply({ content: "<:close:1521192513048674505> Ticket não encontrado." });
 
   try {
     const ch = await interaction.guild.channels.fetch(ticket.discord_channel_id);
@@ -547,7 +547,7 @@ async function handleAssignTicket(interaction, tenant, ticketId) {
     }, { reason: `Ticket: membro adicionado por ${interaction.user.tag}` });
     await ch.send({ content: `👤 <@${selectedUserId}> foi liberado neste ticket por <@${interaction.user.id}>.` });
   } catch (err) {
-    return interaction.editReply({ content: "❌ Não foi possível adicionar o membro ao ticket." });
+    return interaction.editReply({ content: "<:close:1521192513048674505> Não foi possível adicionar o membro ao ticket." });
   }
 
   await interaction.editReply({ content: `<:check:1521190651146801222> <@${selectedUserId}> adicionado ao ticket!` });
@@ -565,17 +565,17 @@ async function showRenameModal(interaction, ticketId) {
 async function handleRenameModal(interaction, tenant, ticketId) {
   await interaction.reply({ content: "<a:loading:1521565470686445678> Renomeando ticket...", ephemeral: true });
   const newName = interaction.fields.getTextInputValue("new_name").trim();
-  if (!newName) return interaction.editReply({ content: "❌ Nome inválido." });
+  if (!newName) return interaction.editReply({ content: "<:close:1521192513048674505> Nome inválido." });
 
   const ticket = await getTicketById(ticketId);
-  if (!ticket?.discord_channel_id) return interaction.editReply({ content: "❌ Ticket não encontrado." });
+  if (!ticket?.discord_channel_id) return interaction.editReply({ content: "<:close:1521192513048674505> Ticket não encontrado." });
 
   try {
     const ch = await interaction.guild.channels.fetch(ticket.discord_channel_id);
     await ch.setName(newName.substring(0, 100));
     await interaction.editReply({ content: `<:check:1521190651146801222> Ticket renomeado para: **${newName.substring(0, 100)}**` });
   } catch {
-    await interaction.editReply({ content: "❌ Não foi possível renomear o ticket." });
+    await interaction.editReply({ content: "<:close:1521192513048674505> Não foi possível renomear o ticket." });
   }
 }
 
@@ -1061,7 +1061,7 @@ async function handleTranscriptView(interaction, tenant, ticketId) {
   await interaction.reply({ content: "<a:loading:1521565470686445678> Carregando transcript...", ephemeral: true });
 
   const ticket = await getTicketById(ticketId);
-  if (!ticket) return interaction.editReply({ content: "❌ Ticket não encontrado." });
+  if (!ticket) return interaction.editReply({ content: "<:close:1521192513048674505> Ticket não encontrado." });
 
   // Try to fetch messages from the ticket channel
   let msgs = [];
@@ -1099,7 +1099,7 @@ async function handleTranscriptView(interaction, tenant, ticketId) {
       });
     }
 
-    return interaction.editReply({ content: "❌ Transcript ainda não encontrado para este ticket." });
+    return interaction.editReply({ content: "<:close:1521192513048674505> Transcript ainda não encontrado para este ticket." });
   }
 
   const serverName = interaction.guild?.name || "Servidor";
@@ -1143,7 +1143,7 @@ async function handleTranscriptView(interaction, tenant, ticketId) {
     });
   }
 
-  return interaction.editReply({ content: "❌ Não consegui gerar o link do transcript agora. Tente novamente em instantes." });
+  return interaction.editReply({ content: "<:close:1521192513048674505> Não consegui gerar o link do transcript agora. Tente novamente em instantes." });
 }
 
 module.exports = {

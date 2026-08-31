@@ -26,7 +26,7 @@ module.exports = async function handleInteraction(client, interaction) {
   if (!tenant && !isAllowedDM) {
     const canReply = interaction.isCommand() || interaction.isButton() || interaction.isAnySelectMenu() || interaction.isModalSubmit();
     if (canReply) {
-      await interaction.reply({ content: "❌ Este servidor não está configurado no painel.", ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: "<:close:1521192513048674505> Este servidor não está configurado no painel.", ephemeral: true }).catch(() => {});
     }
     return;
   }
