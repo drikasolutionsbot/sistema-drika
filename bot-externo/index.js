@@ -66,7 +66,17 @@ async function syncBotStatus() {
     if (config?.global_bot_banner_url) {
       setGlobalCover(config.global_bot_banner_url);
       if (client.user && typeof client.user.setBanner === "function") {
-        try { await client.user.setBanner(config.global_bot_banner_url); } catch (e) { console.error("Banner set err:", e.message); }
+        try { 
+          const { applyCdn } = require("./supabase");
+          const bannerUrl = applyCdn(config.global_bot_banner_url);
+          const res = await fetch(bannerUrl);
+          if (res.ok) {
+            const arrayBuffer = await res.arrayBuffer();
+            await client.user.setBanner(Buffer.from(arrayBuffer));
+          } else {
+            await client.user.setBanner(bannerUrl);
+          }
+        } catch (e) { console.error("Banner set err:", e.message); }
       }
     }
 
