@@ -77,9 +77,8 @@ function buildEmbed(embedData, member, tenant) {
     }
   }
 
-  if (!embedData.image_url) {
-    applyDrikaCover(embed, tenant);
-  }
+  // A capa (global ou do master) sempre sobrepõe qualquer image_url do embed config
+  applyDrikaCover(embed, tenant);
   
   return embed;
 }
