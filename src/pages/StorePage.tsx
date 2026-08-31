@@ -240,7 +240,7 @@ const StorePage = () => {
         </div>
 
         <TabsContent value="products" className="mt-4">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden h-[calc(100vh-220px)] min-h-[500px] shadow-2xl relative">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden h-[calc(100vh-180px)] min-h-[600px] shadow-2xl relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
             <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] h-full relative z-10">
               {/* Em mobile, esconde a lista quando um produto está selecionado */}

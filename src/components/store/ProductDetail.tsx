@@ -241,19 +241,21 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
         </div>
       </div>
 
-      {/* Tabs content */}
-      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-        <Tabs defaultValue="geral" className="h-full flex flex-col min-h-0">
-          <div className="px-2 sm:px-6 pt-4 overflow-x-auto border-b border-white/5 pb-0">
-            <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-xl w-max p-1 h-auto mb-[-1px]">
-              <TabsTrigger value="geral" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
-              <TabsTrigger value="embed" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Embed</TabsTrigger>
-              <TabsTrigger value="campos" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Variedades</TabsTrigger>
-              <TabsTrigger value="estoque" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Estoque</TabsTrigger>
-              <TabsTrigger value="cupons" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Cupons</TabsTrigger>
-            </TabsList>
-          </div>
+      {/* Tabs */}
+      <Tabs defaultValue="geral" className="flex flex-col flex-1 min-h-0">
+        {/* Tab bar — always visible, never scrolls away */}
+        <div className="px-2 sm:px-6 pt-3 overflow-x-auto border-b border-white/5 shrink-0">
+          <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-xl w-max p-1 h-auto mb-[-1px]">
+            <TabsTrigger value="geral" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
+            <TabsTrigger value="embed" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Embed</TabsTrigger>
+            <TabsTrigger value="campos" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Variedades</TabsTrigger>
+            <TabsTrigger value="estoque" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Estoque</TabsTrigger>
+            <TabsTrigger value="cupons" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Cupons</TabsTrigger>
+          </TabsList>
+        </div>
 
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           <div className="px-4 sm:px-6 py-4">
             <TabsContent value="geral" className="mt-0">
               <ProductDetailGeneral product={edited} onChange={handleChange} categories={categories} />
@@ -274,10 +276,9 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
             <TabsContent value="cupons" className="mt-0">
               <ProductDetailCoupons productId={product.id} />
             </TabsContent>
-
           </div>
-        </Tabs>
-      </div>
+        </div>
+      </Tabs>
 
       {/* Unsaved changes bar */}
       {dirty && (
