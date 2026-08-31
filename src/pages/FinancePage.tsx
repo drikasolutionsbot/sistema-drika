@@ -18,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTenantQuery } from "@/hooks/useSupabaseQuery";
 import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval, eachDayOfInterval } from "date-fns";
@@ -508,11 +508,12 @@ const FinancePage = () => {
       {/* Orders per day + Top products */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Orders bar chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-border/50 bg-card p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-2 rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <div>
-              <h3 className="font-display font-semibold text-sm">Pedidos por dia</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Volume de vendas diário</p>
+              <h3 className="font-display text-lg font-bold text-white/95">Pedidos por dia</h3>
+              <p className="text-xs font-medium text-muted-foreground/80 mt-1 uppercase tracking-wider">Volume de vendas diário</p>
             </div>
           </div>
           {ordersChartData.length > 0 ? (
@@ -521,54 +522,56 @@ const FinancePage = () => {
                 <defs>
                   <linearGradient id="ordersBarGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(330 100% 71%)" stopOpacity={1} />
-                    <stop offset="100%" stopColor="hsl(280 80% 55%)" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="hsl(280 80% 55%)" stopOpacity={0.4} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225 15% 18%)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(220 15% 55%)" }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} axisLine={false} tickLine={false} dy={10} />
+                <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.4)" }} allowDecimals={false} axisLine={false} tickLine={false} dx={-10} />
                 <RechartsTooltip
-                  cursor={{ fill: "hsl(225 15% 18%)", opacity: 0.4, radius: 6 }}
-                  contentStyle={{ backgroundColor: "hsl(225 25% 11%)", border: "1px solid hsl(225 15% 18%)", borderRadius: "12px", fontSize: 12 }}
+                  cursor={{ fill: "rgba(255,255,255,0.05)", radius: 8 }}
+                  contentStyle={{ backgroundColor: "rgba(10,10,15,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: 13, backdropFilter: "blur(10px)" }}
+                  itemStyle={{ color: "hsl(330 100% 71%)", fontWeight: "bold" }}
                   formatter={(value: number) => [value, "Pedidos"]}
                 />
-                <Bar dataKey="count" fill="url(#ordersBarGrad)" radius={[8, 8, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="count" fill="url(#ordersBarGrad)" radius={[6, 6, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm font-medium">
               Sem dados
             </div>
           )}
         </div>
 
         {/* Top products */}
-        <div className="rounded-2xl border border-border/50 bg-card p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-[24px] border border-white/5 bg-card/30 backdrop-blur-xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -z-10 -translate-x-1/2 -translate-y-1/2" />
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <div>
-              <h3 className="font-display font-semibold text-sm">Top Produtos</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Mais vendidos no período</p>
+              <h3 className="font-display text-lg font-bold text-white/95">Top Produtos</h3>
+              <p className="text-xs font-medium text-muted-foreground/80 mt-1 uppercase tracking-wider">Mais vendidos no período</p>
             </div>
           </div>
           {topProducts.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {topProducts.map((p, i) => (
-                <div key={p.name} className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary shrink-0">
+                <div key={p.name} className="flex items-center gap-4 group">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-sm font-bold text-primary shadow-[0_0_10px_rgba(var(--primary),0.1)] group-hover:scale-110 transition-transform">
                     {i + 1}º
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{p.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{p.count} vendas</p>
+                    <p className="text-sm font-semibold text-white/95 truncate">{p.name}</p>
+                    <p className="text-xs font-medium text-muted-foreground/80">{p.count} vendas</p>
                   </div>
-                  <span className="text-sm font-semibold text-emerald-400 shrink-0">
+                  <span className="text-sm font-bold text-emerald-400 shrink-0">
                     {formatCurrency(p.revenue)}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm font-medium">
               Sem vendas no período
             </div>
           )}
