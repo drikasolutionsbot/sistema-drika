@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Input } from "./input";
 import { Search, Smile } from "lucide-react";
-import { ScrollArea } from "./scroll-area";
 
 const DEFAULT_CATEGORIES = [
   {
@@ -88,7 +87,7 @@ export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guild
             />
           </div>
         </div>
-        <ScrollArea className="h-[300px]">
+        <div className="h-[300px] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
           <div className="p-3 space-y-5">
             {/* Custom Emojis Section */}
             {filteredCustom.length > 0 && (
@@ -139,7 +138,7 @@ export function EmojiPicker({ value, onChange, customEmojis = [], trigger, guild
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
