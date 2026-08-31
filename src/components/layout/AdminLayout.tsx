@@ -112,20 +112,18 @@ const SidebarContent = ({
 
   return (
     <div className="flex h-full flex-col" style={{ background: "var(--sidebar)" }}>
-      {/* Logo header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border">
-        <div className="relative">
-          <img src={logo} alt="Admin" className="h-9 w-9 object-contain" />
-          <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 border-2 border-sidebar">
+      <div className="flex flex-col justify-center gap-1 px-4 py-4 border-b border-sidebar-border items-start">
+        <div className="relative w-full">
+          <img src={logo} alt="Admin" className="h-8 w-auto object-contain max-w-full" />
+          <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 border-2 border-sidebar hidden">
             <span className="h-1.5 w-1.5 rounded-full bg-white" />
           </span>
         </div>
-        <div className="flex flex-col flex-1 min-w-0">
-          <span className="font-display text-sm font-bold leading-tight tracking-wide">
-            <span className="text-gradient-pink">ADMIN</span>{" "}
-            <span className="text-foreground">PANEL</span>
+        <div className="flex flex-col flex-1 min-w-0 mt-2">
+          <span className="font-display text-xs font-bold leading-tight tracking-wide text-muted-foreground/60">
+            ADMIN PANEL
           </span>
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1">
             <Zap className="h-2.5 w-2.5 text-emerald-500" /> Super Administrador
           </span>
         </div>

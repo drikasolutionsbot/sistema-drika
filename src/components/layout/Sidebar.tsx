@@ -350,30 +350,23 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
         {/* Logo */}
         <div className={cn(
-          "relative z-10 flex items-center border-b border-foreground/[0.06] transition-all duration-300",
-          collapsed ? "justify-center py-4 px-2" : "gap-3 px-4 py-4"
+          "relative z-10 flex flex-col justify-center border-b border-foreground/[0.06] transition-all duration-300",
+          collapsed ? "py-4 px-2 items-center" : "px-4 py-4 items-start"
         )}>
-          <Link to="/dashboard" className="group shrink-0">
-            <div className={cn(
-              "relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/15 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_hsl(330_100%_71%/0.2)] group-hover:border-primary/25 overflow-hidden",
-              collapsed ? "h-11 w-11" : "h-9 w-9"
-            )}>
-              <img src={logo} alt="Drika" className={cn("object-contain relative z-10", collapsed ? "h-6 w-6" : "h-5 w-5")} />
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-foreground/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </div>
+          <Link to="/dashboard" className="group shrink-0 flex items-center">
+            <img 
+              src={logo} 
+              alt="Drika Hub" 
+              className={cn(
+                "object-contain transition-all duration-300", 
+                collapsed ? "h-8 w-10 object-left" : "h-10 w-auto"
+              )} 
+            />
           </Link>
-          {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold leading-tight tracking-wide">
-                <span className="text-gradient-pink">DRIKA</span>{" "}
-                <span className="text-foreground/90">HUB</span>
-              </span>
-              {tenant?.discord_guild_id && (
-                <span className="text-[10px] font-mono text-foreground/25 truncate mt-0.5">
-                  {tenant.discord_guild_id}
-                </span>
-              )}
-            </div>
+          {!collapsed && tenant?.discord_guild_id && (
+            <span className="text-[10px] font-mono text-foreground/30 truncate mt-1">
+              {tenant.discord_guild_id}
+            </span>
           )}
         </div>
 
