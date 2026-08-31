@@ -50,6 +50,7 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("pending_payment");
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(15);
 
   const { data: orders = [], isLoading, refetch } = useTenantQuery<any>(
     "approval-orders", "orders",
@@ -227,7 +228,7 @@ export default function ApprovalsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map(order => {
+          {filteredOrders.slice(0, displayLimit).map(order => {
             const isPending = order.status === "pending_payment";
             const isProcessingThis = processing === order.id;
             const isExpanded = expandedId === order.id;
@@ -408,6 +409,18 @@ export default function ApprovalsPage() {
               </div>
             );
           })}
+          
+          {filteredOrders.length > displayLimit && (
+            <div className="flex justify-center pt-4 pb-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setDisplayLimit(filteredOrders.length)}
+                className="w-full sm:w-auto gap-2 bg-card/40 border-border/50 hover:bg-primary/10 hover:text-primary transition-all duration-300"
+              >
+                Ver todos ({filteredOrders.length - displayLimit} restantes)
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
