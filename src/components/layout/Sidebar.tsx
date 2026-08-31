@@ -363,11 +363,6 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               )} 
             />
           </Link>
-          {!collapsed && tenant?.discord_guild_id && (
-            <span className="text-[10px] font-mono text-foreground/30 truncate mt-1">
-              {tenant.discord_guild_id}
-            </span>
-          )}
         </div>
 
         {/* Navigation */}
