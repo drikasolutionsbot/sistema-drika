@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
             type: 2,
             style: discordStyle,
             label: cat.name.slice(0, 80),
-            custom_id: `ticket_category_btn:${cat.id}:${tenant_id}:${channel_id}`,
+            custom_id: `ticket_category_btn:${cat.id}`,
           };
           if (cat.emoji) {
             const customEmojiMatch = String(cat.emoji).match(/<a?:(.+?):(\d+)>/);
