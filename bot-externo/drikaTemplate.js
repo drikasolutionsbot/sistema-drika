@@ -36,15 +36,24 @@ const DRIKA_TEMPLATES = {
 /**
  * Aplica capa fixa Drika em um EmbedBuilder (discord.js).
  * Chamar SEMPRE depois das outras configurações para garantir override.
+ *
+ * Prioridade:
+ *  1. Plano Master com bot_banner_url → banner personalizado do cliente
+ *  2. Qualquer outro plano (free, pro) → capa global do bot (DRIKA_COVER_URL)
  */
 function applyDrikaCover(embed, tenant = null) {
-  // Aplica a capa APENAS se o cliente for Master e tiver um banner personalizado.
-  // Isso remove o banner global "Drika Hub" de todas as mensagens.
-  if (tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master" && tenant.bot_banner_url) {
-    if (embed && typeof embed.setImage === "function") {
-      embed.setImage(applyCdn(tenant.bot_banner_url));
-    }
+  if (!embed || typeof embed.setImage !== "function") return embed;
+
+  const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
+
+  if (isMaster && tenant.bot_banner_url) {
+    // Master com banner próprio → usa o banner do cliente
+    embed.setImage(applyCdn(tenant.bot_banner_url));
+  } else if (DRIKA_COVER_URL) {
+    // Free / Pro (ou master sem banner) → aplica a capa global do bot
+    embed.setImage(applyCdn(DRIKA_COVER_URL));
   }
+
   return embed;
 }
 
