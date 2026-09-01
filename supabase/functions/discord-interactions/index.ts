@@ -1916,16 +1916,17 @@ serve(async (req: Request) => {
         const ticketTenantId = lastUnderscore > 0 ? afterPrefix.substring(0, lastUnderscore) : afterPrefix;
         const targetChannelId = lastUnderscore > 0 ? afterPrefix.substring(lastUnderscore + 1) : null;
 
-        await respondDeferred(interaction, botToken);
-        await editFollowup(interaction, botToken, {
-          embeds: [{
-            title: "⠋ Abrindo ticket...",
-            description: "Aguarde enquanto preparamos seu canal de atendimento.",
-            color: 0x5865F2,
-          }]
-        });
+        const processTicketOpen = async () => {
+          try {
+            await editFollowup(interaction, botToken, {
+              embeds: [{
+                title: "⠋ Abrindo ticket...",
+                description: "Aguarde enquanto preparamos seu canal de atendimento.",
+                color: 0x5865F2,
+              }]
+            });
 
-        // Get tenant guild + ticket config
+            // Get tenant guild + ticket config
         const { data: tenant } = await supabase
           .from("tenants")
           .select("discord_guild_id, name, logo_url, verify_role_id")
@@ -2217,7 +2218,21 @@ serve(async (req: Request) => {
             },
           ],
         });
-        return ok();
+          } catch (e) {
+            console.error("Background ticket open error:", e);
+            await editFollowup(interaction, botToken, "❌ Ocorreu um erro interno ao criar seu ticket.");
+          }
+        };
+
+        if (typeof (globalThis as any).EdgeRuntime !== "undefined" && typeof (globalThis as any).EdgeRuntime.waitUntil === "function") {
+          (globalThis as any).EdgeRuntime.waitUntil(processTicketOpen());
+        } else {
+          processTicketOpen().catch(console.error);
+        }
+
+        return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }), {
+          headers: { "Content-Type": "application/json" }
+        });
       }
 
       // ─── TICKET REMIND (send DM to ticket creator) ───────
