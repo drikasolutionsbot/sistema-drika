@@ -128,21 +128,44 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
       console.warn("[TICKET_OPEN] Cargos de staff configurados nao existem no servidor:", invalidRoleIds);
     }
 
-    let parentTextCh = parentCh;
-    if (parentCh?.type === ChannelType.GuildCategory) {
-      parentTextCh = interaction.guild.channels.cache.find(c => c.parentId === parentCh.id && c.type === ChannelType.GuildText);
-    }
-    if (!parentTextCh) parentTextCh = interaction.channel;
+    const permissionOverwrites = [
+      {
+        id: interaction.guild.id, // @everyone
+        deny: ["ViewChannel"],
+      },
+      {
+        id: userId, // Customer
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      },
+      {
+        id: interaction.client.user.id, // O proprio bot
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "ManageChannels", "ManageMessages"],
+      }
+    ];
 
-    ticketChannel = await parentTextCh.threads.create({
-      name: threadName,
-      type: ChannelType.PrivateThread,
-      autoArchiveDuration: 10080,
+    for (const roleId of validStaffRoleIds) {
+      permissionOverwrites.push({
+        id: roleId,
+        allow: ["ViewChannel", "SendMessages", "ReadMessageHistory", "AttachFiles", "EmbedLinks"],
+      });
+    }
+
+    ticketChannel = await interaction.guild.channels.create({
+      name: `ticket-${safeUsername}-${ticketSuffix}`.substring(0, 100),
+      type: ChannelType.GuildText,
+      parent: categoryId,
+      permissionOverwrites,
       reason: "Ticket de suporte",
     });
 
-    // Add customer to the thread immediately
-    await ticketChannel.members.add(userId).catch(console.error);
+    // Tentar posicionar logo abaixo do canal de origem
+    if (parentCh && parentCh.type !== ChannelType.GuildCategory) {
+      try {
+        await ticketChannel.setPosition(parentCh.position + 1);
+      } catch (posErr) {
+        console.error("[TICKET_OPEN] Erro ao mudar posicao:", posErr.message);
+      }
+    }
 
   } catch (err) {
     // Log completo para facilitar diagnostico
@@ -193,14 +216,22 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     new UserSelectMenuBuilder().setCustomId(`ticket_assign_${ticket.id}`).setPlaceholder("Selecione algum membro").setMinValues(1).setMaxValues(1),
   );
 
-  const staffMentionContent = validStaffRoleIds.length
-    ? validStaffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
+  const staffMentionContent = staffRoleIds.length
+    ? staffRoleIds.map((roleId) => `<@&${roleId}>`).join(" ")
     : "";
 
-  const pingContent = `<@${userId}> ${staffMentionContent}`.trim();
+  // Ghost ping para notificar e limpar o canal
+  const ghostContent = `<@${userId}> ${staffMentionContent}`.trim();
+  if (ghostContent) {
+    try {
+      const ghostMsg = await ticketChannel.send({ content: ghostContent });
+      setTimeout(() => ghostMsg.delete().catch(() => {}), 1500);
+    } catch (e) {
+      console.error("[TICKET_OPEN] Ghost ping error:", e.message);
+    }
+  }
 
   const welcomePayload = {
-    content: pingContent,
     embeds: [welcomeEmbed], components: [row1, row2],
   };
 
