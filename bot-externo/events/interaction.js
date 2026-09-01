@@ -71,8 +71,8 @@ module.exports = async function handleInteraction(client, interaction) {
     if (customId.startsWith("mark_delivered_")) return checkoutHandler.markDelivered(interaction, tenant, customId.replace("mark_delivered_", ""));
     if (customId.startsWith("cancel_manual_")) return checkoutHandler.cancelManual(interaction, tenant, customId.replace("cancel_manual_", ""));
 
-    // Ticket buttons
-    if (customId.startsWith("ticket_open_")) return ticketsHandler.openTicket(interaction, tenant);
+    // Ticket buttons (handled by Supabase Edge Function to avoid timeouts)
+    // if (customId.startsWith("ticket_open_")) return ticketsHandler.openTicket(interaction, tenant);
     
     // Ticket category buttons
     if (customId.startsWith("ticket_category_btn:")) {
@@ -81,16 +81,16 @@ module.exports = async function handleInteraction(client, interaction) {
       if (categoryId) return ticketsHandler.openTicketCategory(interaction, tenant, categoryId);
     }
 
-    if (customId.startsWith("ticket_close_")) return ticketsHandler.handleCloseTicket(interaction, tenant, customId.replace("ticket_close_", ""));
-    if (customId.startsWith("ticket_delete_")) return ticketsHandler.handleDeleteTicket(interaction, tenant, customId.replace("ticket_delete_", ""));
-    if (customId.startsWith("ticket_remind_")) return ticketsHandler.handleRemindTicket(interaction, tenant, customId.replace("ticket_remind_", ""));
-    if (customId.startsWith("ticket_rename_")) return ticketsHandler.showRenameModal(interaction, customId.replace("ticket_rename_", ""));
+    // if (customId.startsWith("ticket_close_")) return ticketsHandler.handleCloseTicket(interaction, tenant, customId.replace("ticket_close_", ""));
+    // if (customId.startsWith("ticket_delete_")) return ticketsHandler.handleDeleteTicket(interaction, tenant, customId.replace("ticket_delete_", ""));
+    // if (customId.startsWith("ticket_remind_")) return ticketsHandler.handleRemindTicket(interaction, tenant, customId.replace("ticket_remind_", ""));
+    // if (customId.startsWith("ticket_rename_")) return ticketsHandler.showRenameModal(interaction, customId.replace("ticket_rename_", ""));
 
     // View variations / details buttons
     if (customId.startsWith("view_variations:")) return checkoutHandler.viewVariations(interaction, tenant, customId.replace("view_variations:", ""));
     if (customId.startsWith("view_details:")) return checkoutHandler.viewDetails(interaction, tenant, customId.replace("view_details:", ""));
 
-    // Transcript view button
+    // Transcript view button (handled by Edge Function or bot-externo depending on if Edge Function has it)
     if (customId.startsWith("transcript_view_")) return ticketsHandler.handleTranscriptView(interaction, tenant, customId.replace("transcript_view_", ""));
 
     // Feedback buttons
