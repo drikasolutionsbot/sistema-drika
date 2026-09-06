@@ -1,7 +1,10 @@
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
-const supabaseUrl = (process.env.SUPABASE_URL || "https://iwotvdfxppjwasywrbmw.supabase.co").replace(/^"|"$/g, '').trim();
+let supabaseUrl = (process.env.SUPABASE_URL || "").replace(/^"|"$/g, '').trim();
+if (!supabaseUrl || supabaseUrl.includes("krudxivcuygykoswjbbx")) {
+  supabaseUrl = "https://iwotvdfxppjwasywrbmw.supabase.co";
+}
 const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").replace(/^"|"$/g, '').trim();
 
 console.log(`[bot-externo] Conectando ao Supabase: ${supabaseUrl} (Key presente: ${Boolean(supabaseKey)})`);
