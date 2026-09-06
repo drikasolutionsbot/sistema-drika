@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 bot-externo/.env
 supabase/.temp/
+.env
