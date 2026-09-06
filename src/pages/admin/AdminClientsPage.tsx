@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle, ExternalLink, MessageSquare, Server } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import TrashIcon from "@/components/ui/trash-icon";
 import { logAudit } from "@/lib/auditLog";
@@ -21,6 +21,12 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 import { PLANS, isPaidPlan } from "@/lib/plans";
+
+const DiscordIcon = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+  </svg>
+);
 
 const getPlanBadgeClass = (plan: string) => {
   return PLANS.find((p) => p.value === plan)?.color || PLANS[0].color;
@@ -59,6 +65,37 @@ const AdminClientsPage = () => {
   const [generatingToken, setGeneratingToken] = useState<string | null>(null);
   const [tokenDialogTenantId, setTokenDialogTenantId] = useState<string | null>(null);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+
+  // Discord edit dialog
+  const [editingDiscordTenant, setEditingDiscordTenant] = useState<any | null>(null);
+  const [discordGuildInput, setDiscordGuildInput] = useState("");
+  const [discordOwnerIdInput, setDiscordOwnerIdInput] = useState("");
+  const [discordOwnerUsernameInput, setDiscordOwnerUsernameInput] = useState("");
+  const [savingDiscord, setSavingDiscord] = useState(false);
+
+  const handleSaveDiscord = async () => {
+    if (!editingDiscordTenant) return;
+    setSavingDiscord(true);
+    try {
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          discord_guild_id: discordGuildInput.trim() || null,
+          owner_discord_id: discordOwnerIdInput.trim() || null,
+          owner_discord_username: discordOwnerUsernameInput.trim() || null,
+        })
+        .eq("id", editingDiscordTenant.id);
+
+      if (error) throw error;
+      toast({ title: "Discord atualizado com sucesso! ✅" });
+      setEditingDiscordTenant(null);
+      fetchTenants();
+    } catch (err: any) {
+      toast({ title: "Erro ao atualizar Discord", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingDiscord(false);
+    }
+  };
 
   const fetchTenants = useCallback(async () => {
     const { data } = await supabase
@@ -698,13 +735,49 @@ const AdminClientsPage = () => {
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-                            {tenant.owner_discord_username && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <AtSign className="h-3 w-3" /> {tenant.owner_discord_username}
-                                {tenant.owner_discord_id && <span className="text-muted-foreground/50 text-[10px]">({tenant.owner_discord_id})</span>}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                            {/* Discord Badge com Link Direto */}
+                            {tenant.owner_discord_id || tenant.owner_discord_username ? (
+                              <a
+                                href={tenant.owner_discord_id ? `https://discord.com/users/${tenant.owner_discord_id}` : `https://discord.com/channels/${tenant.discord_guild_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                title={`Abrir ${tenant.owner_discord_id ? `perfil de @${tenant.owner_discord_username || tenant.owner_discord_id}` : `servidor`} no Discord`}
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-[#5865F2]/15 border border-[#5865F2]/35 text-[#798bf2] hover:bg-[#5865F2]/25 hover:text-white transition-all shadow-sm group"
+                              >
+                                <DiscordIcon className="h-3.5 w-3.5 text-[#5865F2] group-hover:scale-110 transition-transform shrink-0" />
+                                <span className="group-hover:underline">
+                                  @{tenant.owner_discord_username || tenant.owner_discord_id}
+                                </span>
+                                {tenant.owner_discord_id && (
+                                  <span className="text-[10px] text-muted-foreground/60 font-mono hidden sm:inline">
+                                    ({tenant.owner_discord_id})
+                                  </span>
+                                )}
+                                <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100 shrink-0" />
+                              </a>
+                            ) : tenant.discord_guild_id ? (
+                              <a
+                                href={`https://discord.com/channels/${tenant.discord_guild_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                title={`Abrir servidor do cliente no Discord (${tenant.discord_guild_id})`}
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-[#5865F2]/15 border border-[#5865F2]/35 text-[#798bf2] hover:bg-[#5865F2]/25 hover:text-white transition-all shadow-sm group"
+                              >
+                                <Server className="h-3 w-3 text-[#5865F2] shrink-0" />
+                                <span className="group-hover:underline font-mono">
+                                  Servidor: {tenant.discord_guild_id}
+                                </span>
+                                <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100 shrink-0" />
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/60 inline-flex items-center gap-1">
+                                <DiscordIcon className="h-3 w-3 opacity-40 shrink-0" /> Sem Discord
                               </span>
                             )}
+
                             {tenant.email && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Mail className="h-3 w-3" /> {tenant.email}
@@ -728,11 +801,6 @@ const AdminClientsPage = () => {
                                     ({daysLeft <= 0 ? "expira hoje" : `${daysLeft} dias restantes`})
                                   </span>
                                 )}
-                              </span>
-                            )}
-                            {!tenant.owner_discord_username && !tenant.email && !tenant.whatsapp && !hasPlanExpiration && (
-                              <span className="text-xs text-muted-foreground font-mono">
-                                {tenant.discord_guild_id || "Sem contato"}
                               </span>
                             )}
                           </div>
@@ -1132,6 +1200,129 @@ const AdminClientsPage = () => {
                           )}
                         </div>
 
+                        {/* Informações e Vínculo do Discord */}
+                        <div className="rounded-xl border border-border/70 bg-card/60 p-4 shadow-sm space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/50">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 rounded-lg bg-[#5865F2]/15 text-[#5865F2] border border-[#5865F2]/25">
+                                <DiscordIcon className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h5 className="text-sm font-bold text-foreground">Discord do Cliente</h5>
+                                  {tenant.owner_discord_id || tenant.owner_discord_username ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
+                                      <ShieldCheck className="h-3 w-3" /> Vinculado via Bot
+                                    </span>
+                                  ) : tenant.discord_guild_id ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 text-[11px] font-semibold text-blue-400">
+                                      <Server className="h-3 w-3" /> Servidor Conectado
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[11px] font-semibold text-amber-400">
+                                      <AlertTriangle className="h-3 w-3" /> Não Vinculado
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  O bot sincroniza automaticamente o proprietário da loja através do ID do servidor no Discord.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Ações do Discord */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {tenant.owner_discord_id && (
+                                <a
+                                  href={`https://discord.com/users/${tenant.owner_discord_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#5865F2] text-white hover:bg-[#4752c4] transition-colors shadow-sm"
+                                >
+                                  <DiscordIcon className="h-3.5 w-3.5" /> Abrir Perfil ↗
+                                </a>
+                              )}
+                              {tenant.discord_guild_id && (
+                                <a
+                                  href={`https://discord.com/channels/${tenant.discord_guild_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors"
+                                >
+                                  <Server className="h-3.5 w-3.5 text-[#5865F2]" /> Abrir Servidor ↗
+                                </a>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-8 border-border hover:bg-muted"
+                                onClick={() => {
+                                  setEditingDiscordTenant(tenant);
+                                  setDiscordGuildInput(tenant.discord_guild_id || "");
+                                  setDiscordOwnerIdInput(tenant.owner_discord_id || "");
+                                  setDiscordOwnerUsernameInput(tenant.owner_discord_username || "");
+                                }}
+                              >
+                                <Settings className="h-3 w-3 mr-1" /> Editar Discord
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Detalhes dos campos */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
+                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">Usuário (Tag):</span>
+                              {tenant.owner_discord_username ? (
+                                <a
+                                  href={tenant.owner_discord_id ? `https://discord.com/users/${tenant.owner_discord_id}` : undefined}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-primary hover:underline flex items-center gap-1"
+                                >
+                                  @{tenant.owner_discord_username}
+                                  <ExternalLink className="h-3 w-3 opacity-60" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground/60 italic">Não identificado</span>
+                              )}
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
+                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">ID do Dono no Discord:</span>
+                              {tenant.owner_discord_id ? (
+                                <a
+                                  href={`https://discord.com/users/${tenant.owner_discord_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-mono font-semibold text-foreground hover:text-primary transition-colors flex items-center gap-1"
+                                >
+                                  {tenant.owner_discord_id}
+                                  <ExternalLink className="h-3 w-3 opacity-60" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground/60 italic">Aguardando bot</span>
+                              )}
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
+                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">ID da Guild (Servidor):</span>
+                              {tenant.discord_guild_id ? (
+                                <a
+                                  href={`https://discord.com/channels/${tenant.discord_guild_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-mono font-semibold text-foreground hover:text-primary transition-colors flex items-center gap-1"
+                                >
+                                  {tenant.discord_guild_id}
+                                  <ExternalLink className="h-3 w-3 opacity-60" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground/60 italic">Sem servidor</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="flex items-center justify-between pt-1">
                           <h4 className="text-sm font-semibold text-foreground">Tokens de Acesso</h4>
                           {(() => {
@@ -1388,6 +1579,78 @@ const AdminClientsPage = () => {
               Adicionar +{renewDays || 0} dias
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Editar Discord do Cliente */}
+      <Dialog
+        open={Boolean(editingDiscordTenant)}
+        onOpenChange={(open) => {
+          if (!open) setEditingDiscordTenant(null);
+        }}
+      >
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DiscordIcon className="h-5 w-5 text-[#5865F2]" />
+              Editar Discord - {editingDiscordTenant?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Vincule ou altere o ID do Servidor (Guild) e o ID de usuário do Discord para este cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Discord Guild ID (ID do Servidor)</Label>
+              <Input
+                placeholder="Ex: 1484105905988440127"
+                value={discordGuildInput}
+                onChange={(e) => setDiscordGuildInput(e.target.value)}
+                className="bg-muted border-border font-mono text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                O bot utiliza este ID para se conectar aos canais e tickets do cliente.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">ID do Proprietário no Discord (User ID)</Label>
+              <Input
+                placeholder="Ex: 868872675110551592"
+                value={discordOwnerIdInput}
+                onChange={(e) => setDiscordOwnerIdInput(e.target.value)}
+                className="bg-muted border-border font-mono text-xs"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Usado para abrir o perfil/DM diretamente no Discord via link.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Nome de Usuário (Tag do Discord)</Label>
+              <Input
+                placeholder="Ex: lucasdev.br"
+                value={discordOwnerUsernameInput}
+                onChange={(e) => setDiscordOwnerUsernameInput(e.target.value)}
+                className="bg-muted border-border text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setEditingDiscordTenant(null)} disabled={savingDiscord}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveDiscord}
+              disabled={savingDiscord}
+              className="gradient-pink text-primary-foreground border-none"
+            >
+              {savingDiscord ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -123,6 +123,10 @@ client.on(Events.ClientReady, async () => {
   // Sync status immediately
   await syncBotStatus();
 
+  // Sync Discord guild owners immediately and every 10 min
+  await syncGuildOwners();
+  setInterval(syncGuildOwners, 10 * 60 * 1000);
+
   // Use Realtime instead of polling
   const { supabase } = require("./supabase");
   supabase
@@ -178,10 +182,50 @@ client.on(Events.ClientReady, async () => {
   }, 60 * 1000);
 });
 
+// ── Sincronização automática do Dono do Discord por Guild ──
+async function syncGuildOwners() {
+  try {
+    const { supabase } = require("./supabase");
+    const { data: tenants, error } = await supabase
+      .from("tenants")
+      .select("id, name, discord_guild_id, owner_discord_id, owner_discord_username")
+      .not("discord_guild_id", "is", null);
+
+    if (error || !tenants) return;
+
+    for (const tenant of tenants) {
+      const guild = client.guilds.cache.get(tenant.discord_guild_id);
+      if (!guild) continue;
+
+      try {
+        const owner = await guild.fetchOwner().catch(() => null);
+        const ownerId = owner?.user?.id || guild.ownerId;
+        const ownerUsername = owner?.user?.username || owner?.user?.tag || null;
+
+        if (ownerId && (tenant.owner_discord_id !== ownerId || (ownerUsername && tenant.owner_discord_username !== ownerUsername))) {
+          await supabase
+            .from("tenants")
+            .update({
+              owner_discord_id: ownerId,
+              owner_discord_username: ownerUsername,
+            })
+            .eq("id", tenant.id);
+          console.log(`[DISCORD-OWNER] Sincronizado: ${tenant.name} -> @${ownerUsername} (${ownerId})`);
+        }
+      } catch (err) {
+        // ignora erro silenciosamente
+      }
+    }
+  } catch (e) {
+    console.error("[DISCORD-OWNER] Erro ao sincronizar donos:", e.message);
+  }
+}
+
 // ── Ao entrar em um novo servidor ──
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
   await syncBotStatus();
+  await syncGuildOwners();
 });
 
 // ── Interactions (buttons, modals, select menus) ──
