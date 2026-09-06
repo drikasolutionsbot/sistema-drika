@@ -22,6 +22,11 @@ const SettingsBotCustomizationTab = ({ tenant, tenantId, refetchTenant }: Props)
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !tenantId) return;
+    if (file.size > 700 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "O tamanho máximo permitido é 700KB.", variant: "destructive" });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
