@@ -101,8 +101,8 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_expi
                 ? "bg-destructive/10 border-destructive/20 text-destructive"
                 : "bg-muted border-border text-muted-foreground"
         }`}>
-          <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : (isPaid || isSystemFree) ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
-          <span className="font-semibold">{isSystemFree ? "Free" : tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free"}</span>
+          <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : isPaid ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
+          <span className="font-semibold">{tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free"}</span>
           {timeLeft && (
             <>
               <span className="text-muted-foreground/50 hidden sm:inline">•</span>
@@ -114,11 +114,11 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_expi
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0 bg-card border-border">
-        <div className="p-4 space-y-3">
+      <PopoverContent className="w-80 p-0" align="end">
+        <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Crown className={`h-5 w-5 ${(isPaid || isSystemFree) ? "text-primary" : "text-muted-foreground"}`} />
-            <h4 className="text-sm font-bold">{t.plan.plan} {isSystemFree ? "Free" : planLabel}</h4>
+            <Crown className={`h-5 w-5 ${isPaid ? "text-primary" : "text-muted-foreground"}`} />
+            <h4 className="text-sm font-bold">{t.plan.plan} {planLabel}</h4>
           </div>
           
           {tenant.plan_started_at && (
@@ -437,7 +437,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
             <DropdownMenuSeparator />
             {tenant && (() => {
               const isPaid = isPaidPlan(tenant.plan);
-              const planLabel = isSystemFree ? "Free" : tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
+              const planLabel = tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
               let timeLeft = "";
               let isExpiring = false;
               let isExpired = false;
