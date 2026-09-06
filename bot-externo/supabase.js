@@ -1,10 +1,12 @@
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabaseUrl = (process.env.SUPABASE_URL || "https://iwotvdfxppjwasywrbmw.supabase.co").replace(/^"|"$/g, '').trim();
+const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").replace(/^"|"$/g, '').trim();
+
+console.log(`[bot-externo] Conectando ao Supabase: ${supabaseUrl} (Key presente: ${Boolean(supabaseKey)})`);
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ── CDN Helper ──
 function applyCdn(url) {
@@ -38,8 +40,23 @@ async function withCache(key, fetcher) {
 
 // ── Tenant ──
 async function getTenantByGuild(guildId) {
-  return withCache(`tenant_guild_${guildId}`, async () => {
-    const { data } = await supabase.from("tenants").select("*").eq("discord_guild_id", guildId).single();
+  if (!guildId) return null;
+  const cleanGuildId = String(guildId).trim();
+  return withCache(`tenant_guild_${cleanGuildId}`, async () => {
+    const { data, error } = await supabase
+      .from("tenants")
+      .select("*")
+      .eq("discord_guild_id", cleanGuildId)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[getTenantByGuild] Erro ao buscar guild ${cleanGuildId}:`, error.message);
+      return null;
+    }
+    if (!data) {
+      console.warn(`[getTenantByGuild] Nenhum tenant vinculado à guild ${cleanGuildId}`);
+      return null;
+    }
     return data;
   });
 }

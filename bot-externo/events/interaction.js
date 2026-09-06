@@ -3,9 +3,12 @@ const ticketsHandler = require("../handlers/tickets");
 
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
+  const customId = interaction.customId || interaction.commandName || "";
+  console.log(`[Interaction] guildId: ${guildId}, type: ${interaction.type}, customId: ${customId}`);
   if (!guildId && !interaction.isButton() && !interaction.isModalSubmit()) return;
 
   const tenant = guildId ? await client.resolveTenant(guildId) : null;
+  console.log(`[Interaction] Tenant para guild ${guildId}:`, tenant ? `${tenant.name} (${tenant.id})` : 'NÃO ENCONTRADO');
 
   // For DM interactions (buttons/modals)
   let isAllowedDM = false;
