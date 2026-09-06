@@ -235,7 +235,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
     embeds: [welcomeEmbed], components: [row1, row2],
   };
 
-  const welcomeMsg = await sendWithIdentity(ticketChannel, tenant, welcomePayload);
+  const welcomeMsg = await ticketChannel.send(welcomePayload);
 
   try { await welcomeMsg.pin(); } catch {}
 
@@ -347,7 +347,7 @@ async function openTicketCategory(interaction, tenant, categoryId) {
       ticketChannel.send({ content: ghostContent }).then(m => setTimeout(() => m.delete().catch(() => {}), 1500)).catch(() => {});
     }
 
-    await sendWithIdentity(ticketChannel, tenant, { embeds: [welcomeEmbed], components: [row1, row2] });
+    await ticketChannel.send({ embeds: [welcomeEmbed], components: [row1, row2] });
 
     await interaction.editReply({
       content: `<a:certopreto:1369628807929008228> Ticket criado! Acesse <#${ticketChannel.id}>`
@@ -506,7 +506,7 @@ async function handleRemindTicket(interaction, tenant, ticketId) {
     });
   } catch {}
 
-  await sendWithIdentity(interaction.channel, tenant, { content: `🔔 <@${ticket.discord_user_id}>, este é um lembrete sobre seu ticket! Por favor, verifique se há atualizações pendentes.` });
+  await interaction.channel.send({ content: `🔔 <@${ticket.discord_user_id}>, este é um lembrete sobre seu ticket! Por favor, verifique se há atualizações pendentes.` });
   await interaction.editReply({ content: `<:check:1521190651146801222> Lembrete enviado para <@${ticket.discord_user_id}>!` });
 }
 
