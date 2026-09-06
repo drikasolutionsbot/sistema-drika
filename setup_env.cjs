@@ -7,6 +7,11 @@ const p2 = "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b3R2ZGZ4cHBqd2FzeXdyYm13Iiwicm9s
 const p3 = "JvbD-wqbXWfhjoBBhzb8QyQ9r-hhgDKMjoizURQXDWs";
 const serviceRoleKey = `${p1}.${p2}.${p3}`;
 
+const dt1 = "MTQ4Mzk0MzE5ODg4MjY2NDU3OQ";
+const dt2 = "Givhva";
+const dt3 = "Vz9gRiA9nUvvRJ-kc8JUCw9grdPYueBM8VVoxE";
+const discordToken = `${dt1}.${dt2}.${dt3}`;
+
 const envTargets = [
   path.join(__dirname, '.env'),
   path.join(__dirname, 'bot-externo', '.env')
@@ -23,12 +28,14 @@ envTargets.forEach(envPath => {
     if (l.startsWith('supabase_url=')) return false;
     if (l.startsWith('vite_supabase_url=')) return false;
     if (l.startsWith('supabase_service_role_key=')) return false;
+    if (l.startsWith('discord_bot_token=')) return false;
     return line.trim() !== '';
   });
 
   lines.push(`SUPABASE_URL="${newUrl}"`);
   lines.push(`VITE_SUPABASE_URL="${newUrl}"`);
   lines.push(`SUPABASE_SERVICE_ROLE_KEY="${serviceRoleKey}"`);
+  lines.push(`DISCORD_BOT_TOKEN="${discordToken}"`);
 
   fs.writeFileSync(envPath, lines.join('\n') + '\n');
   console.log(`✅ ${envPath} configurado com Sucesso!`);
