@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2 } from "lucide-react";
+import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import TrashIcon from "@/components/ui/trash-icon";
 import { logAudit } from "@/lib/auditLog";
@@ -20,7 +20,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import { PLANS } from "@/lib/plans";
+import { PLANS, isPaidPlan } from "@/lib/plans";
 
 const getPlanBadgeClass = (plan: string) => {
   return PLANS.find((p) => p.value === plan)?.color || PLANS[0].color;
@@ -367,17 +367,25 @@ const AdminClientsPage = () => {
       if (!tokens[tenantId]) fetchTokens(tenantId);
     }
   };
-  const getExportData = () => filteredTenants.map((t) => ({
-    Nome: t.name || "",
-    Plano: (t.plan || "free") === "pro" ? "Pro" : "Free",
-    "Guild ID": t.discord_guild_id || "",
-    Email: t.email || "",
-    WhatsApp: t.whatsapp || "",
-    "Início do Plano": t.plan_started_at ? format(new Date(t.plan_started_at), "dd/MM/yyyy HH:mm") : "",
-    "Expira em": t.plan_expires_at ? format(new Date(t.plan_expires_at), "dd/MM/yyyy HH:mm") : "",
-    "Criado em": t.created_at ? format(new Date(t.created_at), "dd/MM/yyyy HH:mm") : "",
-    Status: t.plan === "pro" && t.plan_expires_at && new Date(t.plan_expires_at) < new Date() ? "Expirado" : "Ativo",
-  }));
+  const getExportData = () => filteredTenants.map((t) => {
+    const planName = t.plan === "master" ? "Master" : t.plan === "pro" ? "Pro" : "Free";
+    const hasExpiry = Boolean(t.plan_expires_at) && t.plan !== "free";
+    const isExp = hasExpiry && new Date(t.plan_expires_at) < new Date();
+    const dLeft = hasExpiry ? Math.ceil((new Date(t.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+
+    return {
+      Nome: t.name || "",
+      Plano: planName,
+      "Guild ID": t.discord_guild_id || "",
+      Email: t.email || "",
+      WhatsApp: t.whatsapp || "",
+      "Início do Plano": t.plan_started_at ? format(new Date(t.plan_started_at), "dd/MM/yyyy HH:mm") : "",
+      "Expira em": t.plan_expires_at ? format(new Date(t.plan_expires_at), "dd/MM/yyyy HH:mm") : "",
+      "Dias Restantes": hasExpiry ? (isExp ? "Expirado" : `${dLeft} dias`) : "Ilimitado",
+      "Criado em": t.created_at ? format(new Date(t.created_at), "dd/MM/yyyy HH:mm") : "",
+      Status: isExp ? "Expirado" : "Ativo",
+    };
+  });
 
   const handleExportExcel = () => {
     const ws = XLSX.utils.json_to_sheet(getExportData());
@@ -619,10 +627,25 @@ const AdminClientsPage = () => {
                 const tenantTokens = tokens[tenant.id] || [];
                 const currentPlan = tenant.plan || "free";
                 const planInfo = PLANS.find((p) => p.value === currentPlan) || PLANS[0];
-                const isPro = currentPlan === "pro";
-                const isExpired = isPro && tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date();
-                const daysLeft = isPro && tenant.plan_expires_at
-                  ? Math.ceil((new Date(tenant.plan_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                const isPaid = isPaidPlan(currentPlan);
+                const hasPlanExpiration = Boolean(tenant.plan_expires_at) && currentPlan !== "free";
+                const now = new Date();
+                const startDate = tenant.plan_started_at ? new Date(tenant.plan_started_at) : null;
+                const expiryDate = tenant.plan_expires_at ? new Date(tenant.plan_expires_at) : null;
+                const isExpired = hasPlanExpiration && expiryDate ? expiryDate < now : false;
+
+                const diffMs = expiryDate ? expiryDate.getTime() - now.getTime() : 0;
+                const daysLeft = hasPlanExpiration
+                  ? Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+                  : null;
+                const hoursLeft = hasPlanExpiration
+                  ? Math.ceil(diffMs / (1000 * 60 * 60))
+                  : null;
+
+                const totalCycleMs = startDate && expiryDate ? Math.max(1, expiryDate.getTime() - startDate.getTime()) : null;
+                const elapsedCycleMs = startDate ? Math.max(0, now.getTime() - startDate.getTime()) : null;
+                const cyclePercent = totalCycleMs && elapsedCycleMs !== null
+                  ? Math.min(100, Math.max(0, Math.round((elapsedCycleMs / totalCycleMs) * 100)))
                   : null;
 
                 return (
@@ -648,20 +671,34 @@ const AdminClientsPage = () => {
                       </div>
                       <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium text-foreground">{tenant.name}</p>
                             {isExpired && (
                               <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 border border-destructive/30 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
                                 <ShieldOff className="h-3 w-3" /> EXPIRADO
                               </span>
                             )}
-                            {isPro && !isExpired && daysLeft !== null && daysLeft <= 5 && (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
-                                ⚠️ {daysLeft}d restantes
+                            {!isExpired && daysLeft !== null && (
+                              <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold border ${
+                                daysLeft <= 0
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 animate-pulse"
+                                  : daysLeft <= 5
+                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                              }`}>
+                                {daysLeft <= 0 ? (
+                                  <>⚠️ Expira hoje ({Math.max(1, hoursLeft || 1)}h)</>
+                                ) : daysLeft === 1 ? (
+                                  <>⚠️ 1 dia restante</>
+                                ) : daysLeft <= 5 ? (
+                                  <>⚠️ {daysLeft}d restantes</>
+                                ) : (
+                                  <>⏳ {daysLeft}d restantes</>
+                                )}
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                             {tenant.owner_discord_username && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <AtSign className="h-3 w-3" /> {tenant.owner_discord_username}
@@ -678,17 +715,22 @@ const AdminClientsPage = () => {
                                 <Phone className="h-3 w-3" /> {tenant.whatsapp}
                               </span>
                             )}
-                            {isPro && tenant.plan_started_at && (
+                            {hasPlanExpiration && tenant.plan_started_at && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Calendar className="h-3 w-3" /> Início: {format(new Date(tenant.plan_started_at), "dd/MM/yyyy")}
                               </span>
                             )}
-                            {isPro && tenant.plan_expires_at && (
+                            {hasPlanExpiration && tenant.plan_expires_at && (
                               <span className={`text-xs flex items-center gap-1 ${isExpired ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
                                 <CalendarClock className="h-3 w-3" /> Vence: {format(new Date(tenant.plan_expires_at), "dd/MM/yyyy")}
+                                {!isExpired && daysLeft !== null && (
+                                  <span className={`font-semibold ${daysLeft <= 5 ? "text-amber-500" : "text-emerald-500"}`}>
+                                    ({daysLeft <= 0 ? "expira hoje" : `${daysLeft} dias restantes`})
+                                  </span>
+                                )}
                               </span>
                             )}
-                            {!tenant.owner_discord_username && !tenant.email && !tenant.whatsapp && !isPro && (
+                            {!tenant.owner_discord_username && !tenant.email && !tenant.whatsapp && !hasPlanExpiration && (
                               <span className="text-xs text-muted-foreground font-mono">
                                 {tenant.discord_guild_id || "Sem contato"}
                               </span>
@@ -725,7 +767,7 @@ const AdminClientsPage = () => {
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
                             <button
                               className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-[2px] text-xs font-medium transition-colors hover:opacity-80 ${planInfo.color}`}
                               onClick={() => setEditingPlan(tenant.id)}
@@ -734,10 +776,40 @@ const AdminClientsPage = () => {
                               <Settings className="h-3 w-3" />
                               {planInfo.label}
                             </button>
+
+                            {/* Badge Dinâmico de Dias Restantes no Header da Linha */}
+                            {hasPlanExpiration ? (
+                              isExpired ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-destructive/15 border border-destructive/30 px-2 py-[2px] text-[11px] font-bold text-destructive animate-pulse" title={`Expirou em ${format(new Date(tenant.plan_expires_at), "dd/MM/yyyy")}`}>
+                                  <ShieldOff className="h-3 w-3" /> Expirado
+                                </span>
+                              ) : daysLeft !== null && daysLeft <= 0 ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-[2px] text-[11px] font-bold text-amber-400" title={`Vence hoje: ${format(new Date(tenant.plan_expires_at), "dd/MM/yyyy HH:mm")}`}>
+                                  <Clock className="h-3 w-3" /> Vence hoje
+                                </span>
+                              ) : daysLeft !== null && daysLeft === 1 ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-[2px] text-[11px] font-bold text-amber-400" title={`Vence em: ${format(new Date(tenant.plan_expires_at), "dd/MM/yyyy")}`}>
+                                  <Clock className="h-3 w-3" /> 1 dia restante
+                                </span>
+                              ) : daysLeft !== null && daysLeft <= 5 ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-[2px] text-[11px] font-bold text-amber-400" title={`Vence em: ${format(new Date(tenant.plan_expires_at), "dd/MM/yyyy")}`}>
+                                  <Clock className="h-3 w-3" /> {daysLeft} dias restantes
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-[2px] text-[11px] font-bold text-emerald-400" title={`Vence em: ${format(new Date(tenant.plan_expires_at), "dd/MM/yyyy")}`}>
+                                  <CalendarClock className="h-3 w-3" /> {daysLeft} dias restantes
+                                </span>
+                              )
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 border border-border/50 px-2 py-[2px] text-[11px] font-medium text-muted-foreground">
+                                <Clock className="h-3 w-3" /> Sem prazo (Free)
+                              </span>
+                            )}
+
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-6 text-[10px] px-2 border-primary/30 text-primary hover:bg-primary/10"
+                              className="h-6 text-[10px] px-2 border-primary/30 text-primary hover:bg-primary/10 font-semibold"
                               onClick={() => {
                                 setRenewDialogTenantId(tenant.id);
                                 setRenewDays("30");
@@ -831,7 +903,236 @@ const AdminClientsPage = () => {
                     {/* Expanded tokens section */}
                     {isExpanded && (
                       <div className="border-t border-border bg-muted/30 px-4 py-4 space-y-4">
-                        <div className="flex items-center justify-between">
+                        {/* Status do Plano e Contagem de Dias Restantes */}
+                        <div className={`rounded-xl border p-4 transition-all shadow-sm ${
+                          isExpired
+                            ? "bg-destructive/10 border-destructive/30"
+                            : daysLeft !== null && daysLeft <= 5
+                              ? "bg-amber-500/10 border-amber-500/30"
+                              : hasPlanExpiration
+                                ? "bg-card/80 border-border/80"
+                                : "bg-card/50 border-border/60"
+                        }`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/50">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2.5 rounded-xl border ${
+                                isExpired
+                                  ? "bg-destructive/20 border-destructive/40 text-destructive"
+                                  : daysLeft !== null && daysLeft <= 5
+                                    ? "bg-amber-500/20 border-amber-500/40 text-amber-500"
+                                    : "bg-primary/10 border-primary/20 text-primary"
+                              }`}>
+                                <Crown className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-bold text-foreground">Status da Assinatura</span>
+                                  <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold ${planInfo.color}`}>
+                                    {planInfo.label}
+                                  </span>
+                                  {hasPlanExpiration ? (
+                                    isExpired ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/20 border border-destructive/40 px-2.5 py-0.5 text-[11px] font-bold text-destructive">
+                                        <ShieldOff className="h-3 w-3" /> Expirado
+                                      </span>
+                                    ) : daysLeft !== null && daysLeft <= 0 ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-400 animate-pulse">
+                                        <AlertTriangle className="h-3 w-3" /> Expira Hoje
+                                      </span>
+                                    ) : daysLeft !== null && daysLeft <= 5 ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-[11px] font-bold text-amber-400">
+                                        <Clock className="h-3 w-3" /> Expira em Breve
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
+                                        <ShieldCheck className="h-3 w-3" /> Ativo
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-muted border border-border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                      Sem Expiração (Free)
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {hasPlanExpiration
+                                    ? (isExpired
+                                        ? "O período deste plano encerrou. O acesso do cliente aos recursos está suspenso."
+                                        : "Plano ativo com controle de dias restantes e renovação automática via admin.")
+                                    : "Plano gratuito sem data limite de expiração."}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Ações rápidas do plano */}
+                            <div className="flex items-center gap-2 self-start sm:self-auto">
+                              <Button
+                                size="sm"
+                                className="gradient-pink text-primary-foreground border-none text-xs h-8 shadow-sm hover:opacity-95"
+                                onClick={() => {
+                                  setRenewDialogTenantId(tenant.id);
+                                  setRenewDays("30");
+                                  setRenewPlan(tenant.plan || "free");
+                                }}
+                              >
+                                <Plus className="h-3.5 w-3.5 mr-1" /> + Dias
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-8 border-border hover:bg-muted"
+                                onClick={() => setEditingPlan(tenant.id)}
+                              >
+                                <Settings className="h-3.5 w-3.5 mr-1" /> Mudar Plano
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Métricas de Tempo e Validade */}
+                          {hasPlanExpiration ? (
+                            <div className="mt-3.5 space-y-3.5">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {/* Métrica 1: Dias Restantes */}
+                                <div className={`p-3.5 rounded-xl border flex flex-col justify-between ${
+                                  isExpired
+                                    ? "bg-destructive/10 border-destructive/30"
+                                    : daysLeft !== null && daysLeft <= 5
+                                      ? "bg-amber-500/10 border-amber-500/30"
+                                      : "bg-emerald-500/10 border-emerald-500/30"
+                                }`}>
+                                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                                    <span>Dias de Plano Restantes</span>
+                                    <Clock className={`h-4 w-4 ${
+                                      isExpired
+                                        ? "text-destructive"
+                                        : daysLeft !== null && daysLeft <= 5
+                                          ? "text-amber-500"
+                                          : "text-emerald-500"
+                                    }`} />
+                                  </div>
+                                  <div className="flex items-baseline gap-1.5">
+                                    {isExpired ? (
+                                      <div>
+                                        <span className="text-2xl font-black text-destructive">0 dias</span>
+                                        <span className="text-[11px] text-destructive/80 font-medium block">
+                                          Vencido há {Math.abs(daysLeft || 0)} dias
+                                        </span>
+                                      </div>
+                                    ) : daysLeft !== null && daysLeft <= 0 ? (
+                                      <div>
+                                        <span className="text-2xl font-black text-amber-500">Expira hoje!</span>
+                                        <span className="text-[11px] text-amber-500/80 font-medium block">
+                                          Restam ~{Math.max(1, hoursLeft || 1)} horas
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <span className={`text-3xl font-black tracking-tight ${
+                                          daysLeft !== null && daysLeft <= 5 ? "text-amber-400" : "text-emerald-400"
+                                        }`}>
+                                          {daysLeft}
+                                        </span>
+                                        <span className="text-xs font-bold text-muted-foreground ml-2">
+                                          {daysLeft === 1 ? "dia restante" : "dias restantes"}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Métrica 2: Data de Início */}
+                                <div className="p-3.5 rounded-xl border border-border/60 bg-card/60 flex flex-col justify-between">
+                                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                                    <span>Data de Início</span>
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <span className="text-base font-bold text-foreground">
+                                      {tenant.plan_started_at
+                                        ? format(new Date(tenant.plan_started_at), "dd/MM/yyyy")
+                                        : "Não registrado"}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground block">
+                                      {tenant.plan_started_at
+                                        ? format(new Date(tenant.plan_started_at), "HH:mm")
+                                        : "Início do plano"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Métrica 3: Vencimento */}
+                                <div className={`p-3.5 rounded-xl border flex flex-col justify-between ${
+                                  isExpired
+                                    ? "border-destructive/30 bg-destructive/5"
+                                    : "border-border/60 bg-card/60"
+                                }`}>
+                                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1.5">
+                                    <span>Data de Vencimento</span>
+                                    <CalendarClock className={`h-4 w-4 ${isExpired ? "text-destructive" : "text-muted-foreground"}`} />
+                                  </div>
+                                  <div>
+                                    <span className={`text-base font-bold ${isExpired ? "text-destructive" : "text-foreground"}`}>
+                                      {expiryDate ? format(expiryDate, "dd/MM/yyyy") : "—"}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground block">
+                                      {expiryDate ? format(expiryDate, "HH:mm") : "Sem prazo"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Barra de Progresso do Ciclo */}
+                              {startDate && expiryDate && (
+                                <div className="space-y-1.5 pt-1">
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1.5 font-medium">
+                                      <Clock className="h-3 w-3" /> Progresso do Período
+                                    </span>
+                                    <span className="font-semibold text-foreground text-xs">
+                                      {isExpired
+                                        ? "100% decorrido (Expirado)"
+                                        : `${cyclePercent ?? 0}% decorrido (${daysLeft} dias restantes)`}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-muted/80 rounded-full h-2 overflow-hidden border border-border/40">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        isExpired
+                                          ? "bg-destructive"
+                                          : daysLeft !== null && daysLeft <= 5
+                                            ? "bg-amber-500"
+                                            : "bg-emerald-500"
+                                      }`}
+                                      style={{ width: `${Math.min(100, Math.max(3, isExpired ? 100 : (cyclePercent ?? 50)))}%` }}
+                                    />
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                    <span>Início: {format(startDate, "dd/MM/yyyy")}</span>
+                                    <span>Vencimento: {format(expiryDate, "dd/MM/yyyy 'às' HH:mm")}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mt-3.5 p-3 rounded-xl border border-dashed border-border/70 bg-muted/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-muted-foreground">
+                              <span>Este cliente está no Plano Gratuito e não possui data limite de expiração.</span>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="text-xs h-7 shrink-0 font-medium"
+                                onClick={() => {
+                                  setRenewDialogTenantId(tenant.id);
+                                  setRenewDays("30");
+                                  setRenewPlan("pro");
+                                }}
+                              >
+                                Ativar Prazo (30 dias)
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
                           <h4 className="text-sm font-semibold text-foreground">Tokens de Acesso</h4>
                           {(() => {
                             const activeTokens = tenantTokens.filter(t => !t.revoked);
