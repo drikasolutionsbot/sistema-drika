@@ -13,7 +13,8 @@ const TranscriptPage = () => {
   const ticketId = searchParams.get("ticket_id");
 
   const transcriptUrl = useMemo(() => {
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const rawUrl = import.meta.env.VITE_SUPABASE_URL || "https://iwotvdfxppjwasywrbmw.supabase.co";
+    const baseUrl = rawUrl.replace(/krudxivcuygykoswjbbx/g, "iwotvdfxppjwasywrbmw");
     if (channelId) {
       return `${baseUrl}/functions/v1/serve-transcript?channel_id=${encodeURIComponent(channelId)}`;
     }
@@ -33,7 +34,13 @@ const TranscriptPage = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(transcriptUrl);
+        const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b3R2ZGZ4cHBqd2FzeXdyYm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MDg3NjAsImV4cCI6MjEwNDI4NDc2MH0.KijtuLNUpF8zWaBdHDaP6C0G6e-UWjo7Hqr-hgDC-d4";
+        const response = await fetch(transcriptUrl, {
+          headers: {
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+          },
+        });
         if (!response.ok) throw new Error("Não foi possível carregar o transcript.");
         const content = await response.text();
         setHtml(content);
