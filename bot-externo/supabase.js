@@ -9,7 +9,10 @@ const supabase = createClient(
 // ── CDN Helper ──
 function applyCdn(url) {
   if (!url) return url;
-  let newUrl = url.replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev").trim();
+  let newUrl = url
+    .replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev")
+    .replace("iwotvdfxppjwasywrbmw.supabase.co", "cdn-drika.studyhakify.workers.dev")
+    .trim();
   // Força o Discord a reconhecer a URL como imagem adicionando uma query fake se não tiver extensão
   if (newUrl.startsWith("http") && !newUrl.match(/\.(png|jpg|jpeg|webp|gif)($|\?)/i)) {
     newUrl += (newUrl.includes('?') ? '&' : '?') + 'ext=.png';

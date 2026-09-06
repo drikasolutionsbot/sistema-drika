@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-const SUPABASE_URL = "https://krudxivcuygykoswjbbx.supabase.co";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://iwotvdfxppjwasywrbmw.supabase.co";
 
 const VerifyRedirectPage = () => {
   const { slug } = useParams<{ slug: string }>();

@@ -24,7 +24,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import type { TranslationKeys } from "@/i18n/translations/pt-BR";
 import { motion, AnimatePresence } from "framer-motion";
 
-const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "krudxivcuygykoswjbbx";
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "iwotvdfxppjwasywrbmw";
 
 // Retry helper for cold-start edge function failures
 async function invokeWithRetry(fnName: string, body: any, retries = 2): Promise<any> {

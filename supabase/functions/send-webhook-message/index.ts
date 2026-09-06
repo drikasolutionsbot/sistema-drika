@@ -589,7 +589,10 @@ serve(async (req) => {
     // Função applyCdn embutida
     const applyCdnInline = (url: string | null | undefined) => {
       if (!url) return url;
-      let newUrl = url.replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev").trim();
+      let newUrl = url
+        .replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev")
+        .replace("iwotvdfxppjwasywrbmw.supabase.co", "cdn-drika.studyhakify.workers.dev")
+        .trim();
       if (newUrl.startsWith("http") && !newUrl.match(/\.(png|jpg|jpeg|webp|gif)($|\?)/i)) {
         newUrl += (newUrl.includes('?') ? '&' : '?') + 'ext=.png';
       }

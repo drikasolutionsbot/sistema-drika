@@ -22,7 +22,7 @@ type GatewayTutorial = {
   slides: Slide[];
 };
 
-const WEBHOOK_BASE = "https://krudxivcuygykoswjbbx.supabase.co/functions/v1";
+const WEBHOOK_BASE = `${import.meta.env.VITE_SUPABASE_URL || "https://iwotvdfxppjwasywrbmw.supabase.co"}/functions/v1`;
 
 const CopyableCode = ({ value, label }: { value: string; label?: string }) => {
   const { t } = useLanguage();
