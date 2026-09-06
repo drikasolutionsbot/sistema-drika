@@ -8,8 +8,8 @@ const p3 = "JvbD-wqbXWfhjoBBhzb8QyQ9r-hhgDKMjoizURQXDWs";
 const serviceRoleKey = `${p1}.${p2}.${p3}`;
 
 const dt1 = "MTQ4Mzk0MzE5ODg4MjY2NDU3OQ";
-const dt2 = "Givhva";
-const dt3 = "Vz9gRiA9nUvvRJ-kc8JUCw9grdPYueBM8VVoxE";
+const dt2 = "GektFA";
+const dt3 = "fzmB5Jc2XXMPeEgtXBwBl-PwKZNqResd_FaIPk";
 const discordToken = `${dt1}.${dt2}.${dt3}`;
 
 const envTargets = [
