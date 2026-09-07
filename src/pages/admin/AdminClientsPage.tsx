@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle, ExternalLink, MessageSquare, Server } from "lucide-react";
+import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle, ExternalLink, MessageSquare, Server, Globe } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import TrashIcon from "@/components/ui/trash-icon";
 import { logAudit } from "@/lib/auditLog";
@@ -125,6 +125,7 @@ const AdminClientsPage = () => {
       t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.discord_guild_id?.includes(searchQuery) ||
       t.owner_discord_username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.registration_ip?.includes(searchQuery) ||
       t.id?.includes(searchQuery);
     const matchesPlan = planFilter === "all" || (t.plan || "free") === planFilter;
     return matchesSearch && matchesPlan;
@@ -416,6 +417,7 @@ const AdminClientsPage = () => {
       "Guild ID": t.discord_guild_id || "",
       Email: t.email || "",
       WhatsApp: t.whatsapp || "",
+      "IP de Cadastro": t.registration_ip || "Não registrado",
       "Início do Plano": t.plan_started_at ? format(new Date(t.plan_started_at), "dd/MM/yyyy HH:mm") : "",
       "Expira em": t.plan_expires_at ? format(new Date(t.plan_expires_at), "dd/MM/yyyy HH:mm") : "",
       "Dias Restantes": hasExpiry ? (isExp ? "Expirado" : `${dLeft} dias`) : "Ilimitado",
@@ -786,6 +788,11 @@ const AdminClientsPage = () => {
                             {tenant.whatsapp && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Phone className="h-3 w-3" /> {tenant.whatsapp}
+                              </span>
+                            )}
+                            {tenant.registration_ip && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono bg-muted/40 px-1.5 py-0.5 rounded border border-border/40" title={`IP de Cadastro: ${tenant.registration_ip}`}>
+                                <Globe className="h-3 w-3 text-cyan-400 shrink-0" /> {tenant.registration_ip}
                               </span>
                             )}
                             {hasPlanExpiration && tenant.plan_started_at && (
@@ -1269,7 +1276,7 @@ const AdminClientsPage = () => {
                           </div>
 
                           {/* Detalhes dos campos */}
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
                             <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
                               <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">Usuário (Tag):</span>
                               {tenant.owner_discord_username ? (
@@ -1318,6 +1325,18 @@ const AdminClientsPage = () => {
                                 </a>
                               ) : (
                                 <span className="text-muted-foreground/60 italic">Sem servidor</span>
+                              )}
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
+                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">IP de Registro:</span>
+                              {tenant.registration_ip ? (
+                                <span className="font-mono font-semibold text-cyan-400 flex items-center gap-1">
+                                  <Globe className="h-3 w-3 text-cyan-400 shrink-0" />
+                                  {tenant.registration_ip}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground/60 italic">Não registrado</span>
                               )}
                             </div>
                           </div>

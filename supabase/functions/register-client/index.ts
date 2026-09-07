@@ -32,6 +32,31 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const clientIp = req.headers.get("cf-connecting-ip")
+      || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || req.headers.get("x-real-ip")
+      || null;
+
+    // Check if another account was already registered from this IP (anti-multi account)
+    if (clientIp && clientIp !== "127.0.0.1" && clientIp !== "::1") {
+      const { data: existingTenantWithIp } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("registration_ip", clientIp)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingTenantWithIp) {
+        return new Response(
+          JSON.stringify({ error: "Já existe uma conta cadastrada neste dispositivo/rede." }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     // Check if email already exists
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
     const emailExists = existingUsers?.users?.some(
@@ -88,6 +113,7 @@ Deno.serve(async (req) => {
         plan_started_at: now.toISOString(),
         plan_expires_at: trialExpires.toISOString(),
         referred_by_tenant_id: referredByTenantId,
+        registration_ip: clientIp,
       })
       .select()
       .single();
