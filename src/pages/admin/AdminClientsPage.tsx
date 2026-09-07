@@ -120,13 +120,17 @@ const AdminClientsPage = () => {
   }, [fetchTenants]);
 
   const filteredTenants = tenants.filter((t) => {
+    const q = searchQuery.trim().toLowerCase();
     const matchesSearch =
-      !searchQuery.trim() ||
-      t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.discord_guild_id?.includes(searchQuery) ||
-      t.owner_discord_username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.registration_ip?.includes(searchQuery) ||
-      t.id?.includes(searchQuery);
+      !q ||
+      t.name?.toLowerCase().includes(q) ||
+      t.discord_guild_id?.includes(q) ||
+      t.owner_discord_username?.toLowerCase().includes(q) ||
+      t.owner_discord_id?.includes(q) ||
+      t.email?.toLowerCase().includes(q) ||
+      t.whatsapp?.includes(q) ||
+      t.registration_ip?.toLowerCase().includes(q) ||
+      t.id?.includes(q);
     const matchesPlan = planFilter === "all" || (t.plan || "free") === planFilter;
     return matchesSearch && matchesPlan;
   });
@@ -569,7 +573,7 @@ const AdminClientsPage = () => {
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por nome, Guild ID ou ID..."
+          placeholder="Buscar por nome, Discord, Email, WhatsApp ou IP..."
           className="pl-9 bg-card border-border"
         />
       </div>
@@ -791,9 +795,19 @@ const AdminClientsPage = () => {
                               </span>
                             )}
                             {tenant.registration_ip && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono bg-muted/40 px-1.5 py-0.5 rounded border border-border/40" title={`IP de Cadastro: ${tenant.registration_ip}`}>
-                                <Globe className="h-3 w-3 text-cyan-400 shrink-0" /> {tenant.registration_ip}
-                              </span>
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(tenant.registration_ip);
+                                  toast({ title: "IP copiado! 📋", description: tenant.registration_ip });
+                                }}
+                                className="group/ip text-xs text-muted-foreground flex items-center gap-1.5 font-mono bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded-md cursor-pointer transition-all shadow-sm"
+                                title="Clique para copiar o IP"
+                              >
+                                <Globe className="h-3 w-3 text-cyan-400 shrink-0" />
+                                <span>{tenant.registration_ip}</span>
+                                <Copy className="h-3 w-3 opacity-60 group-hover/ip:opacity-100 group-hover/ip:scale-110 transition-all shrink-0 ml-0.5" />
+                              </div>
                             )}
                             {hasPlanExpiration && tenant.plan_started_at && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1329,12 +1343,36 @@ const AdminClientsPage = () => {
                             </div>
 
                             <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
-                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">IP de Registro:</span>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-muted-foreground text-[11px] font-medium">IP de Registro:</span>
+                                {tenant.registration_ip && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10"
+                                    title="Copiar IP"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(tenant.registration_ip);
+                                      toast({ title: "IP copiado! 📋", description: tenant.registration_ip });
+                                    }}
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
                               {tenant.registration_ip ? (
-                                <span className="font-mono font-semibold text-cyan-400 flex items-center gap-1">
+                                <div
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(tenant.registration_ip);
+                                    toast({ title: "IP copiado! 📋", description: tenant.registration_ip });
+                                  }}
+                                  className="font-mono font-semibold text-cyan-400 flex items-center gap-1 cursor-pointer hover:underline"
+                                  title="Clique para copiar o IP"
+                                >
                                   <Globe className="h-3 w-3 text-cyan-400 shrink-0" />
                                   {tenant.registration_ip}
-                                </span>
+                                </div>
                               ) : (
                                 <span className="text-muted-foreground/60 italic">Não registrado</span>
                               )}
