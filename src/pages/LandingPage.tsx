@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, useMemo, type RefObject } from "react";
-import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus, Gift, ShieldCheck, MessageSquareHeart } from "lucide-react";
+import { Crown, Zap, Check, ArrowRight, ShoppingCart, Shield, Lock, Users, TrendingUp, Package, ChevronDown, MessageSquare, Bot, Settings, Play, X, Copy, Loader2, Sparkles, UserPlus, Gift, ShieldCheck, MessageSquareHeart, Gem } from "lucide-react";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -103,7 +103,23 @@ const VideoModal = ({ url, onClose }: { url: string; onClose: () => void }) => {
 };
 
 /* ── Subscription Payment Modal ── */
-const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { onClose: () => void; priceCents: number; plan: "pro" | "master"; planLabel: string }) => {
+const SubscriptionPaymentModal = ({
+  onClose,
+  priceCents,
+  plan,
+  planLabel,
+  cycle = "monthly",
+  cycleLabel = "Mensal",
+  cycleDays = 30,
+}: {
+  onClose: () => void;
+  priceCents: number;
+  plan: "pro" | "master";
+  planLabel: string;
+  cycle?: "monthly" | "quarterly" | "semiannual";
+  cycleLabel?: string;
+  cycleDays?: number;
+}) => {
   const navigate = useNavigate();
   const [step, setStep] = useState<"form" | "pix" | "success">("form");
   const [loading, setLoading] = useState(false);
@@ -122,6 +138,15 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
   const [password, setPassword] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [name, setName] = useState("");
+
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (!digits) return "";
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  };
 
   // Capture ?ref=CODE from URL
   const refCode = useMemo(() => {
@@ -157,6 +182,8 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
           name: name.trim() || email.split("@")[0],
           ref_code: refCode,
           plan,
+          cycle,
+          cycle_days: cycleDays,
         },
       });
       if (fnError) {
@@ -221,8 +248,10 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
     toast.success("Token copiado!");
   };
 
+  const isMaster = plan === "master";
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-fade-in" onClick={step === "success" ? undefined : onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md animate-fade-in" onClick={step === "success" ? undefined : onClose}>
       <div className="relative w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         {step !== "success" && (
           <button onClick={onClose} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer z-20">
@@ -233,21 +262,50 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
         {/* Glass card with gradient border */}
         <div className="relative rounded-3xl overflow-hidden">
           {/* Animated gradient border */}
-          <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-primary/60 via-white/10 to-primary/30 animate-pulse" style={{ animationDuration: '3s' }} />
+          <div 
+            className={`absolute -inset-[1.5px] rounded-3xl animate-pulse ${
+              isMaster
+                ? "bg-gradient-to-r from-pink-500 via-purple-500 to-rose-500 shadow-[0_0_40px_rgba(244,63,94,0.4)]"
+                : "bg-gradient-to-r from-cyan-500 via-teal-400 to-blue-500 shadow-[0_0_40px_rgba(6,182,212,0.35)]"
+            }`} 
+            style={{ animationDuration: '2.5s' }} 
+          />
           
           {/* Inner glass content */}
-          <div className="relative rounded-3xl bg-black/60 backdrop-blur-2xl p-7 space-y-5">
+          <div className="relative rounded-3xl bg-black/70 backdrop-blur-2xl p-7 space-y-5">
             {/* Top glow effect */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+            <div 
+              className={`absolute top-0 left-1/2 -translate-x-1/2 w-56 h-28 rounded-full blur-3xl pointer-events-none ${
+                isMaster ? "bg-pink-500/25" : "bg-cyan-500/20"
+              }`} 
+            />
 
             <div className="relative text-center">
-              <img src={drikaLogo} alt="Drika" className="h-16 w-auto mx-auto mb-3 drop-shadow-[0_0_20px_rgba(255,0,100,0.3)]" />
+              <img 
+                src={drikaLogo} 
+                alt="Drika" 
+                className={`h-16 w-auto mx-auto mb-3 ${
+                  isMaster ? "drop-shadow-[0_0_25px_rgba(244,63,94,0.5)]" : "drop-shadow-[0_0_25px_rgba(6,182,212,0.5)]"
+                }`} 
+              />
               <h3 className="text-xl font-bold text-white tracking-tight">
-                {step === "success" ? `Conta ${planLabel} Ativada! 🎉` : `Assinar Drika Hub ${planLabel}`}
+                {step === "success"
+                  ? `Conta ${isMaster ? "👑 Master" : "💎 Básico"} Ativada! 🎉`
+                  : `Assinar ${isMaster ? "👑 Plano Master" : "💎 Plano Básico"}`}
               </h3>
               {step !== "success" && (
-                <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary/20 to-primary/5 border border-primary/30 px-5 py-2 text-sm font-semibold text-primary mt-3 shadow-[0_0_15px_rgba(255,0,100,0.15)]">
-                  <Crown className="h-4 w-4" /> R$ {(priceCents / 100).toFixed(2).replace(".", ",")}/mês
+                <div className="flex flex-col items-center gap-1 mt-2.5">
+                  <div className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-semibold border shadow-sm ${
+                    isMaster
+                      ? "bg-pink-500/15 border-pink-500/30 text-pink-300 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
+                      : "bg-cyan-500/15 border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+                  }`}>
+                    {isMaster ? <Crown className="h-3.5 w-3.5 text-pink-400" /> : <Gem className="h-3.5 w-3.5 text-cyan-400" />}
+                    <span>Ciclo {cycleLabel} • {cycleDays} dias</span>
+                  </div>
+                  <span className="text-xl font-extrabold text-white">
+                    R$ {(priceCents / 100).toFixed(2).replace(".", ",")}{cycle === "monthly" ? "/mês" : ""}
+                  </span>
                 </div>
               )}
             </div>
@@ -259,8 +317,8 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                   { label: "Nome da Loja", type: "text", value: name, onChange: (v: string) => setName(v), placeholder: "Minha Loja" },
                   { label: "Email *", type: "email", value: email, onChange: (v: string) => setEmail(v), placeholder: "seu@email.com" },
                   { label: "Senha *", type: "password", value: password, onChange: (v: string) => setPassword(v), placeholder: "Mínimo 6 caracteres" },
-                  { label: "WhatsApp", type: "text", value: whatsapp, onChange: (v: string) => setWhatsapp(v), placeholder: "(00) 00000-0000" },
-                ].map((field) => (
+                  { label: "WhatsApp", type: "tel", value: whatsapp, onChange: (v: string) => setWhatsapp(formatPhone(v)), placeholder: "(00) 00000-0000", maxLength: 15 },
+                ].map((field: any) => (
                   <div key={field.label}>
                     <label className="text-[11px] text-white/40 mb-1.5 block font-medium uppercase tracking-wider">{field.label}</label>
                     <input
@@ -268,7 +326,12 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                       value={field.value}
                       onChange={(e) => field.onChange(e.target.value)}
                       placeholder={field.placeholder}
-                      className="w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/40 focus:bg-white/[0.08] focus:shadow-[0_0_15px_rgba(255,0,100,0.08)] transition-all duration-300"
+                      maxLength={field.maxLength}
+                      className={`w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.08] px-4 text-sm text-white placeholder:text-white/20 outline-none focus:bg-white/[0.08] transition-all duration-300 ${
+                        isMaster 
+                          ? "focus:border-pink-500/50 focus:shadow-[0_0_15px_rgba(244,63,94,0.15)]" 
+                          : "focus:border-cyan-500/50 focus:shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                      }`}
                     />
                   </div>
                 ))}
@@ -282,7 +345,11 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                 <button
                   onClick={handleSubmitForm}
                   disabled={loading}
-                  className="group w-full h-12 flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white font-semibold text-sm cursor-pointer border-none hover:shadow-[0_0_30px_rgba(255,0,100,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`group w-full h-12 flex items-center justify-center gap-2.5 rounded-xl text-white font-bold text-sm cursor-pointer border-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isMaster
+                      ? "bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 hover:from-pink-500 hover:to-purple-500 shadow-[0_0_30px_rgba(244,63,94,0.4)] hover:shadow-[0_0_40px_rgba(244,63,94,0.6)]"
+                      : "bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)]"
+                  }`}
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />}
                   Gerar Pagamento PIX
@@ -296,14 +363,20 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                 {/* QR Code */}
                 {qrSvg && (
                   <div className="flex justify-center">
-                    <div className="rounded-2xl bg-white p-3 shadow-[0_0_30px_rgba(255,0,100,0.1)]">
+                    <div className={`rounded-2xl bg-white p-3 ${
+                      isMaster ? "shadow-[0_0_30px_rgba(244,63,94,0.2)]" : "shadow-[0_0_30px_rgba(6,182,212,0.2)]"
+                    }`}>
                       <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
                     </div>
                   </div>
                 )}
                 <p className="text-xs text-white/40 text-center">Escaneie o QR Code ou copie o código abaixo:</p>
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
-                  <code className="block text-[10px] font-mono text-primary break-all leading-relaxed text-center">
+                <div className={`rounded-xl border p-3 ${
+                  isMaster ? "border-pink-500/30 bg-pink-500/[0.04]" : "border-cyan-500/30 bg-cyan-500/[0.04]"
+                }`}>
+                  <code className={`block text-[10px] font-mono break-all leading-relaxed text-center ${
+                    isMaster ? "text-pink-300" : "text-cyan-300"
+                  }`}>
                     {brcode}
                   </code>
                 </div>
@@ -319,7 +392,7 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                   {copied ? "Copiado!" : "Copiar Código PIX"}
                 </button>
                 <div className="flex items-center justify-center gap-2 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <Loader2 className={`h-4 w-4 animate-spin ${isMaster ? "text-pink-400" : "text-cyan-400"}`} />
                   <p className="text-xs text-white/40">Aguardando confirmação do pagamento...</p>
                 </div>
               </div>
@@ -333,7 +406,7 @@ const SubscriptionPaymentModal = ({ onClose, priceCents, plan, planLabel }: { on
                     <Check className="h-8 w-8 text-emerald-400" />
                   </div>
                   <p className="text-sm text-white/70">
-                    Pagamento confirmado! Seu plano {planLabel} de 30 dias está ativo.
+                    Pagamento confirmado! Seu plano {plan === "master" ? "Master" : "Básico"} ({cycleLabel} • {cycleDays} dias) está ativo.
                   </p>
                   {tenantName && (
                     <p className="text-xs text-white/40 mt-1">Loja: <span className="text-white/70 font-medium">{tenantName}</span></p>
@@ -392,6 +465,12 @@ const LandingPage = () => {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<"pro" | "master">("pro");
+  const [paymentCycle, setPaymentCycle] = useState<"monthly" | "quarterly" | "semiannual">("monthly");
+  const [paymentPriceCents, setPaymentPriceCents] = useState<number>(1299);
+  const [paymentPlanLabel, setPaymentPlanLabel] = useState<string>("Básico");
+  const [paymentCycleLabel, setPaymentCycleLabel] = useState<string>("Mensal");
+  const [paymentCycleDays, setPaymentCycleDays] = useState<number>(30);
+
   const [landingConfig, setLandingConfig] = useState<{
     stat_servers: number; stat_servers_label: string;
     stat_sales: number; stat_sales_label: string;
@@ -399,9 +478,15 @@ const LandingPage = () => {
     video_url: string | null;
     pushinpay_active: boolean;
     pro_price_cents: number;
+    pro_quarterly_price_cents?: number;
+    pro_semiannual_price_cents?: number;
     master_price_cents: number;
+    master_quarterly_price_cents?: number;
+    master_semiannual_price_cents?: number;
     pro_plan_name: string;
     master_plan_name: string;
+    show_pro_plan?: boolean;
+    show_master_plan?: boolean;
     show_trial?: boolean;
     is_free_system?: boolean;
   } | null>(null);
@@ -411,12 +496,43 @@ const LandingPage = () => {
       if (data) setLandingConfig(data as any);
     });
   }, []);
-  const handleProClick = () => {
-    setPaymentPlan("pro");
-    setPaymentOpen(true);
-  };
-  const handleMasterClick = () => {
-    setPaymentPlan("master");
+
+  const handleOpenPayment = (plan: "pro" | "master", cycle: "monthly" | "quarterly" | "semiannual") => {
+    const isM = plan === "master";
+    const baseName = isM
+      ? (landingConfig?.master_plan_name || "Master")
+      : (landingConfig?.pro_plan_name || "Básico");
+
+    let price = 0;
+    let days = 30;
+    let cycleTxt = "Mensal";
+
+    if (cycle === "semiannual") {
+      days = 180;
+      cycleTxt = "Semestral";
+      price = isM
+        ? (landingConfig?.master_semiannual_price_cents || 12990)
+        : (landingConfig?.pro_semiannual_price_cents || 5990);
+    } else if (cycle === "quarterly") {
+      days = 90;
+      cycleTxt = "Trimestral";
+      price = isM
+        ? (landingConfig?.master_quarterly_price_cents || 7290)
+        : (landingConfig?.pro_quarterly_price_cents || 3490);
+    } else {
+      days = 30;
+      cycleTxt = "Mensal";
+      price = isM
+        ? (landingConfig?.master_price_cents || 2699)
+        : (landingConfig?.pro_price_cents || 1299);
+    }
+
+    setPaymentPlan(plan);
+    setPaymentCycle(cycle);
+    setPaymentPriceCents(price);
+    setPaymentPlanLabel(baseName);
+    setPaymentCycleLabel(cycleTxt);
+    setPaymentCycleDays(days);
     setPaymentOpen(true);
   };
 
@@ -688,151 +804,323 @@ const LandingPage = () => {
       {paymentOpen && (
         <SubscriptionPaymentModal
           onClose={() => setPaymentOpen(false)}
-          priceCents={paymentPlan === "master"
-            ? (landingConfig?.master_price_cents || 3090)
-            : (landingConfig?.pro_price_cents || 2690)}
+          priceCents={paymentPriceCents}
           plan={paymentPlan}
-          planLabel={paymentPlan === "master"
-            ? (landingConfig?.master_plan_name || "Master")
-            : (landingConfig?.pro_plan_name || "Pro")}
+          planLabel={paymentPlanLabel}
+          cycle={paymentCycle}
+          cycleLabel={paymentCycleLabel}
+          cycleDays={paymentCycleDays}
         />
       )}
 
       {/* ===== 6. PRICING ===== */}
       {landingConfig && !landingConfig.is_free_system && (
-        <section id="planos" className="relative z-10 py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <ScrollReveal>
-            <div className="text-center mb-10">
-              <h2 className="text-2xl md:text-4xl font-extrabold font-display mb-2">
-                Escolha o plano ideal <span className="text-primary">para você</span>
-              </h2>
-              <p className="text-sm text-white/50">Soluções flexíveis para negócios em crescimento</p>
-            </div>
-          </ScrollReveal>
-          <div className={`grid grid-cols-1 ${(landingConfig?.show_trial ?? true) ? "sm:grid-cols-2 md:grid-cols-3" : "sm:grid-cols-2 max-w-2xl mx-auto"} gap-5 items-start`}>
-            {/* Trial / Free */}
+        <section id="planos" className="relative z-10 py-20 px-4">
+          <div className="max-w-5xl mx-auto space-y-12">
+            <ScrollReveal>
+              <div className="text-center">
+                <h2 className="text-2xl md:text-4xl font-extrabold font-display mb-2">
+                  Escolha o plano ideal <span className="text-primary">para seu negócio</span>
+                </h2>
+                <p className="text-sm text-white/50 max-w-lg mx-auto">
+                  Automatize vendas, suporte e entrega no Discord com máxima velocidade e segurança.
+                </p>
+              </div>
+            </ScrollReveal>
+
+            {/* Trial / Free (Se ativado no admin) */}
             {(landingConfig?.show_trial ?? true) && (
-              <ScrollReveal>
-                <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-white/20">
-                  <span className="inline-flex self-start items-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider">Gratuito</span>
-                  <h3 className="text-xl font-extrabold font-display text-white mb-1">Trial</h3>
-                  <p className="text-xs text-white/40 mb-5">Teste todas as funcionalidades por 4 dias gratuitamente.</p>
-                  <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-xs text-white/50">R$</span>
-                    <span className="text-4xl font-extrabold font-display text-white">0</span>
-                    <span className="text-xs text-white/40">/4 dias</span>
+              <ScrollReveal delay={0.05}>
+                <div className="relative rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/30 via-[#0d0d0d] to-emerald-950/20 p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-12 w-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Gift className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Quer testar antes de assinar?</span>
+                        <span className="rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wider">
+                          4 Dias Grátis
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/50 mt-0.5">
+                        Acesse as ferramentas básicas e configure seu bot sem custos ou dados bancários.
+                      </p>
+                    </div>
                   </div>
-                  <ul className="space-y-2.5 mb-6 flex-1">
-                    {[
-                      "Sistema de vendas completo",
-                      "Bot no seu servidor Discord",
-                      "Vendas automáticas via PIX",
-                      "Sistema de tickets",
-                      "Personalização básica",
-                      "Todas as funcionalidades inclusas",
-                    ].map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-xs text-white/60">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        {f}
-                      </li>
-                    ))}
-                    <li className="flex items-start gap-2 text-xs text-white/30">
-                      <Crown className="h-3.5 w-3.5 text-white/20 shrink-0 mt-0.5" />
-                      <span>Marketplace Atacadão <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full ml-1">PRO</span></span>
-                    </li>
-                  </ul>
-                  <button onClick={() => navigate("/signup")} className="w-full py-2.5 rounded-full bg-emerald-500 text-white font-semibold text-sm cursor-pointer border-none hover:bg-emerald-400 transition-all flex items-center justify-center gap-2">
-                    Testar Grátis <ArrowRight className="h-3.5 w-3.5" />
+                  <button
+                    onClick={() => navigate("/signup")}
+                    className="shrink-0 w-full sm:w-auto px-5 py-2.5 rounded-full bg-emerald-500 text-white font-semibold text-xs cursor-pointer border-none hover:bg-emerald-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                  >
+                    Iniciar Teste Grátis <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </ScrollReveal>
             )}
 
-            {/* Pro / Start */}
-            <ScrollReveal delay={0.1}>
-              <div className="relative rounded-2xl border border-primary/40 bg-[#0d0d0d] p-6 flex flex-col h-full transition-all duration-300 hover:border-primary/60 shadow-[0_0_40px_rgba(168,85,247,0.08)]">
-                {/* Recommended badge */}
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1 text-[10px] font-bold text-white uppercase tracking-wider whitespace-nowrap shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                    <Sparkles className="h-3 w-3" /> Recomendado
-                  </span>
-                </div>
-                <span className="inline-flex self-start items-center rounded-full bg-primary/15 text-primary text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider mt-2">Mais Popular</span>
-                <h3 className="text-xl font-extrabold font-display text-white mb-1">{landingConfig?.pro_plan_name || "Pro"}</h3>
-                <p className="text-xs text-white/40 mb-5">Solução completa para vendas e atendimento no Discord.</p>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-[10px] text-white/40">a partir de</span>
-                </div>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-xs text-white/50">R$</span>
-                  <span className="text-4xl font-extrabold font-display text-white">{((landingConfig?.pro_price_cents || 2690) / 100).toFixed(2).replace(".", ",")}</span>
-                  <span className="text-xs text-white/40">/mês</span>
-                </div>
-                <ul className="space-y-2.5 mb-6 flex-1">
-                  {[
-                    "Sistema de vendas completo",
-                    "Entrega automática de produtos",
-                    "Sistema de ticket profissional",
-                    "Proteção anti-fraude avançada",
-                    "Personalização completa",
-                    "Verificação OAuth2",
-                    "Marketplace Atacadão",
-                    "Suporte prioritário",
-                  ].map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs text-white/60">
-                      <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={handleProClick} className="w-full py-2.5 rounded-full bg-primary text-white font-semibold text-sm cursor-pointer border-none hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
-                  Começar Agora <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </ScrollReveal>
+            {/* ===== 1. PLANO BÁSICO ===== */}
+            {(landingConfig?.show_pro_plan ?? true) && (
+              <ScrollReveal delay={0.1}>
+                <div className="relative rounded-3xl border border-cyan-500/30 bg-gradient-to-b from-[#0b1424]/90 via-[#090e19]/95 to-[#060a12] p-6 sm:p-8 overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.08)]">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-cyan-500/15 to-transparent rounded-full blur-[100px] pointer-events-none" />
 
-            {/* Master */}
-            <ScrollReveal delay={0.2}>
-              <div className="relative rounded-2xl border border-amber-400/40 bg-gradient-to-br from-[#0d0d0d] to-amber-950/20 p-6 flex flex-col h-full transition-all duration-300 hover:border-amber-400/60 shadow-[0_0_40px_rgba(251,191,36,0.08)]">
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 px-4 py-1 text-[10px] font-bold text-black uppercase tracking-wider whitespace-nowrap shadow-[0_0_20px_rgba(251,191,36,0.4)]">
-                    <Crown className="h-3 w-3" /> Premium
-                  </span>
+                  {/* Header Básico */}
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-white/[0.08]">
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 px-3 py-1 text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-2">
+                        <Gem className="h-3.5 w-3.5" /> {landingConfig?.pro_plan_name || "Básico"}
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+                        💎 Plano {landingConfig?.pro_plan_name || "Básico"}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-white/50">
+                        O essencial completo para automatizar vendas e atendimento na sua comunidade Discord.
+                      </p>
+                    </div>
+
+                    {/* Features inclusas */}
+                    <div className="flex flex-wrap gap-2 max-w-md">
+                      {[
+                        "Vendas PIX automáticas",
+                        "Entrega imediata de produtos",
+                        "Sistema de tickets profissional",
+                        "Marketplace Atacadão",
+                        "Proteção anti-fraude",
+                        "Painel Web com estatísticas",
+                      ].map((item) => (
+                        <span key={item} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-white/80 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-1">
+                          <Check className="h-3 w-3 text-cyan-400 shrink-0" />
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3 Modais / Cards de Ciclos do Básico */}
+                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mt-6 items-stretch">
+                    {/* Mensal */}
+                    <div className="rounded-2xl border border-cyan-500/20 bg-white/[0.02] p-5 flex flex-col justify-between hover:border-cyan-500/50 hover:bg-cyan-500/[0.03] transition-all duration-300">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Mensal</span>
+                          <span className="text-[10px] text-white/40 font-mono">30 dias</span>
+                        </div>
+                        <p className="text-[11px] text-white/40 mb-4">Flexibilidade com renovação mês a mês.</p>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-xs text-white/50">R$</span>
+                          <span className="text-3xl font-extrabold text-white font-display">
+                            {((landingConfig?.pro_price_cents || 1299) / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                          <span className="text-xs text-white/40">/mês</span>
+                        </div>
+                        <p className="text-[10px] text-white/30 mb-5">Cobrado a cada 30 dias</p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenPayment("pro", "monthly")}
+                        className="w-full py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500 hover:text-black font-semibold text-xs cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                      >
+                        Assinar Mensal <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Trimestral */}
+                    <div className="relative rounded-2xl border border-cyan-400/40 bg-cyan-500/[0.05] p-5 flex flex-col justify-between hover:border-cyan-400 hover:bg-cyan-500/[0.08] transition-all duration-300 shadow-[0_0_25px_rgba(6,182,212,0.1)]">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="rounded-full bg-cyan-500 text-black font-extrabold text-[9px] uppercase tracking-wider px-3 py-0.5 shadow-sm">
+                          Mais Escolhido
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2 mt-1">
+                          <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider">Trimestral</span>
+                          <span className="text-[10px] text-white/40 font-mono">90 dias</span>
+                        </div>
+                        <p className="text-[11px] text-white/40 mb-4">Economize com plano para 3 meses.</p>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-xs text-white/50">R$</span>
+                          <span className="text-3xl font-extrabold text-white font-display">
+                            {((landingConfig?.pro_quarterly_price_cents || 3490) / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-cyan-400 font-medium mb-5">
+                          ~ R$ {((landingConfig?.pro_quarterly_price_cents || 3490) / 300).toFixed(2).replace(".", ",")}/mês (90 dias)
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenPayment("pro", "quarterly")}
+                        className="w-full py-2.5 rounded-xl bg-cyan-500 text-black hover:bg-cyan-400 font-bold text-xs cursor-pointer border-none transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                      >
+                        Assinar Trimestral <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Semestral */}
+                    <div className="relative rounded-2xl border border-cyan-500/20 bg-white/[0.02] p-5 flex flex-col justify-between hover:border-cyan-500/50 hover:bg-cyan-500/[0.03] transition-all duration-300">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-extrabold text-[9px] uppercase tracking-wider px-3 py-0.5">
+                          Maior Economia
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2 mt-1">
+                          <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Semestral</span>
+                          <span className="text-[10px] text-white/40 font-mono">180 dias</span>
+                        </div>
+                        <p className="text-[11px] text-white/40 mb-4">6 meses com o menor custo mensal.</p>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-xs text-white/50">R$</span>
+                          <span className="text-3xl font-extrabold text-white font-display">
+                            {((landingConfig?.pro_semiannual_price_cents || 5990) / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-emerald-400 font-medium mb-5">
+                          ~ R$ {((landingConfig?.pro_semiannual_price_cents || 5990) / 600).toFixed(2).replace(".", ",")}/mês (180 dias)
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenPayment("pro", "semiannual")}
+                        className="w-full py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500 hover:text-black font-semibold text-xs cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                      >
+                        Assinar Semestral <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <span className="inline-flex self-start items-center rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-semibold px-3 py-1 mb-4 uppercase tracking-wider mt-2">Sem Limites</span>
-                <h3 className="text-xl font-extrabold font-display text-white mb-1">{landingConfig?.master_plan_name || "Master"}</h3>
-                <p className="text-xs text-white/40 mb-5">Tudo do Pro + recursos exclusivos para quem quer escalar.</p>
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-[10px] text-white/40">a partir de</span>
+              </ScrollReveal>
+            )}
+
+            {/* ===== 2. PLANO MASTER ===== */}
+            {(landingConfig?.show_master_plan ?? true) && (
+              <ScrollReveal delay={0.15}>
+                <div className="relative rounded-3xl border border-pink-500/30 bg-gradient-to-b from-[#1c0817]/85 via-[#130610]/95 to-[#0d0d0d] p-6 sm:p-8 overflow-hidden shadow-[0_0_60px_rgba(244,63,94,0.12)]">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-pink-500/20 via-purple-500/10 to-transparent rounded-full blur-[100px] pointer-events-none" />
+
+                  {/* Header Master */}
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-white/[0.08]">
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/15 border border-pink-500/30 px-3 py-1 text-[11px] font-bold text-pink-400 uppercase tracking-wider mb-2 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                        <Crown className="h-3.5 w-3.5 text-pink-400" /> {landingConfig?.master_plan_name || "Master"} • Sem Limites
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+                        👑 Plano {landingConfig?.master_plan_name || "Master"}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-white/50">
+                        Tudo do Básico + recursos exclusivos de escala e inteligência artificial irrestrita.
+                      </p>
+                    </div>
+
+                    {/* Features exclusivas */}
+                    <div className="flex flex-wrap gap-2 max-w-md">
+                      {[
+                        "Tudo do Plano Básico",
+                        "Capa pessoal do bot por loja",
+                        "Créditos de IA ilimitados",
+                        "Identidade visual exclusiva",
+                        "Suporte VIP prioritário",
+                        "Acesso antecipado a novidades",
+                      ].map((item) => (
+                        <span key={item} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-pink-200/90 bg-pink-500/[0.08] border border-pink-500/20 rounded-lg px-2.5 py-1">
+                          <Sparkles className="h-3 w-3 text-pink-400 shrink-0" />
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3 Modais / Cards de Ciclos do Master */}
+                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mt-6 items-stretch">
+                    {/* Mensal */}
+                    <div className="rounded-2xl border border-pink-500/20 bg-white/[0.02] p-5 flex flex-col justify-between hover:border-pink-500/50 hover:bg-pink-500/[0.04] transition-all duration-300">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-pink-400 uppercase tracking-wider">Mensal</span>
+                          <span className="text-[10px] text-white/40 font-mono">30 dias</span>
+                        </div>
+                        <p className="text-[11px] text-white/40 mb-4">Experiência Master mês a mês.</p>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-xs text-white/50">R$</span>
+                          <span className="text-3xl font-extrabold text-white font-display">
+                            {((landingConfig?.master_price_cents || 2699) / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                          <span className="text-xs text-white/40">/mês</span>
+                        </div>
+                        <p className="text-[10px] text-white/30 mb-5">Cobrado a cada 30 dias</p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenPayment("master", "monthly")}
+                        className="w-full py-2.5 rounded-xl bg-pink-500/20 border border-pink-500/40 text-pink-300 hover:bg-pink-600 hover:text-white font-semibold text-xs cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                      >
+                        Assinar Mensal <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Trimestral */}
+                    <div className="relative rounded-2xl border border-pink-500/40 bg-pink-500/[0.06] p-5 flex flex-col justify-between hover:border-pink-400 hover:bg-pink-500/[0.09] transition-all duration-300 shadow-[0_0_30px_rgba(244,63,94,0.15)]">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-extrabold text-[9px] uppercase tracking-wider px-3 py-0.5 shadow-[0_0_15px_rgba(244,63,94,0.3)]">
+                          Mais Popular
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2 mt-1">
+                          <span className="text-xs font-bold text-pink-300 uppercase tracking-wider">Trimestral</span>
+                          <span className="text-[10px] text-white/40 font-mono">90 dias</span>
+                        </div>
+                        <p className="text-[11px] text-white/40 mb-4">Ideal para servidores em crescimento.</p>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-xs text-white/50">R$</span>
+                          <span className="text-3xl font-extrabold text-white font-display">
+                            {((landingConfig?.master_quarterly_price_cents || 7290) / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-pink-400 font-medium mb-5">
+                          ~ R$ {((landingConfig?.master_quarterly_price_cents || 7290) / 300).toFixed(2).replace(".", ",")}/mês (90 dias)
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenPayment("master", "quarterly")}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 text-white hover:opacity-95 font-bold text-xs cursor-pointer border-none transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(244,63,94,0.4)]"
+                      >
+                        Assinar Trimestral <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Semestral */}
+                    <div className="relative rounded-2xl border border-pink-500/20 bg-white/[0.02] p-5 flex flex-col justify-between hover:border-pink-500/50 hover:bg-pink-500/[0.04] transition-all duration-300">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 font-extrabold text-[9px] uppercase tracking-wider px-3 py-0.5 shadow-[0_0_10px_rgba(244,63,94,0.15)]">
+                          Melhor Custo-Benefício
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2 mt-1">
+                          <span className="text-xs font-bold text-pink-400 uppercase tracking-wider">Semestral</span>
+                          <span className="text-[10px] text-white/40 font-mono">180 dias</span>
+                        </div>
+                        <p className="text-[11px] text-white/40 mb-4">6 meses com a maior economia por dia.</p>
+                        <div className="flex items-baseline gap-1 mb-1">
+                          <span className="text-xs text-white/50">R$</span>
+                          <span className="text-3xl font-extrabold text-white font-display">
+                            {((landingConfig?.master_semiannual_price_cents || 12990) / 100).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-emerald-400 font-medium mb-5">
+                          ~ R$ {((landingConfig?.master_semiannual_price_cents || 12990) / 600).toFixed(2).replace(".", ",")}/mês (180 dias)
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenPayment("master", "semiannual")}
+                        className="w-full py-2.5 rounded-xl bg-pink-500/20 border border-pink-500/40 text-pink-300 hover:bg-pink-600 hover:text-white font-semibold text-xs cursor-pointer transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                      >
+                        Assinar Semestral <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-xs text-white/50">R$</span>
-                  <span className="text-4xl font-extrabold font-display text-white">{((landingConfig?.master_price_cents || 3090) / 100).toFixed(2).replace(".", ",")}</span>
-                  <span className="text-xs text-white/40">/mês</span>
-                </div>
-                <ul className="space-y-2.5 mb-6 flex-1">
-                  {[
-                    "Tudo do plano Pro",
-                    "Capa pessoal do bot por loja",
-                    "Créditos de IA ilimitados",
-                    "Identidade visual exclusiva",
-                    "Prioridade máxima no suporte",
-                  ].map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-xs text-white/70">
-                      <Check className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={handleMasterClick} className="w-full py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 text-black font-semibold text-sm cursor-pointer border-none hover:shadow-[0_0_30px_rgba(251,191,36,0.4)] transition-all flex items-center justify-center gap-2">
-                  Assinar Master <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </ScrollReveal>
+              </ScrollReveal>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
       )}
 
 

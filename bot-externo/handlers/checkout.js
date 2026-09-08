@@ -10,6 +10,7 @@ const {
   getActivePaymentProvider, triggerAutomation, deliverOrder, supabase, applyCdn
 } = require("../supabase");
 const { sendWithIdentity, editWithIdentity } = require("./webhookSender");
+const QRCode = require("qrcode");
 
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
@@ -541,40 +542,69 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   }, timeout);
 }
 
-// ── Generate Styled QR Code ──
+// ── Generate QR Code Attachment ──
 async function generateStyledQrAttachment(brcode, style, logoUrl) {
-  let config = {};
-  if (style === "rounded") {
-    config = { body: "circle-zell", eye: "frame13", eyeBall: "ball14" };
-  } else if (style === "dots") {
-    config = { body: "dot", eye: "frame12", eyeBall: "ball15" };
-  } else {
-    config = { body: "square", eye: "frame0", eyeBall: "ball0" }; // classic
-  }
-  
-  if (logoUrl) {
-    config.logo = logoUrl;
+  if (!brcode) return null;
+
+  // Try custom styled API if style is not classic or if logo is provided
+  if (style !== "classic" || logoUrl) {
+    let config = {};
+    if (style === "rounded") {
+      config = { body: "circle-zell", eye: "frame13", eyeBall: "ball14" };
+    } else if (style === "dots") {
+      config = { body: "dot", eye: "frame12", eyeBall: "ball15" };
+    } else {
+      config = { body: "square", eye: "frame0", eyeBall: "ball0" };
+    }
+    
+    if (logoUrl) {
+      config.logo = logoUrl;
+    }
+
+    const payload = {
+      data: brcode,
+      config: config,
+      size: 400,
+      download: false,
+      file: "png"
+    };
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const response = await fetch("https://api.qrcode-monkey.com/qr/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        return new AttachmentBuilder(buffer, { name: "qrcode.png" });
+      }
+    } catch (err) {
+      console.warn("Custom styled QR code generation failed/timed out, falling back to local QRCode:", err.message);
+    }
   }
 
-  const payload = {
-    data: brcode,
-    config: config,
-    size: 400,
-    download: false,
-    file: "png"
-  };
-
+  // 100% Reliable Local Generation (default & fallback)
   try {
-    const response = await fetch("https://api.qrcode-monkey.com/qr/custom", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    const buffer = await QRCode.toBuffer(brcode, {
+      type: "png",
+      width: 400,
+      margin: 2,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: "#000000",
+        light: "#ffffff"
+      }
     });
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     return new AttachmentBuilder(buffer, { name: "qrcode.png" });
   } catch (err) {
-    console.error("Failed to generate styled QR code:", err);
+    console.error("Failed to generate local QR code:", err);
     return null;
   }
 }
@@ -676,19 +706,8 @@ async function goToPayment(interaction, tenant, orderId) {
   const qrLogoUrl = storeConfig?.qr_code_logo_url;
   const qrStyle = storeConfig?.qr_code_style || "classic";
 
-  let qrAttachment = null;
-  let qrImageUrl = "";
-
-  if (qrStyle !== "classic" || qrLogoUrl) {
-    qrAttachment = await generateStyledQrAttachment(brcode, qrStyle, qrLogoUrl);
-  }
-
-  if (qrAttachment) {
-    qrImageUrl = "attachment://qrcode.png";
-  } else {
-    // Fallback if API fails or if it's purely classic with no logo
-    qrImageUrl = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(brcode)}`;
-  }
+  let qrAttachment = await generateStyledQrAttachment(brcode, qrStyle, qrLogoUrl);
+  let qrImageUrl = qrAttachment ? "attachment://qrcode.png" : "";
 
   const { date: paymentDate, time: paymentTime } = formatDateTime();
   const pixFooterText = resolvePixFooter(storeConfig, {
@@ -713,8 +732,11 @@ async function goToPayment(interaction, tenant, orderId) {
       `⚠️ *O código expira em ${timeoutMin} minutos.*`,
     ].join("\n"))
     .setColor(embedColor)
-    .setImage(qrImageUrl)
     .setFooter({ text: pixFooterText, iconURL: storeLogo || undefined });
+
+  if (qrImageUrl) {
+    pixEmbed.setImage(qrImageUrl);
+  }
 
   // Buttons: copy + confirm (only for static PIX)
   const copyBtn = new ButtonBuilder()
@@ -746,7 +768,10 @@ async function goToPayment(interaction, tenant, orderId) {
     if (loadingMsg && loadingMsg.edit && typeof loadingMsg.edit === "function") {
       await loadingMsg.edit(messagePayload);
     } else if (loadingMsg && loadingMsg.id) {
-      await editWithIdentity(channel, loadingMsg.id, messagePayload);
+      const edited = await editWithIdentity(channel, loadingMsg.id, messagePayload);
+      if (!edited) {
+        await sendWithIdentity(channel, tenant, messagePayload);
+      }
     } else {
       await sendWithIdentity(channel, tenant, messagePayload);
     }

@@ -3,7 +3,7 @@ import { Sparkles, Crown, Loader2, Copy, Check, ExternalLink, Clock, CheckCircle
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { getPlanInfo } from "@/lib/plans";
+import { getPlanInfo, formatPlanLabel } from "@/lib/plans";
 
 interface Props {
   tenant: any;
@@ -21,8 +21,8 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [copied, setCopied] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [pixExpired, setPixExpired] = useState(false);
-  const [proPriceCents, setProPriceCents] = useState(2690);
-  const [masterPriceCents, setMasterPriceCents] = useState(3090);
+  const [proPriceCents, setProPriceCents] = useState(1299);
+  const [masterPriceCents, setMasterPriceCents] = useState(2699);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<"pro" | "master">("pro");
   const [checkingStatus, setCheckingStatus] = useState(false);
@@ -64,7 +64,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           pollRef.current = null;
           setPaymentConfirmed(true);
           setPixCode(null);
-          toast({ title: "🎉 Pagamento confirmado!", description: "Seu plano Pro foi ativado com sucesso!" });
+          toast({ title: "🎉 Pagamento confirmado!", description: "Seu plano foi ativado com sucesso!" });
           refetchTenant();
         }
       } catch {
@@ -152,13 +152,12 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         body: { payment_id: paymentId },
       });
       if (error) throw error;
-      
-      if (data?.status === "paid") {
+          if (data?.status === "paid") {
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = null;
         setPaymentConfirmed(true);
         setPixCode(null);
-        toast({ title: "🎉 Pagamento confirmado!", description: "Seu plano Pro foi ativado!" });
+        toast({ title: "🎉 Pagamento confirmado!", description: "Seu plano foi ativado!" });
         refetchTenant();
       } else {
         toast({ title: "Aguardando pagamento", description: "O pagamento ainda não foi identificado. Tente novamente em alguns segundos." });
@@ -188,7 +187,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
           <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
           <div>
             <p className="text-sm font-semibold text-emerald-400">Pagamento confirmado!</p>
-            <p className="text-xs text-muted-foreground">Seu plano Pro está ativo por 30 dias.</p>
+            <p className="text-xs text-muted-foreground">Seu plano está ativo.</p>
           </div>
         </div>
       )}
@@ -197,7 +196,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl p-6 group">
         {/* Decorative Background Effects */}
         <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br rounded-full blur-[80px] opacity-20 pointer-events-none transition-opacity duration-700 group-hover:opacity-40
-          ${isExpired ? 'from-red-500 to-orange-500' : tenant.plan === 'master' ? 'from-pink-500 to-purple-500' : 'from-emerald-500 to-teal-500'}`} />
+          ${isExpired ? 'from-red-500 to-orange-500' : tenant.plan === 'master' ? 'from-pink-500 to-purple-500' : tenant.plan === 'pro' ? 'from-cyan-500 to-blue-500' : 'from-emerald-500 to-teal-500'}`} />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           
@@ -206,6 +205,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             <div className={`flex items-center justify-center h-16 w-16 rounded-2xl shadow-inner border 
               ${isExpired ? 'bg-red-500/10 border-red-500/20 text-red-500' : 
                 tenant.plan === 'master' ? 'bg-pink-500/10 border-pink-500/20 text-pink-400' : 
+                tenant.plan === 'pro' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' :
                 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
               <Sparkles className="h-7 w-7" />
             </div>
@@ -215,8 +215,8 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                 Plano atual
               </p>
               <div className="flex items-center gap-3">
-                <h2 className={`text-3xl font-black tracking-tight ${isExpired ? "text-red-500" : tenant.plan === "master" ? "text-gradient-pink" : "text-emerald-400"}`}>
-                  {isExpired ? "Expirado" : tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free (Trial)"}
+                <h2 className={`text-3xl font-black tracking-tight ${isExpired ? "text-red-500" : tenant.plan === "master" ? "text-gradient-pink" : tenant.plan === "pro" ? "text-cyan-400" : "text-emerald-400"}`}>
+                  {isExpired ? "Expirado" : formatPlanLabel(tenant.plan, tenant.plan_cycle)}
                 </h2>
                 <div className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border
                   ${isExpired ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
@@ -246,7 +246,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                 <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                   <div 
                     className={`h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.3)]
-                      ${isExpired ? 'bg-red-500 w-full' : tenant.plan === 'master' ? 'bg-gradient-to-r from-pink-500 to-purple-500' : 'bg-emerald-400'}`}
+                      ${isExpired ? 'bg-red-500 w-full' : tenant.plan === 'master' ? 'bg-gradient-to-r from-pink-500 to-purple-500' : 'bg-cyan-400'}`}
                     style={{ 
                       width: isExpired ? '100%' : `${(() => {
                         const start = new Date(tenant.plan_started_at).getTime();
@@ -290,10 +290,10 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full z-10">
-              {/* Pro Plan */}
-              <div className="relative rounded-xl border border-white/10 bg-white/5 p-5 flex flex-col items-center hover:bg-white/10 transition-colors">
-                <Crown className="h-6 w-6 text-pink-500 mb-2" />
-                <h5 className="text-base font-bold text-white">Plano Pro</h5>
+              {/* Basico Plan */}
+              <div className="relative rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-5 flex flex-col items-center hover:bg-cyan-500/20 transition-colors shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+                <Sparkles className="h-6 w-6 text-cyan-400 mb-2" />
+                <h5 className="text-base font-bold text-white">💎 Plano Básico</h5>
                 <p className="text-2xl font-extrabold text-white my-3">
                   R$ {(proPriceCents / 100).toFixed(2).replace(".", ",")}
                   <span className="text-xs font-normal text-white/60">/mês</span>
@@ -301,10 +301,10 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                 <Button
                   onClick={() => handleUpgrade("pro")}
                   disabled={loading}
-                  className="w-full rounded-full bg-pink-600 hover:bg-pink-700 text-white border-none h-11 transition-all"
+                  className="w-full rounded-full bg-cyan-600 hover:bg-cyan-500 text-white border-none h-11 transition-all"
                 >
-                  {loading && selectedPlan === "pro" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Crown className="h-4 w-4 mr-2" />}
-                  Ativar Pro
+                  {loading && selectedPlan === "pro" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  Ativar Básico
                 </Button>
               </div>
 
@@ -314,7 +314,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   Recomendado
                 </div>
                 <Crown className="h-6 w-6 text-purple-400 mb-2" />
-                <h5 className="text-base font-bold text-white">Plano Master</h5>
+                <h5 className="text-base font-bold text-white">👑 Plano Master</h5>
                 <p className="text-2xl font-extrabold text-white my-3">
                   R$ {(masterPriceCents / 100).toFixed(2).replace(".", ",")}
                   <span className="text-xs font-normal text-white/60">/mês</span>
@@ -331,7 +331,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             </div>
             
             {/* Background glow effects */}
-            <div className="absolute top-1/2 -left-10 w-32 h-32 bg-pink-500/20 rounded-full blur-[60px] pointer-events-none" />
+            <div className="absolute top-1/2 -left-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-[60px] pointer-events-none" />
             <div className="absolute bottom-0 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[60px] pointer-events-none" />
           </div>
         </div>
@@ -341,7 +341,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
       {canUpgrade && pixCode && (
         <div className="mt-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-6 space-y-4">
           <div className="flex flex-col items-center justify-center mb-4">
-            <h4 className="text-lg font-bold text-white">Pagamento do Plano {selectedPlan === "master" ? "Master" : "Pro"}</h4>
+            <h4 className="text-lg font-bold text-white">Pagamento do Plano {selectedPlan === "master" ? "👑 Master" : "💎 Básico"}</h4>
             <p className="text-2xl font-extrabold text-white mt-1">R$ {((selectedPlan === "master" ? masterPriceCents : proPriceCents) / 100).toFixed(2).replace(".", ",")}</p>
           </div>
 

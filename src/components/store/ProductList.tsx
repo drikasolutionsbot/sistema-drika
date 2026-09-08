@@ -33,6 +33,7 @@ interface Product {
   active: boolean;
   description: string | null;
   category_id?: string | null;
+  position?: number;
 }
 
 interface ProductListProps {

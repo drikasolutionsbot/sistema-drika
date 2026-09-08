@@ -20,7 +20,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import { PLANS, isPaidPlan } from "@/lib/plans";
+import { PLANS, isPaidPlan, formatPlanLabel, formatPlanLabelWithIcon, getCycleDays } from "@/lib/plans";
 
 const DiscordIcon = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -163,31 +163,31 @@ const AdminClientsPage = () => {
     setCreatingTenant(false);
   };
 
-  const handleChangePlan = async (tenantId: string, newPlan: string) => {
+  const handleChangePlan = async (tenantId: string, selection: string) => {
     setSavingPlan(true);
     try {
       const now = new Date();
-      const oldPlan = tenants.find(t => t.id === tenantId)?.plan || "free";
-      const updateData: any = { plan: newPlan };
+      const oldTenant = tenants.find(t => t.id === tenantId);
+      const oldPlan = oldTenant?.plan || "free";
+      
+      const [newPlan, cycleVal] = selection.includes(":") ? selection.split(":") : [selection, "monthly"];
+      const newCycle = cycleVal || "monthly";
+      const cycleDays = getCycleDays(newCycle);
+
+      const updateData: any = { plan: newPlan, plan_cycle: newCycle };
 
       if (newPlan === "pro" || newPlan === "master") {
-        const currentTenant = tenants.find(t => t.id === tenantId);
-        // Só define inicio se não tiver
-        if (!currentTenant?.plan_started_at) {
+        if (!oldTenant?.plan_started_at) {
           updateData.plan_started_at = now.toISOString();
         }
-        // ATENÇÃO: Só joga 30 dias se o cliente NÃO tiver um vencimento no futuro.
-        // Isso evita que, ao mudar para Master, o sistema apague os 1000 dias que você deu.
-        if (!currentTenant?.plan_expires_at || new Date(currentTenant.plan_expires_at) < now) {
-          updateData.plan_expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        if (!oldTenant?.plan_expires_at || new Date(oldTenant.plan_expires_at) < now) {
+          updateData.plan_expires_at = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000).toISOString();
         }
       } else {
-        // Downgrade to free/expired: clear dates
         updateData.plan_started_at = null;
         updateData.plan_expires_at = null;
       }
 
-      // Se está saindo do Master para qualquer outro plano, revogar a capa personalizada
       const losingMasterPerks = oldPlan === "master" && newPlan !== "master";
       if (losingMasterPerks) {
         updateData.bot_banner_url = null;
@@ -199,7 +199,6 @@ const AdminClientsPage = () => {
         .eq("id", tenantId);
       if (error) throw error;
 
-      // Limpa a capa efetivamente no Discord (perfil do bot na guild)
       if (losingMasterPerks) {
         try {
           await supabase.functions.invoke("clear-bot-banner", { body: { tenant_id: tenantId } });
@@ -208,17 +207,18 @@ const AdminClientsPage = () => {
         }
       }
 
-      const tenantName = tenants.find(t => t.id === tenantId)?.name || tenantId;
-      await logAudit("plan_changed", "tenant", tenantId, tenantName, { from: oldPlan, to: newPlan });
+      const tenantName = oldTenant?.name || tenantId;
+      await logAudit("plan_changed", "tenant", tenantId, tenantName, { from: oldPlan, to: newPlan, cycle: newCycle });
       setTenants((prev) =>
         prev.map((t) => (t.id === tenantId ? { ...t, ...updateData } : t))
       );
-      toast({ title: "Plano atualizado!", description: `Alterado para ${PLANS.find((p) => p.value === newPlan)?.label}` });
+      toast({ title: "Plano atualizado!", description: `Alterado para ${formatPlanLabelWithIcon(newPlan, newCycle)}` });
       setEditingPlan(null);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingPlan(false);
     }
-    setSavingPlan(false);
   };
 
   const handleRenewPlan = async (tenantId: string, days: number) => {
@@ -831,19 +831,21 @@ const AdminClientsPage = () => {
                         {editingPlan === tenant.id ? (
                           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Select
-                              value={currentPlan}
+                              value={currentPlan === "free" ? "free" : `${currentPlan}:${tenant.plan_cycle || "monthly"}`}
                               onValueChange={(val) => handleChangePlan(tenant.id, val)}
                               disabled={savingPlan}
                             >
-                              <SelectTrigger className="h-7 w-28 text-xs bg-muted border-border">
+                              <SelectTrigger className="h-7 min-w-[140px] text-xs bg-muted border-border">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {PLANS.map((p) => (
-                                  <SelectItem key={p.value} value={p.value}>
-                                    {p.label}
-                                  </SelectItem>
-                                ))}
+                                <SelectItem value="free">🎁 Free</SelectItem>
+                                <SelectItem value="pro:monthly">💎 Básico (Mensal)</SelectItem>
+                                <SelectItem value="pro:quarterly">💎 Básico (Trimestral)</SelectItem>
+                                <SelectItem value="pro:semiannual">💎 Básico (Semestral)</SelectItem>
+                                <SelectItem value="master:monthly">👑 Master (Mensal)</SelectItem>
+                                <SelectItem value="master:quarterly">👑 Master (Trimestral)</SelectItem>
+                                <SelectItem value="master:semiannual">👑 Master (Semestral)</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button
@@ -858,12 +860,12 @@ const AdminClientsPage = () => {
                         ) : (
                           <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
                             <button
-                              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-[2px] text-xs font-medium transition-colors hover:opacity-80 ${planInfo.color}`}
+                              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-all hover:opacity-80 shadow-sm ${planInfo.color}`}
                               onClick={() => setEditingPlan(tenant.id)}
                               title="Clique para alterar o plano"
                             >
-                              <Settings className="h-3 w-3" />
-                              {planInfo.label}
+                              <Settings className="h-3 w-3 opacity-60" />
+                              <span>{formatPlanLabelWithIcon(tenant.plan, tenant.plan_cycle)}</span>
                             </button>
 
                             {/* Badge Dinâmico de Dias Restantes no Header da Linha */}
@@ -1017,7 +1019,7 @@ const AdminClientsPage = () => {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-sm font-bold text-foreground">Status da Assinatura</span>
                                   <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold ${planInfo.color}`}>
-                                    {planInfo.label}
+                                    {formatPlanLabelWithIcon(tenant.plan, tenant.plan_cycle)}
                                   </span>
                                   {hasPlanExpiration ? (
                                     isExpired ? (

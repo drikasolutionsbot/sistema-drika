@@ -223,13 +223,16 @@ async function activateSubscription(supabase: any, subPayment: any) {
 
   const autoActivate = config?.auto_activate_plan !== false;
 
-  const now = new Date();
-  const periodEnd = new Date(now);
-  periodEnd.setDate(periodEnd.getDate() + 30);
-
   const isNewSubscriber = subPayment.tenant_id === SENTINEL_TENANT;
   const meta = subPayment.metadata || {};
   const refCode = meta.ref_code || null;
+  const cycleDays = meta.cycle_days || (meta.cycle === "semiannual" ? 180 : meta.cycle === "quarterly" ? 90 : 30);
+  const planToSet = meta.plan === "master" ? "master" : "pro";
+  const cycleToSet = meta.cycle || (cycleDays === 180 ? "semiannual" : cycleDays === 90 ? "quarterly" : "monthly");
+
+  const now = new Date();
+  const periodEnd = new Date(now);
+  periodEnd.setDate(periodEnd.getDate() + cycleDays);
 
   if (isNewSubscriber) {
     const { email, password, whatsapp, name } = meta;
@@ -284,7 +287,8 @@ async function activateSubscription(supabase: any, subPayment: any) {
         name: tenantName,
         email,
         whatsapp: whatsapp || null,
-        plan: "pro",
+        plan: planToSet,
+        plan_cycle: cycleToSet,
         plan_started_at: now.toISOString(),
         plan_expires_at: periodEnd.toISOString(),
         referred_by_tenant_id: referredByTenantId,
@@ -311,12 +315,12 @@ async function activateSubscription(supabase: any, subPayment: any) {
     });
 
     // 4. Generate access token
-    const tokenExpires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const tokenExpires = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: tokenData } = await supabase
       .from("access_tokens")
       .insert({
         tenant_id: tenant.id,
-        label: `Token Pro - ${tenantName}`,
+        label: `Token ${planToSet === "master" ? "Master" : "Básico"} - ${tenantName}`,
         created_by: userId,
         expires_at: tokenExpires,
       })
@@ -345,29 +349,34 @@ async function activateSubscription(supabase: any, subPayment: any) {
       await processReferralReward(supabase, referredByTenantId, refCode, config, tenantName);
     }
 
-    console.log(`New Pro subscriber registered: tenant ${tenant.id}, email ${email}`);
+    console.log(`New subscriber registered: tenant ${tenant.id}, plan ${planToSet} (${cycleToSet}), email ${email}`);
   } else {
     // Existing tenant renewal/upgrade
-    const meta = subPayment.metadata || {};
-    const refCode = meta.ref_code || null;
+    const { data: currentTenant } = await supabase.from("tenants").select("plan_expires_at").eq("id", subPayment.tenant_id).single();
+    let renewalPeriodEnd = new Date(now);
+    if (currentTenant?.plan_expires_at && new Date(currentTenant.plan_expires_at) > now) {
+      renewalPeriodEnd = new Date(currentTenant.plan_expires_at);
+    }
+    renewalPeriodEnd.setDate(renewalPeriodEnd.getDate() + cycleDays);
 
     await supabase.from("subscription_payments").update({
       status: "paid",
       paid_at: now.toISOString(),
       period_start: now.toISOString(),
-      period_end: periodEnd.toISOString(),
+      period_end: renewalPeriodEnd.toISOString(),
       updated_at: now.toISOString(),
     }).eq("id", subPayment.id);
 
     if (autoActivate) {
       await supabase.from("tenants").update({
-        plan: "pro",
+        plan: planToSet,
+        plan_cycle: cycleToSet,
         plan_started_at: now.toISOString(),
-        plan_expires_at: periodEnd.toISOString(),
+        plan_expires_at: renewalPeriodEnd.toISOString(),
         updated_at: now.toISOString(),
       }).eq("id", subPayment.tenant_id);
 
-      console.log(`Subscription renewed for tenant ${subPayment.tenant_id}`);
+      console.log(`Subscription renewed for tenant ${subPayment.tenant_id} - plan ${planToSet} (${cycleToSet})`);
     }
 
     // Check if this tenant was referred and this is their first Pro payment

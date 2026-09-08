@@ -12,7 +12,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { getPlanInfo, isPaidPlan } from "@/lib/plans";
+import { getPlanInfo, isPaidPlan, formatPlanLabel, formatPlanLabelWithIcon } from "@/lib/plans";
 import { useLanguage, languageLabels, languageFlags, type Language } from "@/i18n/LanguageContext";
 
 interface TopBarProps {
@@ -45,11 +45,11 @@ function timeAgo(dateStr: string, t: any): string {
   return `${Math.floor(hours / 24)}${t.topbar.dAgo}`;
 }
 
-const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_expires_at: string | null; plan_started_at: string | null }, isSystemFree: boolean }) => {
+const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_cycle?: string | null; plan_expires_at: string | null; plan_started_at: string | null }, isSystemFree: boolean }) => {
   const { t } = useLanguage();
   const planInfo = getPlanInfo(tenant.plan);
   const isPaid = isPaidPlan(tenant.plan);
-  const planLabel = tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
+  const planLabel = formatPlanLabel(tenant.plan, tenant.plan_cycle);
   
   let timeLeft = "";
   let expiresLabel = "";
@@ -102,7 +102,7 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_expi
                 : "bg-muted border-border text-muted-foreground"
         }`}>
           <Crown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isExpired ? "text-destructive" : isPaid ? "text-primary" : isExpiring ? "text-destructive" : "text-muted-foreground"}`} />
-          <span className="font-semibold">{tenant.plan === "master" ? "Master" : tenant.plan === "pro" ? "Pro" : "Free"}</span>
+          <span className="font-semibold">{formatPlanLabel(tenant.plan, tenant.plan_cycle)}</span>
           {timeLeft && (
             <>
               <span className="text-muted-foreground/50 hidden sm:inline">•</span>
@@ -437,7 +437,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
             <DropdownMenuSeparator />
             {tenant && (() => {
               const isPaid = isPaidPlan(tenant.plan);
-              const planLabel = tenant.plan === "pro" ? t.plan.pro : tenant.plan === "master" ? "Master" : t.plan.free;
+              const planLabel = formatPlanLabel(tenant.plan, (tenant as any).plan_cycle);
               let timeLeft = "";
               let isExpiring = false;
               let isExpired = false;

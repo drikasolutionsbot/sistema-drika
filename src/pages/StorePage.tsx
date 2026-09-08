@@ -33,6 +33,7 @@ interface Product {
   role_id?: string | null;
   button_style?: import("@/components/discord/DiscordButtonStylePicker").DiscordButtonStyle;
   embed_config?: Record<string, unknown>;
+  position?: number;
 }
 
 const StorePage = () => {

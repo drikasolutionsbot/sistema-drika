@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Crown, Loader2, QrCode, CheckCircle } from "lucide-react";
+import { Crown, Sparkles, Loader2, QrCode, CheckCircle } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -38,8 +38,8 @@ const ProUpgradeModal = () => {
   const { tenantId } = useTenant();
   const [loading, setLoading] = useState(false);
   const [pixResult, setPixResult] = useState<PixResult | null>(null);
-  const [proPriceCents, setProPriceCents] = useState(2690);
-  const [masterPriceCents, setMasterPriceCents] = useState(3090);
+  const [proPriceCents, setProPriceCents] = useState(1299);
+  const [masterPriceCents, setMasterPriceCents] = useState(2699);
   const [planKey, setPlanKey] = useState<PlanKey>("pro");
   const [confirmed, setConfirmed] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -146,7 +146,8 @@ const ProUpgradeModal = () => {
 
   const isMaster = planKey === "master";
   const priceCents = isMaster ? masterPriceCents : proPriceCents;
-  const planLabel = isMaster ? "Master" : "Pro";
+  const planLabel = isMaster ? "Master" : "Básico";
+  const planEmoji = isMaster ? "👑" : "💎";
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -162,14 +163,18 @@ const ProUpgradeModal = () => {
         <DialogHeader>
           <DialogTitle className="text-center text-foreground flex flex-col items-center gap-3">
             <img src={drikaLogo} alt="Drika" className="h-16 w-auto" />
-            <span className="text-xl font-bold">Ativar Drika Hub {planLabel}</span>
+            <span className="text-xl font-bold">Ativar Drika Hub {planEmoji} {planLabel}</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary mb-3">
-              <Crown className="h-4 w-4" /> Plano {planLabel} Mensal
+            <div className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-3 ${
+              isMaster 
+                ? "bg-purple-500/10 border border-purple-500/20 text-purple-400" 
+                : "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400"
+            }`}>
+              {isMaster ? <Crown className="h-4 w-4 text-purple-400" /> : <Sparkles className="h-4 w-4 text-cyan-400" />} Plano {planLabel} Mensal
             </div>
             <p className="text-3xl font-extrabold text-foreground">
               R$ {(priceCents / 100).toFixed(2).replace(".", ",")}

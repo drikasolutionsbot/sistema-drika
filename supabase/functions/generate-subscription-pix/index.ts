@@ -15,8 +15,10 @@ serve(async (req) => {
   }
 
   try {
-    const { tenant_id, email, password, whatsapp, name, ref_code, plan } = await req.json();
+    const { tenant_id, email, password, whatsapp, name, ref_code, plan, cycle } = await req.json();
     const planKey: PlanKey = plan === "master" ? "master" : "pro";
+    const cycleKey = (cycle === "quarterly" || cycle === "semiannual") ? cycle : "monthly";
+    const cycleDays = cycleKey === "semiannual" ? 180 : cycleKey === "quarterly" ? 90 : 30;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -44,19 +46,36 @@ serve(async (req) => {
       throw new Error("Configuração de pagamento não encontrada");
     }
 
-    const amountCents = planKey === "master"
-      ? (config.master_price_cents || 3090)
-      : (config.pro_price_cents || 2690);
+    let amountCents: number;
+    if (planKey === "master") {
+      if (cycleKey === "semiannual") {
+        amountCents = config.master_semiannual_price_cents || 12990;
+      } else if (cycleKey === "quarterly") {
+        amountCents = config.master_quarterly_price_cents || 7290;
+      } else {
+        amountCents = config.master_price_cents || 2699;
+      }
+    } else {
+      if (cycleKey === "semiannual") {
+        amountCents = config.pro_semiannual_price_cents || 5990;
+      } else if (cycleKey === "quarterly") {
+        amountCents = config.pro_quarterly_price_cents || 3490;
+      } else {
+        amountCents = config.pro_price_cents || 1299;
+      }
+    }
 
-    const planLabel = planKey === "master"
+    const basePlanLabel = planKey === "master"
       ? (config.master_plan_name || "Master")
-      : (config.pro_plan_name || "Pro");
+      : (config.pro_plan_name || "Básico");
+    const cycleLabel = cycleKey === "semiannual" ? "Semestral" : cycleKey === "quarterly" ? "Trimestral" : "Mensal";
+    const planLabel = `${basePlanLabel} (${cycleLabel})`;
 
     const effectiveTenantId = isNewSubscriber ? "00000000-0000-0000-0000-000000000000" : tenant_id;
 
     const metadata = isNewSubscriber
-      ? { email, password, whatsapp: whatsapp || null, name: name || email.split("@")[0], ref_code: ref_code || null, plan: planKey }
-      : { ref_code: ref_code || null, plan: planKey };
+      ? { email, password, whatsapp: whatsapp || null, name: name || email.split("@")[0], ref_code: ref_code || null, plan: planKey, cycle: cycleKey, cycle_days: cycleDays }
+      : { ref_code: ref_code || null, plan: planKey, cycle: cycleKey, cycle_days: cycleDays };
 
     if (config.efi_active && config.efi_client_id && config.efi_client_secret && config.efi_cert_pem && config.efi_key_pem) {
       return await generateViaEfi(config, effectiveTenantId, email, amountCents, supabase, metadata, planKey, planLabel);
