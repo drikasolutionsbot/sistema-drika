@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Sparkles, Crown, Loader2, Copy, Check, ExternalLink, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getPlanInfo, formatPlanLabel } from "@/lib/plans";
@@ -21,10 +22,19 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
   const [copied, setCopied] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [pixExpired, setPixExpired] = useState(false);
+  
   const [proPriceCents, setProPriceCents] = useState(1299);
+  const [proQuarterlyPriceCents, setProQuarterlyPriceCents] = useState(3490);
+  const [proSemiannualPriceCents, setProSemiannualPriceCents] = useState(5990);
+  
   const [masterPriceCents, setMasterPriceCents] = useState(2699);
+  const [masterQuarterlyPriceCents, setMasterQuarterlyPriceCents] = useState(7290);
+  const [masterSemiannualPriceCents, setMasterSemiannualPriceCents] = useState(12990);
+
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<"pro" | "master">("pro");
+  const [selectedCycle, setSelectedCycle] = useState<"monthly" | "quarterly" | "semiannual">("monthly");
+  const [showCycleModal, setShowCycleModal] = useState<"pro" | "master" | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -35,9 +45,17 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
   // Fetch prices from landing_config
   useEffect(() => {
-    supabase.from("landing_config").select("pro_price_cents, master_price_cents").limit(1).single().then(({ data }) => {
-      if (data?.pro_price_cents) setProPriceCents(data.pro_price_cents);
-      if (data?.master_price_cents) setMasterPriceCents(data.master_price_cents);
+    supabase.from("landing_config").select("*").limit(1).single().then(({ data }) => {
+      if (data) {
+        if (data.pro_price_cents) setProPriceCents(data.pro_price_cents);
+        if (data.master_price_cents) setMasterPriceCents(data.master_price_cents);
+        
+        const anyData = data as any;
+        if (anyData.pro_quarterly_price_cents) setProQuarterlyPriceCents(anyData.pro_quarterly_price_cents);
+        if (anyData.pro_semiannual_price_cents) setProSemiannualPriceCents(anyData.pro_semiannual_price_cents);
+        if (anyData.master_quarterly_price_cents) setMasterQuarterlyPriceCents(anyData.master_quarterly_price_cents);
+        if (anyData.master_semiannual_price_cents) setMasterSemiannualPriceCents(anyData.master_semiannual_price_cents);
+      }
     });
   }, []);
 
@@ -77,14 +95,16 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
   }, [refetchTenant]);
 
-  const handleUpgrade = async (planType: "pro" | "master" = "pro") => {
+  const handleUpgrade = async (planType: "pro" | "master" = "pro", cycle: "monthly" | "quarterly" | "semiannual" = "monthly") => {
     if (!tenantId) return;
     setLoading(true);
     setPaymentConfirmed(false);
     setSelectedPlan(planType);
+    setSelectedCycle(cycle);
+    setShowCycleModal(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-subscription-pix", {
-        body: { tenant_id: tenantId, plan: planType },
+        body: { tenant_id: tenantId, plan: planType, cycle },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message || "Erro ao gerar PIX");
       setPixCode(data.brcode || data.qr_code || "");
@@ -152,7 +172,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         body: { payment_id: paymentId },
       });
       if (error) throw error;
-          if (data?.status === "paid") {
+      if (data?.status === "paid") {
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = null;
         setPaymentConfirmed(true);
@@ -167,6 +187,24 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
     } finally {
       setCheckingStatus(false);
     }
+  };
+
+  const getSelectedPrice = () => {
+    if (selectedPlan === "master") {
+      if (selectedCycle === "semiannual") return masterSemiannualPriceCents;
+      if (selectedCycle === "quarterly") return masterQuarterlyPriceCents;
+      return masterPriceCents;
+    } else {
+      if (selectedCycle === "semiannual") return proSemiannualPriceCents;
+      if (selectedCycle === "quarterly") return proQuarterlyPriceCents;
+      return proPriceCents;
+    }
+  };
+
+  const getCycleLabel = (cycle: string) => {
+    if (cycle === "semiannual") return "Semestral";
+    if (cycle === "quarterly") return "Trimestral";
+    return "Mensal";
   };
 
   return (
@@ -192,16 +230,13 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         </div>
       )}
 
-      {/* Plan info card Premium */}
+      {/* Plan info card */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl p-6 group">
-        {/* Decorative Background Effects */}
         <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br rounded-full blur-[80px] opacity-20 pointer-events-none transition-opacity duration-700 group-hover:opacity-40
           ${isExpired ? 'from-red-500 to-orange-500' : tenant.plan === 'master' ? 'from-pink-500 to-purple-500' : tenant.plan === 'pro' ? 'from-cyan-500 to-blue-500' : 'from-emerald-500 to-teal-500'}`} />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          
           <div className="flex items-center gap-5">
-            {/* Plan Icon / Badge */}
             <div className={`flex items-center justify-center h-16 w-16 rounded-2xl shadow-inner border 
               ${isExpired ? 'bg-red-500/10 border-red-500/20 text-red-500' : 
                 tenant.plan === 'master' ? 'bg-pink-500/10 border-pink-500/20 text-pink-400' : 
@@ -226,7 +261,6 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             </div>
           </div>
 
-          {/* Dates & Progress */}
           <div className="flex flex-col gap-3 min-w-[240px]">
             {tenant.plan_started_at && tenant.plan_expires_at && (
               <>
@@ -242,7 +276,6 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   </span>
                 </div>
                 
-                {/* Progress Bar */}
                 <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                   <div 
                     className={`h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.3)]
@@ -273,15 +306,13 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
               </>
             )}
           </div>
-
         </div>
       </div>
 
-      {/* Upgrade section (Plans side by side) */}
+      {/* Upgrade section */}
       {canUpgrade && !pixCode && (
         <div className="mt-6 space-y-4">
           <div className="flex flex-col items-center justify-center p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 relative overflow-hidden shadow-2xl">
-            {/* Logo */}
             <img src="/logo.png" alt="Drika Hub" className="h-10 mb-4 object-contain opacity-90 drop-shadow-md" />
             
             <div className="text-center mb-6 z-10">
@@ -299,7 +330,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   <span className="text-xs font-normal text-white/60">/mês</span>
                 </p>
                 <Button
-                  onClick={() => handleUpgrade("pro")}
+                  onClick={() => setShowCycleModal("pro")}
                   disabled={loading}
                   className="w-full rounded-full bg-cyan-600 hover:bg-cyan-500 text-white border-none h-11 transition-all"
                 >
@@ -320,7 +351,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   <span className="text-xs font-normal text-white/60">/mês</span>
                 </p>
                 <Button
-                  onClick={() => handleUpgrade("master")}
+                  onClick={() => setShowCycleModal("master")}
                   disabled={loading}
                   className="w-full rounded-full bg-purple-600 hover:bg-purple-700 text-white border-none h-11 transition-all"
                 >
@@ -330,7 +361,6 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
               </div>
             </div>
             
-            {/* Background glow effects */}
             <div className="absolute top-1/2 -left-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-[60px] pointer-events-none" />
             <div className="absolute bottom-0 -right-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[60px] pointer-events-none" />
           </div>
@@ -342,12 +372,12 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         <div className="mt-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-6 space-y-4">
           <div className="flex flex-col items-center justify-center mb-4">
             <h4 className="text-lg font-bold text-white">Pagamento do Plano {selectedPlan === "master" ? "👑 Master" : "💎 Básico"}</h4>
-            <p className="text-2xl font-extrabold text-white mt-1">R$ {((selectedPlan === "master" ? masterPriceCents : proPriceCents) / 100).toFixed(2).replace(".", ",")}</p>
+            <p className="text-sm font-medium text-white/70 mb-1">({getCycleLabel(selectedCycle)})</p>
+            <p className="text-2xl font-extrabold text-white mt-1">R$ {(getSelectedPrice() / 100).toFixed(2).replace(".", ",")}</p>
           </div>
 
           {!pixExpired ? (
             <div className="space-y-4">
-              {/* Timer */}
               <div className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 mx-auto w-fit ${
                 secondsLeft <= 120 ? "bg-destructive/20 text-red-400" : "bg-amber-500/20 text-amber-400"
               }`}>
@@ -433,7 +463,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
                   Voltar
                 </Button>
                 <Button
-                  onClick={() => handleUpgrade(selectedPlan)}
+                  onClick={() => handleUpgrade(selectedPlan, selectedCycle)}
                   disabled={loading}
                   className={`w-full h-11 rounded-full text-white border-none hover:opacity-90 ${selectedPlan === 'master' ? 'bg-purple-600' : 'bg-pink-600'}`}
                 >
@@ -458,7 +488,66 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
         </div>
       )}
 
+      {/* Cycle Selection Modal */}
+      <Dialog open={!!showCycleModal} onOpenChange={(open) => !open && setShowCycleModal(null)}>
+        <DialogContent className="sm:max-w-md bg-[#0F0F13] border border-white/10 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white text-center">
+              Escolha o período do Plano {showCycleModal === "master" ? "👑 Master" : "💎 Básico"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-3 py-4">
+            {/* Mensal */}
+            <div 
+              onClick={() => handleUpgrade(showCycleModal!, "monthly")}
+              className="relative flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 cursor-pointer transition-all group"
+            >
+              <div>
+                <h4 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">Mensal</h4>
+                <p className="text-xs text-white/60">Pague mês a mês</p>
+              </div>
+              <p className="text-xl font-extrabold text-white">
+                R$ {((showCycleModal === "master" ? masterPriceCents : proPriceCents) / 100).toFixed(2).replace(".", ",")}
+              </p>
+            </div>
 
+            {/* Trimestral */}
+            <div 
+              onClick={() => handleUpgrade(showCycleModal!, "quarterly")}
+              className="relative flex items-center justify-between p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 cursor-pointer transition-all group"
+            >
+              <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
+                Popular
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">Trimestral</h4>
+                <p className="text-xs text-cyan-200/60">Acesso por 3 meses</p>
+              </div>
+              <p className="text-xl font-extrabold text-cyan-400">
+                R$ {((showCycleModal === "master" ? masterQuarterlyPriceCents : proQuarterlyPriceCents) / 100).toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+
+            {/* Semestral */}
+            <div 
+              onClick={() => handleUpgrade(showCycleModal!, "semiannual")}
+              className="relative flex items-center justify-between p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer transition-all group"
+            >
+              <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-lg">
+                Melhor Custo x Benefício
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors">Semestral</h4>
+                <p className="text-xs text-purple-200/60">Acesso por 6 meses</p>
+              </div>
+              <p className="text-xl font-extrabold text-purple-400">
+                R$ {((showCycleModal === "master" ? masterSemiannualPriceCents : proSemiannualPriceCents) / 100).toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
