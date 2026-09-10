@@ -623,6 +623,12 @@ serve(async (req) => {
         if (coverUrl && !embed.image?.url) {
           embed.image = { url: coverUrl };
         }
+
+        // Garante que o CDN seja aplicado em todas as URLs de imagem enviadas para o Discord
+        if (embed.image?.url) embed.image.url = applyCdnInline(embed.image.url);
+        if (embed.thumbnail?.url) embed.thumbnail.url = applyCdnInline(embed.thumbnail.url);
+        if (embed.author?.icon_url) embed.author.icon_url = applyCdnInline(embed.author.icon_url);
+        if (embed.footer?.icon_url) embed.footer.icon_url = applyCdnInline(embed.footer.icon_url);
       }
       payload.embeds = embeds;
     }

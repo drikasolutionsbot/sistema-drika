@@ -49,6 +49,13 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds", maxSizeKB
         }
       }
 
+      // Final safety check: 800 KB limit for all files going to storage
+      const maxAllowedKB = maxSizeKB || 800;
+      if (fileToUpload.size > maxAllowedKB * 1024) {
+        toast.error(`A imagem final tem ${(fileToUpload.size / 1024).toFixed(1)}KB, que excede o limite de ${maxAllowedKB}KB. Tente uma imagem mais leve.`);
+        return;
+      }
+
       const path = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage
         .from("tenant-assets")
