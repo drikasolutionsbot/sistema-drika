@@ -619,8 +619,8 @@ serve(async (req) => {
         if (embed.color === 0x2B2D31 || embed.color === 2829105) {
           delete embed.color;
         }
-        // Aplica a capa em embeds customizados (garante sobreposição igual aos outros lugares)
-        if (coverUrl) {
+        // Aplica a capa apenas se o embed não tiver imagem customizada definida pelo usuário
+        if (coverUrl && !embed.image?.url) {
           embed.image = { url: coverUrl };
         }
       }
