@@ -116,13 +116,22 @@ async function sendRestockAnnouncement(
 
     const components: unknown[] = [];
     if (storeConfig?.store_url) {
-      components.push({ type: 1, components: [{ type: 2, style: 5, label: "Comprar Agora", url: storeConfig.store_url, emoji: { name: "🛒" } }] });
+      const baseUrl = storeConfig.store_url;
+      const productUrl = baseUrl.includes("?") 
+        ? `${baseUrl}&product=${productId}` 
+        : `${baseUrl}?product=${productId}`;
+      
+      components.push({ type: 1, components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }] });
     }
 
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId ? (mentionRoleId === "everyone" ? "@everyone" : `<@&${mentionRoleId}>`) : undefined;
 
-    const body: Record<string, unknown> = { embeds: [embed] };
+    const body: Record<string, unknown> = { 
+      embeds: [embed],
+      allowed_mentions: { parse: ["everyone", "roles", "users"] } 
+    };
+    
     if (content) body.content = content;
     if (components.length > 0) body.components = components;
 
