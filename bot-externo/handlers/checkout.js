@@ -508,6 +508,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   await sendLog(interaction.guild, tenant, {
     title: "<:car:1521242918290194493> Carrinho aberto",
     description: `Usuário <@${userId}> abriu um carrinho.`,
+    color: 0x5865F2,
     fields: [
       { name: "**Detalhes**", value: `\`1x ${orderName} | ${formatBRL(priceCents)}\``, inline: false },
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
@@ -532,6 +533,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
         await sendLog(interaction.guild, tenant, {
           title: "🍃 Pagamento expirado",
           description: `Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`,
+          color: 0x95A5A6,
           fields: [
             { name: "**Detalhes**", value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
             { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
@@ -664,6 +666,7 @@ async function goToPayment(interaction, tenant, orderId) {
     await sendLog(interaction.guild, tenant, {
       title: "🆕 Pedido solicitado",
       description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      color: 0xFEE75C,
       fields: [
         { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
         { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
@@ -687,6 +690,7 @@ async function goToPayment(interaction, tenant, orderId) {
     await sendLog(interaction.guild, tenant, {
       title: "🆕 Pedido solicitado",
       description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+      color: 0xFEE75C,
       fields: [
         { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
         { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
@@ -845,6 +849,7 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
               await sendLog(null, { id: tenantId, name: paidTenant?.name || tenant?.name || "Loja", logo_url: paidTenant?.logo_url || tenant?.logo_url }, {
                 title: "💰 Pagamento confirmado",
                 description: `Usuário <@${paidOrder.discord_user_id}> teve o pagamento confirmado.`,
+                color: 0x57F287,
                 fields: [
                   { name: "**Detalhes**", value: `\`${paidOrder.product_name} | ${formatBRL(paidOrder.total_cents)}\``, inline: false },
                   { name: "**Pedido**", value: `\`#${paidOrder.order_number}\``, inline: true },
@@ -1162,20 +1167,48 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
     components: [],
   });
 
-  // Schedule Discord.js thread archive in 2 minutes
-  if (order.checkout_thread_id) {
-    setTimeout(async () => {
+  // Schedule Discord.js thread archive + ticket channel delete in 2 minutes
+  setTimeout(async () => {
+    try {
+      // 1. Archive the checkout thread (if exists)
+      if (order.checkout_thread_id) {
+        try {
+          const thread = await interaction.client.channels.fetch(order.checkout_thread_id);
+          if (thread && thread.isThread()) {
+            await thread.setLocked(true);
+            await thread.setArchived(true);
+          }
+        } catch (err) {
+          // ignore errors
+        }
+      }
+
+      // 2. Close/delete the ticket channel linked to this order
       try {
-        const thread = await interaction.client.channels.fetch(order.checkout_thread_id);
-        if (thread && thread.isThread()) {
-          await thread.setLocked(true);
-          await thread.setArchived(true);
+        const { data: ticket } = await supabase
+          .from("tickets")
+          .select("discord_channel_id")
+          .eq("order_id", orderId)
+          .maybeSingle();
+
+        if (ticket?.discord_channel_id) {
+          const ticketChannel = await interaction.client.channels.fetch(ticket.discord_channel_id).catch(() => null);
+          if (ticketChannel) {
+            if (ticketChannel.isThread?.()) {
+              await ticketChannel.setLocked(true).catch(() => {});
+              await ticketChannel.setArchived(true).catch(() => {});
+            } else {
+              await ticketChannel.delete("Entrega confirmada - ticket fechado automaticamente").catch(() => {});
+            }
+          }
         }
       } catch (err) {
         // ignore errors
       }
-    }, 120000);
-  }
+    } catch (err) {
+      // ignore errors
+    }
+  }, 120000);
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {

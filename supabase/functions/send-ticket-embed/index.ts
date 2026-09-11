@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
       image_url,
       thumbnail_url,
       footer,
+      how_it_works,
     } = await req.json();
 
     if (!tenant_id || !channel_id) {
@@ -86,6 +87,16 @@ Deno.serve(async (req) => {
       description: description || tr(lang, "ticket_default_desc"),
       color: colorInt,
     };
+
+    if (how_it_works && how_it_works.trim() !== "") {
+      embed.fields = [
+        {
+          name: "Como funciona?",
+          value: how_it_works.trim(),
+          inline: false
+        }
+      ];
+    }
 
     if (safeImageUrl) embed.image = { url: safeImageUrl };
     if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };

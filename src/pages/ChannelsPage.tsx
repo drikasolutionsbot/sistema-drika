@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Hash, Shield, Users, Volume2, Plus, Loader2, RefreshCw, Megaphone, Mic,
   MessageSquare, Save, Settings2, ShoppingBag, UserCheck, Gavel, Tag,
-  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle, LayoutTemplate
+  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle, LayoutTemplate, PackagePlus
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChannelPermissionsTab from "@/components/channels/ChannelPermissionsTab";
 import ChannelEmbedsTab from "@/components/channels/ChannelEmbedsTab";
+import RestockConfigTab from "@/components/channels/RestockConfigTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,6 +132,17 @@ const channelSections = [
     channels: [
       { key: "logs_tickets_opened", label: "Tickets Abertos", description: "Novos tickets", help: "Registra quando um membro abre um novo ticket de suporte pelo bot." },
       { key: "logs_tickets_closed", label: "Tickets Fechados", description: "Tickets encerrados", help: "Registra quando um ticket é fechado, com informações do atendente e duração." },
+    ],
+  },
+  {
+    title: "Restock",
+    description: "Anúncios automáticos de reabastecimento",
+    icon: PackagePlus,
+    color: "text-lime-400",
+    bgColor: "bg-lime-500/10",
+    borderColor: "border-lime-500/20",
+    channels: [
+      { key: "restock_channel", label: "Canal de Restock", description: "Anúncios automáticos de restock", help: "Quando qualquer produto recebe novo estoque, o bot envia automaticamente um embed com os detalhes neste canal." },
     ],
   },
 ];
@@ -503,6 +515,9 @@ const ChannelsPage = () => {
           <TabsTrigger value="embeds" className="gap-2">
             <LayoutTemplate className="h-3.5 w-3.5" /> Personalização de Embed
           </TabsTrigger>
+          <TabsTrigger value="restock" className="gap-2">
+            <PackagePlus className="h-3.5 w-3.5" /> Restock
+          </TabsTrigger>
         </TabsList>
 
         {/* ========= TAB: Mapeamento ========= */}
@@ -674,6 +689,15 @@ const ChannelsPage = () => {
             configs={configs} 
             refetchConfigs={refetch} 
             channelSections={channelSections} 
+          />
+        </TabsContent>
+
+        {/* ========= TAB: Restock ========= */}
+        <TabsContent value="restock" className="mt-4">
+          <RestockConfigTab
+            discordChannels={discordChannels}
+            discordCategories={discordCategories}
+            loadingChannels={loadingChannels}
           />
         </TabsContent>
       </Tabs>

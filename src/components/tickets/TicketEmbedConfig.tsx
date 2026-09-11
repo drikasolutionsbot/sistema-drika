@@ -29,20 +29,22 @@ interface TicketEmbedData {
   ticket_embed_footer: string;
   ticket_embed_button_label: string;
   ticket_embed_button_style: DiscordButtonStyle;
+  ticket_embed_how_it_works: string;
   ticket_channel_id: string;
   ticket_logs_channel_id: string;
   ticket_staff_role_id: string;
 }
 
 const defaults: TicketEmbedData = {
-  ticket_embed_title: "🎫 Ticket de Suporte",
-  ticket_embed_description: "Seu ticket foi criado com sucesso! Aguarde atendimento.",
+  ticket_embed_title: "Atendimento",
+  ticket_embed_description: "Clique no botão abaixo para abrir um ticket.",
   ticket_embed_color: "#5865F2",
   ticket_embed_image_url: "",
   ticket_embed_thumbnail_url: "",
   ticket_embed_footer: "",
   ticket_embed_button_label: "📩 Abrir Ticket",
   ticket_embed_button_style: "glass",
+  ticket_embed_how_it_works: "Selecione uma opção no menu para direcionar melhor seu atendimento.\nA equipe será avisada e acompanhará tudo pelo canal criado.",
   ticket_channel_id: "",
   ticket_logs_channel_id: "",
   ticket_staff_role_id: "",
@@ -197,7 +199,7 @@ const TicketEmbedConfig = () => {
     const load = async () => {
       const { data: config } = await (supabase as any)
         .from("store_configs")
-        .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_channel_id, ticket_logs_channel_id, ticket_staff_role_id")
+        .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_embed_how_it_works, ticket_channel_id, ticket_logs_channel_id, ticket_staff_role_id")
         .eq("tenant_id", tenantId)
         .maybeSingle();
       if (config) {
@@ -210,6 +212,7 @@ const TicketEmbedConfig = () => {
           ticket_embed_footer: config.ticket_embed_footer || "",
           ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
           ticket_embed_button_style: (config.ticket_embed_button_style as DiscordButtonStyle) || defaults.ticket_embed_button_style,
+          ticket_embed_how_it_works: config.ticket_embed_how_it_works || defaults.ticket_embed_how_it_works,
           ticket_channel_id: config.ticket_channel_id || "",
           ticket_logs_channel_id: config.ticket_logs_channel_id || "",
           ticket_staff_role_id: config.ticket_staff_role_id || "",
@@ -234,6 +237,7 @@ const TicketEmbedConfig = () => {
         ticket_embed_footer: data.ticket_embed_footer || null,
         ticket_embed_button_label: data.ticket_embed_button_label || null,
         ticket_embed_button_style: data.ticket_embed_button_style || "glass",
+        ticket_embed_how_it_works: data.ticket_embed_how_it_works || null,
         ticket_channel_id: data.ticket_channel_id || null,
         ticket_logs_channel_id: data.ticket_logs_channel_id || null,
         ticket_staff_role_id: data.ticket_staff_role_id || null,
@@ -259,6 +263,7 @@ const TicketEmbedConfig = () => {
         ticket_embed_footer: savedConfig?.ticket_embed_footer || data.ticket_embed_footer,
         ticket_embed_button_label: savedConfig?.ticket_embed_button_label || data.ticket_embed_button_label,
         ticket_embed_button_style: (savedConfig?.ticket_embed_button_style as DiscordButtonStyle) || data.ticket_embed_button_style,
+        ticket_embed_how_it_works: savedConfig?.ticket_embed_how_it_works || data.ticket_embed_how_it_works,
         ticket_channel_id: savedConfig?.ticket_channel_id || data.ticket_channel_id,
         ticket_logs_channel_id: savedConfig?.ticket_logs_channel_id || data.ticket_logs_channel_id,
         ticket_staff_role_id: savedConfig?.ticket_staff_role_id || data.ticket_staff_role_id,
@@ -296,6 +301,7 @@ const TicketEmbedConfig = () => {
           image_url: data.ticket_embed_image_url || undefined,
           thumbnail_url: data.ticket_embed_thumbnail_url || undefined,
           footer: data.ticket_embed_footer || undefined,
+          how_it_works: data.ticket_embed_how_it_works || undefined,
         },
       });
       if (error) throw error;
@@ -358,7 +364,7 @@ const TicketEmbedConfig = () => {
               <Input
                 value={data.ticket_embed_title}
                 onChange={(e) => update("ticket_embed_title", e.target.value)}
-                placeholder="🎫 Ticket de Suporte"
+                placeholder="Atendimento"
               />
             </div>
             <div className="space-y-2">
@@ -366,12 +372,22 @@ const TicketEmbedConfig = () => {
               <Textarea
                 value={data.ticket_embed_description}
                 onChange={(e) => update("ticket_embed_description", e.target.value)}
-                placeholder="Seu ticket foi criado com sucesso! Aguarde atendimento."
-                rows={3}
+                placeholder="Clique no botão abaixo para abrir um ticket."
+                rows={2}
               />
             </div>
             <div className="space-y-2">
-              <Label>Texto do Botão</Label>
+              <Label>Como funciona? <span className="text-xs text-muted-foreground font-normal">(texto do campo)</span></Label>
+              <Textarea
+                value={data.ticket_embed_how_it_works}
+                onChange={(e) => update("ticket_embed_how_it_works", e.target.value)}
+                placeholder="Selecione uma opção no menu para direcionar melhor seu atendimento.\nA equipe será avisada e acompanhará tudo pelo canal criado."
+                rows={3}
+              />
+              <p className="text-[11px] text-muted-foreground">Aparece como campo "Como funciona?" dentro do embed, acima do menu de seleção.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Texto do Botão <span className="text-xs text-muted-foreground font-normal">(quando sem categorias)</span></Label>
               <ButtonLabelWithEmoji
                 value={data.ticket_embed_button_label}
                 onChange={(val) => update("ticket_embed_button_label", val)}
@@ -383,8 +399,9 @@ const TicketEmbedConfig = () => {
               <Input
                 value={data.ticket_embed_footer}
                 onChange={(e) => update("ticket_embed_footer", e.target.value)}
-                placeholder="Texto do rodapé (opcional)"
+                placeholder="Nome da Loja #1K • 08/09/2026, 19:09"
               />
+              <p className="text-[11px] text-muted-foreground">Aparece em itálico no rodapé do embed.</p>
             </div>
           </CardContent>
         </Card>
@@ -541,113 +558,67 @@ const TicketEmbedConfig = () => {
       {/* Discord Preview */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-muted-foreground">Pré-visualização do Discord</h3>
-        <div className="rounded-lg bg-[#313338] p-4">
-          <div className="flex gap-3">
-            {/* Embed border */}
-            <div
-              className="w-1 rounded-full shrink-0"
-              style={{ backgroundColor: data.ticket_embed_color || "#5865F2" }}
-            />
-            <div className="flex-1 min-w-0 space-y-2">
+        <div className="rounded-lg bg-[#313338] p-4 space-y-1 font-sans">
+
+          {/* Embed */}
+          <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
+
+            {/* Banner image on top */}
+            {data.ticket_embed_image_url ? (
+              <img
+                src={data.ticket_embed_image_url}
+                alt="Banner"
+                className="w-full max-h-44 object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className="w-full h-24 bg-gradient-to-r from-[#1a1b1e] via-[#2b2d31] to-[#1a1b1e] flex items-center justify-center">
+                <span className="text-[#4e5058] text-xs">Banner do ticket (configure a imagem acima)</span>
+              </div>
+            )}
+
+            <div className="p-3 space-y-2">
               {/* Title */}
               {data.ticket_embed_title && (
-                <p className="font-semibold text-white text-sm">
-                  {data.ticket_embed_title}
-                </p>
+                <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
               )}
+
               {/* Description */}
               {data.ticket_embed_description && (
-                <p className="text-[#dbdee1] text-[13px] whitespace-pre-wrap">
-                  {data.ticket_embed_description}
-                </p>
+                <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
               )}
-              {/* Image */}
-              {data.ticket_embed_image_url && (
-                <img
-                  src={data.ticket_embed_image_url}
-                  alt="Embed"
-                  className="rounded max-h-48 mt-2"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
+
+              {/* Field: Como funciona? */}
+              {data.ticket_embed_how_it_works && (
+                <div className="pt-1">
+                  <p className="text-white text-xs font-bold">Como funciona?</p>
+                  <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
+                </div>
               )}
+
               {/* Footer */}
               {data.ticket_embed_footer && (
-                <p className="text-[#a3a6aa] text-[11px] mt-2 pt-2 border-t border-[#3f4147]">
+                <p className="text-[#a3a6aa] text-[10px] italic pt-2 border-t border-[#3f4147]">
                   {data.ticket_embed_footer}
                 </p>
               )}
             </div>
-            {/* Thumbnail */}
-            {data.ticket_embed_thumbnail_url && (
-              <img
-                src={data.ticket_embed_thumbnail_url}
-                alt="Thumb"
-                className="w-16 h-16 rounded object-cover shrink-0"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
           </div>
-          {/* Button */}
-          {data.ticket_embed_button_label && (() => {
-            const btnStyle = getDiscordButtonStyles(data.ticket_embed_button_style);
-            const isGlass = data.ticket_embed_button_style === "glass";
-            const isLink = data.ticket_embed_button_style === "link";
-            return (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <div
-                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium ${
-                    isGlass ? "bg-white/5 backdrop-blur-md border border-white/10 shadow-lg text-[#dbdee1]" :
-                    isLink ? "bg-transparent underline" : ""
-                  }`}
-                  style={{
-                    backgroundColor: isGlass || isLink ? undefined : btnStyle.bgColor,
-                    color: isGlass ? undefined : btnStyle.textColor,
-                  }}
-                >
-                  {(() => {
-                    const parsed = parseEmojiFromLabel(data.ticket_embed_button_label);
-                    return (
-                      <span className="flex items-center gap-1.5">
-                        {parsed.emoji && (
-                          parsed.isCustom && parsed.customId ? (
-                            <img
-                              src={`https://cdn.discordapp.com/emojis/${parsed.customId}.${parsed.animated ? "gif" : "png"}`}
-                              alt="emoji"
-                              className="h-4 w-4 object-contain shrink-0"
-                            />
-                          ) : (
-                            <span className="text-sm leading-none mr-0.5">{parsed.emoji}</span>
-                          )
-                        )}
-                        <span>{parsed.cleanLabel}</span>
-                      </span>
-                    );
-                  })()}
-                </div>
-              </div>
-            );
-          })()}
-          {/* Action buttons preview (inside ticket) */}
+
+          {/* Select menu preview */}
+          <div className="mt-2 w-full flex items-center justify-between bg-[#1e1f22] border border-[#3f4147] rounded-md px-3 py-2 text-[#87898c] text-xs cursor-default">
+            <span>Selecione o tipo de atendimento</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+          </div>
+
+          {/* Action buttons inside ticket preview */}
           <div className="mt-2 pt-2 border-t border-[#3f4147]">
             <p className="text-[10px] text-[#a3a6aa] mb-2">Botões dentro do ticket:</p>
             <div className="flex flex-wrap gap-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
-                🔔 Lembrar
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
-                ✏️ Renomear
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">
-                📁 Arquivar
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ed4245] text-white">
-                🗑️ Deletar
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#2b2d31] border border-[#3f4147] text-[#a3a6aa] w-full">
-                👤 Selecione algum membro para Ação
-              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">🔔 Lembrar</div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">✏️ Renomear</div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#4f545c] text-[#dbdee1]">📁 Arquivar</div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#ed4245] text-white">🗑️ Deletar</div>
             </div>
           </div>
         </div>

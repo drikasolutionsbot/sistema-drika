@@ -481,6 +481,18 @@ serve(async (req) => {
       .eq("id", order_id)
       .eq("tenant_id", tenant_id);
 
+    // 10b. Update linked ticket to delivered (triggers Realtime on bot to close the channel)
+    if (isAutoDelivery && stockItems.length > 0) {
+      try {
+        await supabase
+          .from("tickets")
+          .update({ status: "delivered", updated_at: new Date().toISOString() })
+          .eq("order_id", order_id);
+      } catch (ticketErr) {
+        console.error("Failed to update ticket status to delivered:", ticketErr);
+      }
+    }
+
     // 11. Log "Pagamento confirmado" + delivery to store logs channel
     if (storeConfig?.logs_channel_id) {
       // 11a. Send "Pagamento confirmado" log
@@ -495,7 +507,7 @@ serve(async (req) => {
         const paymentLogEmbed: any = {
           title: tr(lang, "payment_confirmed_log_title"),
           description: trf(lang, "payment_confirmed_log_desc", { user_id: order.discord_user_id }),
-          color: embedColor,
+          color: 0x57F287, // Verde fixo para log de pagamento confirmado
           fields: [
             { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
@@ -525,7 +537,7 @@ serve(async (req) => {
             : isAutoDelivery
             ? trf(lang, "manual_delivery_confirmed_log_desc", { order_number: order.order_number, user_id: order.discord_user_id })
             : trf(lang, "manual_delivery_pending_desc", { user_id: order.discord_user_id }),
-          color: embedColor,
+          color: isOutOfStock ? 0xFEE75C : 0x57F287, // Amarelo p/ sem estoque, verde p/ entregue/pendente
           fields: [
             { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: order.id, inline: false },
