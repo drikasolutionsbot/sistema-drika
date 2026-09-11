@@ -567,64 +567,67 @@ const TicketEmbedConfig = () => {
         <h3 className="text-sm font-semibold text-muted-foreground">Pré-visualização do Discord</h3>
         <div className="rounded-lg bg-[#313338] p-4 space-y-1 font-sans">
 
-          {/* Embed */}
-          <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
-
-            {/* Banner image on top — only shown when set */}
+          <div className="space-y-1">
+            {/* 1st Embed: Banner (if any) */}
             {data.ticket_embed_image_url && (
-              <img
-                src={data.ticket_embed_image_url}
-                alt="Banner"
-                className="w-full max-h-44 object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
+              <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
+                <img
+                  src={data.ticket_embed_image_url}
+                  alt="Banner"
+                  className="w-full max-h-44 object-cover block"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
             )}
 
-            <div className="p-3 space-y-2">
-              {/* Title + Thumbnail row */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 space-y-2 min-w-0">
-                  {/* Title */}
-                  {data.ticket_embed_title && (
-                    <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
-                  )}
+            {/* 2nd Embed: Texts */}
+            <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
+              <div className="p-3 space-y-2">
+                {/* Title + Thumbnail row */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 space-y-2 min-w-0">
+                    {/* Title */}
+                    {data.ticket_embed_title && (
+                      <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
+                    )}
 
-                  {/* Description */}
-                  {data.ticket_embed_description && (
-                    <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
-                  )}
+                    {/* Description */}
+                    {data.ticket_embed_description && (
+                      <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
+                    )}
 
-                  {/* Field: Como funciona? */}
-                  {data.ticket_embed_how_it_works && (
-                    <div className="pt-1">
-                      <p className="text-white text-xs font-bold">Como funciona?</p>
-                      <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
-                    </div>
+                    {/* Field: Como funciona? */}
+                    {data.ticket_embed_how_it_works && (
+                      <div className="pt-2">
+                        <p className="text-white text-xs font-bold">Como funciona?</p>
+                        <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Thumbnail — top-right corner */}
+                  {data.ticket_embed_thumbnail_url && (
+                    <img
+                      src={data.ticket_embed_thumbnail_url}
+                      alt="Thumbnail"
+                      className="w-16 h-16 object-cover rounded shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
                   )}
                 </div>
 
-                {/* Thumbnail — top-right corner */}
-                {data.ticket_embed_thumbnail_url && (
-                  <img
-                    src={data.ticket_embed_thumbnail_url}
-                    alt="Thumbnail"
-                    className="w-16 h-16 object-cover rounded shrink-0"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
+                {/* Footer */}
+                {data.ticket_embed_footer && (
+                  <p className="text-[#dbdee1] text-[10px] flex items-center pt-2">
+                    {data.ticket_embed_footer}
+                  </p>
                 )}
               </div>
-
-              {/* Footer */}
-              {data.ticket_embed_footer && (
-                <p className="text-[#a3a6aa] text-[10px] italic pt-2 border-t border-[#3f4147]">
-                  {data.ticket_embed_footer}
-                </p>
-              )}
             </div>
           </div>
 
           {/* Select menu preview */}
-          <div className="mt-2 w-full flex items-center justify-between bg-[#1e1f22] border border-[#3f4147] rounded-md px-3 py-2 text-[#87898c] text-xs cursor-default">
+          <div className="mt-2 w-full flex items-center justify-between bg-[#1e1f22] border border-[#1e1f22] hover:border-[#111214] rounded-sm px-3 py-2 text-[#dbdee1] text-xs cursor-default">
             <span>Selecione o tipo de atendimento</span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0" />
           </div>
