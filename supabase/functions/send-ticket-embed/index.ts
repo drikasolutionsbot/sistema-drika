@@ -102,20 +102,15 @@ Deno.serve(async (req) => {
     if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
     if (footer) embed.footer = { text: footer };
 
-    // Two-embed strategy: banner embed first, then text embed.
-    // TRICK: same `url` on both embeds makes Discord merge them visually (no gap).
-    // The second embed MUST have a title (even invisible \u200B) for the url anchor to work.
+    // Two-embed strategy: banner embed first (image), text embed second.
+    // Using \u200B in banner description prevents Discord from collapsing the image-only embed.
     let embeds: any[];
     if (safeImageUrl) {
-      const sharedUrl = "https://discord.com";
       const bannerEmbed: any = {
-        url: sharedUrl,
         color: colorInt,
+        description: "\u200B",
         image: { url: safeImageUrl },
       };
-      // Ensure title exists so Discord properly anchors the url and shows this embed
-      if (!embed.title) embed.title = "\u200B";
-      embed.url = sharedUrl;
       embeds = [bannerEmbed, embed];
     } else {
       embeds = [embed];
