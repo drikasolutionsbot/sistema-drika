@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import ImageUploadField from "./ImageUploadField";
+import EmojiPickerButton from "@/components/discord/EmojiPickerButton";
 import type { EmbedData, EmbedField, EmbedButton } from "./types";
 
 interface EmbedFormProps {
@@ -202,7 +203,11 @@ const EmbedForm = ({ embed, onChange, hideFields = false, hideButtons = false }:
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Emoji</label>
-                    <Input value={btn.emoji} onChange={e => updateButton(btn.id, { emoji: e.target.value })} placeholder="😀 ou vazio" className="bg-sidebar border-border text-sm" />
+                    <EmojiPickerButton
+                      value={btn.emoji || ""}
+                      onChange={(emoji) => updateButton(btn.id, { emoji })}
+                      size="sm"
+                    />
                   </div>
                 </div>
                 <div className="space-y-1">

@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Plus, Trash2, RotateCcw, Save, Eye, Lock, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import EmojiPickerButton from "@/components/discord/EmojiPickerButton";
 
 // ─── Template definitions (chaves alinhadas com send-dm-template) ─────
 type TemplateKey =
@@ -609,11 +610,10 @@ const DmTemplatesPage = () => {
                   {(current.embed_data.buttons || []).map((b, i) => (
                     <div key={i} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
                       <div className="flex gap-2">
-                        <Input
+                        <EmojiPickerButton
                           value={b.emoji || ""}
-                          onChange={(e) => updateButton(i, { emoji: e.target.value })}
-                          placeholder="😀"
-                          className="bg-muted border-border text-xs w-16"
+                          onChange={(emoji) => updateButton(i, { emoji })}
+                          size="sm"
                         />
                         <Input
                           value={b.label}
