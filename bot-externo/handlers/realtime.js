@@ -166,20 +166,28 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
       ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", addedCount).replace("{total_stock}", totalStock ?? "?")
       : null;
 
-    const fields = [];
-    if (fieldName) fields.push({ name: "🔑 • Campo", value: `\`${fieldName}\``, inline: true });
-    fields.push({ name: "📦 • Adicionados", value: `\`${addedCount}x\``, inline: true });
-    if (totalStock !== null) fields.push({ name: "📊 • Estoque total", value: `\`${totalStock}x\``, inline: true });
+    const descLines = [];
+    if (description) {
+      descLines.push(description);
+      descLines.push(""); // linha em branco para separar
+    }
+
+    if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
+    descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
+    if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
 
     const now = new Date();
-    fields.push({
-      name: "🕐 • Data",
-      value: now.toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-      inline: false,
-    });
+    const unixTimestamp = Math.floor(now.getTime() / 1000);
+    descLines.push(`🕒 **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
 
-    const embed = { title, color: embedColor, fields, timestamp: now.toISOString() };
-    if (description) embed.description = description;
+    const finalDescription = descLines.join("\n");
+
+    const embed = { 
+      title, 
+      color: embedColor, 
+      description: finalDescription,
+      timestamp: now.toISOString() 
+    };
     if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
     if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
     if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };

@@ -379,23 +379,19 @@ export default function RestockConfigTab({ discordChannels, discordCategories, l
                 <p className="text-[#dbdee1] text-xs">{config.restock_embed_description}</p>
               )}
 
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
-                <div>
-                  <p className="text-[#b5bac1] text-[10px] font-bold uppercase">🔑 • Campo</p>
-                  <p className="text-[#dbdee1] text-xs font-mono bg-[#1e1f22] rounded px-1.5 py-0.5 inline-block">Nitrada Mensal</p>
-                </div>
-                <div>
-                  <p className="text-[#b5bac1] text-[10px] font-bold uppercase">📦 • Adicionados</p>
-                  <p className="text-[#dbdee1] text-xs font-mono bg-[#1e1f22] rounded px-1.5 py-0.5 inline-block">4x</p>
-                </div>
-                <div>
-                  <p className="text-[#b5bac1] text-[10px] font-bold uppercase">📊 • Estoque total</p>
-                  <p className="text-[#dbdee1] text-xs font-mono bg-[#1e1f22] rounded px-1.5 py-0.5 inline-block">16x</p>
-                </div>
-                <div>
-                  <p className="text-[#b5bac1] text-[10px] font-bold uppercase">🕐 • Data</p>
-                  <p className="text-[#dbdee1] text-xs">terça-feira, 10 de setembro de 2026 20:41</p>
-                </div>
+              <div className="pt-2 space-y-1">
+                <p className="text-[#dbdee1] text-[13px]">
+                  ➥ 🏷️ • <strong className="font-semibold text-white">Campo:</strong> <code className="bg-[#1e1f22] rounded px-1 text-xs font-mono">Nitrada Mensal</code>
+                </p>
+                <p className="text-[#dbdee1] text-[13px]">
+                  ➥ 📦 • <strong className="font-semibold text-white">Adicionados:</strong> <code className="bg-[#1e1f22] rounded px-1 text-xs font-mono">4x</code>
+                </p>
+                <p className="text-[#dbdee1] text-[13px]">
+                  ➥ 📈 • <strong className="font-semibold text-white">Estoque total:</strong> <code className="bg-[#1e1f22] rounded px-1 text-xs font-mono">16x</code>
+                </p>
+                <p className="text-[#dbdee1] text-[13px]">
+                  🕒 <strong className="font-semibold text-white">Data:</strong> segunda-feira, 7 de setembro de 2026 20:41 <span className="text-[#b5bac1]">(há 1 minuto)</span>
+                </p>
               </div>
 
               {config.restock_embed_footer && (
