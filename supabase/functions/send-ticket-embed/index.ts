@@ -105,9 +105,10 @@ Deno.serve(async (req) => {
     // To put the banner on top, we use a separate embed.
     // TRICK: Setting the same `url` on both embeds makes Discord visually
     // merge them into a single continuous block (no gap/separator between them).
+    // We use a neutral URL so Discord doesn't confuse it with the image URL.
     let embeds: any[];
     if (safeImageUrl) {
-      const sharedUrl = safeImageUrl; // same url = Discord merges the two embeds visually
+      const sharedUrl = "https://discord.com";
       const bannerEmbed: any = {
         url: sharedUrl,
         color: colorInt,
