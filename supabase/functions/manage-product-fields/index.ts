@@ -46,6 +46,102 @@ async function syncStockAndEmbed(supabase: any, productId: string, tenantId: str
   }
 }
 
+// Helper: send restock announcement directly to Discord
+async function sendRestockAnnouncement(
+  supabase: any,
+  tenantId: string,
+  productId: string,
+  fieldId: string | null,
+  addedCount: number
+) {
+  try {
+    const botToken = Deno.env.get("DISCORD_BOT_TOKEN")!;
+    if (!botToken) { console.error("[RESTOCK] DISCORD_BOT_TOKEN não configurado"); return; }
+
+    const { data: channelConfig } = await supabase
+      .from("channel_configs")
+      .select("discord_channel_id")
+      .eq("tenant_id", tenantId)
+      .eq("channel_key", "restock_channel")
+      .maybeSingle();
+
+    const { data: storeConfig } = await supabase
+      .from("store_configs")
+      .select("restock_channel_id, restock_embed_color, restock_embed_title, restock_embed_description, restock_embed_footer, restock_embed_image_url, restock_embed_thumbnail_url, restock_mention_role_id, store_url, embed_color")
+      .eq("tenant_id", tenantId)
+      .single();
+
+    const restockChannelId = channelConfig?.discord_channel_id || storeConfig?.restock_channel_id;
+    if (!restockChannelId) { console.log(`[RESTOCK] Nenhum canal configurado para tenant ${tenantId}`); return; }
+
+    const { data: product } = await supabase
+      .from("products").select("id, name").eq("id", productId).eq("tenant_id", tenantId).maybeSingle();
+    if (!product) { console.log(`[RESTOCK] Produto não encontrado: ${productId}`); return; }
+
+    let fieldName: string | null = null;
+    if (fieldId) {
+      const { data: field } = await supabase.from("product_fields").select("name").eq("id", fieldId).maybeSingle();
+      fieldName = field?.name || null;
+    }
+
+    let stockQuery = supabase.from("product_stock_items")
+      .select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("delivered", false);
+    if (fieldId) stockQuery = stockQuery.eq("field_id", fieldId);
+    else stockQuery = stockQuery.eq("product_id", productId);
+    const { count: totalStock } = await stockQuery;
+
+    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#57F287";
+    const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x57F287;
+
+    const title = storeConfig?.restock_embed_title
+      ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
+      : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
+
+    const description = storeConfig?.restock_embed_description
+      ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
+      : null;
+
+    const descLines: string[] = [];
+    if (description) { descLines.push(description); descLines.push(""); }
+    if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
+    descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
+    if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
+    const now = new Date();
+    descLines.push(`🕒 **Data:** <t:${Math.floor(now.getTime() / 1000)}:F> (<t:${Math.floor(now.getTime() / 1000)}:R>)`);
+
+    const embed: Record<string, unknown> = { title, color: embedColor, description: descLines.join("\n"), timestamp: now.toISOString() };
+    if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
+    if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
+    if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+
+    const components: unknown[] = [];
+    if (storeConfig?.store_url) {
+      components.push({ type: 1, components: [{ type: 2, style: 5, label: "Comprar Agora", url: storeConfig.store_url, emoji: { name: "🛒" } }] });
+    }
+
+    const mentionRoleId = storeConfig?.restock_mention_role_id;
+    const content = mentionRoleId ? (mentionRoleId === "everyone" ? "@everyone" : `<@&${mentionRoleId}>`) : undefined;
+
+    const body: Record<string, unknown> = { embeds: [embed] };
+    if (content) body.content = content;
+    if (components.length > 0) body.components = components;
+
+    const res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${addedCount}`);
+    } else {
+      console.error(`[RESTOCK] ❌ Discord ${res.status}:`, await res.text());
+    }
+  } catch (err) {
+    console.error("[RESTOCK] Erro:", (err as Error).message);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -172,22 +268,9 @@ Deno.serve(async (req) => {
       if (error) throw error;
       // Sync stock count and Discord embeds
       await syncStockAndEmbed(supabase, product_id, tenant_id);
-      // Trigger restock announcement to Discord channel (fire-and-forget, no Realtime needed)
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      fetch(`${supabaseUrl}/functions/v1/send-restock-announcement`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({
-          tenant_id,
-          product_id,
-          field_id: resolvedFieldId,
-          added_count: data?.length || items.length,
-        }),
-      }).catch((e: Error) => console.error("[RESTOCK] Falha ao disparar anúncio:", e.message));
+      // Trigger restock announcement to Discord channel directly (no external function needed)
+      sendRestockAnnouncement(supabase, tenant_id, product_id, resolvedFieldId, data?.length || items.length)
+        .catch((e: Error) => console.error("[RESTOCK] Erro no anúncio:", e.message));
       return new Response(JSON.stringify({ count: data?.length || 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
