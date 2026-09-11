@@ -172,6 +172,22 @@ Deno.serve(async (req) => {
       if (error) throw error;
       // Sync stock count and Discord embeds
       await syncStockAndEmbed(supabase, product_id, tenant_id);
+      // Trigger restock announcement to Discord channel (fire-and-forget, no Realtime needed)
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      fetch(`${supabaseUrl}/functions/v1/send-restock-announcement`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          tenant_id,
+          product_id,
+          field_id: resolvedFieldId,
+          added_count: data?.length || items.length,
+        }),
+      }).catch((e: Error) => console.error("[RESTOCK] Falha ao disparar anúncio:", e.message));
       return new Response(JSON.stringify({ count: data?.length || 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
