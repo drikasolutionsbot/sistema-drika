@@ -99,22 +99,9 @@ Deno.serve(async (req) => {
     }
 
     // thumbnail always goes top-right of the text embed
+    if (safeImageUrl) embed.image = { url: safeImageUrl };
     if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
     if (footer) embed.footer = { text: footer };
-
-    // When a banner image is set, send it as a SEPARATE first embed (image-only).
-    // Discord always renders embed.image at the bottom, but a standalone image-only embed
-    // placed before the text embed creates the visual of banner-on-top.
-    let embeds: any[];
-    if (safeImageUrl) {
-      const bannerEmbed: any = {
-        color: colorInt,
-        image: { url: safeImageUrl },
-      };
-      embeds = [bannerEmbed, embed];
-    } else {
-      embeds = [embed];
-    }
 
     let components: any[];
 
@@ -175,7 +162,7 @@ Deno.serve(async (req) => {
       components = [{ type: 1, components: [ticketButton] }];
     }
 
-    const payload: any = { embeds, components };
+    const payload: any = { embeds: [embed], components };
 
     const existingMessageId = storeConfig?.ticket_message_id;
     const existingChannelId = storeConfig?.ticket_channel_id;

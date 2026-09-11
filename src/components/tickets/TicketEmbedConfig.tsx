@@ -567,63 +567,59 @@ const TicketEmbedConfig = () => {
         <h3 className="text-sm font-semibold text-muted-foreground">Pré-visualização do Discord</h3>
         <div className="rounded-lg bg-[#313338] p-4 space-y-1 font-sans">
 
-          <div className="space-y-1">
-            {/* 1st Embed: Banner (if any) */}
-            {data.ticket_embed_image_url && (
-              <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
-                <img
-                  src={data.ticket_embed_image_url}
-                  alt="Banner"
-                  className="w-full max-h-44 object-cover block"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              </div>
-            )}
+          {/* Embed */}
+          <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
+            <div className="p-3 space-y-2">
+              {/* Title + Thumbnail row */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 space-y-2 min-w-0">
+                  {/* Title */}
+                  {data.ticket_embed_title && (
+                    <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
+                  )}
 
-            {/* 2nd Embed: Texts */}
-            <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
-              <div className="p-3 space-y-2">
-                {/* Title + Thumbnail row */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 space-y-2 min-w-0">
-                    {/* Title */}
-                    {data.ticket_embed_title && (
-                      <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
-                    )}
+                  {/* Description */}
+                  {data.ticket_embed_description && (
+                    <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
+                  )}
 
-                    {/* Description */}
-                    {data.ticket_embed_description && (
-                      <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
-                    )}
-
-                    {/* Field: Como funciona? */}
-                    {data.ticket_embed_how_it_works && (
-                      <div className="pt-2">
-                        <p className="text-white text-xs font-bold">Como funciona?</p>
-                        <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Thumbnail — top-right corner */}
-                  {data.ticket_embed_thumbnail_url && (
-                    <img
-                      src={data.ticket_embed_thumbnail_url}
-                      alt="Thumbnail"
-                      className="w-16 h-16 object-cover rounded shrink-0"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
+                  {/* Field: Como funciona? */}
+                  {data.ticket_embed_how_it_works && (
+                    <div className="pt-2">
+                      <p className="text-white text-xs font-bold">Como funciona?</p>
+                      <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
+                    </div>
                   )}
                 </div>
 
-                {/* Footer */}
-                {data.ticket_embed_footer && (
-                  <p className="text-[#dbdee1] text-[10px] flex items-center pt-2">
-                    {data.ticket_embed_footer}
-                  </p>
+                {/* Thumbnail — top-right corner */}
+                {data.ticket_embed_thumbnail_url && (
+                  <img
+                    src={data.ticket_embed_thumbnail_url}
+                    alt="Thumbnail"
+                    className="w-16 h-16 object-cover rounded shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
                 )}
               </div>
+
+              {/* Footer */}
+              {data.ticket_embed_footer && (
+                <p className="text-[#dbdee1] text-[10px] flex items-center pt-2">
+                  {data.ticket_embed_footer}
+                </p>
+              )}
             </div>
+
+            {/* Banner image — Discord renders this at the bottom of the embed */}
+            {data.ticket_embed_image_url && (
+              <img
+                src={data.ticket_embed_image_url}
+                alt="Banner"
+                className="w-full max-h-44 object-cover block"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
           </div>
 
           {/* Select menu preview */}
