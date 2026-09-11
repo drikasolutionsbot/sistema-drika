@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { cn } from "@/lib/utils";
+import ImageUploadField from "@/components/customization/ImageUploadField";
 
 interface DiscordChannel {
   id: string;
@@ -254,6 +255,7 @@ export default function RestockConfigTab({ discordChannels, discordCategories, l
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhum (sem menção)</SelectItem>
+                  <SelectItem value="everyone"><span className="text-lime-400 font-bold">@everyone</span></SelectItem>
                   {roles.filter(r => r.name !== "@everyone").sort((a, b) => b.position - a.position).map(r => (
                     <SelectItem key={r.id} value={r.id}>
                       <span style={{ color: r.color ? `#${r.color.toString(16).padStart(6, "0")}` : undefined }}>
@@ -323,22 +325,22 @@ export default function RestockConfigTab({ discordChannels, discordCategories, l
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs">URL da Thumbnail (opcional)</Label>
-              <Input
+              <ImageUploadField
+                label="URL da Thumbnail (opcional)"
                 value={config.restock_embed_thumbnail_url}
-                onChange={(e) => setConfig(prev => ({ ...prev, restock_embed_thumbnail_url: e.target.value }))}
-                className="h-9 text-sm border-white/10"
-                placeholder="https://..."
+                onChange={(url) => setConfig(prev => ({ ...prev, restock_embed_thumbnail_url: url }))}
+                folder="embeds"
+                maxSizeKB={800}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs">URL da Imagem (opcional)</Label>
-              <Input
+              <ImageUploadField
+                label="URL da Imagem (opcional)"
                 value={config.restock_embed_image_url}
-                onChange={(e) => setConfig(prev => ({ ...prev, restock_embed_image_url: e.target.value }))}
-                className="h-9 text-sm border-white/10"
-                placeholder="https://..."
+                onChange={(url) => setConfig(prev => ({ ...prev, restock_embed_image_url: url }))}
+                folder="embeds"
+                maxSizeKB={800}
               />
             </div>
           </div>

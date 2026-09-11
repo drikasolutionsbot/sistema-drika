@@ -196,7 +196,7 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
 
     // 8. Menção ao cargo
     const mentionRoleId = storeConfig?.restock_mention_role_id;
-    const content = mentionRoleId ? `<@&${mentionRoleId}>` : undefined;
+    const content = mentionRoleId ? (mentionRoleId === 'everyone' ? '@everyone' : `<@&${mentionRoleId}>`) : undefined;
 
     // 9. Enviar
     const body = { embeds: [embed] };
