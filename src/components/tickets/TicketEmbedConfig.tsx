@@ -434,13 +434,20 @@ const TicketEmbedConfig = () => {
                 />
               </div>
             </div>
-            {/* Capa do embed (image_url) é fixa no padrão Drika — removida do editor */}
+            <ImageUploadField
+              label="Banner do Embed"
+              value={data.ticket_embed_image_url}
+              onChange={(url) => update("ticket_embed_image_url", url)}
+              folder="ticket-embeds"
+            />
+            <p className="-mt-1 text-[11px] text-muted-foreground">Imagem grande exibida no topo do embed (ex: banner de suporte).</p>
             <ImageUploadField
               label="Thumbnail do Embed"
               value={data.ticket_embed_thumbnail_url}
               onChange={(url) => update("ticket_embed_thumbnail_url", url)}
               folder="ticket-embeds"
             />
+            <p className="-mt-1 text-[11px] text-muted-foreground">Ícone/miniatura exibida no canto superior direito do embed.</p>
             <div className="space-y-2">
               <Label>📂 Categoria/Canal de Tickets</Label>
               <ChannelSelectWithCreate
@@ -563,38 +570,49 @@ const TicketEmbedConfig = () => {
           {/* Embed */}
           <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
 
-            {/* Banner image on top */}
-            {data.ticket_embed_image_url ? (
+            {/* Banner image on top — only shown when set */}
+            {data.ticket_embed_image_url && (
               <img
                 src={data.ticket_embed_image_url}
                 alt="Banner"
                 className="w-full max-h-44 object-cover"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
-            ) : (
-              <div className="w-full h-24 bg-gradient-to-r from-[#1a1b1e] via-[#2b2d31] to-[#1a1b1e] flex items-center justify-center">
-                <span className="text-[#4e5058] text-xs">Banner do ticket (configure a imagem acima)</span>
-              </div>
             )}
 
             <div className="p-3 space-y-2">
-              {/* Title */}
-              {data.ticket_embed_title && (
-                <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
-              )}
+              {/* Title + Thumbnail row */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 space-y-2 min-w-0">
+                  {/* Title */}
+                  {data.ticket_embed_title && (
+                    <p className="font-bold text-white text-sm">{data.ticket_embed_title}</p>
+                  )}
 
-              {/* Description */}
-              {data.ticket_embed_description && (
-                <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
-              )}
+                  {/* Description */}
+                  {data.ticket_embed_description && (
+                    <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_description}</p>
+                  )}
 
-              {/* Field: Como funciona? */}
-              {data.ticket_embed_how_it_works && (
-                <div className="pt-1">
-                  <p className="text-white text-xs font-bold">Como funciona?</p>
-                  <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
+                  {/* Field: Como funciona? */}
+                  {data.ticket_embed_how_it_works && (
+                    <div className="pt-1">
+                      <p className="text-white text-xs font-bold">Como funciona?</p>
+                      <p className="text-[#dbdee1] text-xs whitespace-pre-wrap">{data.ticket_embed_how_it_works}</p>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Thumbnail — top-right corner */}
+                {data.ticket_embed_thumbnail_url && (
+                  <img
+                    src={data.ticket_embed_thumbnail_url}
+                    alt="Thumbnail"
+                    className="w-16 h-16 object-cover rounded shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                )}
+              </div>
 
               {/* Footer */}
               {data.ticket_embed_footer && (
