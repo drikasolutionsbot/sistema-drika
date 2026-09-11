@@ -1,9 +1,10 @@
 const { supabase, getProductById } = require("../supabase");
 
 function initRealtimeListeners(client) {
-  // ── Reabastecimento de estoque — DMs para usuários cadastrados ──
+  const restockBatch = new Map();
+
   supabase
-    .channel('restock-notifications')
+    .channel('restock-events-combined')
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'product_stock_items' },
@@ -11,56 +12,42 @@ function initRealtimeListeners(client) {
         const { product_id, tenant_id, field_id } = payload.new;
         if (!product_id || !tenant_id) return;
 
-        const { data: notifications, error } = await supabase
-          .from("restock_notifications")
-          .select("*")
-          .eq("product_id", product_id)
-          .eq("tenant_id", tenant_id)
-          .eq("notified", false);
+        // ── 1. Lógica de DMs (restock_notifications) ──
+        try {
+          const { data: notifications, error } = await supabase
+            .from("restock_notifications")
+            .select("*")
+            .eq("product_id", product_id)
+            .eq("tenant_id", tenant_id)
+            .eq("notified", false);
 
-        if (error || !notifications || notifications.length === 0) return;
+          if (!error && notifications && notifications.length > 0) {
+            const pending = notifications.filter(n => !n.field_id || n.field_id === field_id);
+            if (pending.length > 0) {
+              const ids = pending.map(n => n.id);
+              await supabase.from("restock_notifications").update({ notified: true }).in("id", ids);
 
-        const pending = notifications.filter(n => !n.field_id || n.field_id === field_id);
-        if (pending.length === 0) return;
-
-        const ids = pending.map(n => n.id);
-        await supabase.from("restock_notifications").update({ notified: true }).in("id", ids);
-
-        const product = await getProductById(product_id, tenant_id);
-        if (!product) return;
-
-        for (const notif of pending) {
-          try {
-            const user = await client.users.fetch(notif.user_id);
-            if (user) {
-              await user.send(`📦 **Boas notícias!** O produto **${product.name}** acabou de ser reabastecido! Corra para garantir o seu antes que acabe novamente!`);
+              const product = await getProductById(product_id, tenant_id);
+              if (product) {
+                for (const notif of pending) {
+                  try {
+                    const user = await client.users.fetch(notif.user_id);
+                    if (user) {
+                      await user.send(`📦 **Boas notícias!** O produto **${product.name}** acabou de ser reabastecido! Corra para garantir o seu antes que acabe novamente!`);
+                    }
+                  } catch (e) {
+                    console.error(`Failed to DM user ${notif.user_id}:`, e.message);
+                  }
+                }
+              }
             }
-          } catch (e) {
-            console.error(`Failed to DM user ${notif.user_id}:`, e.message);
           }
+        } catch (err) {
+          console.error("[RESTOCK DM] Erro:", err.message);
         }
-      }
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Realtime listener para reabastecimento de estoque (DMs) ativado!");
-      }
-    });
 
-  // ── Restock Channel Announcement — batch de 3s por produto ──
-  const restockBatch = new Map();
-
-  supabase
-    .channel('restock-channel-announce')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'product_stock_items' },
-      (payload) => {
-        const { product_id, tenant_id, field_id } = payload.new;
-        if (!product_id || !tenant_id) return;
-
+        // ── 2. Lógica de Anúncio no Canal ──
         const batchKey = `${tenant_id}:${product_id}:${field_id || ''}`;
-
         if (restockBatch.has(batchKey)) {
           restockBatch.get(batchKey).count++;
         } else {
@@ -70,9 +57,10 @@ function initRealtimeListeners(client) {
         }
       }
     )
-    .subscribe((status) => {
+    .subscribe((status, err) => {
+      console.log(`[REALTIME] Restock Events Subscribe Status: ${status}`, err || "");
       if (status === 'SUBSCRIBED') {
-        console.log("✅ Realtime listener para anúncio de restock no canal ativado!");
+        console.log("✅ Realtime listener para restock (DMs + Canal) ativado!");
       }
     });
 
@@ -107,10 +95,8 @@ function initRealtimeListeners(client) {
         }, 120000);
       }
     )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Realtime listener para fechamento de tickets entregues ativado!");
-      }
+    .subscribe((status, err) => {
+      console.log(`[REALTIME] Ticket Close Subscribe Status: ${status}`, err || "");
     });
 }
 
@@ -119,7 +105,6 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
   const { product_id, tenant_id, field_id, count: addedCount } = entry;
 
   try {
-    // 1. Buscar canal configurado em channel_configs
     const { data: channelConfig } = await supabase
       .from("channel_configs")
       .select("discord_channel_id")
@@ -127,7 +112,6 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
       .eq("channel_key", "restock_channel")
       .maybeSingle();
 
-    // 2. Buscar store_configs para embed customizado
     const { data: storeConfig } = await supabase
       .from("store_configs")
       .select("restock_channel_id, restock_embed_color, restock_embed_title, restock_embed_description, restock_embed_footer, restock_embed_image_url, restock_embed_thumbnail_url, restock_mention_role_id, store_url, embed_color")
@@ -135,28 +119,30 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
       .single();
 
     const restockChannelId = channelConfig?.discord_channel_id || storeConfig?.restock_channel_id;
-    if (!restockChannelId) return;
+    if (!restockChannelId) {
+      console.log(`[RESTOCK] Ignorado: Nenhum canal de restock configurado para tenant ${tenant_id}`);
+      return;
+    }
 
-    // 3. Buscar produto
     const product = await getProductById(product_id, tenant_id);
-    if (!product) return;
+    if (!product) {
+      console.log(`[RESTOCK] Produto não encontrado: ${product_id}`);
+      return;
+    }
 
-    // 4. Nome da variante (field)
     let fieldName = null;
     if (field_id) {
       const { data: field } = await supabase.from("product_fields").select("name").eq("id", field_id).maybeSingle();
       fieldName = field?.name || null;
     }
 
-    // 5. Contar estoque total
     let stockQuery = supabase.from("product_stock_items").select("id", { count: "exact", head: true }).eq("tenant_id", tenant_id).eq("delivered", false);
     if (field_id) stockQuery = stockQuery.eq("field_id", field_id);
     else stockQuery = stockQuery.eq("product_id", product_id);
     const { count: totalStock } = await stockQuery;
 
-    // 6. Montar embed
     const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#57F287";
-    const embedColor = parseInt(rawColor.replace("#", ""), 16);
+    const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x57F287;
 
     const title = storeConfig?.restock_embed_title
       ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", addedCount).replace("{total_stock}", totalStock ?? "?")
@@ -169,7 +155,7 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
     const descLines = [];
     if (description) {
       descLines.push(description);
-      descLines.push(""); // linha em branco para separar
+      descLines.push("");
     }
 
     if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
@@ -192,7 +178,6 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
     if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
     if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
 
-    // 7. Botão Comprar Agora
     const components = [];
     const storeUrl = storeConfig?.store_url;
     if (storeUrl) {
@@ -202,11 +187,9 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
       });
     }
 
-    // 8. Menção ao cargo
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId ? (mentionRoleId === 'everyone' ? '@everyone' : `<@&${mentionRoleId}>`) : undefined;
 
-    // 9. Enviar
     const body = { embeds: [embed] };
     if (content) body.content = content;
     if (components.length > 0) body.components = components;
