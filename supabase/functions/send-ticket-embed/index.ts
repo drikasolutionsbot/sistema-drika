@@ -103,15 +103,17 @@ Deno.serve(async (req) => {
     if (footer) embed.footer = { text: footer };
 
     // To put the banner on top, we use a separate embed.
-    // We add a zero-width space to the description to prevent Discord from 
-    // bugging out and rendering an empty box for image-only embeds.
+    // TRICK: Setting the same `url` on both embeds makes Discord visually
+    // merge them into a single continuous block (no gap/separator between them).
     let embeds: any[];
     if (safeImageUrl) {
+      const sharedUrl = safeImageUrl; // same url = Discord merges the two embeds visually
       const bannerEmbed: any = {
+        url: sharedUrl,
         color: colorInt,
-        description: "\u200B",
         image: { url: safeImageUrl },
       };
+      embed.url = sharedUrl;
       embeds = [bannerEmbed, embed];
     } else {
       embeds = [embed];
