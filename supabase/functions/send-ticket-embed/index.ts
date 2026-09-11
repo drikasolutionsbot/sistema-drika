@@ -99,9 +99,23 @@ Deno.serve(async (req) => {
     }
 
     // thumbnail always goes top-right of the text embed
-    if (safeImageUrl) embed.image = { url: safeImageUrl };
     if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
     if (footer) embed.footer = { text: footer };
+
+    // To put the banner on top, we use a separate embed.
+    // We add a zero-width space to the description to prevent Discord from 
+    // bugging out and rendering an empty box for image-only embeds.
+    let embeds: any[];
+    if (safeImageUrl) {
+      const bannerEmbed: any = {
+        color: colorInt,
+        description: "\u200B",
+        image: { url: safeImageUrl },
+      };
+      embeds = [bannerEmbed, embed];
+    } else {
+      embeds = [embed];
+    }
 
     let components: any[];
 
@@ -162,7 +176,7 @@ Deno.serve(async (req) => {
       components = [{ type: 1, components: [ticketButton] }];
     }
 
-    const payload: any = { embeds: [embed], components };
+    const payload: any = { embeds, components };
 
     const existingMessageId = storeConfig?.ticket_message_id;
     const existingChannelId = storeConfig?.ticket_channel_id;

@@ -567,8 +567,18 @@ const TicketEmbedConfig = () => {
         <h3 className="text-sm font-semibold text-muted-foreground">Pré-visualização do Discord</h3>
         <div className="rounded-lg bg-[#313338] p-4 space-y-1 font-sans">
 
-          {/* Embed */}
-          <div className="rounded-r-md border-l-4 bg-[#2b2d31] overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2" }}>
+          <div className="space-y-0 rounded-r-md border-l-4 overflow-hidden" style={{ borderColor: data.ticket_embed_color || "#5865F2", backgroundColor: "#2b2d31" }}>
+            {/* 1st Embed: Banner (if any) */}
+            {data.ticket_embed_image_url && (
+              <img
+                src={data.ticket_embed_image_url}
+                alt="Banner"
+                className="w-full max-h-44 object-cover block"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+
+            {/* 2nd Embed: Texts */}
             <div className="p-3 space-y-2">
               {/* Title + Thumbnail row */}
               <div className="flex items-start justify-between gap-2">
@@ -610,16 +620,6 @@ const TicketEmbedConfig = () => {
                 </p>
               )}
             </div>
-
-            {/* Banner image — Discord renders this at the bottom of the embed */}
-            {data.ticket_embed_image_url && (
-              <img
-                src={data.ticket_embed_image_url}
-                alt="Banner"
-                className="w-full max-h-44 object-cover block"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
           </div>
 
           {/* Select menu preview */}
