@@ -75,11 +75,11 @@ export default function RestockConfigTab({ discordChannels, discordCategories, l
       setLoading(true);
       try {
         // Load store_configs fields
-        const { data: sc, error: scErr } = await supabase
-          .from("store_configs" as any)
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .maybeSingle();
+        // Load store_configs fields via Edge Function to bypass RLS/Cache issues
+        const { data: scData, error: scErr } = await supabase.functions.invoke("manage-store-config", {
+          body: { action: "get", tenant_id: tenantId }
+        });
+        const sc = scData || null;
 
         if (scErr) {
           console.error("Error loading store_configs:", scErr);
