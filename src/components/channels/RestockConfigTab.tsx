@@ -75,11 +75,16 @@ export default function RestockConfigTab({ discordChannels, discordCategories, l
       setLoading(true);
       try {
         // Load store_configs fields
-        const { data: sc } = await supabase
+        const { data: sc, error: scErr } = await supabase
           .from("store_configs" as any)
-          .select("restock_channel_id, restock_embed_color, restock_embed_title, restock_embed_description, restock_embed_footer, restock_embed_image_url, restock_embed_thumbnail_url, restock_mention_role_id")
+          .select("*")
           .eq("tenant_id", tenantId)
           .maybeSingle();
+
+        if (scErr) {
+          console.error("Error loading store_configs:", scErr);
+          toast({ title: "Erro ao carregar", description: scErr.message, variant: "destructive" });
+        }
 
         // Load channel_configs for restock_channel key
         const { data: cc } = await supabase
