@@ -102,19 +102,9 @@ Deno.serve(async (req) => {
     if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
     if (footer) embed.footer = { text: footer };
 
-    // Two-embed strategy: banner embed first (image), text embed second.
-    // Using \u200B in banner description prevents Discord from collapsing the image-only embed.
-    let embeds: any[];
-    if (safeImageUrl) {
-      const bannerEmbed: any = {
-        color: colorInt,
-        description: "\u200B",
-        image: { url: safeImageUrl },
-      };
-      embeds = [bannerEmbed, embed];
-    } else {
-      embeds = [embed];
-    }
+    if (safeImageUrl) embed.image = { url: safeImageUrl };
+
+    let embeds: any[] = [embed];
 
     let components: any[];
 
