@@ -593,56 +593,130 @@ serve(async (req) => {
       }
     }
 
-    // 12. Send public sales announcement (to sales channel AND logs channel)
-    const salesEmbedColor = storeConfig?.purchase_embed_color
-      ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16)
-      : 0x2B2D31;
+    // 12. Send sale receipt image to logs and sales channels
+    const targetChannelIds = [
+      storeConfig?.logs_channel_id,
+      storeConfig?.sales_channel_id,
+    ].filter((id, idx, arr): id is string => Boolean(id) && arr.indexOf(id) === idx);
 
-    const salesEmbed: any = {
-      author: {
-        name: tenant?.name || tr(lang, "store_default"),
-        icon_url: tenant?.logo_url || undefined,
-      },
-      description: [
-        `<@${order.discord_user_id}>`,
-        "",
-        tr(lang, "purchase_completed"),
-        "",
-        `**${tr(lang, "cart_label")}**`,
-        `1x ${order.product_name}`,
-        "",
-        `**${tr(lang, "paid_amount_label")}**`,
-        `${formatMoney(order.total_cents, order.currency)}`,
-      ].join("\n"),
-      color: salesEmbedColor,
-      footer: {
-        text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-        icon_url: tenant?.logo_url || undefined,
-      },
-      timestamp: new Date().toISOString(),
-    };
-
-    if (storeConfig?.purchase_embed_thumbnail_url) salesEmbed.thumbnail = { url: storeConfig.purchase_embed_thumbnail_url };
-    if (storeConfig?.purchase_embed_image_url) salesEmbed.image = { url: storeConfig.purchase_embed_image_url };
-
-    const salesPayload = {
-      embeds: [salesEmbed],
-      components: [{
-        type: 1,
-        components: [{ type: 2, style: 5, label: tr(lang, "buy"), url: `https://discord.com/channels/${guildId}` }],
-      }],
-    };
-
-    // Send to logs channel only
-
-    // Send to logs channel too
-    if (storeConfig?.logs_channel_id) {
+    if (targetChannelIds.length > 0) {
       try {
-        await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
+        // Fetch user avatar and display name/handle from Discord
+        let userAvatarUrl = "";
+        let discordDisplayName = order.discord_username || order.discord_user_id;
+        let discordHandle = order.discord_username
+          ? `@${order.discord_username.toLowerCase()}`
+          : `@${order.discord_user_id}`;
+
+        try {
+          const discordUserRes = await fetch(`${DISCORD_API}/users/${order.discord_user_id}`, {
+            headers: { Authorization: `Bot ${botToken}` },
+          });
+          if (discordUserRes.ok) {
+            const discordUser = await discordUserRes.json();
+            if (discordUser.global_name) {
+              discordDisplayName = discordUser.global_name;
+            } else if (discordUser.username) {
+              discordDisplayName = discordUser.username;
+            }
+            if (discordUser.username) {
+              discordHandle = `@${discordUser.username.toLowerCase()}`;
+            }
+            if (discordUser.avatar) {
+              userAvatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64`;
+            } else {
+              // Use default avatar by discriminator/index
+              const defaultIndex = (BigInt(discordUser.id) >> 22n) % 6n;
+              userAvatarUrl = `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
+            }
+          }
+        } catch (avatarErr) {
+          console.error("Failed to fetch Discord user details:", avatarErr);
+        }
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+        const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const formattedMoney = formatMoney(order.total_cents, order.currency);
+
+        // Call generate-sale-image edge function to get PNG
+        const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-sale-image`, {
           method: "POST",
-          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ embeds: [salesEmbed] }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            userName: discordDisplayName,
+            userTag: discordHandle,
+            userAvatarUrl,
+            dateTime: `${dateStr} - ${timeStr}`,
+            title: tr(lang, "purchase_completed_title"),
+            productName: `1x ${order.product_name}`,
+            productPrice: formattedMoney,
+            subtotal: formattedMoney,
+            total: formattedMoney,
+            storeName: tenant?.name || tr(lang, "store_default"),
+            storeLogoUrl: tenant?.logo_url || "",
+          }),
         });
+
+        if (imageRes.ok) {
+          // Send as file attachment to logs/sales channels
+          const pngBuffer = await imageRes.arrayBuffer();
+
+          for (const channelId of targetChannelIds) {
+            try {
+              const formData = new FormData();
+              const blob = new Blob([pngBuffer], { type: "image/png" });
+              formData.append("files[0]", blob, `venda-${order.order_number}.png`);
+              formData.append("payload_json", JSON.stringify({
+                attachments: [{ id: 0, filename: `venda-${order.order_number}.png` }],
+              }));
+
+              await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+                method: "POST",
+                headers: { Authorization: `Bot ${botToken}` },
+                body: formData,
+              });
+            } catch (channelErr) {
+              console.error(`Failed to send receipt to channel ${channelId}:`, channelErr);
+            }
+          }
+        } else {
+          // Fallback to text embed if image generation fails
+          const fallbackEmbed: any = {
+            author: {
+              name: tenant?.name || tr(lang, "store_default"),
+              icon_url: tenant?.logo_url || undefined,
+            },
+            description: [
+              `<@${order.discord_user_id}>`,
+              "",
+              tr(lang, "purchase_completed"),
+              "",
+              `**${tr(lang, "cart_label")}** 1x ${order.product_name}`,
+              `**${tr(lang, "paid_amount_label")}** ${formattedMoney}`,
+            ].join("\n"),
+            color: storeConfig?.purchase_embed_color
+              ? parseInt(storeConfig.purchase_embed_color.replace("#", ""), 16)
+              : 0x2B2D31,
+            timestamp: now.toISOString(),
+          };
+
+          for (const channelId of targetChannelIds) {
+            try {
+              await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+                method: "POST",
+                headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ embeds: [fallbackEmbed] }),
+              });
+            } catch (fallbackChannelErr) {
+              console.error(`Failed to send fallback embed to channel ${channelId}:`, fallbackChannelErr);
+            }
+          }
+          console.error("generate-sale-image failed, used fallback embed. Status:", imageRes.status);
+        }
       } catch (logSalesErr) {
         console.error("Failed to send sales log:", logSalesErr);
       }

@@ -229,3 +229,6 @@ entrypoint = "./functions/get-discord-user/index.ts"
 [functions.serve-transcript]
 verify_jwt = false
 
+[functions.generate-sale-image]
+verify_jwt = false
+
