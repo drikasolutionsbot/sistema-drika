@@ -639,6 +639,31 @@ serve(async (req) => {
         const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         const formattedMoney = formatMoney(order.total_cents, order.currency);
 
+        // Fetch Guild icon from Discord as the server/store logo
+        let guildIconUrl = "";
+        try {
+          if (guildId) {
+            const guildRes = await fetch(`${DISCORD_API}/guilds/${guildId}`, {
+              headers: { Authorization: `Bot ${botToken}` },
+            });
+            if (guildRes.ok) {
+              const guildData = await guildRes.json();
+              if (guildData.icon) {
+                guildIconUrl = `https://cdn.discordapp.com/icons/${guildData.id}/${guildData.icon}.png?size=64`;
+              }
+            }
+          }
+        } catch (gErr) {
+          console.error("Failed to fetch guild icon:", gErr);
+        }
+
+        const resolvedStoreLogo =
+          storeConfig?.store_logo_url ||
+          guildIconUrl ||
+          tenant?.bot_avatar_url ||
+          (tenant?.logo_url ? tenant.logo_url.replace("krudxivcuygykoswjbbx.supabase.co", "iwotvdfxppjwasywrbmw.supabase.co") : "") ||
+          "";
+
         // Call generate-sale-image edge function to get PNG
         const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-sale-image`, {
           method: "POST",
@@ -657,7 +682,7 @@ serve(async (req) => {
             subtotal: formattedMoney,
             total: formattedMoney,
             storeName: tenant?.name || tr(lang, "store_default"),
-            storeLogoUrl: tenant?.logo_url || "",
+            storeLogoUrl: resolvedStoreLogo,
           }),
         });
 

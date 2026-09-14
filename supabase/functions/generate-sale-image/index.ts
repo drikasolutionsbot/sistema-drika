@@ -79,9 +79,11 @@ function generateReceiptSvg(params: {
        <path d="M38 60 q0-12 12-12 t12 12" fill="#75798e" />`;
 
   const storeLogoSection = storeLogoDataUri
-    ? `<image href="${e(storeLogoDataUri)}" x="28" y="327" width="20" height="20" clip-path="url(#storeLogoClip)" preserveAspectRatio="xMidYMid slice" />`
-    : `<rect x="28" y="327" width="20" height="20" rx="5" fill="#5865F2" />
-       <text x="38" y="341" fill="#ffffff" font-size="10" font-weight="700" text-anchor="middle" dominant-baseline="auto">D</text>`;
+    ? `<image href="${e(storeLogoDataUri)}" x="28" y="327" width="20" height="20" clip-path="url(#storeLogoClip)" preserveAspectRatio="xMidYMid slice" />
+       <rect x="28" y="327" width="20" height="20" rx="5" fill="none" stroke="#2a2d3d" stroke-width="1" />`
+    : `<rect x="28" y="327" width="20" height="20" rx="5" fill="#202330" stroke="#2a2d3d" stroke-width="1" />
+       <circle cx="38" cy="334" r="3" fill="#75798e" />
+       <path d="M32 343 q0-6 6-6 t6 6" fill="#75798e" />`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="680" height="370" viewBox="0 0 680 370">
   <defs>
@@ -89,7 +91,7 @@ function generateReceiptSvg(params: {
       <circle cx="50" cy="50" r="21" />
     </clipPath>
     <clipPath id="storeLogoClip">
-      <rect x="28" y="327" width="20" height="20" rx="4" />
+      <rect x="28" y="327" width="20" height="20" rx="5" />
     </clipPath>
   </defs>
 
@@ -113,16 +115,19 @@ function generateReceiptSvg(params: {
   <text x="60" y="111" fill="#ffffff" font-size="21" font-family="Inter, sans-serif" font-weight="900">${e(title)}</text>
 
   <!-- CARRINHO Label -->
-  <text x="28" y="152" fill="#585c6c" font-size="11" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">CARRINHO</text>
+  <text x="28" y="148" fill="#585c6c" font-size="11" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">CARRINHO</text>
   <!-- Product Name -->
-  <text x="28" y="177" fill="#f0f1f5" font-size="15" font-family="Inter, sans-serif" font-weight="400">${e(productName)}</text>
+  <text x="28" y="174" fill="#ffffff" font-size="15" font-family="Inter, sans-serif" font-weight="500">${e(productName)}</text>
   <!-- Product Price -->
-  <text x="652" y="177" fill="#f0f1f5" font-size="15" font-family="Inter, sans-serif" font-weight="400" text-anchor="end">${e(productPrice)}</text>
+  <text x="652" y="174" fill="#ffffff" font-size="16" font-family="Inter, sans-serif" font-weight="700" text-anchor="end">${e(productPrice)}</text>
 
-  <!-- SUBTOTAL Label -->
-  <text x="28" y="218" fill="#585c6c" font-size="11" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">SUBTOTAL</text>
+  <!-- Divider Line -->
+  <line x1="28" y1="195" x2="652" y2="195" stroke="#1d1f2b" stroke-width="1.2" />
+
+  <!-- SUBTOTAL Row -->
+  <text x="28" y="218" fill="#75798e" font-size="13" font-family="Inter, sans-serif" font-weight="600" letter-spacing="0.5">SUBTOTAL</text>
   <!-- Subtotal Value -->
-  <text x="652" y="218" fill="#f0f1f5" font-size="15" font-family="Inter, sans-serif" font-weight="400" text-anchor="end">${e(subtotal)}</text>
+  <text x="652" y="218" fill="#ffffff" font-size="16" font-family="Inter, sans-serif" font-weight="700" text-anchor="end">${e(subtotal)}</text>
 
   <!-- Valor Pago Box -->
   <rect x="28" y="244" width="624" height="62" rx="12" fill="#13141d" stroke="#1f2230" stroke-width="1.2" />
