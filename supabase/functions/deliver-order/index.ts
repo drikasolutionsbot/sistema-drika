@@ -176,7 +176,7 @@ serve(async (req) => {
     // 4. Get store config
     const { data: storeConfig } = await supabase
       .from("store_configs")
-      .select("logs_channel_id, sales_channel_id, customer_role_id, embed_color, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url")
+      .select("logs_channel_id, sales_channel_id, customer_role_id, embed_color, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url, store_url")
       .eq("tenant_id", tenant_id)
       .single();
 
@@ -688,6 +688,16 @@ serve(async (req) => {
           }),
         });
 
+        // Build product-specific buy URL
+        const storeUrl = storeConfig?.store_url;
+        const productBuyUrl = storeUrl && order.product_id
+          ? (storeUrl.includes("?") ? `${storeUrl}&product=${order.product_id}` : `${storeUrl}?product=${order.product_id}`)
+          : storeUrl || null;
+
+        const buyButtonComponents = productBuyUrl
+          ? [{ type: 1, components: [{ type: 2, style: 5, label: "🛒 Comprar", url: productBuyUrl }] }]
+          : [];
+
         if (imageRes.ok) {
           // Send as file attachment to logs/sales channels
           const pngBuffer = await imageRes.arrayBuffer();
@@ -699,6 +709,7 @@ serve(async (req) => {
               formData.append("files[0]", blob, `venda-${order.order_number}.png`);
               formData.append("payload_json", JSON.stringify({
                 attachments: [{ id: 0, filename: `venda-${order.order_number}.png` }],
+                components: buyButtonComponents,
               }));
 
               await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
@@ -736,7 +747,7 @@ serve(async (req) => {
               await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
                 method: "POST",
                 headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ embeds: [fallbackEmbed] }),
+                body: JSON.stringify({ embeds: [fallbackEmbed], components: buyButtonComponents }),
               });
             } catch (fallbackChannelErr) {
               console.error(`Failed to send fallback embed to channel ${channelId}:`, fallbackChannelErr);
