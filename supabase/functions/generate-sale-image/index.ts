@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
     // Format date/time
     const now = new Date();
     const formattedDateTime = dateTime ||
-      `${now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+      `${now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })} - ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`;
 
     const truncatedProductName =
       productName.length > 45 ? `${productName.slice(0, 42)}...` : productName;

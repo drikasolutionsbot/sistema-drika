@@ -87,7 +87,7 @@ function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: str
   for (const m of msgs) {
     const date = new Date(m.timestamp);
     const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-    const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
     if (dateStr !== lastDate) {
       rows += `<div class="date-divider"><span>${esc(dateStr)}</span></div>`;

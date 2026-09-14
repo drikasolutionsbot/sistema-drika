@@ -210,8 +210,8 @@ async function sendStoreLog(
     const storeName = sc.store_title || t?.name || tr("en", "store_default");
     const storeLogo = sc.store_logo_url || t?.logo_url;
     const embedColor = opts.color ?? (sc.embed_color ? parseInt(sc.embed_color.replace("#", ""), 16) : 0x2B2D31);
-    const d = new Date().toLocaleDateString("pt-BR");
-    const tm = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const d = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const tm = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
     const embed: any = {
       title: opts.title,
@@ -3441,8 +3441,8 @@ async function processPurchase(
     descLines.unshift(tr(Lreview, "auto_delivery_inline"));
   }
 
-  const checkoutDate = new Date().toLocaleDateString("pt-BR");
-  const checkoutTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const checkoutDate = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const checkoutTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
   const reviewFooterText = applyPurchaseFooterTemplate(storeConfigForCheckout?.purchase_embed_footer, {
     storeName,
     productName: orderName,
@@ -3794,8 +3794,8 @@ async function generatePixInThread(
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
 
-  const paymentDate = new Date().toLocaleDateString("pt-BR");
-  const paymentTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const paymentDate = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const paymentTime = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
   const pixFooterText = applyPurchaseFooterTemplate(scBrand?.purchase_embed_footer, {
     storeName,
     productName: order.product_name,

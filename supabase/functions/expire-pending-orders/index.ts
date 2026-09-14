@@ -131,8 +131,8 @@ serve(async (req) => {
           try {
             const storeName = sc.store_title || tenant?.name || "Loja";
             const storeLogo = sc.store_logo_url || tenant?.logo_url;
-            const dateStr = new Date().toLocaleDateString("pt-BR");
-            const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            const dateStr = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+            const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
             const lang = normLang(tenant?.language);
             await fetch(`${DISCORD_API}/channels/${sc.logs_channel_id}/messages`, {

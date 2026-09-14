@@ -223,7 +223,7 @@ serve(async (req) => {
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${tenant?.name || tr(lang, "store_default")} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              text: `${tenant?.name || tr(lang, "store_default")} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
               icon_url: tenant?.logo_url || undefined,
             },
           }],
@@ -273,7 +273,7 @@ serve(async (req) => {
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+              text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
               icon_url: storeBrand.icon_url,
             },
           }],
@@ -320,7 +320,7 @@ serve(async (req) => {
           { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
         ],
         footer: {
-          text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+          text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
           icon_url: storeBrand.icon_url,
         },
       };
@@ -514,7 +514,7 @@ serve(async (req) => {
             { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(lang, "payment_method_label")}**`, value: `\`💎 Pix – ${providerLabel}\``, inline: false },
           ],
-          footer: { text: `${tenant?.name || tr(lang, "store_default")} | ${new Date().toLocaleDateString("pt-BR")}, ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, icon_url: tenant?.logo_url || undefined },
+          footer: { text: `${tenant?.name || tr(lang, "store_default")} | ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}, ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`, icon_url: tenant?.logo_url || undefined },
           timestamp: new Date().toISOString(),
         };
 
@@ -543,7 +543,7 @@ serve(async (req) => {
             { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: order.id, inline: false },
           ],
-          footer: { text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` },
+          footer: { text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` },
           timestamp: new Date().toISOString(),
         };
 
@@ -636,8 +636,8 @@ serve(async (req) => {
         }
 
         const now = new Date();
-        const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-        const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+        const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
         const formattedMoney = formatMoney(order.total_cents, order.currency);
 
         // Fetch Guild icon from Discord as the server/store logo
