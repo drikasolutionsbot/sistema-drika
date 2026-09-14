@@ -169,6 +169,13 @@ async function fetchImageAsDataUri(
   }
 }
 
+function formatCdnUrl(url?: string | null): string {
+  if (!url) return "";
+  return url
+    .replace("krudxivcuygykoswjbbx.supabase.co", "cdn-drika.studyhakify.workers.dev")
+    .replace("iwotvdfxppjwasywrbmw.supabase.co", "cdn-drika.studyhakify.workers.dev");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -192,10 +199,10 @@ Deno.serve(async (req) => {
 
     await ensureInitialized();
 
-    // Fetch avatar + store logo concurrently (best effort)
+    // Fetch avatar + store logo concurrently via Cloudflare CDN (best effort)
     const [avatarDataUri, storeLogoDataUri] = await Promise.all([
-      userAvatarUrl ? fetchImageAsDataUri(userAvatarUrl) : Promise.resolve(null),
-      storeLogoUrl ? fetchImageAsDataUri(storeLogoUrl) : Promise.resolve(null),
+      userAvatarUrl ? fetchImageAsDataUri(formatCdnUrl(userAvatarUrl)) : Promise.resolve(null),
+      storeLogoUrl ? fetchImageAsDataUri(formatCdnUrl(storeLogoUrl)) : Promise.resolve(null),
     ]);
 
     // Format date/time

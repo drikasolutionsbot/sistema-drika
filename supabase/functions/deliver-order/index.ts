@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang } from "../_shared/i18n.ts";
+import { formatCdnUrl } from "../_shared/utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -657,12 +658,13 @@ serve(async (req) => {
           console.error("Failed to fetch guild icon:", gErr);
         }
 
-        const resolvedStoreLogo =
+        const resolvedStoreLogo = formatCdnUrl(
           storeConfig?.store_logo_url ||
           guildIconUrl ||
           tenant?.bot_avatar_url ||
-          (tenant?.logo_url ? tenant.logo_url.replace("krudxivcuygykoswjbbx.supabase.co", "iwotvdfxppjwasywrbmw.supabase.co") : "") ||
-          "";
+          tenant?.logo_url ||
+          ""
+        );
 
         // Call generate-sale-image edge function to get PNG
         const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-sale-image`, {
