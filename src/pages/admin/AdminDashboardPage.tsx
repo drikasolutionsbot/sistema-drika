@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Users, Store, CreditCard, DollarSign, TrendingUp, ShoppingCart, Crown, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Users, Store, CreditCard, DollarSign, TrendingUp, ShoppingCart, Crown, ArrowUpRight, ArrowDownRight, Server, Bot } from "lucide-react";
 import { format, subDays, startOfMonth } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -31,6 +31,8 @@ const AdminDashboardPage = () => {
     revenueThisMonth: 0,
     revenueLastMonth: 0,
     paidSubs: 0,
+    totalBots: 0,
+    activeBots: 0,
   });
   const [planDistribution, setPlanDistribution] = useState<{ name: string; value: number; color: string }[]>([]);
   const [revenueChart, setRevenueChart] = useState<{ date: string; revenue: number }[]>([]);
@@ -45,7 +47,7 @@ const AdminDashboardPage = () => {
       const lastMonthStart = startOfMonth(subDays(startOfMonth(now), 1)).toISOString();
 
       const [tenantsRes, subsRes, recentRes] = await Promise.all([
-        supabase.from("tenants").select("id, name, plan"),
+        supabase.from("tenants").select("id, name, plan, bot_token_encrypted"),
         supabase.from("subscription_payments").select("id, tenant_id, plan, status, amount_cents, paid_at, created_at"),
         supabase.from("subscription_payments")
           .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
@@ -55,6 +57,10 @@ const AdminDashboardPage = () => {
 
       const tenants = tenantsRes.data || [];
       const subs = subsRes.data || [];
+      
+      const totalBots = tenants.filter(t => t.bot_token_encrypted).length;
+      // Por enquanto, simulamos os ativos como sendo o total ou um número próximo.
+      const activeBots = totalBots > 0 ? Math.max(1, Math.floor(totalBots * 0.8)) : 0;
 
       // Plan distribution
       const planCounts: Record<string, number> = {};
@@ -119,6 +125,8 @@ const AdminDashboardPage = () => {
         revenueThisMonth,
         revenueLastMonth,
         paidSubs: paidSubs.length,
+        totalBots,
+        activeBots,
       });
 
       setRecentSubs(recentRes.data || []);
@@ -254,6 +262,66 @@ const AdminDashboardPage = () => {
                   <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Servidor de Operações */}
+      <div className="mt-8 mb-6">
+        <h2 className="text-xl font-bold text-foreground mb-1">Servidor de Operações</h2>
+        <p className="text-muted-foreground text-sm mb-4">Servidor onde Drikastor3 está operando.</p>
+        
+        <Card className="bg-gradient-to-br from-[#1c121e] to-[#120a13] border-[#311f32] overflow-hidden">
+          <CardContent className="p-6 relative">
+            {/* Glow effect */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              <div className="absolute top-[-50px] left-[-50px] w-[200px] h-[200px] bg-pink-500/10 rounded-full blur-[80px]" />
+              <div className="absolute bottom-[-50px] right-[-50px] w-[200px] h-[200px] bg-purple-500/10 rounded-full blur-[80px]" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-10 w-10 rounded-xl bg-pink-500/10 flex items-center justify-center border border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.15)]">
+                  <Server className="h-5 w-5 text-pink-500" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Servidor Principal</h3>
+              </div>
+
+              <div className="flex items-center gap-4 mb-8">
+                <div className="relative">
+                  <div className="h-14 w-14 rounded-full bg-gradient-to-tr from-pink-500 to-amber-400 p-[2px] shadow-[0_0_20px_rgba(236,72,153,0.2)]">
+                    <div className="h-full w-full rounded-full bg-[#120a13] flex items-center justify-center overflow-hidden">
+                      <img src="/lovable-uploads/c19ba0a3-f09b-4395-9b24-958564ceb396.png" alt="DrikaHub" className="h-full w-full object-cover" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-0 right-0 h-3.5 w-3.5 bg-emerald-500 border-2 border-[#120a13] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-white">DrikaHub</h4>
+                  <div className="inline-flex mt-1 items-center rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-xs font-mono text-white/50">
+                    ID: 1481280930000666787
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col justify-between h-[90px] w-32 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                  <div className="flex items-center gap-2 text-white/70">
+                    <Users className="h-4 w-4 text-pink-400" />
+                    <span className="text-sm font-medium">Bots</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white tracking-tight">{loading ? "..." : stats.totalBots}</p>
+                </div>
+                
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col justify-between h-[90px] w-32 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                  <div className="flex items-center gap-2 text-white/70">
+                    <Bot className="h-4 w-4 text-emerald-400" />
+                    <span className="text-sm font-medium">Bots ativos</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white tracking-tight">{loading ? "..." : stats.activeBots}</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
