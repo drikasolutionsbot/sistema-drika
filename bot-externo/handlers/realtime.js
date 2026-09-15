@@ -74,7 +74,7 @@ function initRealtimeListeners(client) {
         const ticket = payload.new;
         if (!ticket?.discord_channel_id) return;
 
-        console.log(`[REALTIME] Ticket ${ticket.id} marcado como entregue. Canal: ${ticket.discord_channel_id}. Fechando em 2 minutos...`);
+        console.log(`[REALTIME] Ticket ${ticket.id} marcado como entregue. Canal: ${ticket.discord_channel_id}. Fechando em 10 segundos...`);
 
         setTimeout(async () => {
           try {
@@ -92,7 +92,7 @@ function initRealtimeListeners(client) {
           } catch (err) {
             console.error(`[REALTIME] Erro ao fechar canal do ticket ${ticket.id}:`, err.message);
           }
-        }, 120000);
+        }, 10000);
       }
     )
     .subscribe((status, err) => {
@@ -109,7 +109,7 @@ function initRealtimeListeners(client) {
         const order = payload.new;
         if (!order?.checkout_thread_id) return;
 
-        console.log(`[REALTIME] Pedido ${order.id} marcado como entregue. Thread: ${order.checkout_thread_id}. Arquivando em 2 minutos...`);
+        console.log(`[REALTIME] Pedido ${order.id} marcado como entregue. Thread: ${order.checkout_thread_id}. Arquivando em 10 segundos...`);
 
         setTimeout(async () => {
           try {
@@ -127,7 +127,7 @@ function initRealtimeListeners(client) {
           } catch (err) {
             console.error(`[REALTIME] Erro ao fechar checkout do pedido ${order.id}:`, err.message);
           }
-        }, 120000);
+        }, 10000);
       }
     )
     .subscribe((status, err) => {
