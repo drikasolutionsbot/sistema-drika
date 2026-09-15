@@ -98,6 +98,41 @@ function initRealtimeListeners(client) {
     .subscribe((status, err) => {
       console.log(`[REALTIME] Ticket Close Subscribe Status: ${status}`, err || "");
     });
+
+  // ── Fechar thread de checkout quando pedido for entregue ──
+  supabase
+    .channel('order-delivered-close')
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter: 'status=eq.delivered' },
+      async (payload) => {
+        const order = payload.new;
+        if (!order?.checkout_thread_id) return;
+
+        console.log(`[REALTIME] Pedido ${order.id} marcado como entregue. Thread: ${order.checkout_thread_id}. Arquivando em 2 minutos...`);
+
+        setTimeout(async () => {
+          try {
+            const thread = await client.channels.fetch(order.checkout_thread_id).catch(() => null);
+            if (!thread) return;
+
+            if (thread.isThread?.()) {
+              await thread.setLocked(true).catch(() => {});
+              await thread.setArchived(true).catch(() => {});
+              console.log(`[REALTIME] Thread de checkout do pedido ${order.id} arquivada.`);
+            } else {
+              await thread.delete("Entrega confirmada - canal de checkout fechado automaticamente").catch(() => {});
+              console.log(`[REALTIME] Canal de checkout do pedido ${order.id} deletado.`);
+            }
+          } catch (err) {
+            console.error(`[REALTIME] Erro ao fechar checkout do pedido ${order.id}:`, err.message);
+          }
+        }, 120000);
+      }
+    )
+    .subscribe((status, err) => {
+      console.log(`[REALTIME] Order Close Subscribe Status: ${status}`, err || "");
+    });
 }
 
 async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
