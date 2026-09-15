@@ -47,7 +47,7 @@ const AdminDashboardPage = () => {
       const lastMonthStart = startOfMonth(subDays(startOfMonth(now), 1)).toISOString();
 
       const [tenantsRes, subsRes, recentRes] = await Promise.all([
-        supabase.from("tenants").select("id, name, plan, bot_token_encrypted"),
+        supabase.from("tenants").select("id, name, plan, discord_guild_id"),
         supabase.from("subscription_payments").select("id, tenant_id, plan, status, amount_cents, paid_at, created_at"),
         supabase.from("subscription_payments")
           .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
@@ -58,7 +58,7 @@ const AdminDashboardPage = () => {
       const tenants = tenantsRes.data || [];
       const subs = subsRes.data || [];
       
-      const totalBots = tenants.filter(t => t.bot_token_encrypted).length;
+      const totalBots = tenants.filter(t => t.discord_guild_id).length;
       // Por enquanto, simulamos os ativos como sendo o total ou um número próximo.
       const activeBots = totalBots > 0 ? Math.max(1, Math.floor(totalBots * 0.8)) : 0;
 
