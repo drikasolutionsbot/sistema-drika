@@ -292,7 +292,7 @@ const AdminDashboardPage = () => {
                 <div className="relative">
                   <div className="h-14 w-14 rounded-full bg-gradient-to-tr from-pink-500 to-amber-400 p-[2px] shadow-[0_0_20px_rgba(236,72,153,0.2)]">
                     <div className="h-full w-full rounded-full bg-[#120a13] flex items-center justify-center overflow-hidden">
-                      <img src="/lovable-uploads/c19ba0a3-f09b-4395-9b24-958564ceb396.png" alt="DrikaHub" className="h-full w-full object-cover" />
+                      <img src="/logo.png" alt="DrikaHub" className="h-full w-full object-contain p-1" />
                     </div>
                   </div>
                   <div className="absolute bottom-0 right-0 h-3.5 w-3.5 bg-emerald-500 border-2 border-[#120a13] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
