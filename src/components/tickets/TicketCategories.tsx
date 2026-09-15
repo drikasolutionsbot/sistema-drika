@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Trash2, GripVertical, Save, Tag, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, GripVertical, Save, Tag, ToggleLeft, ToggleRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -229,8 +229,8 @@ const TicketCategories = () => {
               >
                 {cat.active ? <ToggleRight className="h-5 w-5 text-emerald-400" /> : <ToggleLeft className="h-5 w-5" />}
               </button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEdit(cat)}>
-                <Save className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => openEdit(cat)} title="Editar Categoria">
+                <Pencil className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="ghost"

@@ -174,6 +174,9 @@ Deno.serve(async (req) => {
       console.error("Add to guild error:", e);
     }
 
+    let roleApplied = false;
+    let roleError = null;
+
     // If user is already in the guild, add the role directly
     if (roleId) {
       console.log("Adding role directly:", { guildId, discordUserId, roleId });
@@ -182,10 +185,26 @@ Deno.serve(async (req) => {
           method: "PUT",
           headers: { Authorization: `Bot ${botToken}` },
         });
-        const roleResText = await roleRes.text();
-        console.log("Add role response:", roleRes.status, roleResText);
+        
+        if (roleRes.ok || roleRes.status === 204) {
+          roleApplied = true;
+          console.log("Add role success:", roleRes.status);
+        } else {
+          const roleResText = await roleRes.text();
+          console.error("Add role failed:", roleRes.status, roleResText);
+          roleError = `Erro ${roleRes.status}`;
+          try {
+            const errJson = JSON.parse(roleResText);
+            if (errJson.code === 50013) {
+              roleError = "O cargo do bot precisa estar acima do cargo de verificação nas configurações do servidor.";
+            } else if (errJson.message) {
+              roleError = errJson.message;
+            }
+          } catch (_) {}
+        }
       } catch (e) {
         console.error("Add role error:", e);
+        roleError = "Erro interno ao atribuir";
       }
     }
 
@@ -223,26 +242,36 @@ Deno.serve(async (req) => {
           || req.headers.get("x-real-ip") 
           || "N/A";
 
+        const logFields = [
+          {
+            name: "👤 Usuário",
+            value: `<@${discordUserId}> (${discordUsername})`,
+            inline: false,
+          },
+          {
+            name: "📅 Conta no Discord",
+            value: `${accountAgeDays} dias no Discord.`,
+            inline: true,
+          },
+          {
+            name: "🔗 IP",
+            value: ip,
+            inline: true,
+          },
+        ];
+
+        if (roleId) {
+          logFields.push({
+            name: "📋 Cargo",
+            value: roleApplied ? `✅ Cargo <@&${roleId}> atribuído.` : `❌ Falha ao atribuir: ${roleError}`,
+            inline: false,
+          });
+        }
+
         const logEmbed = {
           title: "✅ | Membro verificado",
           color: 0x57F287,
-          fields: [
-            {
-              name: "👤 Usuário",
-              value: `<@${discordUserId}> (${discordUsername})`,
-              inline: false,
-            },
-            {
-              name: "📅 Conta no Discord",
-              value: `${accountAgeDays} dias no Discord.`,
-              inline: true,
-            },
-            {
-              name: "🔗 IP",
-              value: ip,
-              inline: true,
-            },
-          ],
+          fields: logFields,
           thumbnail: tenantData.logo_url ? { url: tenantData.logo_url } : (discordAvatar ? { url: discordAvatar } : undefined),
           timestamp: new Date().toISOString(),
         };
@@ -285,9 +314,19 @@ Deno.serve(async (req) => {
 
     const serverName = tenantData.name || "o servidor";
 
+    let successMessage = `Bem-vindo, <strong>${discordUsername}</strong>! Você foi verificado em <strong>${serverName}</strong>.`;
+    if (roleId) {
+      if (roleApplied) {
+        successMessage += "<br>Seu cargo foi atribuído automaticamente.";
+      } else {
+        successMessage += "<br><br><em>Aviso: Ocorreu uma falha ao atribuir seu cargo. Um administrador já foi notificado.</em>";
+      }
+    }
+    successMessage += "<br><br>Pode fechar esta página e voltar ao Discord.";
+
     return htmlResponse(
       "✅ Verificado com Sucesso!",
-      `Bem-vindo, <strong>${discordUsername}</strong>! Você foi verificado em <strong>${serverName}</strong>.${roleId ? "<br>Seu cargo foi atribuído automaticamente." : ""}<br><br>Pode fechar esta página e voltar ao Discord.`,
+      successMessage,
       "#57F287",
       tenantData.logo_url
     );
