@@ -69,25 +69,37 @@ function initRealtimeListeners(client) {
     .channel('ticket-delivered-close')
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'tickets', filter: 'status=eq.delivered' },
+      // NOTA: filtro status=eq.delivered NÃO funciona para UPDATE no Supabase Realtime.
+      // Removido o filtro e fazendo a verificação no handler JS.
+      { event: 'UPDATE', schema: 'public', table: 'tickets' },
       async (payload) => {
         const ticket = payload.new;
+        const oldTicket = payload.old;
+
+        // Só fecha quando o status MUDOU para 'delivered'
+        if (ticket?.status !== 'delivered') return;
+        if (oldTicket?.status === 'delivered') return; // já estava delivered, ignora
         if (!ticket?.discord_channel_id) return;
 
-        console.log(`[REALTIME] Ticket ${ticket.id} marcado como entregue. Canal: ${ticket.discord_channel_id}. Fechando em 10 segundos...`);
+        console.log(`[REALTIME] Ticket ${ticket.id} marcado como delivered. Canal: ${ticket.discord_channel_id}. Fechando em 10 segundos...`);
 
         setTimeout(async () => {
           try {
             const channel = await client.channels.fetch(ticket.discord_channel_id).catch(() => null);
-            if (!channel) return;
+            if (!channel) {
+              console.warn(`[REALTIME] Canal ${ticket.discord_channel_id} do ticket ${ticket.id} não encontrado (já deletado?).`);
+              return;
+            }
 
             if (channel.isThread?.()) {
               await channel.setLocked(true).catch(() => {});
               await channel.setArchived(true).catch(() => {});
-              console.log(`[REALTIME] Thread de ticket ${ticket.id} arquivada.`);
+              console.log(`[REALTIME] Thread de ticket ${ticket.id} arquivada com sucesso.`);
             } else {
-              await channel.delete("Entrega confirmada - ticket fechado automaticamente").catch(() => {});
-              console.log(`[REALTIME] Canal de ticket ${ticket.id} deletado.`);
+              await channel.delete("Entrega confirmada - ticket fechado automaticamente").catch((err) => {
+                console.error(`[REALTIME] Erro ao deletar canal do ticket ${ticket.id}:`, err.message);
+              });
+              console.log(`[REALTIME] Canal de ticket ${ticket.id} deletado com sucesso.`);
             }
           } catch (err) {
             console.error(`[REALTIME] Erro ao fechar canal do ticket ${ticket.id}:`, err.message);
@@ -97,6 +109,9 @@ function initRealtimeListeners(client) {
     )
     .subscribe((status, err) => {
       console.log(`[REALTIME] Ticket Close Subscribe Status: ${status}`, err || "");
+      if (status === 'SUBSCRIBED') {
+        console.log("✅ Realtime listener de fechamento de ticket ativado!");
+      }
     });
 
   // ── Fechar thread de checkout quando pedido for entregue ──
@@ -104,25 +119,37 @@ function initRealtimeListeners(client) {
     .channel('order-delivered-close')
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'orders', filter: 'status=eq.delivered' },
+      // NOTA: filtro status=eq.delivered NÃO funciona para UPDATE no Supabase Realtime.
+      // Removido o filtro e fazendo a verificação no handler JS.
+      { event: 'UPDATE', schema: 'public', table: 'orders' },
       async (payload) => {
         const order = payload.new;
+        const oldOrder = payload.old;
+
+        // Só fecha quando o status MUDOU para 'delivered'
+        if (order?.status !== 'delivered') return;
+        if (oldOrder?.status === 'delivered') return; // já estava delivered, ignora
         if (!order?.checkout_thread_id) return;
 
-        console.log(`[REALTIME] Pedido ${order.id} marcado como entregue. Thread: ${order.checkout_thread_id}. Arquivando em 10 segundos...`);
+        console.log(`[REALTIME] Pedido ${order.id} marcado como delivered. Thread: ${order.checkout_thread_id}. Arquivando em 10 segundos...`);
 
         setTimeout(async () => {
           try {
             const thread = await client.channels.fetch(order.checkout_thread_id).catch(() => null);
-            if (!thread) return;
+            if (!thread) {
+              console.warn(`[REALTIME] Thread ${order.checkout_thread_id} do pedido ${order.id} não encontrada (já arquivada?).`);
+              return;
+            }
 
             if (thread.isThread?.()) {
               await thread.setLocked(true).catch(() => {});
               await thread.setArchived(true).catch(() => {});
-              console.log(`[REALTIME] Thread de checkout do pedido ${order.id} arquivada.`);
+              console.log(`[REALTIME] Thread de checkout do pedido ${order.id} arquivada com sucesso.`);
             } else {
-              await thread.delete("Entrega confirmada - canal de checkout fechado automaticamente").catch(() => {});
-              console.log(`[REALTIME] Canal de checkout do pedido ${order.id} deletado.`);
+              await thread.delete("Entrega confirmada - canal de checkout fechado automaticamente").catch((err) => {
+                console.error(`[REALTIME] Erro ao deletar canal de checkout do pedido ${order.id}:`, err.message);
+              });
+              console.log(`[REALTIME] Canal de checkout do pedido ${order.id} deletado com sucesso.`);
             }
           } catch (err) {
             console.error(`[REALTIME] Erro ao fechar checkout do pedido ${order.id}:`, err.message);
@@ -132,6 +159,9 @@ function initRealtimeListeners(client) {
     )
     .subscribe((status, err) => {
       console.log(`[REALTIME] Order Close Subscribe Status: ${status}`, err || "");
+      if (status === 'SUBSCRIBED') {
+        console.log("✅ Realtime listener de fechamento de checkout ativado!");
+      }
     });
 }
 
