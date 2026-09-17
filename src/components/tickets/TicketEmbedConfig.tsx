@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import DrikaLockedFields from "@/components/customization/DrikaLockedFields";
 import { Loader2, Save, Palette, Type, Image, MessageSquare, Send, Undo2, Shield, ChevronDown, FolderOpen, BookmarkPlus } from "lucide-react";
+import TextareaWithEmoji from "@/components/discord/TextareaWithEmoji";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -369,18 +370,18 @@ const TicketEmbedConfig = () => {
             </div>
             <div className="space-y-2">
               <Label>Descrição</Label>
-              <Textarea
+              <TextareaWithEmoji
                 value={data.ticket_embed_description}
-                onChange={(e) => update("ticket_embed_description", e.target.value)}
+                onChange={(val) => update("ticket_embed_description", val)}
                 placeholder="Clique no botão abaixo para abrir um ticket."
                 rows={2}
               />
             </div>
             <div className="space-y-2">
               <Label>Como funciona? <span className="text-xs text-muted-foreground font-normal">(texto do campo)</span></Label>
-              <Textarea
+              <TextareaWithEmoji
                 value={data.ticket_embed_how_it_works}
-                onChange={(e) => update("ticket_embed_how_it_works", e.target.value)}
+                onChange={(val) => update("ticket_embed_how_it_works", val)}
                 placeholder="Selecione uma opção no menu para direcionar melhor seu atendimento.\nA equipe será avisada e acompanhará tudo pelo canal criado."
                 rows={3}
               />
