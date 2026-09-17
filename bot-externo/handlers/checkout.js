@@ -479,9 +479,11 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       `**Subtotal:** \`${formatBRL(priceCents)}\``,
       `**Total:** \`${formatBRL(priceCents)}\``,
       "**Forma de Pagamento:** `PIX`"
-    ].filter(Boolean).join("\n"))
-    .setFooter({ text: checkoutFooterText, iconURL: storeLogo || undefined })
-    .setTimestamp();
+    ].filter(Boolean).join("\n"));
+
+  if (storeConfig?.cart_embed_show_footer !== false) {
+    reviewEmbed.setFooter({ text: checkoutFooterText || " ", iconURL: storeLogo || undefined }).setTimestamp();
+  }
 
   // Product description and image were intentionally removed from checkout per requested design
 

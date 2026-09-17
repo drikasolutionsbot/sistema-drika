@@ -14,6 +14,7 @@ interface StoreConfig {
   embed_color: string;
   store_title: string;
   cart_embed_color: string | null;
+  cart_embed_show_footer: boolean;
   cart_embed_title: string | null;
   cart_embed_footer: string | null;
 }
@@ -22,6 +23,7 @@ const defaultConfig: StoreConfig = {
   embed_color: "#2B2D31",
   store_title: "",
   cart_embed_color: "",
+  cart_embed_show_footer: true,
   cart_embed_title: "",
   cart_embed_footer: "",
 };
@@ -53,6 +55,7 @@ const StoreCartSettings = () => {
           embed_color: data.embed_color || prev.embed_color,
           store_title: data.store_title || prev.store_title,
           cart_embed_color: data.cart_embed_color || "",
+          cart_embed_show_footer: data.cart_embed_show_footer !== false,
           cart_embed_title: data.cart_embed_title || "",
           cart_embed_footer: data.cart_embed_footer || "",
         }));
@@ -78,6 +81,7 @@ const StoreCartSettings = () => {
           tenant_id: tenantId, 
           config: {
             cart_embed_color: config.cart_embed_color || null,
+            cart_embed_show_footer: config.cart_embed_show_footer,
             cart_embed_title: config.cart_embed_title || null,
             cart_embed_footer: config.cart_embed_footer || null,
           }
@@ -153,14 +157,28 @@ const StoreCartSettings = () => {
             <p className="text-xs text-muted-foreground mt-1">Texto exibido no topo do embed do carrinho.</p>
           </div>
           <div>
-            <Label>Footer (Rodapé)</Label>
-            <Input
-              value={config.cart_embed_footer || ""}
-              onChange={(e) => update("cart_embed_footer", e.target.value)}
-              placeholder="Ex: {user} • {date} {time}"
-              className="mt-1"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Variáveis úteis: <code>{`{user}`}</code> (nome do cliente), <code>{`{date}`}</code> (data), <code>{`{time}`}</code> (hora).</p>
+            <div className="flex items-center justify-between">
+              <Label>Footer (Rodapé)</Label>
+              <div className="flex items-center gap-2">
+                <Switch 
+                  checked={config.cart_embed_show_footer}
+                  onCheckedChange={(v) => update("cart_embed_show_footer", v)}
+                />
+                <span className="text-sm text-muted-foreground">Mostrar rodapé</span>
+              </div>
+            </div>
+            
+            {config.cart_embed_show_footer && (
+              <>
+                <Input
+                  value={config.cart_embed_footer || ""}
+                  onChange={(e) => update("cart_embed_footer", e.target.value)}
+                  placeholder="Ex: {user} • {date} {time}"
+                  className="mt-3"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Variáveis úteis: <code>{`{user}`}</code> (nome do cliente), <code>{`{date}`}</code> (data), <code>{`{time}`}</code> (hora).</p>
+              </>
+            )}
           </div>
 
           <Separator />
@@ -187,7 +205,7 @@ const StoreCartSettings = () => {
                   </div>
 
                   {/* Footer */}
-                  {effectiveFooter && (
+                  {config.cart_embed_show_footer && effectiveFooter && (
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-[#dcddde] font-medium">{previewFooter} • Hoje às 14:05</span>
                     </div>

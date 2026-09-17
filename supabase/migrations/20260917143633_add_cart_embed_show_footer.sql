@@ -1,0 +1,1 @@
+ALTER TABLE store_configs ADD COLUMN IF NOT EXISTS cart_embed_show_footer BOOLEAN DEFAULT TRUE;

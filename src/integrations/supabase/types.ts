@@ -1847,6 +1847,7 @@ export type Database = {
           logs_channel_id: string | null
           payment_timeout_minutes: number
           cart_embed_color: string | null
+          cart_embed_show_footer: boolean | null
           cart_embed_footer: string | null
           cart_embed_title: string | null
           purchase_embed_color: string | null
@@ -1888,6 +1889,7 @@ export type Database = {
           logs_channel_id?: string | null
           payment_timeout_minutes?: number
           cart_embed_color?: string | null
+          cart_embed_show_footer?: boolean | null
           cart_embed_footer?: string | null
           cart_embed_title?: string | null
           purchase_embed_color?: string | null
@@ -1929,6 +1931,7 @@ export type Database = {
           logs_channel_id?: string | null
           payment_timeout_minutes?: number
           cart_embed_color?: string | null
+          cart_embed_show_footer?: boolean | null
           cart_embed_footer?: string | null
           cart_embed_title?: string | null
           purchase_embed_color?: string | null
