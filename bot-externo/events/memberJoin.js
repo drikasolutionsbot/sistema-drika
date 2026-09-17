@@ -49,9 +49,13 @@ function buildEmbed(embedData, member, tenant) {
   if (embedData.title) embed.setTitle(replacePlaceholders(embedData.title, member));
   if (embedData.description) embed.setDescription(replacePlaceholders(embedData.description, member));
 
+  // Thumbnail: usa o configurado, ou auto-usa o avatar do membro como fallback
   if (embedData.thumbnail_url) {
     const thumbUrl = applyCdn(replacePlaceholders(embedData.thumbnail_url, member));
     if (thumbUrl) embed.setThumbnail(thumbUrl);
+  } else if (member?.user) {
+    const memberAvatar = member.user.displayAvatarURL({ dynamic: true, size: 256 });
+    if (memberAvatar) embed.setThumbnail(memberAvatar);
   }
 
   if (embedData.image_url) {
@@ -153,7 +157,26 @@ module.exports = async function handleMemberJoin(client, member) {
         const finalEmbedData = (welcomeConf && welcomeConf.embed_config) ? welcomeConf.embed_config : welcomeConfig.embed_data;
         const finalContentText = (welcomeConf && welcomeConf.content !== undefined && welcomeConf.content !== null) ? welcomeConf.content : welcomeConfig.content;
         
-        const embed = buildEmbed(finalEmbedData, member, tenant);
+        let embed = buildEmbed(finalEmbedData, member, tenant);
+        
+        // Fallback: se não há embed configurado, cria um embed padrão completo
+        // (igual ao log de entrada padrão, mas com cor de boas-vindas)
+        if (!embed) {
+          const memberAvatar = member.user.displayAvatarURL({ dynamic: true, size: 256 });
+          embed = new EmbedBuilder()
+            .setColor("#FF69B4")
+            .setAuthor({ name: `Bem-vindo(a) ao ${member.guild.name}!`, iconURL: memberAvatar || undefined })
+            .setDescription(`Olá ${member.user.username}, seja bem-vindo(a) ao **${member.guild.name}**! 🥳\n\nVocê é nosso membro **#${member.guild.memberCount}**. Aproveite sua estadia!`)
+            .addFields(
+              { name: "👤 Usuário", value: `<@${member.user.id}>`, inline: true },
+              { name: "📋 Membro", value: `#${member.guild.memberCount}`, inline: true },
+              { name: "📅 Conta criada", value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true }
+            )
+            .setTimestamp();
+          if (memberAvatar) embed.setThumbnail(memberAvatar);
+          applyDrikaCover(embed, tenant);
+        }
+
         const content = replacePlaceholders(finalContentText || "", member);
 
         const payload = {};
