@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Package } from "lucide-react";
 import StoreGeneralSettings from "@/components/store/StoreGeneralSettings";
 import StoreCheckoutSettings from "@/components/store/StoreCheckoutSettings";
+import StoreCartSettings from "@/components/store/StoreCartSettings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductList } from "@/components/store/ProductList";
 import { ProductDetail } from "@/components/store/ProductDetail";
@@ -235,6 +236,7 @@ const StorePage = () => {
             <TabsTrigger value="products" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Produtos</TabsTrigger>
             <TabsTrigger value="categories" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Categorias</TabsTrigger>
             <TabsTrigger value="general" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
+            <TabsTrigger value="cart" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Carrinho</TabsTrigger>
             <TabsTrigger value="checkout" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Checkout</TabsTrigger>
             <TabsTrigger value="coupons" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Cupons</TabsTrigger>
           </TabsList>
@@ -304,6 +306,12 @@ const StorePage = () => {
             <div className="relative z-10">
               <StoreGeneralSettings />
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="cart" className="mt-4">
+          <div className="max-w-4xl">
+            <StoreCartSettings />
           </div>
         </TabsContent>
 

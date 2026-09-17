@@ -159,7 +159,9 @@ function resolveCheckoutFooter(storeConfig, product, stockCount, context) {
     ? ""
     : (hasStock ? embedConfig.footer_available_text : embedConfig.footer_unavailable_text) || embedConfig.footer || "";
 
-  const storeFooter = storeConfig?.purchase_embed_footer || "";
+  const storeFooter = typeof storeConfig?.cart_embed_footer === "string" 
+    ? storeConfig.cart_embed_footer 
+    : (storeConfig?.purchase_embed_footer || "");
   const fallback = `${context.storeName} • ${context.date} ${context.time}`;
   return applyFooterTemplate(storeFooter || productFooter || fallback, context);
 }
@@ -459,9 +461,13 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     username,
   });
 
+  const cartEmbedColor = storeConfig?.cart_embed_color 
+    ? parseInt(resolveHexColor(storeConfig.cart_embed_color).replace("#", ""), 16)
+    : embedColor;
+
   const reviewEmbed = new EmbedBuilder()
-    .setAuthor({ name: "Carrinho de Compras" })
-    .setColor(embedColor)
+    .setAuthor({ name: storeConfig?.cart_embed_title || "Carrinho de Compras" })
+    .setColor(cartEmbedColor)
     .setDescription([
       `🛍️ **${product.name} (x1)**`,
       fieldId ? `Campo: \`${fieldName}\`` : null,
