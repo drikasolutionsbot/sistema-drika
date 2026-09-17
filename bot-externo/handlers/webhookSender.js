@@ -19,15 +19,37 @@ async function resolveChannelWebhooks(channel) {
 }
 
 /**
+ * Resolve o avatar URL para o webhook.
+ * Prioridade: bot_avatar_url do tenant → avatar real do bot Discord → omite (undefined)
+ * NUNCA passa null — o Discord rejeita avatarURL: null e derruba o webhook.
+ */
+function resolveBotAvatarURL(tenant, client) {
+  const tenantAvatar = applyCdn(tenant?.bot_avatar_url);
+  if (tenantAvatar) return tenantAvatar;
+
+  // Fallback: avatar real do bot no Discord
+  const botDiscordAvatar = client?.user?.displayAvatarURL?.({ extension: "png", size: 256 });
+  if (botDiscordAvatar) return botDiscordAvatar;
+
+  // Não passa avatarURL se não tiver nenhum — Discord usa o default do webhook
+  return undefined;
+}
+
+/**
  * Envia mensagem via webhook com nome/avatar customizado do tenant
  * Fallback: envia via Bot API se webhook falhar
  */
 async function sendWithIdentity(channel, tenant, options) {
   const botName = tenant?.bot_name || tenant?.name || "Drika Bot";
-  const botAvatar = applyCdn(tenant?.bot_avatar_url) || null;
+  const botAvatarURL = resolveBotAvatarURL(tenant, channel?.client);
   const webhookChannel = resolveWebhookChannel(channel);
   const isThreadTarget = channel?.isThread?.();
   const cacheKey = webhookChannel?.id || channel?.id;
+
+  // Monta payload base: omite avatarURL se undefined para evitar rejeição do Discord
+  const webhookExtra = { username: botName };
+  if (botAvatarURL) webhookExtra.avatarURL = botAvatarURL;
+  if (isThreadTarget) webhookExtra.threadId = channel.id;
 
   try {
     let webhook = webhookCache.get(cacheKey);
@@ -49,16 +71,31 @@ async function sendWithIdentity(channel, tenant, options) {
       webhookCache.set(cacheKey, webhook);
     }
 
-    return await webhook.send({
-      ...options,
-      username: botName,
-      avatarURL: botAvatar,
-      ...(isThreadTarget ? { threadId: channel.id } : {}),
-    });
+    return await webhook.send({ ...options, ...webhookExtra });
   } catch (err) {
     webhookCache.delete(cacheKey);
-    console.error("Webhook send failed, falling back to channel.send:", err.message);
-    return channel.send(options);
+    console.error(`[webhookSender] Webhook falhou (${err.message}), tentando recriar...`);
+
+    // Segunda tentativa: recriar o webhook do zero
+    try {
+      const webhooks2 = await resolveChannelWebhooks(channel).catch(() => null);
+      const botUserId2 = channel.client.user?.id;
+      // Remove webhooks antigos do Drika para evitar conflito
+      if (webhooks2) {
+        for (const w of webhooks2.values()) {
+          if (w.name === "Drika Webhook" && w.token && (!botUserId2 || w.owner?.id === botUserId2)) {
+            await w.delete("Recriando webhook corrompido").catch(() => {});
+          }
+        }
+      }
+      const created2 = await webhookChannel.createWebhook({ name: "Drika Webhook" });
+      const webhook2 = new WebhookClient({ id: created2.id, token: created2.token });
+      webhookCache.set(cacheKey, webhook2);
+      return await webhook2.send({ ...options, ...webhookExtra });
+    } catch (err2) {
+      console.error(`[webhookSender] Segunda tentativa falhou (${err2.message}), usando channel.send sem identidade`);
+      return channel.send(options);
+    }
   }
 }
 
