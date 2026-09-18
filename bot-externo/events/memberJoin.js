@@ -139,7 +139,7 @@ module.exports = async function handleMemberJoin(client, member) {
         if (contentStr) payload.content = contentStr;
 
         if (payload.content || payload.embeds) {
-          await sendWithIdentity(joinChannel, tenant, payload);
+          await joinChannel.send(payload);
         }
       }
     }
@@ -184,7 +184,7 @@ module.exports = async function handleMemberJoin(client, member) {
         if (embed) payload.embeds = [embed];
 
         if (payload.content || payload.embeds) {
-          await sendWithIdentity(channel, tenant, payload);
+          await channel.send(payload);
         }
       }
     }
@@ -246,7 +246,7 @@ module.exports.handleMemberLeave = async function handleMemberLeave(client, memb
         if (contentStr) payload.content = contentStr;
 
         if (payload.content || payload.embeds) {
-          await sendWithIdentity(leaveChannel, tenant, payload);
+          await leaveChannel.send(payload);
         }
       }
     }
@@ -270,7 +270,7 @@ module.exports.handleMemberLeave = async function handleMemberLeave(client, memb
     if (embed) payload.embeds = [embed];
 
     if (payload.content || payload.embeds) {
-      await sendWithIdentity(channel, tenant, payload);
+      await channel.send(payload);
     }
   } catch (e) {
     console.error(`[goodbye] Message error:`, e.message);
