@@ -115,19 +115,34 @@ module.exports = async function handleMemberJoin(client, member) {
   // ── Track Invites ──
   let inviterData = null;
   try {
-    const cachedInvites = client.guildInvites.get(member.guild.id);
+    let cachedInvites = client.guildInvites.get(member.guild.id);
+    if (!cachedInvites) {
+      // Fallback: se não estava no cache, cria vazio para não quebrar (embora o ideal seja ter sido populado no Ready)
+      cachedInvites = new Map();
+      client.guildInvites.set(member.guild.id, cachedInvites);
+    }
+
     if (cachedInvites) {
       const newInvites = await member.guild.invites.fetch().catch(() => null);
       if (newInvites) {
         let usedInvite = null;
+        let debugLines = [];
         for (const [code, invite] of newInvites) {
           const cached = cachedInvites.get(code);
+          debugLines.push(`Code ${code}: new_uses=${invite.uses}, cached_uses=${cached?.uses}`);
           if (!cached || invite.uses > cached.uses) {
+            // Se não estava no cache, mas o uso atual é 0, não foi esse convite (foi criado agora)
+            if (!cached && invite.uses === 0) {
+              cachedInvites.set(code, { uses: 0, inviter: invite.inviter?.id });
+              continue;
+            }
             usedInvite = invite;
             cachedInvites.set(code, { uses: invite.uses || 0, inviter: invite.inviter?.id });
             break;
           }
         }
+        
+        await supabase.from("debug_logs").insert({ message: `MemberJoin ${member.user.id}. newInvites=${newInvites.size}. ` + debugLines.join(" | ") + ` -> usedInvite: ${usedInvite?.code}` }).catch(()=>{});
         if (usedInvite && usedInvite.inviter) {
           const inviterId = usedInvite.inviter.id;
           const inviterName = usedInvite.inviter.username;
@@ -163,6 +178,7 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   } catch (e) {
     console.error("[Invite Tracker] Erro ao rastrear convite:", e.message);
+    await supabase.from("debug_logs").insert({ message: `Erro no Invite Tracker: ${e.message}` }).catch(()=>{});
   }
 
   // ── Welcome System ──
