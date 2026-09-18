@@ -126,7 +126,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
     order_expired_title2: "⏰ Pedido Expirado",
     order_expired_desc2: "Seu pedido **#{order_number}** ({product}) expirou por falta de pagamento.\nCaso deseje, faça uma nova compra.",
     welcome_title: "👋 Bem-vindo(a)!",
-    welcome_desc: "Olá **{username}**, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**. Aproveite sua estadia!",
+    welcome_desc: "Olá {user}, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**.\n{user} foi convidado(a) por {inviter} e agora tem {invites} convites.\n\nAproveite sua estadia!",
     ticket_default_title: "🎫 Ticket de Suporte",
     ticket_default_desc: "Seu ticket foi criado com sucesso! Aguarde atendimento da nossa equipe.",
     ticket_status_label: "Ticket - {status}",

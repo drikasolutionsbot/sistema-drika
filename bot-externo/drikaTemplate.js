@@ -29,7 +29,7 @@ const DRIKA_TEMPLATES = {
   },
   welcome: {
     title: "👋 Bem-vindo(a)!",
-    description: "Olá **{username}**, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**. Aproveite sua estadia!",
+    description: "Olá {user}, seja bem-vindo(a) ao **{server}**! 🥳\n\nVocê é nosso membro **#{memberCount}**.\n{user} foi convidado(a) por {inviter} e agora tem {invites} convites.\n\nAproveite sua estadia!",
   },
 };
 
