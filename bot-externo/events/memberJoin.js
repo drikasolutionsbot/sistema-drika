@@ -142,7 +142,7 @@ module.exports = async function handleMemberJoin(client, member) {
           }
         }
         
-        await supabase.from("debug_logs").insert({ message: `MemberJoin ${member.user.id}. newInvites=${newInvites.size}. ` + debugLines.join(" | ") + ` -> usedInvite: ${usedInvite?.code}` }).catch(()=>{});
+        await supabase.from("debug_logs").insert({ message: `MemberJoin ${member.user.id}. newInvites=${newInvites.size}. ` + debugLines.join(" | ") + ` -> usedInvite: ${usedInvite?.code}` });
         if (usedInvite && usedInvite.inviter) {
           const inviterId = usedInvite.inviter.id;
           const inviterName = usedInvite.inviter.username;
@@ -153,7 +153,7 @@ module.exports = async function handleMemberJoin(client, member) {
             invited_id: member.user.id,
             inviter_id: inviterId,
             invite_code: usedInvite.code
-          }).catch(() => {});
+          });
           
           // Busca ou cria o registro do inviter
           let { data: countData } = await supabase.from("invite_counts").select("*").eq("tenant_id", tenant.id).eq("user_id", inviterId).maybeSingle();
@@ -178,7 +178,9 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   } catch (e) {
     console.error("[Invite Tracker] Erro ao rastrear convite:", e.message);
-    await supabase.from("debug_logs").insert({ message: `Erro no Invite Tracker: ${e.message}` }).catch(()=>{});
+    try {
+      await supabase.from("debug_logs").insert({ message: `Erro no Invite Tracker: ${e.message}` });
+    } catch (_) {}
   }
 
   // ── Welcome System ──
@@ -227,7 +229,9 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   } catch (e) {
     console.error(`[memberJoin] Log error:`, e.message);
-    await supabase.from("debug_logs").insert({ message: `[member_join log error] ${e.message}` }).catch(()=>{});
+    try {
+      await supabase.from("debug_logs").insert({ message: `[member_join log error] ${e.message}` });
+    } catch (_) {}
   }
 
   // 2. Channel Welcome Message
@@ -273,7 +277,9 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   } catch (e) {
     console.error(`[welcome] Channel message error:`, e.message);
-    await supabase.from("debug_logs").insert({ message: `[welcome channel error] ${e.message}` }).catch(()=>{});
+    try {
+      await supabase.from("debug_logs").insert({ message: `[welcome channel error] ${e.message}` });
+    } catch (_) {}
   }
 
   // 3. DM Welcome Message
