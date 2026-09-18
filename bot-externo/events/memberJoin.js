@@ -227,6 +227,7 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   } catch (e) {
     console.error(`[memberJoin] Log error:`, e.message);
+    await supabase.from("debug_logs").insert({ message: `[member_join log error] ${e.message}` }).catch(()=>{});
   }
 
   // 2. Channel Welcome Message
@@ -272,6 +273,7 @@ module.exports = async function handleMemberJoin(client, member) {
     }
   } catch (e) {
     console.error(`[welcome] Channel message error:`, e.message);
+    await supabase.from("debug_logs").insert({ message: `[welcome channel error] ${e.message}` }).catch(()=>{});
   }
 
   // 3. DM Welcome Message
