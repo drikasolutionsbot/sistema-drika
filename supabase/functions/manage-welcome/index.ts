@@ -16,18 +16,30 @@ function resolveVars(text: string, vars: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (_: string, key: string) => vars[key] !== undefined ? vars[key] : "{" + key + "}");
 }
 
-function buildEmbed(embedData: any, vars: Record<string, string>) {
+function buildEmbed(embedData: any, vars: Record<string, string>, tenant?: any, globalBannerUrl?: string) {
   const embed: Record<string, any> = {};
   if (embedData.color) embed.color = hexToInt(embedData.color);
   if (embedData.title) embed.title = resolveVars(embedData.title, vars);
   if (embedData.description) embed.description = resolveVars(embedData.description, vars);
-  if (embedData.thumbnail_url) {
-    const url = resolveVars(embedData.thumbnail_url, vars);
-    if (url && url.startsWith("http")) embed.thumbnail = { url };
+  
+  const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
+  let coverUrl: string | null = null;
+  if (isMaster && tenant.bot_banner_url) {
+    coverUrl = tenant.bot_banner_url; // We don't have formatCdnUrl here, but it's fine for testing
+  } else if (globalBannerUrl) {
+    coverUrl = globalBannerUrl;
   }
+
   if (embedData.image_url) {
     const url = resolveVars(embedData.image_url, vars);
     if (url && url.startsWith("http")) embed.image = { url };
+  } else if (coverUrl && coverUrl.startsWith("http")) {
+    embed.image = { url: coverUrl };
+  }
+
+  if (embedData.thumbnail_url) {
+    const url = resolveVars(embedData.thumbnail_url, vars);
+    if (url && url.startsWith("http")) embed.thumbnail = { url };
   }
   const footerText = embedData.footer_text ? resolveVars(embedData.footer_text, vars) : "";
   const footerIcon = embedData.footer_icon_url ? resolveVars(embedData.footer_icon_url, vars) : "";
@@ -123,9 +135,12 @@ Deno.serve(async (req) => {
 
       const { data: tenant } = await supabase
         .from("tenants")
-        .select("name, guild_id")
+        .select("name, guild_id, plan, bot_banner_url")
         .eq("id", tenant_id)
         .maybeSingle();
+
+      const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
+      const globalBannerUrl = globalConfig?.global_bot_banner_url;
 
       const guildId = tenant?.guild_id;
       let memberCount = "?";
@@ -153,7 +168,7 @@ Deno.serve(async (req) => {
         joinedAt: new Date().toLocaleDateString("pt-BR"),
       };
 
-      const embed = buildEmbed(embed_data || {}, vars);
+      const embed = buildEmbed(embed_data || {}, vars, tenant, globalBannerUrl);
       const resolvedContent = content ? resolveVars(content, { ...vars, user: "<@000000000000000000>" }) : "";
       const discordPayload: Record<string, any> = { embeds: [embed] };
       if (resolvedContent) discordPayload.content = resolvedContent;

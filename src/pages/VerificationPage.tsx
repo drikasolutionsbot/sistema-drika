@@ -102,7 +102,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
       const discordIds = new Set(discordRoles.map((r: any) => r.id));
       const panelOnly = panelRoles
         .filter((r: any) => r.discord_role_id && !discordIds.has(r.discord_role_id))
-        .map((r: any) => ({ id: r.discord_role_id, name: r.name, position: 0 }));
+        .map((r: any) => ({ id: r.discord_role_id, name: `${r.name} (Excluído/Antigo)`, position: 0 }));
 
       setRoles([...discordRoles, ...panelOnly]);
 

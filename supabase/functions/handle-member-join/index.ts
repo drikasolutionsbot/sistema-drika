@@ -51,6 +51,9 @@ Deno.serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .maybeSingle();
 
+    const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
+    const globalBannerUrl = globalConfig?.global_bot_banner_url;
+
     if (!config) {
       return json({ success: true, message: "No welcome config found, skipping" });
     }
@@ -107,7 +110,7 @@ Deno.serve(async (req) => {
       // 2. Welcome message in channel
       if (config.enabled && config.channel_enabled && config.channel_id) {
         try {
-          const embed = buildEmbed(config.embed_data, replaceVars, tenant, lang);
+          const embed = buildEmbed(config.embed_data, replaceVars, tenant, lang, globalBannerUrl);
           const payload: any = { embeds: [embed] };
           if (config.content) payload.content = replaceVars(config.content);
 
@@ -133,7 +136,7 @@ Deno.serve(async (req) => {
           });
           if (dmRes.ok) {
             const dm = await dmRes.json();
-            const embed = buildEmbed(config.dm_embed_data, replaceVars, tenant, lang);
+            const embed = buildEmbed(config.dm_embed_data, replaceVars, tenant, lang, globalBannerUrl);
             const payload: any = { embeds: [embed] };
             if (config.dm_content) payload.content = replaceVars(config.dm_content);
 
@@ -156,7 +159,7 @@ Deno.serve(async (req) => {
     if (event === "GUILD_MEMBER_REMOVE") {
       if (config.goodbye_enabled && config.goodbye_channel_id) {
         try {
-          const embed = buildEmbed(config.goodbye_embed_data, replaceVars, tenant, lang);
+          const embed = buildEmbed(config.goodbye_embed_data, replaceVars, tenant, lang, globalBannerUrl);
           const payload: any = { embeds: [embed] };
           if (config.goodbye_content) payload.content = replaceVars(config.goodbye_content);
 
@@ -188,7 +191,7 @@ function json(data: any) {
   });
 }
 
-function buildEmbed(embedData: any, replaceVars: (t: string) => string, tenant: any, lang?: any): any {
+function buildEmbed(embedData: any, replaceVars: (t: string) => string, tenant: any, lang?: any, globalBannerUrl?: string): any {
   if (!embedData) return {};
 
   const embed: any = {
@@ -197,7 +200,20 @@ function buildEmbed(embedData: any, replaceVars: (t: string) => string, tenant: 
     description: embedData.description ? replaceVars(embedData.description) : replaceVars(tr(lang, "welcome_desc")),
   };
 
-  if (embedData.image_url) embed.image = { url: formatCdnUrl(replaceVars(embedData.image_url)) };
+  const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
+  let coverUrl: string | null = null;
+  if (isMaster && tenant.bot_banner_url) {
+    coverUrl = formatCdnUrl(tenant.bot_banner_url);
+  } else if (globalBannerUrl) {
+    coverUrl = formatCdnUrl(globalBannerUrl);
+  }
+
+  if (embedData.image_url) {
+    embed.image = { url: formatCdnUrl(replaceVars(embedData.image_url)) };
+  } else if (coverUrl) {
+    embed.image = { url: coverUrl };
+  }
+
   if (embedData.thumbnail_url) embed.thumbnail = { url: formatCdnUrl(replaceVars(embedData.thumbnail_url)) };
   if (embedData.footer_text) {
     embed.footer = { text: replaceVars(embedData.footer_text) };

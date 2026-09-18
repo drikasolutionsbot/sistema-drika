@@ -145,7 +145,10 @@ Deno.serve(async (req) => {
     }
 
     const guildId = tenantData.discord_guild_id;
-    const roleId = tenantData.verify_role_id;
+    let roleId = tenantData.verify_role_id;
+    if (roleId) {
+      roleId = roleId.replace(/\D/g, ""); // Remove anything that is not a number
+    }
     if (!botToken) {
       return htmlResponse("❌ Erro", "Bot externo não configurado (DISCORD_BOT_TOKEN).", "#ED4245");
     }
@@ -197,6 +200,8 @@ Deno.serve(async (req) => {
             const errJson = JSON.parse(roleResText);
             if (errJson.code === 50013) {
               roleError = "O cargo do bot precisa estar acima do cargo de verificação nas configurações do servidor.";
+            } else if (errJson.code === 10011) {
+              roleError = "Cargo não encontrado no servidor. Ele pode ter sido excluído.";
             } else if (errJson.message) {
               roleError = errJson.message;
             }

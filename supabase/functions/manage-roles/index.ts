@@ -287,6 +287,20 @@ serve(async (req) => {
           .eq("tenant_id", tenant_id);
 
         const existingIds = new Set((existingRoles || []).map((r: any) => r.discord_role_id));
+        const currentDiscordIds = new Set(allDiscordRoles.map((r: any) => r.id));
+
+        // Delete roles that no longer exist in Discord
+        const ghostRoleIds = (existingRoles || [])
+          .map((r: any) => r.discord_role_id)
+          .filter((id: string) => !currentDiscordIds.has(id));
+
+        if (ghostRoleIds.length > 0) {
+          await supabase
+            .from("tenant_roles")
+            .delete()
+            .in("discord_role_id", ghostRoleIds)
+            .eq("tenant_id", tenant_id);
+        }
 
         const toInsert = syncableRoles
           .filter((r: any) => !existingIds.has(r.id))
