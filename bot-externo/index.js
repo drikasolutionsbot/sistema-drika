@@ -29,6 +29,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildInvites,
   ],
 });
 
@@ -40,6 +41,11 @@ const interactionHandler = require("./events/interaction");
 const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
 const verificationHandler = require("./handlers/verification");
+const inviteCreateHandler = require("./events/inviteCreate");
+const inviteDeleteHandler = require("./events/inviteDelete");
+
+// ── Cache de Convites ──
+client.guildInvites = new Map();
 
 // ── Status polling ──
 let lastAppliedStatus = null;
@@ -126,6 +132,18 @@ client.on(Events.ClientReady, async () => {
   // Sync Discord guild owners immediately and every 10 min
   await syncGuildOwners();
   setInterval(syncGuildOwners, 10 * 60 * 1000);
+
+  // Cache invites for all guilds
+  for (const [guildId, guild] of client.guilds.cache) {
+    try {
+      const invites = await guild.invites.fetch();
+      const inviteMap = new Map();
+      invites.forEach(inv => inviteMap.set(inv.code, { uses: inv.uses || 0, inviter: inv.inviter?.id }));
+      client.guildInvites.set(guildId, inviteMap);
+    } catch (e) {
+      console.error(`[Invite Tracker] Falha ao carregar convites do servidor ${guildId}`);
+    }
+  }
 
   // Use Realtime instead of polling
   const { supabase } = require("./supabase");
@@ -226,6 +244,13 @@ client.on(Events.GuildCreate, async (guild) => {
   console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
   await syncBotStatus();
   await syncGuildOwners();
+  
+  try {
+    const invites = await guild.invites.fetch();
+    const inviteMap = new Map();
+    invites.forEach(inv => inviteMap.set(inv.code, { uses: inv.uses || 0, inviter: inv.inviter?.id }));
+    client.guildInvites.set(guild.id, inviteMap);
+  } catch (e) {}
 });
 
 // ── Interactions (buttons, modals, select menus) ──
@@ -264,6 +289,19 @@ client.on(Events.GuildMemberRemove, async (member) => {
   } catch (err) {
     console.error("Erro ao processar saída de membro:", err);
   }
+});
+
+// ── Invite Tracking ──
+client.on(Events.InviteCreate, async (invite) => {
+  try {
+    await inviteCreateHandler(client, invite);
+  } catch (err) {}
+});
+
+client.on(Events.InviteDelete, async (invite) => {
+  try {
+    await inviteDeleteHandler(client, invite);
+  } catch (err) {}
 });
 
 // ── Proteção ──
