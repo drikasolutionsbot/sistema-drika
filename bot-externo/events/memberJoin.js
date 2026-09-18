@@ -232,7 +232,7 @@ module.exports = async function handleMemberJoin(client, member) {
           embed = new EmbedBuilder()
             .setColor("#FF69B4")
             .setAuthor({ name: `Bem-vindo(a) ao ${member.guild.name}!`, iconURL: memberAvatar || undefined })
-            .setDescription(`Olá ${member.user.username}, seja bem-vindo(a) ao **${member.guild.name}**! 🥳\n\nVocê é nosso membro **#${member.guild.memberCount}**. Aproveite sua estadia!`)
+            .setDescription(`Olá ${member.user.username}, seja bem-vindo(a) ao **${member.guild.name}**! 🥳\n\nVocê é nosso membro **#${member.guild.memberCount}**.${inviterData ? `\\n\\nConvidado por: <@${inviterData.inviterId}> (${inviterData.totalInvites} convites)` : ""} Aproveite sua estadia!`)
             .addFields(
               { name: "👤 Usuário", value: `<@${member.user.id}>`, inline: true },
               { name: "📋 Membro", value: `#${member.guild.memberCount}`, inline: true },
