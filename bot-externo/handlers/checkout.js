@@ -883,8 +883,42 @@ async function startPaymentPolling(orderId, tenantId, channel, tenant, timeoutMi
   setTimeout(poll, 10000);
 }
 
+// ── Staff Permission Check ──
+async function isStaffMember(interaction, tenant) {
+  const member = interaction.member;
+  if (!member) return false;
+
+  // Discord Administrator always allowed
+  if (member.permissions && member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+
+  // Fetch configured staff roles for this tenant
+  const storeConfig = await getStoreConfig(tenant.id);
+  let staffRoleIds = [];
+  if (storeConfig?.ticket_staff_role_id) {
+    staffRoleIds = storeConfig.ticket_staff_role_id.split(',').map(s => s.trim()).filter(Boolean);
+  } else {
+    const { data: fallbackRoles } = await supabase
+      .from("tenant_roles")
+      .select("discord_role_id")
+      .eq("tenant_id", tenant.id)
+      .or("can_manage_app.eq.true,can_manage_permissions.eq.true,can_manage_store.eq.true,can_manage_stock.eq.true,can_manage_resources.eq.true,can_manage_protection.eq.true");
+    staffRoleIds = (fallbackRoles || []).map(r => r.discord_role_id);
+  }
+
+  return member.roles && member.roles.cache && member.roles.cache.some(r => staffRoleIds.includes(r.id));
+}
+
 // ── Approve Order ──
 async function approveOrder(interaction, tenant, orderId) {
+  // ✅ SECURITY: only staff/admins may confirm a payment
+  const hasPermission = await isStaffMember(interaction, tenant);
+  if (!hasPermission) {
+    return interaction.reply({
+      content: "<:close:1521192513048674505> Você não tem permissão para confirmar manualmente este pedido.",
+      ephemeral: true,
+    });
+  }
+
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
   if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
@@ -938,6 +972,15 @@ async function approveOrder(interaction, tenant, orderId) {
 
 // ── Reject Order ──
 async function rejectOrder(interaction, tenant, orderId) {
+  // ✅ SECURITY: only staff/admins may reject a payment
+  const hasPermission = await isStaffMember(interaction, tenant);
+  if (!hasPermission) {
+    return interaction.reply({
+      content: "<:close:1521192513048674505> Você não tem permissão para recusar este pedido.",
+      ephemeral: true,
+    });
+  }
+
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
   if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
