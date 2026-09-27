@@ -1197,6 +1197,39 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
     .update({ status: "delivered", updated_at: new Date().toISOString() })
     .eq("order_id", orderId);
 
+  // ── Decrement manual stock ──
+  if (order.product_id) {
+    try {
+      const { data: prod } = await supabase
+        .from("products")
+        .select("stock, auto_delivery")
+        .eq("id", order.product_id)
+        .single();
+
+      // Only decrement for manual delivery products (auto_delivery uses product_stock_items)
+      if (prod && !prod.auto_delivery) {
+        const newStock = Math.max(0, (prod.stock || 0) - 1);
+        await supabase
+          .from("products")
+          .update({ stock: newStock, updated_at: new Date().toISOString() })
+          .eq("id", order.product_id);
+
+        // Sync Discord product embed (fire-and-forget)
+        const supabaseUrl = process.env.SUPABASE_URL?.replace(/^"|"$/g, "").trim() || "https://iwotvdfxppjwasywrbmw.supabase.co";
+        fetch(`${supabaseUrl}/functions/v1/send-webhook-message`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({ action: "sync", tenant_id: order.tenant_id, product_id: order.product_id }),
+        }).catch((e) => console.error("[markDelivered] Falha ao sincronizar embed do produto:", e.message));
+      }
+    } catch (e) {
+      console.error("[markDelivered] Erro ao decrementar estoque:", e.message);
+    }
+  }
+
   if (content && content.trim() !== "") {
     try {
       const user = await interaction.client.users.fetch(order.discord_user_id);
