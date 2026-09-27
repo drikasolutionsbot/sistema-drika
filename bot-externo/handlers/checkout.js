@@ -15,7 +15,7 @@ const QRCode = require("qrcode");
 const formatBRL = (cents) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 const formatDateTime = (dateObj = new Date()) => ({
   date: dateObj.toLocaleDateString("pt-BR"),
-  time: dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+  time: dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }),
 });
 // ── Helper ──
 function outOfStockPayload(productId, tenantId, fieldId = null) {
