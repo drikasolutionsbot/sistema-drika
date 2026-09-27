@@ -1247,11 +1247,11 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO ticket será fechado em 2 minutos.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO ticket será fechado em 10 segundos.`).setColor(0x57F287)],
     components: [],
   });
 
-  // Schedule Discord.js thread archive + ticket channel delete in 2 minutes
+  // Schedule Discord.js thread archive + ticket channel delete in 10 seconds
   setTimeout(async () => {
     try {
       // 1. Archive the checkout thread (if exists)
@@ -1268,6 +1268,7 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
       }
 
       // 2. Close/delete the ticket channel linked to this order
+      let ticketChannelClosed = false;
       try {
         const { data: ticket } = await supabase
           .from("tickets")
@@ -1278,6 +1279,7 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
         if (ticket?.discord_channel_id) {
           const ticketChannel = await interaction.client.channels.fetch(ticket.discord_channel_id).catch(() => null);
           if (ticketChannel) {
+            ticketChannelClosed = true;
             if (ticketChannel.isThread?.()) {
               await ticketChannel.setLocked(true).catch(() => {});
               await ticketChannel.setArchived(true).catch(() => {});
@@ -1289,10 +1291,25 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
       } catch (err) {
         // ignore errors
       }
+
+      // 3. Fallback: close the channel where the interaction happened
+      if (!ticketChannelClosed && interaction.channel) {
+        try {
+          const ch = interaction.channel;
+          if (ch.isThread?.()) {
+            await ch.setLocked(true).catch(() => {});
+            await ch.setArchived(true).catch(() => {});
+          } else if (ch.deletable) {
+            await ch.delete("Entrega confirmada - ticket fechado automaticamente").catch(() => {});
+          }
+        } catch (err) {
+          // ignore errors
+        }
+      }
     } catch (err) {
       // ignore errors
     }
-  }, 120000);
+  }, 10000);
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {
