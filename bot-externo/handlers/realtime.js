@@ -58,10 +58,7 @@ function initRealtimeListeners(client) {
       }
     )
     .subscribe((status, err) => {
-      console.log(`[REALTIME] Restock Events Subscribe Status: ${status}`, err || "");
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Realtime listener para restock (DMs + Canal) ativado!");
-      }
+      if (err) console.error(`[REALTIME] Restock subscribe error:`, err);
     });
 
   // ── Fechar canal de ticket quando entrega for confirmada ──
@@ -108,10 +105,7 @@ function initRealtimeListeners(client) {
       }
     )
     .subscribe((status, err) => {
-      console.log(`[REALTIME] Ticket Close Subscribe Status: ${status}`, err || "");
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Realtime listener de fechamento de ticket ativado!");
-      }
+      if (err) console.error(`[REALTIME] Ticket close subscribe error:`, err);
     });
 
   // ── Fechar thread de checkout quando pedido for entregue ──
@@ -158,10 +152,7 @@ function initRealtimeListeners(client) {
       }
     )
     .subscribe((status, err) => {
-      console.log(`[REALTIME] Order Close Subscribe Status: ${status}`, err || "");
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Realtime listener de fechamento de checkout ativado!");
-      }
+      if (err) console.error(`[REALTIME] Order close subscribe error:`, err);
     });
 }
 

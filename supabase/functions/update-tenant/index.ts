@@ -295,29 +295,35 @@ serve(async (req) => {
           console.log("Discord bot member patch response:", patchRes.status, patchBody);
 
           // Detect Discord banner rate limit and surface a friendly error
-          if (!patchRes.ok && "bot_banner_url" in safeUpdates) {
-            let isBannerRateLimit = false;
-            try {
-              const parsed = JSON.parse(patchBody);
-              if (parsed?.errors?.banner?._errors?.some((e: any) => e?.code === "BANNER_RATE_LIMIT")) {
-                isBannerRateLimit = true;
-              }
-            } catch (_) { /* ignore */ }
+          if (!patchRes.ok) {
+            if ("bot_banner_url" in safeUpdates) {
+              let isBannerRateLimit = false;
+              try {
+                const parsed = JSON.parse(patchBody);
+                if (parsed?.errors?.banner?._errors?.some((e: any) => e?.code === "BANNER_RATE_LIMIT")) {
+                  isBannerRateLimit = true;
+                }
+              } catch (_) { /* ignore */ }
 
-            if (isBannerRateLimit) {
-              return new Response(
-                JSON.stringify({
-                  error: "BANNER_RATE_LIMIT",
-                  message: "O Discord limita a troca da capa do bot. Aguarde alguns minutos antes de trocar novamente.",
-                  tenant: data,
-                }),
-                { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
+              if (isBannerRateLimit) {
+                return new Response(
+                  JSON.stringify({
+                    error: "BANNER_RATE_LIMIT",
+                    message: "O Discord limita a troca da capa do bot. Aguarde alguns minutos antes de trocar novamente.",
+                    tenant: data,
+                  }),
+                  { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
             }
+            
+            // If it's another error, throw it so the frontend can display it
+            throw new Error(`Falha ao sincronizar com o Discord: ${patchBody}`);
           }
         }
       } catch (err) {
         console.error("Discord bot member sync error:", err);
+        throw err;
       }
     }
 
@@ -326,8 +332,9 @@ serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    // Retornamos 200 para que o supabase-js client não oculte a mensagem de erro
     return new Response(JSON.stringify({ error: message }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

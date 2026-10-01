@@ -27,7 +27,7 @@ function applyCdn(url) {
 
 // ── In-Memory Cache ──
 const cache = new Map();
-const CACHE_TTL = 60 * 1000; // 1 minuto
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos (reduz requisições ao Supabase)
 
 async function withCache(key, fetcher) {
   if (cache.has(key)) {
@@ -57,7 +57,6 @@ async function getTenantByGuild(guildId) {
       return null;
     }
     if (!data) {
-      console.warn(`[getTenantByGuild] Nenhum tenant vinculado à guild ${cleanGuildId}`);
       return null;
     }
     return data;

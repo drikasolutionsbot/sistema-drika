@@ -56,7 +56,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Credits reset for all tenants at ${new Date().toISOString()}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Credits reset to 100 for all tenants" }),

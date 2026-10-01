@@ -31,7 +31,6 @@ async function checkPaymentWithProvider(
 
     if (res.ok) {
       const data = await res.json();
-      console.log(`[EXPIRE] Payment check for order ${order.id}: ${JSON.stringify(data)}`);
       if (data.status === "paid" && data.changed) {
         return true; // Payment was confirmed! Don't expire.
       }
@@ -188,7 +187,9 @@ serve(async (req) => {
     }
   }
 
-  console.log(`Expired ${expiredCount} orders, ${paidCount} were actually paid`);
+  if (expiredCount > 0 || paidCount > 0) {
+    console.log(`Expired ${expiredCount} orders, ${paidCount} were actually paid`);
+  }
   return new Response(JSON.stringify({ expired: expiredCount, paid: paidCount }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

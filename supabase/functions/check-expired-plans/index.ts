@@ -22,7 +22,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (config?.suspend_on_expire === false) {
-      console.log("suspend_on_expire is disabled, skipping");
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "suspend_on_expire disabled" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -89,13 +88,11 @@ Deno.serve(async (req) => {
       }
 
       suspended++;
-      console.log(
-        `Suspended tenant ${tenant.id} (${tenant.name}) - plan was ${tenant.plan}, expired at ${tenant.plan_expires_at}` +
-          (mustClearDiscord ? " [banner cleared + discord reset]" : "")
-      );
     }
 
-    console.log(`check-expired-plans: suspended=${suspended} bannersCleared=${bannersCleared}`);
+    if (suspended > 0) {
+      console.log(`check-expired-plans: suspended=${suspended} bannersCleared=${bannersCleared}`);
+    }
 
     return new Response(
       JSON.stringify({ success: true, suspended, bannersCleared }),

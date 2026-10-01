@@ -212,13 +212,10 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     if (!expiredGiveaways || expiredGiveaways.length === 0) {
-      console.log("[finish-expired-giveaways] No expired giveaways found.");
       return new Response(JSON.stringify({ processed: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    console.log(`[finish-expired-giveaways] Found ${expiredGiveaways.length} expired giveaway(s).`);
 
     const results = [];
     for (const giveaway of expiredGiveaways) {
