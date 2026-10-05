@@ -763,6 +763,11 @@ async function goToPayment(interaction, tenant, orderId) {
         { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
         { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
       ],
+      user: interaction.user,
+      order: order,
+      productName: order.product_name,
+      totalCents: priceCents,
+      labelTotal: "VALOR A PAGAR"
     });
   } else {
     // Static PIX
@@ -789,6 +794,11 @@ async function goToPayment(interaction, tenant, orderId) {
       ],
       components: [approvalRow],
       storeConfig,
+      user: interaction.user,
+      order: order,
+      productName: order.product_name,
+      totalCents: priceCents,
+      labelTotal: "VALOR A PAGAR"
     });
   }
 
@@ -1082,6 +1092,7 @@ async function rejectOrder(interaction, tenant, orderId) {
   });
 
   // Log: Pedido recusado
+  const buyerObj = await interaction.client.users.fetch(order.discord_user_id).catch(() => null);
   await sendLog(interaction.guild, tenant, {
     title: "🚫 Pedido recusado",
     description: `Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>.`,
@@ -1091,6 +1102,11 @@ async function rejectOrder(interaction, tenant, orderId) {
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
       { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
+    user: buyerObj || interaction.user,
+    order: order,
+    productName: order.product_name,
+    totalCents: order.total_cents,
+    labelTotal: "VALOR"
   });
 }
 
@@ -1110,6 +1126,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
 
   // Log: Pedido cancelado pelo cliente
+  const buyerObj2 = await interaction.client.users.fetch(order.discord_user_id).catch(() => null);
   await sendLog(interaction.guild, tenant, {
     title: "🗑️ Pedido cancelado",
     description: `Usuário <@${order.discord_user_id}> cancelou o pedido.`,
@@ -1118,6 +1135,11 @@ async function cancelOrder(interaction, tenant, orderId) {
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
     storeConfig: cancelStoreConfig,
+    user: buyerObj2 || interaction.user,
+    order: order,
+    productName: order.product_name,
+    totalCents: order.total_cents,
+    labelTotal: "VALOR"
   });
 
   setTimeout(() => {
