@@ -40,7 +40,7 @@ function outOfStockPayload(productId, tenantId, fieldId = null) {
 }
 
 // ── Log helper ──
-async function sendLog(guild, tenant, { title, description, color, fields: extraFields, storeConfig: sc, components: rawComponents }) {
+async function sendLog(guild, tenant, { title, description, color, fields: extraFields, storeConfig: sc, components: rawComponents, user, order, productName, totalCents, labelCart, labelSubtotal, labelTotal }) {
   try {
     const storeConfig = sc || await getStoreConfig(tenant.id);
     if (!storeConfig?.logs_channel_id) {
@@ -61,17 +61,7 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       return;
     }
 
-    // Build embed as plain JSON (no Discord.js dependency for reliability)
-    const embed = {
-      title,
-      description,
-      color: embedColor,
-      footer: { text: `${storeName} | ${date}, ${time}`, icon_url: storeLogo || undefined },
-      timestamp: new Date().toISOString(),
-    };
-    if (extraFields?.length) embed.fields = extraFields;
-
-    const body = { embeds: [embed] };
+    const body = {};
 
     // Convert Discord.js components to JSON if needed
     if (rawComponents) {
@@ -80,15 +70,96 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       }
     }
 
-    // PRIMARY: Direct REST API call (proven reliable, same as expire-pending-orders cron)
-    const res = await fetch(`https://discord.com/api/v10/channels/${storeConfig.logs_channel_id}/messages`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    let isMultipart = false;
+    let multipartBody = null;
+    let boundary = null;
+
+    // Try to generate image if we have enough info
+    if (user && productName !== undefined && totalCents !== undefined) {
+      try {
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const avatarUrl = user.displayAvatarURL({ extension: "png", size: 128 });
+        
+        const cleanTitle = title.replace(/<:[a-zA-Z0-9_]+:[0-9]+>\s*/, "").replace(/<a:[a-zA-Z0-9_]+:[0-9]+>\s*/, "").trim();
+
+        const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-sale-image`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: serviceKey
+          },
+          body: JSON.stringify({
+            userName: user.username,
+            userTag: user.discriminator !== "0" ? `${user.username}#${user.discriminator}` : `@${user.username}`,
+            userAvatarUrl: avatarUrl,
+            dateTime: `${date} - ${time}`,
+            title: cleanTitle,
+            productName: productName,
+            productPrice: formatBRL(totalCents),
+            subtotal: formatBRL(totalCents),
+            total: formatBRL(totalCents),
+            storeName: storeName,
+            storeLogoUrl: storeLogo,
+            labelCart,
+            labelSubtotal,
+            labelTotal
+          })
+        });
+
+        if (imageRes.ok) {
+          const buffer = Buffer.from(await imageRes.arrayBuffer());
+          isMultipart = true;
+          boundary = `----FormBoundary${Date.now()}`;
+          
+          const payloadObj = {};
+          if (body.components) payloadObj.components = body.components;
+          
+          const parts = [];
+          parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(payloadObj)}\r\n`));
+          parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="files[0]"; filename="log.png"\r\nContent-Type: image/png\r\n\r\n`));
+          parts.push(buffer);
+          parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+          
+          multipartBody = Buffer.concat(parts);
+        }
+      } catch (err) {
+        console.error(`[LOG] Failed to generate image for ${title}:`, err.message);
+      }
+    }
+
+    let res;
+    if (isMultipart) {
+      res = await fetch(`https://discord.com/api/v10/channels/${storeConfig.logs_channel_id}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body: multipartBody,
+      });
+    } else {
+      // Fallback to old embed
+      const embed = {
+        title,
+        description,
+        color: embedColor,
+        footer: { text: `${storeName} | ${date}, ${time}`, icon_url: storeLogo || undefined },
+        timestamp: new Date().toISOString(),
+      };
+      if (extraFields?.length) embed.fields = extraFields;
+      body.embeds = [embed];
+
+      res = await fetch(`https://discord.com/api/v10/channels/${storeConfig.logs_channel_id}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    }
 
     if (!res.ok) {
       const errBody = await res.text();
@@ -522,6 +593,11 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
     storeConfig,
+    user: interaction.user,
+    order: order,
+    productName: orderName,
+    totalCents: priceCents,
+    labelTotal: "VALOR A PAGAR"
   });
 
   // Auto-expire
@@ -538,6 +614,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
         }, 5000);
 
         // ── Send "Pagamento expirado" log via unified helper ──
+        const userObj = await interaction.client.users.fetch(current.discord_user_id).catch(() => null);
         await sendLog(interaction.guild, tenant, {
           title: "🍃 Pagamento expirado",
           description: `Usuário <@${current.discord_user_id}> deixou o pagamento expirar.`,
@@ -546,6 +623,12 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
             { name: "**Detalhes**", value: `\`${current.product_name} | ${formatBRL(current.total_cents)}\``, inline: false },
             { name: "**ID do Pedido**", value: `\`${current.id}\``, inline: false },
           ],
+          user: userObj,
+          order: current,
+          productName: current.product_name,
+          totalCents: current.total_cents,
+          labelTotal: "VALOR A PAGAR",
+          storeConfig
         });
       }
     } catch {}
@@ -1153,6 +1236,11 @@ async function handleQuantityModal(interaction, tenant, orderId) {
       { name: "**Novo Total**", value: `\`${formatBRL(newTotal)}\``, inline: true },
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
     ],
+    user: interaction.user,
+    order: order,
+    productName: order.product_name,
+    totalCents: newTotal,
+    labelTotal: "NOVO VALOR"
   });
 }
 
@@ -1330,6 +1418,7 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
   }
 
   // Log: Entrega manual confirmada
+  const buyerObj = await interaction.client.users.fetch(order.discord_user_id).catch(() => null);
   await sendLog(interaction.guild, tenant, {
     title: "📦 Entrega manual confirmada",
     description: `Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`,
@@ -1339,6 +1428,11 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
       { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
+    user: buyerObj || interaction.user,
+    order: order,
+    productName: order.product_name,
+    totalCents: order.total_cents,
+    labelTotal: "VALOR PAGO"
   });
 }
 
@@ -1361,6 +1455,7 @@ async function cancelManual(interaction, tenant, orderId) {
   });
 
   // Log: Cancelamento manual pelo admin
+  const buyerObj2 = await interaction.client.users.fetch(order.discord_user_id).catch(() => null);
   await sendLog(interaction.guild, tenant, {
     title: "⛔ Cancelamento manual",
     description: `Pedido **#${order.order_number}** cancelado manualmente por <@${interaction.user.id}>.`,
@@ -1370,6 +1465,11 @@ async function cancelManual(interaction, tenant, orderId) {
       { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
       { name: "**Comprador**", value: `<@${order.discord_user_id}>`, inline: false },
     ],
+    user: buyerObj2 || interaction.user,
+    order: order,
+    productName: order.product_name,
+    totalCents: order.total_cents,
+    labelTotal: "VALOR"
   });
 }
 
