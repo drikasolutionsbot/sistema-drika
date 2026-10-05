@@ -21,9 +21,26 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     if (action === "create") {
+      let defaultProvider = null;
+      const { data: providers } = await supabase
+        .from("payment_providers")
+        .select("provider_key")
+        .eq("tenant_id", tenant_id)
+        .eq("active", true)
+        .limit(1);
+        
+      if (providers && providers.length > 0) {
+        defaultProvider = providers[0].provider_key;
+      }
+
       const { data, error } = await supabase
         .from("products")
-        .insert({ name: product?.name || "Novo Produto", tenant_id, price_cents: product?.price_cents || 0 })
+        .insert({ 
+          name: product?.name || "Novo Produto", 
+          tenant_id, 
+          price_cents: product?.price_cents || 0,
+          payment_provider_key: defaultProvider
+        })
         .select()
         .single();
       if (error) throw error;
