@@ -197,64 +197,102 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
     else stockQuery = stockQuery.eq("product_id", product_id);
     const { count: totalStock } = await stockQuery;
 
-    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#57F287";
-    const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x57F287;
-
-    const title = storeConfig?.restock_embed_title
-      ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", addedCount).replace("{total_stock}", totalStock ?? "?")
-      : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
-
-    const description = storeConfig?.restock_embed_description
-      ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", addedCount).replace("{total_stock}", totalStock ?? "?")
-      : null;
-
-    const descLines = [];
-    if (description) {
-      descLines.push(description);
-      descLines.push("");
-    }
-
-    if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
-    descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
-    if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
-
-    const now = new Date();
-    const unixTimestamp = Math.floor(now.getTime() / 1000);
-    descLines.push(`🕒 **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
-
-    const finalDescription = descLines.join("\n");
-
-    const embed = { 
-      title, 
-      color: embedColor, 
-      description: finalDescription,
-      timestamp: now.toISOString() 
-    };
-    if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
-    if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
-    if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
+    const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
 
     const components = [];
     const storeUrl = storeConfig?.store_url;
     if (storeUrl) {
+      const productUrl = storeUrl.includes("?") ? `${storeUrl}&product=${product_id}` : `${storeUrl}?product=${product_id}`;
       components.push({
         type: 1,
-        components: [{ type: 2, style: 5, label: "Comprar Agora", url: storeUrl, emoji: { name: "🛒" } }],
+        components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }],
       });
     }
 
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId ? (mentionRoleId === 'everyone' ? '@everyone' : `<@&${mentionRoleId}>`) : undefined;
 
-    const body = { embeds: [embed] };
-    if (content) body.content = content;
-    if (components.length > 0) body.components = components;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+    const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
-    const res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    // Try to generate the restock image
+    let imageData = null;
+    try {
+      const imageRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-restock-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: fieldName ? `${product.name} - ${fieldName}` : product.name,
+          addedCount: addedCount,
+          totalStock: totalStock,
+          dateTime: `${dateStr} - ${timeStr}`,
+          themeColor: rawColor
+        })
+      });
+      if (imageRes.ok) {
+        imageData = await imageRes.arrayBuffer();
+      }
+    } catch (e) {
+      console.error("[RESTOCK] Falha ao gerar imagem:", e.message);
+    }
+
+    let res;
+    if (imageData) {
+      // Envía como Imagem
+      const { Blob } = require("buffer");
+      const formData = new FormData();
+      formData.append("files[0]", new Blob([imageData], { type: "image/png" }), "restock.png");
+      
+      const payload = { components: components.length > 0 ? components : undefined };
+      if (content) payload.content = content;
+      formData.append("payload_json", JSON.stringify(payload));
+
+      res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+        body: formData,
+      });
+    } else {
+      // Fallback para Embed em caso de erro na imagem
+      const title = storeConfig?.restock_embed_title
+        ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", addedCount).replace("{total_stock}", totalStock ?? "?")
+        : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
+
+      const description = storeConfig?.restock_embed_description
+        ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", addedCount).replace("{total_stock}", totalStock ?? "?")
+        : null;
+
+      const descLines = [];
+      if (description) { descLines.push(description); descLines.push(""); }
+      if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
+      descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
+      if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
+      
+      const unixTimestamp = Math.floor(now.getTime() / 1000);
+      descLines.push(`🕒 **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
+
+      const embed = { 
+        title, 
+        color: embedColor, 
+        description: descLines.join("\n"),
+        timestamp: now.toISOString() 
+      };
+      if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
+      if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
+      if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+
+      const body = { embeds: [embed] };
+      if (content) body.content = content;
+      if (components.length > 0) body.components = components;
+
+      res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
 
     if (res.ok) {
       console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${addedCount} itens`);
