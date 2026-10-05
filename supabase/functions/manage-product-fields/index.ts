@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { bgBase64 } from "./bg.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,12 +81,14 @@ async function buildRestockPng(productName: string, addedCount: string, totalSto
     const e = _esc;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0a0a0f"/><stop offset="100%" stop-color="#1a1a24"/></linearGradient>
+    <clipPath id="bg-clip"><rect width="800" height="400" rx="24"/></clipPath>
     <linearGradient id="ac" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${e(theme)}" stop-opacity="0.2"/><stop offset="100%" stop-color="#000" stop-opacity="0.8"/></linearGradient>
   </defs>
-  <rect width="800" height="400" fill="url(#bg)" rx="24"/>
-  <circle cx="650" cy="200" r="250" fill="url(#ac)"/>
-  <circle cx="100" cy="-50" r="300" fill="url(#ac)"/>
+  <g clip-path="url(#bg-clip)">
+    <image href="${bgBase64}" width="800" height="400" preserveAspectRatio="xMidYMid slice" />
+    <circle cx="650" cy="200" r="250" fill="url(#ac)"/>
+    <circle cx="100" cy="-50" r="300" fill="url(#ac)"/>
+  </g>
   <rect x="60" y="50" width="160" height="48" rx="24" fill="#fff"/>
   <path d="M95 62 L85 75 L92 75 L89 86 L100 73 L93 73 Z" fill="#000"/>
   <text x="110" y="80" fill="#000" font-size="18" font-family="Inter,sans-serif" font-weight="900" letter-spacing="1.5">RESTOCK</text>
