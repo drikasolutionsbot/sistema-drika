@@ -206,7 +206,7 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
         components: [
           {
             type: 2,
-            style: 3, // Success button
+            style: 2, // Secondary/Gray button
             label: "Comprar Agora",
             custom_id: `buy_product:${product_id}`,
             emoji: { name: "🛒" }

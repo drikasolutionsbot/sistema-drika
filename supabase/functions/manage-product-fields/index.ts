@@ -171,7 +171,7 @@ async function sendRestockAnnouncement(
         components: [
           {
             type: 2,
-            style: 3,
+            style: 2, // Secondary/Gray button
             label: "Comprar Agora",
             custom_id: `buy_product:${productId}`,
             emoji: { name: "🛒" }
