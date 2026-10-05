@@ -110,10 +110,12 @@ Deno.serve(async (req) => {
     // 10. Tentar gerar imagem
     let imageBuffer: Uint8Array | null = null;
     try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-restock-image`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+      const imageRes = await fetch("https://iwotvdfxppjwasywrbmw.supabase.co/functions/v1/generate-restock-image", {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${serviceKey}`,
@@ -127,6 +129,7 @@ Deno.serve(async (req) => {
           themeColor: rawColor,
         }),
       });
+      clearTimeout(timeoutId);
       console.log(`[RESTOCK] generate-restock-image status: ${imageRes.status}`);
       if (imageRes.ok) {
         imageBuffer = new Uint8Array(await imageRes.arrayBuffer());
