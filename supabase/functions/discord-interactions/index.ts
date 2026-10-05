@@ -2458,7 +2458,7 @@ serve(async (req: Request) => {
         await supabase.from("orders").update({
           status: "delivered",
           updated_at: new Date().toISOString(),
-          checkout_thread_archive_at: order.checkout_thread_id ? new Date(Date.now() + 120000).toISOString() : null,
+          checkout_thread_archive_at: order.checkout_thread_id ? new Date(Date.now() + 10000).toISOString() : null,
           checkout_thread_archived_at: null,
           checkout_thread_archive_attempts: 0,
           checkout_thread_archive_error: null,

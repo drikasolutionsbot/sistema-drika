@@ -473,7 +473,7 @@ serve(async (req) => {
         status: newStatus,
         updated_at: new Date().toISOString(),
         ...(shouldArchiveCheckoutThread ? {
-          checkout_thread_archive_at: new Date(Date.now() + 120000).toISOString(),
+          checkout_thread_archive_at: new Date(Date.now() + 10000).toISOString(),
           checkout_thread_archived_at: null,
           checkout_thread_archive_attempts: 0,
           checkout_thread_archive_error: null,

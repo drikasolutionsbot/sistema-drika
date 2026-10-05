@@ -1183,9 +1183,8 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
 
   const content = interaction.fields.getTextInputValue("delivered_content");
 
-  const archiveAt = order.checkout_thread_id ? new Date(Date.now() + 120000).toISOString() : null;
   await updateOrderStatus(orderId, "delivered", {
-    checkout_thread_archive_at: archiveAt,
+    checkout_thread_archive_at: null,
     checkout_thread_archived_at: null,
     checkout_thread_archive_attempts: 0,
     checkout_thread_archive_error: null,
@@ -1247,28 +1246,16 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO ticket será fechado em 10 segundos.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO carrinho será fechado em 10 segundos.`).setColor(0x57F287)],
     components: [],
   });
 
   // Schedule Discord.js thread archive + ticket channel delete in 10 seconds
   setTimeout(async () => {
     try {
-      // 1. Archive the checkout thread (if exists)
-      if (order.checkout_thread_id) {
-        try {
-          const thread = await interaction.client.channels.fetch(order.checkout_thread_id);
-          if (thread && thread.isThread()) {
-            await thread.setLocked(true);
-            await thread.setArchived(true);
-          }
-        } catch (err) {
-          // ignore errors
-        }
-      }
+      let channelClosed = false;
 
-      // 2. Close/delete the ticket channel linked to this order
-      let ticketChannelClosed = false;
+      // 1. Close/delete the ticket channel linked to this order (support ticket)
       try {
         const { data: ticket } = await supabase
           .from("tickets")
@@ -1279,7 +1266,7 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
         if (ticket?.discord_channel_id) {
           const ticketChannel = await interaction.client.channels.fetch(ticket.discord_channel_id).catch(() => null);
           if (ticketChannel) {
-            ticketChannelClosed = true;
+            channelClosed = true;
             if (ticketChannel.isThread?.()) {
               await ticketChannel.setLocked(true).catch(() => {});
               await ticketChannel.setArchived(true).catch(() => {});
@@ -1292,8 +1279,22 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
         // ignore errors
       }
 
-      // 3. Fallback: close the channel where the interaction happened
-      if (!ticketChannelClosed && interaction.channel) {
+      // 2. Archive the checkout thread (sempre fecha, mesmo se ticket já fechado acima)
+      if (order.checkout_thread_id) {
+        try {
+          const thread = await interaction.client.channels.fetch(order.checkout_thread_id).catch(() => null);
+          if (thread && thread.isThread()) {
+            channelClosed = true;
+            await thread.setLocked(true).catch(() => {});
+            await thread.setArchived(true).catch(() => {});
+          }
+        } catch (err) {
+          // ignore errors
+        }
+      }
+
+      // 3. Fallback: close the interaction channel if it's a thread/ticket and nothing was closed yet
+      if (!channelClosed && interaction.channel) {
         try {
           const ch = interaction.channel;
           if (ch.isThread?.()) {
@@ -1310,6 +1311,23 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
       // ignore errors
     }
   }, 10000);
+
+  // Send closing notice in the checkout thread (if interaction came from a different channel like logs)
+  if (order.checkout_thread_id && interaction.channel?.id !== order.checkout_thread_id) {
+    try {
+      const checkoutThread = await interaction.client.channels.fetch(order.checkout_thread_id).catch(() => null);
+      if (checkoutThread) {
+        await checkoutThread.send({
+          embeds: [new EmbedBuilder()
+            .setTitle("Pedido Entregue")
+            .setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nEste carrinho será fechado em 10 segundos.`)
+            .setColor(0x57F287)],
+        }).catch(() => {});
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
 
   // Log: Entrega manual confirmada
   await sendLog(interaction.guild, tenant, {
