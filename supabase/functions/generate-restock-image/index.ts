@@ -144,16 +144,17 @@ serve(async (req) => {
     });
 
     const resvg = new Resvg(svg, {
+      fitTo: { mode: "width", value: 800 },
       font: {
-        loadSystemFonts: false,
         fontBuffers: [fontRegular!, fontBold!, fontBlack!],
+        defaultFontFamily: "Inter",
       },
-      fitTo: { mode: "original" },
     });
 
-    const pngData = resvg.render().asPng();
+    const pngData = resvg.render();
+    const pngBuffer = pngData.asPng();
 
-    return new Response(pngData, {
+    return new Response(pngBuffer, {
       headers: {
         ...corsHeaders,
         "Content-Type": "image/png",
