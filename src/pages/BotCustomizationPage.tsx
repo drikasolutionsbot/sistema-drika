@@ -37,8 +37,8 @@ const BotCustomizationPage = () => {
 
   const botId = (tenant as any).discord_bot_id || tenant.id;
 
-  const ALLOWED_BANNER_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
-  const ALLOWED_BANNER_EXTS = ["jpg", "jpeg", "png", "webp"];
+  const ALLOWED_BANNER_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+  const ALLOWED_BANNER_EXTS = ["jpg", "jpeg", "png", "webp", "gif"];
   const MAX_BANNER_MB = 8;
 
   const handleBannerUpload = async (file: File) => {
@@ -51,7 +51,7 @@ const BotCustomizationPage = () => {
     if (!mimeOk && !extOk) {
       toast({
         title: "Formato inválido",
-        description: "Envie uma imagem JPG, PNG ou WebP.",
+        description: "Envie uma imagem JPG, PNG, WebP ou GIF.",
         variant: "destructive",
       });
       return;
@@ -99,7 +99,7 @@ const BotCustomizationPage = () => {
           throw new Error(`Arquivo excede o limite do servidor (${MAX_BANNER_MB}MB).`);
         }
         if (msg.includes("mime") || msg.includes("type")) {
-          throw new Error("Tipo de arquivo não permitido pelo servidor. Use JPG, PNG ou WebP.");
+          throw new Error("Tipo de arquivo não permitido pelo servidor. Use JPG, PNG, WebP ou GIF.");
         }
         if (msg.includes("permission") || msg.includes("not authorized") || msg.includes("rls")) {
           throw new Error("Sem permissão para enviar no storage. Verifique seu login.");
@@ -349,7 +349,7 @@ const BotCustomizationPage = () => {
         <input
           ref={bannerInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

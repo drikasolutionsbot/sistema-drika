@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { isMaster } from "@/lib/plans";
+import { isMaster, isPaidPlan } from "@/lib/plans";
 
 // Cooldown em segundos
 const NAME_AVATAR_COOLDOWN_S = 0;
@@ -70,6 +70,7 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const userIsMaster = isMaster(tenant?.plan);
+  const userIsPaid = isPaidPlan(tenant?.plan);
 
   // Re-sync on modal open
   useEffect(() => {
@@ -125,6 +126,11 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
     
     if (file.size > 700 * 1024) {
       toast({ title: "Arquivo muito grande", description: "O tamanho máximo permitido é 700KB.", variant: "destructive" });
+      return;
+    }
+
+    if (file.type === "image/gif" && !userIsPaid) {
+      toast({ title: "Formato bloqueado", description: "GIFs são permitidos apenas nos planos Pro e Master.", variant: "destructive" });
       return;
     }
 
@@ -269,7 +275,7 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
                 Escolher Imagem
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground">PNG, JPG até 700KB</p>
+            <p className="text-[11px] text-muted-foreground">PNG, JPG {userIsPaid && "e GIF "}até 700KB</p>
           </div>
 
           {/* Name */}
@@ -381,7 +387,7 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
             ) : !isBlocked ? (
               <>
                 <p className="text-[11px] text-muted-foreground">
-                  PNG, JPG até 700KB. Recomendado 960×540px.
+                  PNG, JPG {userIsMaster && "e GIF "}até 700KB. Recomendado 960×540px.
                   {botBannerUrl && " Clique no X para remover."}
                 </p>
                 <div className="rounded-md border border-amber-500/30 bg-amber-500/8 p-2.5 flex items-start gap-2">
@@ -447,12 +453,12 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
           </div>
         </DialogFooter>
 
-        <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+        <input ref={avatarRef} type="file" accept={userIsPaid ? "image/jpeg,image/png,image/webp,image/gif" : "image/jpeg,image/png,image/webp"} className="hidden" onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) handleUpload(file, "avatar");
           if (avatarRef.current) avatarRef.current.value = "";
         }} />
-        <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+        <input ref={bannerRef} type="file" accept={userIsMaster ? "image/jpeg,image/png,image/webp,image/gif" : "image/jpeg,image/png,image/webp"} className="hidden" onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) handleUpload(file, "banner");
           if (bannerRef.current) bannerRef.current.value = "";
