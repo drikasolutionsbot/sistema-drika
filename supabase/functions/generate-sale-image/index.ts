@@ -54,6 +54,9 @@ function generateReceiptSvg(params: {
   storeName: string;
   avatarDataUri?: string;
   storeLogoDataUri?: string;
+  labelCart?: string;
+  labelSubtotal?: string;
+  labelTotal?: string;
 }): string {
   const {
     userName,
@@ -67,6 +70,9 @@ function generateReceiptSvg(params: {
     storeName,
     avatarDataUri,
     storeLogoDataUri,
+    labelCart = "CARRINHO",
+    labelSubtotal = "SUBTOTAL",
+    labelTotal = "VALOR PAGO",
   } = params;
 
   const e = escapeXml;
@@ -115,7 +121,7 @@ function generateReceiptSvg(params: {
   <text x="60" y="111" fill="#ffffff" font-size="21" font-family="Inter, sans-serif" font-weight="900">${e(title)}</text>
 
   <!-- CARRINHO Label -->
-  <text x="28" y="148" fill="#585c6c" font-size="11" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">CARRINHO</text>
+  <text x="28" y="148" fill="#585c6c" font-size="11" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">${e(labelCart)}</text>
   <!-- Product Name -->
   <text x="28" y="174" fill="#ffffff" font-size="15" font-family="Inter, sans-serif" font-weight="500">${e(productName)}</text>
   <!-- Product Price -->
@@ -125,13 +131,13 @@ function generateReceiptSvg(params: {
   <line x1="28" y1="195" x2="652" y2="195" stroke="#1d1f2b" stroke-width="1.2" />
 
   <!-- SUBTOTAL Row -->
-  <text x="28" y="218" fill="#75798e" font-size="13" font-family="Inter, sans-serif" font-weight="600" letter-spacing="0.5">SUBTOTAL</text>
+  <text x="28" y="218" fill="#75798e" font-size="13" font-family="Inter, sans-serif" font-weight="600" letter-spacing="0.5">${e(labelSubtotal)}</text>
   <!-- Subtotal Value -->
   <text x="652" y="218" fill="#ffffff" font-size="16" font-family="Inter, sans-serif" font-weight="700" text-anchor="end">${e(subtotal)}</text>
 
   <!-- Valor Pago Box -->
   <rect x="28" y="244" width="624" height="62" rx="12" fill="#13141d" stroke="#1f2230" stroke-width="1.2" />
-  <text x="46" y="281" fill="#686d7e" font-size="12" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">VALOR PAGO</text>
+  <text x="46" y="281" fill="#686d7e" font-size="12" font-family="Inter, sans-serif" font-weight="700" letter-spacing="0.8">${e(labelTotal)}</text>
   <text x="634" y="287" fill="#00D26A" font-size="30" font-family="Inter, sans-serif" font-weight="900" text-anchor="end">${e(total)}</text>
 
   <!-- Footer: Store Logo + Name -->
@@ -195,6 +201,9 @@ Deno.serve(async (req) => {
       total,
       storeName = "Loja",
       storeLogoUrl = "",
+      labelCart = "CARRINHO",
+      labelSubtotal = "SUBTOTAL",
+      labelTotal = "VALOR PAGO",
     } = body;
 
     await ensureInitialized();
@@ -229,6 +238,9 @@ Deno.serve(async (req) => {
       storeName: truncatedStoreName.toUpperCase(),
       avatarDataUri: avatarDataUri ?? undefined,
       storeLogoDataUri: storeLogoDataUri ?? undefined,
+      labelCart,
+      labelSubtotal,
+      labelTotal,
     });
 
     const resvg = new Resvg(svg, {
