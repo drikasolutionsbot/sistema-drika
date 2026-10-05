@@ -176,7 +176,7 @@ serve(async (req) => {
     // 4. Get store config
     const { data: storeConfig } = await supabase
       .from("store_configs")
-      .select("logs_channel_id, sales_channel_id, customer_role_id, embed_color, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url, store_url")
+      .select("logs_channel_id, sales_channel_id, customer_role_id, embed_color, purchase_embed_color, purchase_embed_title, purchase_embed_description, purchase_embed_footer, purchase_embed_image_url, purchase_embed_thumbnail_url, store_url, feedback_channel_id")
       .eq("tenant_id", tenant_id)
       .single();
 
@@ -689,14 +689,33 @@ serve(async (req) => {
         });
 
         // Build product-specific buy URL
-        const storeUrl = storeConfig?.store_url;
-        const productBuyUrl = storeUrl && order.product_id
-          ? (storeUrl.includes("?") ? `${storeUrl}&product=${order.product_id}` : `${storeUrl}?product=${order.product_id}`)
-          : storeUrl || null;
+        let productBuyUrl = null;
+        if (storeConfig?.store_url) {
+          const storeUrl = storeConfig.store_url;
+          productBuyUrl = order.product_id
+            ? (storeUrl.includes("?") ? `${storeUrl}&product=${order.product_id}` : `${storeUrl}?product=${order.product_id}`)
+            : storeUrl;
+        } else if (order.product_id && guildId) {
+          const { data: pm } = await supabase
+            .from("product_messages")
+            .select("channel_id, message_id")
+            .eq("product_id", order.product_id)
+            .eq("tenant_id", tenant_id)
+            .limit(1);
+          if (pm && pm.length > 0) {
+            productBuyUrl = `https://discord.com/channels/${guildId}/${pm[0].channel_id}/${pm[0].message_id}`;
+          }
+        }
 
-        const buyButtonComponents = productBuyUrl
-          ? [{ type: 1, components: [{ type: 2, style: 5, label: "🛒 Comprar", url: productBuyUrl }] }]
-          : [];
+        const buttons = [];
+        if (productBuyUrl) {
+          buttons.push({ type: 2, style: 5, label: "🛒 Comprar", url: productBuyUrl });
+        }
+        if (storeConfig?.feedback_channel_id && guildId) {
+          buttons.push({ type: 2, style: 5, label: "⭐ Feedbacks", url: `https://discord.com/channels/${guildId}/${storeConfig.feedback_channel_id}` });
+        }
+
+        const buyButtonComponents = buttons.length > 0 ? [{ type: 1, components: buttons }] : [];
 
         if (imageRes.ok) {
           // Send as file attachment to logs/sales channels
