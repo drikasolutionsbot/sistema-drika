@@ -46,7 +46,80 @@ async function syncStockAndEmbed(supabase: any, productId: string, tenantId: str
   }
 }
 
-// Helper: send restock announcement directly to Discord
+
+// ── Restock image generation (inline WASM) ──
+import { initWasm, Resvg } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
+let _wasmReady = false;
+let _fontR: Uint8Array | null = null;
+let _fontB: Uint8Array | null = null;
+let _fontBl: Uint8Array | null = null;
+
+async function ensureImageReady() {
+  if (!_wasmReady) {
+    const w = await fetch("https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm");
+    await initWasm(await w.arrayBuffer());
+    _wasmReady = true;
+  }
+  if (!_fontR || !_fontB || !_fontBl) {
+    const [r, b, bl] = await Promise.all([
+      fetch("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf").then(x => x.arrayBuffer()),
+      fetch("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.ttf").then(x => x.arrayBuffer()),
+      fetch("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-900-normal.ttf").then(x => x.arrayBuffer()),
+    ]);
+    _fontR = new Uint8Array(r); _fontB = new Uint8Array(b); _fontBl = new Uint8Array(bl);
+  }
+}
+
+function _esc(s: string) {
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
+
+async function buildRestockPng(productName: string, addedCount: string, totalStock: string, dateTime: string, theme: string): Promise<Uint8Array | null> {
+  try {
+    await ensureImageReady();
+    const e = _esc;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0a0a0f"/><stop offset="100%" stop-color="#1a1a24"/></linearGradient>
+    <linearGradient id="ac" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${e(theme)}" stop-opacity="0.2"/><stop offset="100%" stop-color="#000" stop-opacity="0.8"/></linearGradient>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)" rx="24"/>
+  <circle cx="650" cy="200" r="250" fill="url(#ac)"/>
+  <circle cx="100" cy="-50" r="300" fill="url(#ac)"/>
+  <rect x="60" y="50" width="160" height="48" rx="24" fill="#fff"/>
+  <path d="M95 62 L85 75 L92 75 L89 86 L100 73 L93 73 Z" fill="#000"/>
+  <text x="110" y="80" fill="#000" font-size="18" font-family="Inter,sans-serif" font-weight="900" letter-spacing="1.5">RESTOCK</text>
+  <text x="240" y="79" fill="#8b8e9b" font-size="16" font-family="Inter,sans-serif">novos itens acabaram de chegar</text>
+  <text x="60" y="160" fill="#fff" font-size="42" font-family="Inter,sans-serif" font-weight="900" letter-spacing="-0.5">${e(productName)}</text>
+  <line x1="60" y1="190" x2="450" y2="190" stroke="#2a2d3d" stroke-width="2"/>
+  <rect x="60" y="230" width="180" height="90" rx="16" fill="#13141d" stroke="#2a2d3d" stroke-width="1.5"/>
+  <rect x="80" y="250" width="30" height="30" rx="6" fill="#1c1f2e"/>
+  <path d="M87 265 L95 261 L103 265 M87 265 L87 271 L95 275 L95 261 M95 275 L103 271 L103 265" stroke="#75798e" stroke-width="2" fill="none" stroke-linejoin="round"/>
+  <text x="125" y="265" fill="#75798e" font-size="14" font-family="Inter,sans-serif" font-weight="600">Adicionados</text>
+  <text x="125" y="295" fill="#fff" font-size="28" font-family="Inter,sans-serif" font-weight="900">${e(addedCount)}x</text>
+  <rect x="260" y="230" width="220" height="90" rx="16" fill="#13141d" stroke="#2a2d3d" stroke-width="1.5"/>
+  <rect x="280" y="250" width="30" height="30" rx="6" fill="#1c1f2e"/>
+  <circle cx="295" cy="265" r="7" stroke="#75798e" stroke-width="2" fill="none"/>
+  <path d="M295 260 L295 265 L299 265" stroke="#75798e" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="325" y="265" fill="#75798e" font-size="14" font-family="Inter,sans-serif" font-weight="600">Data</text>
+  <text x="325" y="295" fill="#fff" font-size="22" font-family="Inter,sans-serif" font-weight="900">${e(dateTime)}</text>
+  <circle cx="650" cy="160" r="90" fill="#13141d" stroke="#2a2d3d" stroke-width="2"/>
+  <circle cx="650" cy="160" r="105" fill="none" stroke="${e(theme)}" stroke-width="1" stroke-dasharray="8 8" opacity="0.5"/>
+  <text x="650" y="170" fill="#fff" font-size="64" font-family="Inter,sans-serif" font-weight="900" text-anchor="middle">${e(totalStock)}</text>
+  <text x="650" y="205" fill="#8b8e9b" font-size="16" font-family="Inter,sans-serif" font-weight="600" text-anchor="middle" letter-spacing="1">em estoque</text>
+  <rect x="550" y="280" width="200" height="40" rx="20" fill="#13141d" stroke="#2a2d3d" stroke-width="1.5"/>
+  <path d="M575 292 L568 300 L572 300 L570 308 L578 298 L574 298 Z" fill="${e(theme)}"/>
+  <text x="590" y="306" fill="#fff" font-size="16" font-family="Inter,sans-serif" font-weight="700">+${e(addedCount)} unidades</text>
+</svg>`;
+    const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 800 }, font: { fontBuffers: [_fontR!, _fontB!, _fontBl!], defaultFontFamily: "Inter" } });
+    return resvg.render().asPng();
+  } catch (e: any) {
+    console.error("[RESTOCK] buildRestockPng error:", e.message);
+    return null;
+  }
+}
+
+// Helper: send restock announcement with image to Discord
 async function sendRestockAnnouncement(
   supabase: any,
   tenantId: string,
@@ -90,59 +163,83 @@ async function sendRestockAnnouncement(
     else stockQuery = stockQuery.eq("product_id", productId);
     const { count: totalStock } = await stockQuery;
 
-    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#57F287";
-    const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x57F287;
-
-    const title = storeConfig?.restock_embed_title
-      ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
-      : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
-
-    const description = storeConfig?.restock_embed_description
-      ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
-      : null;
-
-    const descLines: string[] = [];
-    if (description) { descLines.push(description); descLines.push(""); }
-    if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
-    descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
-    if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
-    const now = new Date();
-    descLines.push(`🕒 **Data:** <t:${Math.floor(now.getTime() / 1000)}:F> (<t:${Math.floor(now.getTime() / 1000)}:R>)`);
-
-    const embed: Record<string, unknown> = { title, color: embedColor, description: descLines.join("\n"), timestamp: now.toISOString() };
-    if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
-    if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
-    if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
 
     const components: unknown[] = [];
     if (storeConfig?.store_url) {
       const baseUrl = storeConfig.store_url;
-      const productUrl = baseUrl.includes("?") 
-        ? `${baseUrl}&product=${productId}` 
-        : `${baseUrl}?product=${productId}`;
-      
+      const productUrl = baseUrl.includes("?") ? `${baseUrl}&product=${productId}` : `${baseUrl}?product=${productId}`;
       components.push({ type: 1, components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }] });
     }
 
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId ? (mentionRoleId === "everyone" ? "@everyone" : `<@&${mentionRoleId}>`) : undefined;
 
-    const body: Record<string, unknown> = { 
-      embeds: [embed],
-      allowed_mentions: { parse: ["everyone", "roles", "users"] } 
-    };
-    
-    if (content) body.content = content;
-    if (components.length > 0) body.components = components;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+    const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+    const displayName = fieldName ? `${product.name} - ${fieldName}` : product.name;
 
-    const res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const imageBuffer = await buildRestockPng(
+      displayName,
+      String(addedCount),
+      totalStock !== null ? String(totalStock) : "?",
+      `${dateStr} · ${timeStr}`,
+      rawColor
+    );
+
+    let res: Response;
+    if (imageBuffer) {
+      const boundary = `----FB${Date.now()}`;
+      const payloadObj: Record<string, unknown> = { allowed_mentions: { parse: ["everyone", "roles", "users"] } };
+      if (content) payloadObj.content = content;
+      if (components.length > 0) payloadObj.components = components;
+      const enc = new TextEncoder();
+      const parts: Uint8Array[] = [
+        enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(payloadObj)}\r\n`),
+        enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="files[0]"; filename="restock.png"\r\nContent-Type: image/png\r\n\r\n`),
+        imageBuffer,
+        enc.encode(`\r\n--${boundary}--\r\n`),
+      ];
+      const total = parts.reduce((s, p) => s + p.length, 0);
+      const body = new Uint8Array(total);
+      let off = 0; for (const p of parts) { body.set(p, off); off += p.length; }
+      res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": `multipart/form-data; boundary=${boundary}` },
+        body,
+      });
+    } else {
+      // Fallback embed
+      const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
+      const title = storeConfig?.restock_embed_title
+        ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
+        : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
+      const description = storeConfig?.restock_embed_description
+        ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
+        : null;
+      const descLines: string[] = [];
+      if (description) { descLines.push(description); descLines.push(""); }
+      if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
+      descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
+      if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
+      descLines.push(`🕒 **Data:** <t:${Math.floor(now.getTime()/1000)}:F> (<t:${Math.floor(now.getTime()/1000)}:R>)`);
+      const embed: Record<string, unknown> = { title, color: embedColor, description: descLines.join("\n"), timestamp: now.toISOString() };
+      if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
+      if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
+      if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+      const body: Record<string, unknown> = { embeds: [embed], allowed_mentions: { parse: ["everyone", "roles", "users"] } };
+      if (content) body.content = content;
+      if (components.length > 0) body.components = components;
+      res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
 
     if (res.ok) {
-      console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${addedCount}`);
+      console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${addedCount} | Imagem: ${!!imageBuffer}`);
     } else {
       console.error(`[RESTOCK] ❌ Discord ${res.status}:`, await res.text());
     }
