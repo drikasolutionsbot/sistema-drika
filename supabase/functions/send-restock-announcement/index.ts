@@ -82,57 +82,17 @@ Deno.serve(async (req) => {
     else stockQuery = stockQuery.eq("product_id", product_id);
     const { count: totalStock } = await stockQuery;
 
-    // 6. Montar embed
-    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#57F287";
-    const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x57F287;
-
-    const title = storeConfig?.restock_embed_title
-      ? storeConfig.restock_embed_title
-          .replace("{product}", product.name)
-          .replace("{qty}", String(added_count))
-          .replace("{total_stock}", String(totalStock ?? "?"))
-      : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
-
-    const description = storeConfig?.restock_embed_description
-      ? storeConfig.restock_embed_description
-          .replace("{product}", product.name)
-          .replace("{qty}", String(added_count))
-          .replace("{total_stock}", String(totalStock ?? "?"))
-      : null;
-
-    const descLines: string[] = [];
-    if (description) {
-      descLines.push(description);
-      descLines.push("");
-    }
-
-    if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
-    descLines.push(`➥ 📦 • **Adicionados:** \`${added_count}x\``);
-    if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
-
-    const now = new Date();
-    const unixTimestamp = Math.floor(now.getTime() / 1000);
-    descLines.push(`🕒 **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
-
-    const finalDescription = descLines.join("\n");
-
-    const embed: Record<string, unknown> = {
-      title,
-      color: embedColor,
-      description: finalDescription,
-      timestamp: now.toISOString(),
-    };
-    if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
-    if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
-    if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+    // 6. Montar cor temática
+    const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
 
     // 7. Botão Comprar Agora
     const components: unknown[] = [];
     const storeUrl = storeConfig?.store_url;
     if (storeUrl) {
+      const productUrl = storeUrl.includes("?") ? `${storeUrl}&product=${product_id}` : `${storeUrl}?product=${product_id}`;
       components.push({
         type: 1,
-        components: [{ type: 2, style: 5, label: "Comprar Agora", url: storeUrl, emoji: { name: "🛒" } }],
+        components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }],
       });
     }
 
@@ -142,19 +102,135 @@ Deno.serve(async (req) => {
       ? (mentionRoleId === "everyone" ? "@everyone" : `<@&${mentionRoleId}>`)
       : undefined;
 
-    // 9. Enviar para o Discord via REST
-    const body: Record<string, unknown> = { embeds: [embed] };
-    if (content) body.content = content;
-    if (components.length > 0) body.components = components;
+    // 9. Gerar data formatada
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+    const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
-    const res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    // 10. Tentar gerar imagem
+    let imageBuffer: Uint8Array | null = null;
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-restock-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+          "apikey": serviceKey,
+        },
+        body: JSON.stringify({
+          productName: fieldName ? `${product.name} - ${fieldName}` : product.name,
+          addedCount: added_count,
+          totalStock: totalStock,
+          dateTime: `${dateStr} · ${timeStr}`,
+          themeColor: rawColor,
+        }),
+      });
+      console.log(`[RESTOCK] generate-restock-image status: ${imageRes.status}`);
+      if (imageRes.ok) {
+        imageBuffer = new Uint8Array(await imageRes.arrayBuffer());
+        console.log(`[RESTOCK] Imagem gerada: ${imageBuffer.length} bytes`);
+      } else {
+        const errText = await imageRes.text();
+        console.error(`[RESTOCK] Edge Function erro ${imageRes.status}:`, errText);
+      }
+    } catch (e: any) {
+      console.error("[RESTOCK] Falha ao gerar imagem:", e.message);
+    }
+
+    let res: Response;
+
+    if (imageBuffer) {
+      // 11a. Enviar como imagem via multipart
+      const boundary = `----FormBoundary${Date.now()}`;
+      const payloadObj: Record<string, unknown> = {};
+      if (content) payloadObj.content = content;
+      if (components.length > 0) payloadObj.components = components;
+      const payloadJson = JSON.stringify(payloadObj);
+
+      const CRLF = "\r\n";
+      const enc = new TextEncoder();
+
+      const parts: Uint8Array[] = [];
+      parts.push(enc.encode(
+        `--${boundary}${CRLF}` +
+        `Content-Disposition: form-data; name="payload_json"${CRLF}` +
+        `Content-Type: application/json${CRLF}${CRLF}` +
+        payloadJson + CRLF
+      ));
+      parts.push(enc.encode(
+        `--${boundary}${CRLF}` +
+        `Content-Disposition: form-data; name="files[0]"; filename="restock.png"${CRLF}` +
+        `Content-Type: image/png${CRLF}${CRLF}`
+      ));
+      parts.push(imageBuffer);
+      parts.push(enc.encode(`${CRLF}--${boundary}--${CRLF}`));
+
+      const totalLength = parts.reduce((sum, p) => sum + p.length, 0);
+      const multipartBody = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const part of parts) {
+        multipartBody.set(part, offset);
+        offset += part.length;
+      }
+
+      res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body: multipartBody,
+      });
+    } else {
+      // 11b. Fallback: Enviar como embed
+      const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
+      const title = storeConfig?.restock_embed_title
+        ? storeConfig.restock_embed_title
+            .replace("{product}", product.name)
+            .replace("{qty}", String(added_count))
+            .replace("{total_stock}", String(totalStock ?? "?"))
+        : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
+
+      const description = storeConfig?.restock_embed_description
+        ? storeConfig.restock_embed_description
+            .replace("{product}", product.name)
+            .replace("{qty}", String(added_count))
+            .replace("{total_stock}", String(totalStock ?? "?"))
+        : null;
+
+      const descLines: string[] = [];
+      if (description) { descLines.push(description); descLines.push(""); }
+      if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
+      descLines.push(`➥ 📦 • **Adicionados:** \`${added_count}x\``);
+      if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
+      const unixTimestamp = Math.floor(now.getTime() / 1000);
+      descLines.push(`🕒 **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
+
+      const embed: Record<string, unknown> = {
+        title,
+        color: embedColor,
+        description: descLines.join("\n"),
+        timestamp: now.toISOString(),
+      };
+      if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
+      if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
+      if (storeConfig?.restock_embed_image_url) embed.image = { url: storeConfig.restock_embed_image_url };
+
+      const body: Record<string, unknown> = { embeds: [embed] };
+      if (content) body.content = content;
+      if (components.length > 0) body.components = components;
+
+      res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    }
 
     if (res.ok) {
       console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${added_count} itens`);
