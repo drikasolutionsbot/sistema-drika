@@ -198,8 +198,40 @@ client.on(Events.ClientReady, async () => {
       console.error("[SORTEIO] Erro ao buscar sorteios expirados:", e.message);
     }
   }, 60 * 1000);
-});
+  // ── Auto-archive checkout threads (10s delay tracker) ──
+  setInterval(async () => {
+    try {
+      const { supabase } = require("./supabase");
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, checkout_thread_id")
+        .not("checkout_thread_archive_at", "is", null)
+        .lte("checkout_thread_archive_at", new Date().toISOString());
 
+      if (orders && orders.length > 0) {
+        for (const o of orders) {
+          try {
+            if (o.checkout_thread_id) {
+              const thread = await client.channels.fetch(o.checkout_thread_id).catch(() => null);
+              if (thread) {
+                if (thread.isThread?.()) {
+                  await thread.setLocked(true).catch(() => {});
+                  await thread.setArchived(true).catch(() => {});
+                } else if (thread.deletable) {
+                  await thread.delete("Arquivamento automático do checkout").catch(() => {});
+                }
+              }
+            }
+            // Clear the date so it doesn't process again
+            await supabase.from("orders").update({ checkout_thread_archive_at: null }).eq("id", o.id);
+          } catch (err) {}
+        }
+      }
+    } catch (e) {
+      console.error("[AUTO-ARCHIVE] Erro:", e.message);
+    }
+  }, 5000);
+});
 // ── Sincronização automática do Dono do Discord por Guild ──
 async function syncGuildOwners() {
   try {

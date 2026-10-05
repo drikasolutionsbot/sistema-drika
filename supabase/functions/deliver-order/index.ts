@@ -405,7 +405,10 @@ serve(async (req) => {
         });
       } catch {}
 
-      // NOTE: archiving is handled by the VPS bot via setTimeout after this function returns
+      // NOTE: archiving is handled by the VPS bot polling checkout_thread_archive_at
+      await supabase.from("orders").update({
+        checkout_thread_archive_at: new Date(Date.now() + 10000).toISOString()
+      }).eq("id", order.id);
     } else if (checkoutThreadId && (!isAutoDelivery || (isAutoDelivery && stockItems.length === 0))) {
       // Manual delivery OR auto-delivery with no stock: keep thread open with staff notification
       const isOutOfStock = isAutoDelivery && stockItems.length === 0;
