@@ -200,15 +200,20 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
     const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
     const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
 
-    const components = [];
-    const storeUrl = storeConfig?.store_url;
-    if (storeUrl) {
-      const productUrl = storeUrl.includes("?") ? `${storeUrl}&product=${product_id}` : `${storeUrl}?product=${product_id}`;
-      components.push({
+    const components = [
+      {
         type: 1,
-        components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }],
-      });
-    }
+        components: [
+          {
+            type: 2,
+            style: 3, // Success button
+            label: "Comprar Agora",
+            custom_id: `buy_product:${product_id}`,
+            emoji: { name: "🛒" }
+          }
+        ]
+      }
+    ];
 
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId ? (mentionRoleId === 'everyone' ? '@everyone' : `<@&${mentionRoleId}>`) : undefined;

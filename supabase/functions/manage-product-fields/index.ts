@@ -165,12 +165,20 @@ async function sendRestockAnnouncement(
 
     const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
 
-    const components: unknown[] = [];
-    if (storeConfig?.store_url) {
-      const baseUrl = storeConfig.store_url;
-      const productUrl = baseUrl.includes("?") ? `${baseUrl}&product=${productId}` : `${baseUrl}?product=${productId}`;
-      components.push({ type: 1, components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }] });
-    }
+    const components: unknown[] = [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 3,
+            label: "Comprar Agora",
+            custom_id: `buy_product:${productId}`,
+            emoji: { name: "🛒" }
+          }
+        ]
+      }
+    ];
 
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId ? (mentionRoleId === "everyone" ? "@everyone" : `<@&${mentionRoleId}>`) : undefined;
