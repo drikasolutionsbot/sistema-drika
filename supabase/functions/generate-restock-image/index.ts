@@ -1,3 +1,4 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { initWasm, Resvg } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
 
 const corsHeaders = {
