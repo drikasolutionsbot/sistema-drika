@@ -222,7 +222,11 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
     try {
       const imageRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-restock-image`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY
+        },
         body: JSON.stringify({
           productName: fieldName ? `${product.name} - ${fieldName}` : product.name,
           addedCount: addedCount,
@@ -231,8 +235,13 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
           themeColor: rawColor
         })
       });
+      console.log(`[RESTOCK] generate-restock-image status: ${imageRes.status}`);
       if (imageRes.ok) {
-        imageData = await imageRes.arrayBuffer();
+        imageData = Buffer.from(await imageRes.arrayBuffer());
+        console.log(`[RESTOCK] Imagem gerada: ${imageData.length} bytes`);
+      } else {
+        const errText = await imageRes.text();
+        console.error(`[RESTOCK] Edge Function erro ${imageRes.status}:`, errText);
       }
     } catch (e) {
       console.error("[RESTOCK] Falha ao gerar imagem:", e.message);
@@ -240,19 +249,38 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
 
     let res;
     if (imageData) {
-      // Envía como Imagem
-      const { Blob } = require("buffer");
-      const formData = new FormData();
-      formData.append("files[0]", new Blob([imageData], { type: "image/png" }), "restock.png");
-      
-      const payload = { components: components.length > 0 ? components : undefined };
-      if (content) payload.content = content;
-      formData.append("payload_json", JSON.stringify(payload));
+      // Envia como Imagem via multipart
+      const boundary = `----FormBoundary${Date.now()}`;
+      const payloadObj = { components: components.length > 0 ? components : undefined };
+      if (content) payloadObj.content = content;
+      const payloadJson = JSON.stringify(payloadObj);
+
+      const CRLF = "\r\n";
+      const bodyParts = [];
+      // payload_json part
+      bodyParts.push(Buffer.from(
+        `--${boundary}${CRLF}` +
+        `Content-Disposition: form-data; name="payload_json"${CRLF}` +
+        `Content-Type: application/json${CRLF}${CRLF}` +
+        payloadJson + CRLF
+      ));
+      // file part
+      bodyParts.push(Buffer.from(
+        `--${boundary}${CRLF}` +
+        `Content-Disposition: form-data; name="files[0]"; filename="restock.png"${CRLF}` +
+        `Content-Type: image/png${CRLF}${CRLF}`
+      ));
+      bodyParts.push(imageData);
+      bodyParts.push(Buffer.from(`${CRLF}--${boundary}--${CRLF}`));
+      const multipartBody = Buffer.concat(bodyParts);
 
       res = await fetch(`https://discord.com/api/v10/channels/${restockChannelId}/messages`, {
         method: "POST",
-        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-        body: formData,
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body: multipartBody,
       });
     } else {
       // Fallback para Embed em caso de erro na imagem
