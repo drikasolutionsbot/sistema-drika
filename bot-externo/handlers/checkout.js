@@ -74,15 +74,16 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
     let multipartBody = null;
     let boundary = null;
 
-    // Try to generate image if we have enough info
-    if (user && productName !== undefined && totalCents !== undefined) {
+    const cleanTitle = title.replace(/<:[a-zA-Z0-9_]+:[0-9]+>\s*/, "").replace(/<a:[a-zA-Z0-9_]+:[0-9]+>\s*/, "").trim();
+    const isApprovedLog = cleanTitle.toLowerCase().includes("aprovado") || cleanTitle.toLowerCase().includes("confirmado");
+
+    // Try to generate image if we have enough info AND it's an approved purchase
+    if (isApprovedLog && user && productName !== undefined && totalCents !== undefined) {
       try {
         const supabaseUrl = process.env.SUPABASE_URL;
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const avatarUrl = user.displayAvatarURL({ extension: "png", size: 128 });
         
-        const cleanTitle = title.replace(/<:[a-zA-Z0-9_]+:[0-9]+>\s*/, "").replace(/<a:[a-zA-Z0-9_]+:[0-9]+>\s*/, "").trim();
-
         const imageRes = await fetch(`${supabaseUrl}/functions/v1/generate-sale-image`, {
           method: "POST",
           headers: {
