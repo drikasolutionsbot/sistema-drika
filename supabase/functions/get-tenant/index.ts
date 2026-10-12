@@ -28,9 +28,25 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Fetch active access token for this tenant
+    const { data: tokenData } = await supabase
+      .from("access_tokens")
+      .select("token")
+      .eq("tenant_id", tenant_id)
+      .eq("revoked", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return new Response(
+      JSON.stringify({
+        ...data,
+        access_token: tokenData?.token || null,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {

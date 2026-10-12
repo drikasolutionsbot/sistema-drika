@@ -30,6 +30,10 @@ interface Tenant {
   referred_by_tenant_id: string | null;
   referral_credits_cents: number;
   affiliate_active: boolean;
+  access_token?: string | null;
+  token?: string | null;
+  owner_discord_username?: string | null;
+  owner_discord_id?: string | null;
 }
 
 interface TenantContextType {
@@ -66,11 +70,17 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
 
           let result: Tenant;
           if (!error && data && !data.error) {
-            result = data as Tenant;
+            result = {
+              ...data,
+              token: tokenSession.token || data.access_token || null,
+              access_token: data.access_token || tokenSession.token || null,
+            } as Tenant;
           } else {
             result = {
               id: tokenSession.tenant_id,
               name: tokenSession.tenant_name || "Loja",
+              token: tokenSession.token || null,
+              access_token: tokenSession.token || null,
               discord_guild_id: null,
               logo_url: null,
               primary_color: "#FF69B4",

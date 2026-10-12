@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Globe } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Globe, KeyRound } from "lucide-react";
 import { useTheme } from "next-themes";
 import { differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import ThemeToggle from "@/components/ui/theme-toggle";
@@ -509,6 +509,10 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
             <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
               {t.topbar.settings}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings?tab=discord")} className="cursor-pointer">
+              <KeyRound className="mr-2 h-4 w-4 text-[#5865F2]" />
+              Discord & Token
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings?tab=wallet")} className="cursor-pointer">
               <Wallet className="mr-2 h-4 w-4" />

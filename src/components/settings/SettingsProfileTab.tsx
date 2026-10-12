@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import SettingsDiscordProfileTab from "./SettingsDiscordProfileTab";
 
 interface Props {
   tenant: any;
@@ -122,6 +123,9 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
 
   return (
     <div className="space-y-6">
+      {/* Discord Profile & Access Token */}
+      <SettingsDiscordProfileTab tenant={tenant} tenantId={tenantId} />
+
       {/* Profile Info */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-6 group">
         {/* Decorative Background Glow */}
