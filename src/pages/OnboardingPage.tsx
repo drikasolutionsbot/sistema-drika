@@ -43,10 +43,58 @@ const OnboardingPage = () => {
       return;
     }
 
-    const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
+    const minDelay = new Promise(resolve => setTimeout(resolve, 1500));
 
-    const checkExistingTenant = async () => {
+    const handleDiscordCallback = async () => {
       if (!user) return;
+
+      // Check if this is a Discord OAuth user
+      const isDiscordUser = user.app_metadata?.provider === "discord";
+
+      if (isDiscordUser) {
+        // Call our edge function to find/create tenant and get token
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const accessToken = session?.session?.access_token;
+
+          const { data, error } = await supabase.functions.invoke("login-with-discord", {
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+          });
+
+          await minDelay;
+
+          if (error || data?.error) {
+            const msg = data?.error || error?.message || "Erro ao autenticar com Discord";
+            toast({ title: "Erro no login Discord", description: msg, variant: "destructive" });
+            navigate("/login", { replace: true });
+            return;
+          }
+
+          // Save token session
+          localStorage.setItem("token_session", JSON.stringify({
+            tenant_id: data.tenant_id,
+            tenant_name: data.tenant_name,
+            token: data.token,
+          }));
+
+          if (data.is_new) {
+            // New user — show server setup
+            toast({ title: `👋 Bem-vindo, ${data.tenant_name}!`, description: "Configure seu servidor para continuar.", variant: "success" as any });
+            setPhase("setup");
+          } else {
+            // Existing user — go straight to dashboard
+            toast({ title: `👋 Olá de volta, ${data.tenant_name}!`, description: "Login com Discord realizado!", variant: "success" as any });
+            navigate("/dashboard", { replace: true });
+          }
+          return;
+        } catch (e: any) {
+          toast({ title: "Erro inesperado", description: e.message, variant: "destructive" });
+          navigate("/login", { replace: true });
+          return;
+        }
+      }
+
+      // Non-Discord user: check existing tenant via user_roles
       try {
         const { data } = await supabase
           .from("user_roles")
@@ -65,7 +113,8 @@ const OnboardingPage = () => {
       }
       setPhase("setup");
     };
-    checkExistingTenant();
+
+    handleDiscordCallback();
   }, [user, navigate]);
 
   const handleAddBot = async () => {
