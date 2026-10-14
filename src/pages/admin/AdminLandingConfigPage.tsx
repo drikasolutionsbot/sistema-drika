@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, TrendingUp, Package, Video, Save, Upload, Link, Loader2, Crown, Sparkles, Gem, Eye, EyeOff } from "lucide-react";
+import { Users, TrendingUp, Package, Video, Save, Upload, Link, Loader2, Crown, Sparkles, Gem, Eye, EyeOff, BellRing, Clock, AlertTriangle } from "lucide-react";
 import { logAudit } from "@/lib/auditLog";
 
 const AdminLandingConfigPage = () => {
@@ -44,6 +44,8 @@ const AdminLandingConfigPage = () => {
     show_trial: true,
     allow_customization_on_trial: false,
     is_free_system: false,
+    subscription_reminders_enabled: true,
+    system_url: "https://drikahub.com",
   });
 
   useEffect(() => {
@@ -77,6 +79,8 @@ const AdminLandingConfigPage = () => {
           show_trial: (data as any).show_trial !== false,
           allow_customization_on_trial: (data as any).allow_customization_on_trial === true,
           is_free_system: (data as any).is_free_system === true,
+          subscription_reminders_enabled: (data as any).subscription_reminders_enabled !== false,
+          system_url: (data as any).system_url || window.location.origin || "https://drikahub.com",
         });
         setProPriceInput(((data.pro_price_cents || 1299) / 100).toFixed(2));
         setProQuarterlyPriceInput((((data as any).pro_quarterly_price_cents || 3490) / 100).toFixed(2));
@@ -118,6 +122,8 @@ const AdminLandingConfigPage = () => {
         show_trial: form.show_trial,
         allow_customization_on_trial: form.allow_customization_on_trial,
         is_free_system: form.is_free_system,
+        subscription_reminders_enabled: form.subscription_reminders_enabled,
+        system_url: form.system_url.trim(),
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", configId);
@@ -663,6 +669,70 @@ const AdminLandingConfigPage = () => {
               <p className="text-xs text-foreground break-all font-mono">{form.video_url}</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Subscription Reminders Config */}
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BellRing className="h-4 w-4 text-amber-400" />
+                Lembretes de Assinatura via Discord DM (D-1 e D-0)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Envio automático de avisos no privado do Discord do cliente antes e no dia do vencimento da assinatura
+              </p>
+            </div>
+            <div className="flex items-center gap-2 bg-background/50 border border-border px-3 py-1.5 rounded-lg shrink-0">
+              <span className="text-xs font-medium text-foreground">
+                {form.subscription_reminders_enabled ? "Ativado" : "Desativado"}
+              </span>
+              <Switch
+                checked={form.subscription_reminders_enabled}
+                onCheckedChange={(checked) => setForm((p) => ({ ...p, subscription_reminders_enabled: checked }))}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Link className="h-3 w-3" /> URL Base do Painel para o Botão da DM
+            </Label>
+            <Input
+              placeholder="https://drikahub.com"
+              value={form.system_url}
+              onChange={(e) => setForm((p) => ({ ...p, system_url: e.target.value }))}
+              className="font-mono text-xs"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              O botão <strong>"Renovar Assinatura"</strong> enviado na DM direcionará o lojista para:{" "}
+              <code className="text-primary">{form.system_url.replace(/\/$/, '')}/settings?tab=plan</code>
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-xs text-amber-400">
+                <Clock className="h-4 w-4" />
+                Lembrete D-1 (Falta 1 Dia)
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Dispara um embed âmbar quando faltar 1 dia para a assinatura expirar, avisando que o prazo termina amanhã e fornecendo o botão para renovação antecipada.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl border border-rose-500/25 bg-rose-500/5 space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-xs text-rose-400">
+                <AlertTriangle className="h-4 w-4" />
+                Lembrete D-0 (Vence Hoje)
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Dispara um embed vermelho urgente no dia do vencimento, alertando o lojista para que renove imediatamente e evite a suspensão das vendas e do bot.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

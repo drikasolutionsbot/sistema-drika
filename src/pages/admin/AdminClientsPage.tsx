@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle, ExternalLink, MessageSquare, Server, Globe } from "lucide-react";
+import { Plus, Key, Copy, Eye, EyeOff, Loader2, Users, Crown, Search, Settings, Mail, Phone, Calendar, CalendarClock, ShieldCheck, ShieldOff, Download, FileSpreadsheet, FileText, AtSign, Trash2, Clock, AlertTriangle, ExternalLink, MessageSquare, Server, Globe, BellRing, Bell, CheckCircle2, Send } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import TrashIcon from "@/components/ui/trash-icon";
 import { logAudit } from "@/lib/auditLog";
@@ -72,6 +72,82 @@ const AdminClientsPage = () => {
   const [discordOwnerIdInput, setDiscordOwnerIdInput] = useState("");
   const [discordOwnerUsernameInput, setDiscordOwnerUsernameInput] = useState("");
   const [savingDiscord, setSavingDiscord] = useState(false);
+
+  // Subscription reminders modal state
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [reminderSending, setReminderSending] = useState(false);
+  const [reminderForce, setReminderForce] = useState(false);
+  const [reminderResults, setReminderResults] = useState<any | null>(null);
+  const [singleReminderSending, setSingleReminderSending] = useState<string | null>(null);
+
+  const handleSendAllReminders = async () => {
+    setReminderSending(true);
+    setReminderResults(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-subscription-reminder", {
+        body: {
+          action: "run_all",
+          force: reminderForce,
+          system_url: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setReminderResults(data);
+      fetchTenants();
+      toast({
+        title: "Disparo de lembretes concluído! 🔔",
+        description: `D-1 enviados: ${data?.summary?.sent_d1 ?? 0} | D-0 enviados: ${data?.summary?.sent_d0 ?? 0} | Pulados: ${data?.summary?.skipped ?? 0}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Erro ao disparar lembretes", description: err.message, variant: "destructive" });
+    } finally {
+      setReminderSending(false);
+    }
+  };
+
+  const handleSendSingleReminder = async (tenantId: string, reminderType: "d1" | "d0") => {
+    setSingleReminderSending(`${tenantId}:${reminderType}`);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-subscription-reminder", {
+        body: {
+          action: "send_single",
+          tenant_id: tenantId,
+          reminder_type: reminderType,
+          force: true,
+          system_url: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const result = data?.results?.[0];
+      if (result?.status === "sent") {
+        toast({
+          title: `Lembrete ${reminderType.toUpperCase()} enviado! 🚀`,
+          description: `Mensagem enviada com sucesso na DM do Discord.`,
+        });
+      } else if (result?.status === "skipped") {
+        toast({
+          title: "Aviso",
+          description: result.reason || "Lembrete pulado",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro ao enviar DM",
+          description: result?.reason || "Falha no envio da mensagem",
+          variant: "destructive",
+        });
+      }
+      fetchTenants();
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar lembrete", description: err.message, variant: "destructive" });
+    } finally {
+      setSingleReminderSending(null);
+    }
+  };
 
   const handleSaveDiscord = async () => {
     if (!editingDiscordTenant) return;
@@ -183,9 +259,13 @@ const AdminClientsPage = () => {
         if (!oldTenant?.plan_expires_at || new Date(oldTenant.plan_expires_at) < now) {
           updateData.plan_expires_at = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000).toISOString();
         }
+        updateData.reminder_d1_sent_at = null;
+        updateData.reminder_d0_sent_at = null;
       } else {
         updateData.plan_started_at = null;
         updateData.plan_expires_at = null;
+        updateData.reminder_d1_sent_at = null;
+        updateData.reminder_d0_sent_at = null;
       }
 
       const losingMasterPerks = oldPlan === "master" && newPlan !== "master";
@@ -235,6 +315,8 @@ const AdminClientsPage = () => {
       const updateData: any = {
         plan_expires_at: newExpiry.toISOString(),
         plan: renewPlan,
+        reminder_d1_sent_at: null,
+        reminder_d0_sent_at: null,
       };
       // If no plan_started_at yet, set it
       if (!tenant?.plan_started_at) {
@@ -457,6 +539,18 @@ const AdminClientsPage = () => {
     toast({ title: "PDF exportado!" });
   };
 
+  const nowForReminders = new Date();
+  const d1Candidates = tenants.filter((t) => {
+    if (!t.plan_expires_at || t.plan === "expired" || t.plan === "free") return false;
+    const diffHours = (new Date(t.plan_expires_at).getTime() - nowForReminders.getTime()) / (1000 * 60 * 60);
+    return diffHours > 12 && diffHours <= 36;
+  });
+  const d0Candidates = tenants.filter((t) => {
+    if (!t.plan_expires_at || t.plan === "expired" || t.plan === "free") return false;
+    const diffHours = (new Date(t.plan_expires_at).getTime() - nowForReminders.getTime()) / (1000 * 60 * 60);
+    return diffHours <= 12 && diffHours >= -12;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -465,6 +559,24 @@ const AdminClientsPage = () => {
           <p className="text-muted-foreground text-sm">Gerencie clientes, planos e tokens de acesso</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setReminderResults(null);
+              setReminderModalOpen(true);
+            }}
+            className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 gap-1.5"
+            title="Disparar lembretes de assinatura para clientes D-1 e D-0"
+          >
+            <BellRing className="h-4 w-4" />
+            <span className="hidden sm:inline">Lembretes</span> (D-1 / D-0)
+            {(d1Candidates.length > 0 || d0Candidates.length > 0) && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                {d1Candidates.length + d0Candidates.length}
+              </span>
+            )}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -824,6 +936,22 @@ const AdminClientsPage = () => {
                                 )}
                               </span>
                             )}
+                            {tenant.reminder_d1_sent_at && (
+                              <span
+                                className="text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/25 px-1.5 py-0.5 rounded flex items-center gap-1"
+                                title={`Lembrete D-1 enviado em ${format(new Date(tenant.reminder_d1_sent_at), "dd/MM/yyyy HH:mm")}`}
+                              >
+                                <Bell className="h-2.5 w-2.5" /> D-1 enviado
+                              </span>
+                            )}
+                            {tenant.reminder_d0_sent_at && (
+                              <span
+                                className="text-[10px] font-medium text-rose-400 bg-rose-500/10 border border-rose-500/25 px-1.5 py-0.5 rounded flex items-center gap-1"
+                                title={`Lembrete D-0 enviado em ${format(new Date(tenant.reminder_d0_sent_at), "dd/MM/yyyy HH:mm")}`}
+                              >
+                                <AlertTriangle className="h-2.5 w-2.5" /> D-0 enviado
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -910,6 +1038,43 @@ const AdminClientsPage = () => {
                               <CalendarClock className="h-3 w-3 mr-1" />
                               + Dias
                             </Button>
+
+                            {/* Envio de Lembrete Manual na DM */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-[10px] px-2 border-amber-500/30 text-amber-500 hover:bg-amber-500/10 font-semibold gap-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                  disabled={singleReminderSending?.startsWith(tenant.id)}
+                                  title="Enviar lembrete de assinatura via DM no Discord"
+                                >
+                                  {singleReminderSending?.startsWith(tenant.id) ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <BellRing className="h-3 w-3" />
+                                  )}
+                                  Lembrete DM
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-card border-border" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem
+                                  className="text-xs cursor-pointer gap-2"
+                                  onClick={() => handleSendSingleReminder(tenant.id, "d1")}
+                                >
+                                  <Clock className="h-3.5 w-3.5 text-amber-500" />
+                                  <span>Enviar Lembrete D-1 (1 Dia)</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-xs cursor-pointer gap-2"
+                                  onClick={() => handleSendSingleReminder(tenant.id, "d0")}
+                                >
+                                  <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+                                  <span>Enviar Lembrete D-0 (Vence Hoje)</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             {tenant.plan !== "free" && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -1708,6 +1873,144 @@ const AdminClientsPage = () => {
             >
               {savingDiscord ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
               Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Disparar Lembretes de Assinatura */}
+      <Dialog open={reminderModalOpen} onOpenChange={setReminderModalOpen}>
+        <DialogContent className="bg-card border-border max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2 text-foreground">
+              <BellRing className="h-5 w-5 text-amber-500" />
+              Lembretes de Assinatura via Discord DM
+            </DialogTitle>
+            <DialogDescription>
+              Dispare avisos automáticos na DM do Discord dos clientes cujos planos estão vencendo em 1 dia (D-1) ou vencem hoje (D-0). A DM conterá um botão direto para a renovação no painel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> Lembrete D-1
+                  </span>
+                  <span className="text-lg font-extrabold text-amber-400">{d1Candidates.length}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Falta 1 dia para vencer (vencimento amanhã)
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/10 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Lembrete D-0
+                  </span>
+                  <span className="text-lg font-extrabold text-rose-400">{d0Candidates.length}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Vence hoje (alerta urgente de renovação)
+                </p>
+              </div>
+            </div>
+
+            {/* Force checkbox */}
+            <div className="flex items-center space-x-2 rounded-lg border border-border p-3 bg-muted/20">
+              <Checkbox
+                id="reminder-force"
+                checked={reminderForce}
+                onCheckedChange={(c) => setReminderForce(!!c)}
+              />
+              <div className="grid gap-0.5 leading-none">
+                <label
+                  htmlFor="reminder-force"
+                  className="text-xs font-medium cursor-pointer text-foreground select-none"
+                >
+                  Forçar reenvio mesmo se já enviado recentemente
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Por padrão, o sistema pula clientes que já receberam lembrete neste ciclo para não enviar mensagens repetidas.
+                </p>
+              </div>
+            </div>
+
+            {/* Results Display */}
+            {reminderResults && (
+              <div className="space-y-3 pt-2">
+                <div className="p-3 rounded-lg border border-border bg-muted/40 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span>Resultado do Disparo:</span>
+                    <span className="text-primary font-mono">{reminderResults.summary?.total_checked} analisados</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-medium">
+                      <div className="font-bold text-sm">{reminderResults.summary?.sent_d1 || 0}</div>
+                      <div className="text-[10px]">D-1 Enviados</div>
+                    </div>
+                    <div className="p-2 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 font-medium">
+                      <div className="font-bold text-sm">{reminderResults.summary?.sent_d0 || 0}</div>
+                      <div className="text-[10px]">D-0 Enviados</div>
+                    </div>
+                    <div className="p-2 rounded bg-muted border border-border text-muted-foreground font-medium">
+                      <div className="font-bold text-sm">{reminderResults.summary?.skipped || 0}</div>
+                      <div className="text-[10px]">Pulados</div>
+                    </div>
+                    <div className="p-2 rounded bg-destructive/10 border border-destructive/30 text-destructive font-medium">
+                      <div className="font-bold text-sm">{reminderResults.summary?.errors || 0}</div>
+                      <div className="text-[10px]">Erros</div>
+                    </div>
+                  </div>
+                </div>
+
+                {reminderResults.results?.length > 0 && (
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border text-xs">
+                    {reminderResults.results.map((r: any, idx: number) => (
+                      <div key={idx} className="p-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-foreground truncate">{r.tenant_name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono truncate">
+                            {r.discord_id ? `@${r.discord_id}` : "Sem Discord"} {r.reason ? `• ${r.reason}` : ""}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={r.status === "sent" ? "default" : r.status === "error" ? "destructive" : "secondary"}
+                          className="text-[10px] uppercase font-bold shrink-0"
+                        >
+                          {r.status === "sent" ? (r.type ? `${r.type.toUpperCase()} Enviado` : "Enviado") : r.status === "error" ? "Erro" : "Pulado"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setReminderModalOpen(false)}>
+              Fechar
+            </Button>
+            <Button
+              onClick={handleSendAllReminders}
+              disabled={reminderSending}
+              className="bg-amber-600 hover:bg-amber-500 text-white gap-1.5"
+            >
+              {reminderSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Enviando na DM...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  <span>Disparar Lembretes Agora</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

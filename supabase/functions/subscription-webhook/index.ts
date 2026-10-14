@@ -277,6 +277,8 @@ async function activateSubscription(supabase: any, subPayment: any) {
         plan_cycle: cycleToSet,
         plan_started_at: now.toISOString(),
         plan_expires_at: renewalPeriodEnd.toISOString(),
+        reminder_d1_sent_at: null,
+        reminder_d0_sent_at: null,
         updated_at: now.toISOString(),
       }).eq("id", subPayment.tenant_id);
 
