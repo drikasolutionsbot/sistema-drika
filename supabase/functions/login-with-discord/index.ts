@@ -71,11 +71,11 @@ Deno.serve(async (req) => {
     const isNew = !roleRow?.tenant_id;
 
     if (roleRow?.tenant_id) {
-      // Existing user — just get tenant info
+      // Existing user — get tenant info
       tenantId = roleRow.tenant_id;
       const { data: tenant } = await admin
         .from("tenants")
-        .select("id, name")
+        .select("id, name, owner_discord_id, owner_discord_username")
         .eq("id", tenantId)
         .maybeSingle();
 
@@ -86,6 +86,17 @@ Deno.serve(async (req) => {
         });
       }
       tenantName = tenant.name;
+
+      // Atualiza owner_discord_id/username se ainda estiver vazio (clientes antigos "Sem Discord")
+      if (discordId && (!tenant.owner_discord_id || !tenant.owner_discord_username)) {
+        await admin
+          .from("tenants")
+          .update({
+            owner_discord_id: discordId,
+            owner_discord_username: discordUsername,
+          })
+          .eq("id", tenantId);
+      }
     } else {
       // New user via Discord — create tenant with 4-day trial
       const clientIp =
@@ -97,8 +108,7 @@ Deno.serve(async (req) => {
       const now = new Date();
       const trialExpires = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
 
-      // Insert apenas com colunas garantidas (sem campos opcionais discord_user_id/discord_avatar
-      // que podem não existir no schema) para evitar criar tenants duplicados via retry.
+      // Insert único — sem retry para evitar tenants duplicados.
       const { data: newTenant, error: tenantError } = await admin
         .from("tenants")
         .insert({
@@ -109,6 +119,8 @@ Deno.serve(async (req) => {
           plan_started_at: now.toISOString(),
           plan_expires_at: trialExpires.toISOString(),
           registration_ip: clientIp,
+          owner_discord_id: discordId,
+          owner_discord_username: discordUsername,
         })
         .select()
         .single();
