@@ -1,4 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,59 +97,35 @@ Deno.serve(async (req) => {
       const now = new Date();
       const trialExpires = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
 
-      const insertData: Record<string, unknown> = {
-        name: discordUsername,
-        email: userEmail,
-        whatsapp: null,
-        plan: "free",
-        plan_started_at: now.toISOString(),
-        plan_expires_at: trialExpires.toISOString(),
-        registration_ip: clientIp,
-      };
-
-      // Try to add discord fields if columns exist (graceful fallback)
-      if (discordId) insertData["discord_user_id"] = discordId;
-      if (discordAvatar) insertData["discord_avatar"] = discordAvatar;
-
+      // Insert apenas com colunas garantidas (sem campos opcionais discord_user_id/discord_avatar
+      // que podem não existir no schema) para evitar criar tenants duplicados via retry.
       const { data: newTenant, error: tenantError } = await admin
         .from("tenants")
-        .insert(insertData)
+        .insert({
+          name: discordUsername,
+          email: userEmail,
+          whatsapp: null,
+          plan: "free",
+          plan_started_at: now.toISOString(),
+          plan_expires_at: trialExpires.toISOString(),
+          registration_ip: clientIp,
+        })
         .select()
         .single();
 
       if (tenantError) {
-        // Retry without optional discord columns
-        const { data: newTenant2, error: tenantError2 } = await admin
-          .from("tenants")
-          .insert({
-            name: discordUsername,
-            email: userEmail,
-            whatsapp: null,
-            plan: "free",
-            plan_started_at: now.toISOString(),
-            plan_expires_at: trialExpires.toISOString(),
-            registration_ip: clientIp,
-          })
-          .select()
-          .single();
-
-        if (tenantError2) {
-          console.error("Tenant create error:", tenantError2.message);
-          return new Response(
-            JSON.stringify({ error: "Erro ao criar loja: " + tenantError2.message }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        }
-
-        tenantId = newTenant2.id;
-        tenantName = newTenant2.name;
-      } else {
-        tenantId = newTenant.id;
-        tenantName = newTenant.name;
+        console.error("Tenant create error:", tenantError.message);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar loja: " + tenantError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
       }
+
+      tenantId = newTenant.id;
+      tenantName = newTenant.name;
 
       // Assign owner role
       await admin.from("user_roles").insert({
