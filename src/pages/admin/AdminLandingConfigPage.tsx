@@ -45,7 +45,7 @@ const AdminLandingConfigPage = () => {
     allow_customization_on_trial: false,
     is_free_system: false,
     subscription_reminders_enabled: true,
-    system_url: "https://drikahub.com",
+    system_url: "https://www.drikahub.com",
   });
 
   useEffect(() => {

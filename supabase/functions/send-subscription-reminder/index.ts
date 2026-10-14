@@ -64,7 +64,7 @@ serve(async (req) => {
       );
     }
 
-    const systemUrl = (specifiedSystemUrl || config?.system_url || "https://drikahub.com").replace(/\/$/, "");
+    const systemUrl = (specifiedSystemUrl || config?.system_url || "https://www.drikahub.com").replace(/\/$/, "");
     const renewalUrl = `${systemUrl}/settings?tab=plan`;
 
     // 2. Determina o escopo de tenants a verificar

@@ -6,7 +6,7 @@ ALTER TABLE public.tenants
 -- Adiciona configurações de lembrete e URL do sistema na tabela landing_config
 ALTER TABLE public.landing_config
   ADD COLUMN IF NOT EXISTS subscription_reminders_enabled boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS system_url text NOT NULL DEFAULT 'https://drikahub.com';
+  ADD COLUMN IF NOT EXISTS system_url text NOT NULL DEFAULT 'https://www.drikahub.com';
 
 -- Agenda job diário/horário no pg_cron para checar e enviar lembretes D-1 e D-0
 DO $$
