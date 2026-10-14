@@ -177,6 +177,17 @@ const LoginPage = () => {
               </div>
             )}
           </div>
+
+          {/* Sign up via Discord */}
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={() => navigate("/signup")}
+              className="text-xs text-white/45 hover:text-white transition-colors bg-transparent border-none cursor-pointer font-medium"
+            >
+              {pt ? "Novo por aqui? Cadastre-se com Discord" : de ? "Neu hier? Mit Discord registrieren" : "New here? Sign up with Discord"}
+            </button>
+          </div>
         </div>
 
         {/* Terms */}
