@@ -231,6 +231,33 @@ client.on(Events.ClientReady, async () => {
       console.error("[AUTO-ARCHIVE] Erro:", e.message);
     }
   }, 5000);
+
+  // ── Verificação e envio automático de lembretes D-1 e D-0 (a cada 30 min) ──
+  const checkSubscriptionReminders = async () => {
+    try {
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+      const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/send-subscription-reminder`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+        },
+        body: JSON.stringify({ action: "run_all" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if ((data?.summary?.sent_d1 || 0) > 0 || (data?.summary?.sent_d0 || 0) > 0) {
+          console.log(`[LEMBRETES] Disparados automaticamente: D-1=${data.summary.sent_d1}, D-0=${data.summary.sent_d0}`);
+        }
+      }
+    } catch (e) {
+      console.error("[LEMBRETES] Erro ao verificar lembretes de assinatura:", e.message);
+    }
+  };
+
+  // Primeira checagem após 15 segundos do bot online, depois a cada 30 minutos
+  setTimeout(checkSubscriptionReminders, 15_000);
+  setInterval(checkSubscriptionReminders, 30 * 60 * 1000);
 });
 // ── Sincronização automática do Dono do Discord por Guild ──
 async function syncGuildOwners() {
