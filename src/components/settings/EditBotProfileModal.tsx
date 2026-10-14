@@ -123,14 +123,27 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
 
   const handleUpload = async (file: File, kind: "avatar" | "banner") => {
     if (!tenantId) return;
+
+    // Capa do bot é exclusiva do plano Master
+    if (kind === "banner" && !userIsMaster) {
+      toast({ title: "Recurso bloqueado", description: "A capa do bot está disponível apenas no plano Master.", variant: "destructive" });
+      return;
+    }
     
     if (file.size > 700 * 1024) {
       toast({ title: "Arquivo muito grande", description: "O tamanho máximo permitido é 700KB.", variant: "destructive" });
       return;
     }
 
-    if (file.type === "image/gif" && !userIsPaid) {
-      toast({ title: "Formato bloqueado", description: "GIFs são permitidos apenas nos planos Pro e Master.", variant: "destructive" });
+    // GIF no avatar: apenas planos Pro e Master
+    if (kind === "avatar" && file.type === "image/gif" && !userIsPaid) {
+      toast({ title: "Formato bloqueado", description: "GIFs no avatar são permitidos apenas nos planos Pro e Master.", variant: "destructive" });
+      return;
+    }
+
+    // GIF na capa: apenas plano Master
+    if (kind === "banner" && file.type === "image/gif" && !userIsMaster) {
+      toast({ title: "Formato bloqueado", description: "GIFs na capa são permitidos apenas no plano Master.", variant: "destructive" });
       return;
     }
 
@@ -275,7 +288,10 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
                 Escolher Imagem
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground">PNG, JPG {userIsPaid && "e GIF "}até 700KB</p>
+            <p className="text-[11px] text-muted-foreground">
+              PNG, JPG{userIsPaid ? " e GIF" : ""} até 700KB
+              {!userIsPaid && <span className="ml-1 text-primary/70">(GIF requer plano Pro ou Master)</span>}
+            </p>
           </div>
 
           {/* Name */}
