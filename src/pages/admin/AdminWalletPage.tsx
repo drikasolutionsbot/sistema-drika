@@ -31,6 +31,12 @@ import {
   AlertCircle,
   PiggyBank,
   ArrowRight,
+  Receipt,
+  ShieldCheck,
+  ShoppingBag,
+  Hash,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +65,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface PlatformMetrics {
@@ -110,6 +116,54 @@ interface TenantWalletItem {
   } | null;
 }
 
+export interface SalesAuditItem {
+  id: string;
+  order_number?: number;
+  tenant_id: string;
+  discord_username: string | null;
+  discord_user_id: string | null;
+  product_name: string;
+  total_cents: number;
+  status: string;
+  payment_provider: string | null;
+  payment_id: string | null;
+  created_at: string;
+  updated_at: string;
+  tenants?: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    plan: string;
+  } | null;
+}
+
+export interface WalletDepositItem {
+  id: string;
+  tenant_id: string;
+  type: string;
+  amount_cents: number;
+  fee_cents: number;
+  net_amount_cents: number;
+  description: string | null;
+  status: string;
+  payment_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+  tenants?: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    plan: string;
+  } | null;
+}
+
+export interface AuditSummary {
+  total_sales_cents: number;
+  total_sales_count: number;
+  total_platform_fees_cents: number;
+  average_ticket_cents: number;
+}
+
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 
@@ -138,6 +192,17 @@ export default function AdminWalletPage() {
   const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState("pending");
   const [searchWithdrawals, setSearchWithdrawals] = useState("");
   const [searchWallets, setSearchWallets] = useState("");
+
+  // Audit state
+  const [auditSales, setAuditSales] = useState<SalesAuditItem[]>([]);
+  const [auditDeposits, setAuditDeposits] = useState<WalletDepositItem[]>([]);
+  const [auditSummary, setAuditSummary] = useState<AuditSummary | null>(null);
+  const [searchAudit, setSearchAudit] = useState("");
+  const [auditStoreFilter, setAuditStoreFilter] = useState("all");
+  const [auditProviderFilter, setAuditProviderFilter] = useState("all");
+  const [selectedAuditSale, setSelectedAuditSale] = useState<SalesAuditItem | null>(null);
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
 
   // Approval Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -182,6 +247,16 @@ export default function AdminWalletPage() {
         body: { action: "admin_list_wallets" },
       });
       if (wlRes.data?.wallets) setWallets(wlRes.data.wallets);
+
+      // 4. Audit Sales & Inflows
+      const aRes = await supabase.functions.invoke("manage-wallet", {
+        body: { action: "admin_audit_sales" },
+      });
+      if (aRes.data) {
+        setAuditSales(aRes.data.sales || []);
+        setAuditDeposits(aRes.data.deposits || []);
+        setAuditSummary(aRes.data.summary || null);
+      }
     } catch (err: any) {
       console.error("Error loading admin wallet data:", err);
       toast({
@@ -205,6 +280,14 @@ export default function AdminWalletPage() {
     setCopiedKeyId(id);
     toast({ title: "Chave PIX copiada!", description: key });
     setTimeout(() => setCopiedKeyId(null), 2500);
+  };
+
+  // Handle Copy text in Audit Modal
+  const handleCopyAuditText = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedAuditId(id);
+    toast({ title: "Copiado para a área de transferência!", description: text });
+    setTimeout(() => setCopiedAuditId(null), 2500);
   };
 
   // Handle Approve
@@ -394,6 +477,51 @@ export default function AdminWalletPage() {
       return true;
     });
   }, [wallets, searchWallets]);
+
+  // Filtered Audit Sales
+  const filteredAuditSales = useMemo(() => {
+    return auditSales.filter((item) => {
+      if (auditStoreFilter !== "all" && item.tenant_id !== auditStoreFilter) {
+        return false;
+      }
+      if (
+        auditProviderFilter !== "all" &&
+        (item.payment_provider || "").toLowerCase() !== auditProviderFilter.toLowerCase()
+      ) {
+        return false;
+      }
+      if (searchAudit.trim()) {
+        const q = searchAudit.toLowerCase();
+        const storeName = (item.tenants?.name || "").toLowerCase();
+        const productName = (item.product_name || "").toLowerCase();
+        const discordUser = (item.discord_username || "").toLowerCase();
+        const discordId = (item.discord_user_id || "").toLowerCase();
+        const orderNum = String(item.order_number || "").toLowerCase();
+        const paymentId = (item.payment_id || "").toLowerCase();
+        const orderId = (item.id || "").toLowerCase();
+
+        return (
+          storeName.includes(q) ||
+          productName.includes(q) ||
+          discordUser.includes(q) ||
+          discordId.includes(q) ||
+          orderNum.includes(q) ||
+          paymentId.includes(q) ||
+          orderId.includes(q)
+        );
+      }
+      return true;
+    });
+  }, [auditSales, auditStoreFilter, auditProviderFilter, searchAudit]);
+
+  // Unique payment providers found in sales for the filter dropdown
+  const availableProviders = useMemo(() => {
+    const set = new Set<string>();
+    auditSales.forEach((s) => {
+      if (s.payment_provider) set.add(s.payment_provider);
+    });
+    return Array.from(set);
+  }, [auditSales]);
 
   const pendingCount = metrics?.pending_count || 0;
 
@@ -762,6 +890,10 @@ export default function AdminWalletPage() {
             <Building className="h-4 w-4" />
             Carteiras dos Clientes ({wallets.length})
           </TabsTrigger>
+          <TabsTrigger value="audit" className="gap-2 data-[state=active]:bg-[#0a0f1d] text-xs">
+            <Receipt className="h-4 w-4 text-emerald-400" />
+            Entradas de Vendas (Auditoria) ({auditSales.length || auditDeposits.length})
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Solicitações de Saque (A Pagar) */}
@@ -1072,6 +1204,238 @@ export default function AdminWalletPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab 3: Auditoria de Vendas & Entradas de Caixa */}
+        <TabsContent value="audit" className="space-y-4">
+          {/* Métricas Rápidas da Auditoria */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Total Entrado em Caixa</span>
+                <span className="text-xl font-extrabold text-emerald-400 block font-mono">
+                  {showBalance ? formatBRL(auditSummary?.total_sales_cents || 0) : "••••"}
+                </span>
+                <span className="text-[10px] text-slate-500">Volume bruto de todas as vendas</span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <Coins className="h-6 w-6" />
+              </div>
+            </Card>
+
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Vendas Concluídas</span>
+                <span className="text-xl font-extrabold text-white block font-mono">
+                  {auditSummary?.total_sales_count || auditSales.length}
+                </span>
+                <span className="text-[10px] text-slate-500">Pedidos pagos e comprovados</span>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                <ShoppingBag className="h-6 w-6" />
+              </div>
+            </Card>
+
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Taxas Retidas (2%)</span>
+                <span className="text-xl font-extrabold text-purple-400 block font-mono">
+                  {showBalance ? formatBRL(auditSummary?.total_platform_fees_cents || 0) : "••••"}
+                </span>
+                <span className="text-[10px] text-slate-500">Lucro líquido da plataforma</span>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                <Percent className="h-6 w-6" />
+              </div>
+            </Card>
+
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Ticket Médio</span>
+                <span className="text-xl font-extrabold text-amber-400 block font-mono">
+                  {showBalance ? formatBRL(auditSummary?.average_ticket_cents || 0) : "••••"}
+                </span>
+                <span className="text-[10px] text-slate-500">Valor médio por transação</span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+            </Card>
+          </div>
+
+          {/* Tabela de Vendas Auditadas */}
+          <Card className="border-slate-800/80 bg-[#0a0f1d] shadow-lg">
+            <CardHeader className="border-b border-slate-800/60 pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                    <Receipt className="h-5 w-5 text-emerald-400" />
+                    Auditoria de Entradas & Vendas da Plataforma
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-xs">
+                    Comprovante de todas as entradas de dinheiro no caixa via gateway global e vendas dos lojistas via Discord Bot.
+                  </CardDescription>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="relative min-w-[220px]">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                    <Input
+                      placeholder="Buscar por loja, produto, Discord, ID..."
+                      value={searchAudit}
+                      onChange={(e) => setSearchAudit(e.target.value)}
+                      className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
+                    />
+                  </div>
+
+                  {/* Filtro por Loja */}
+                  <Select value={auditStoreFilter} onValueChange={setAuditStoreFilter}>
+                    <SelectTrigger className="h-9 w-[150px] text-xs border-slate-800 bg-[#070b14] text-slate-200">
+                      <SelectValue placeholder="Todas as Lojas" />
+                    </SelectTrigger>
+                    <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
+                      <SelectItem value="all">Todas as Lojas</SelectItem>
+                      {wallets.map((w) => (
+                        <SelectItem key={w.tenant_id} value={w.tenant_id}>
+                          {w.tenants?.name || w.tenant_id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Filtro por Gateway */}
+                  {availableProviders.length > 0 && (
+                    <Select value={auditProviderFilter} onValueChange={setAuditProviderFilter}>
+                      <SelectTrigger className="h-9 w-[140px] text-xs border-slate-800 bg-[#070b14] text-slate-200">
+                        <SelectValue placeholder="Gateway" />
+                      </SelectTrigger>
+                      <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
+                        <SelectItem value="all">Todos Gateways</SelectItem>
+                        {availableProviders.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-12 text-center text-slate-400">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-emerald-400 opacity-60" />
+                  <p className="text-sm">Carregando auditoria de vendas...</p>
+                </div>
+              ) : filteredAuditSales.length === 0 && auditDeposits.length === 0 ? (
+                <div className="p-12 text-center text-slate-400">
+                  <Receipt className="h-12 w-12 mx-auto mb-3 opacity-20 text-slate-500" />
+                  <p className="text-base font-semibold text-white">Nenhuma venda auditada encontrada</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Assim que os clientes realizarem compras pelo bot ou checkout, os comprovantes de entrada de dinheiro aparecerão listados aqui em tempo real.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
+                      <tr>
+                        <th className="py-3 px-4">Data / Hora</th>
+                        <th className="py-3 px-4">Loja / Vendedor</th>
+                        <th className="py-3 px-4">Produto & Pedido</th>
+                        <th className="py-3 px-4">Comprador Discord</th>
+                        <th className="py-3 px-4 text-right">Entrada Bruta</th>
+                        <th className="py-3 px-4 text-right">Taxa (2%)</th>
+                        <th className="py-3 px-4 text-right">Líquido Loja</th>
+                        <th className="py-3 px-4 text-center">Gateway</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-right">Auditoria</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40">
+                      {filteredAuditSales.map((sale) => {
+                        const feeCents = Math.round(sale.total_cents * 0.02);
+                        const netCents = sale.total_cents - feeCents;
+
+                        return (
+                          <tr key={sale.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="py-3.5 px-4 font-mono text-xs text-slate-300 whitespace-nowrap">
+                              {sale.created_at
+                                ? format(parseISO(sale.created_at), "dd/MM/yy HH:mm", { locale: ptBR })
+                                : "—"}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-xs text-white">
+                                {sale.tenants?.name || "Loja Desconhecida"}
+                              </div>
+                              <span className="text-[10px] text-slate-500 uppercase">
+                                {sale.tenants?.plan || "Plano Ativo"}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-xs text-slate-200">
+                                {sale.product_name || "Produto Digital"}
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                                <Hash className="h-3 w-3 text-slate-500" />
+                                {sale.order_number ? `Pedido #${sale.order_number}` : sale.id.slice(0, 8)}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-mono text-xs text-blue-300">
+                                {sale.discord_username ? `@${sale.discord_username}` : "Discord User"}
+                              </div>
+                              {sale.discord_user_id && (
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  ID: {sale.discord_user_id}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-extrabold text-xs text-emerald-400 font-mono whitespace-nowrap">
+                              +{formatBRL(sale.total_cents)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-semibold text-xs text-purple-400 font-mono whitespace-nowrap">
+                              +{formatBRL(feeCents)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-xs text-slate-300 font-mono whitespace-nowrap">
+                              {formatBRL(netCents)}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 bg-slate-900/60 text-slate-300">
+                                {sale.payment_provider || "PIX Global"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase gap-1 font-semibold">
+                                <CheckCircle2 className="h-3 w-3" />
+                                {sale.status === "delivered" ? "Entregue" : "Pago"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAuditSale(sale);
+                                  setAuditModalOpen(true);
+                                }}
+                                className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
+                              >
+                                <FileText className="h-3.5 w-3.5 text-blue-400" />
+                                Comprovante
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* ─── 5. Modal: Aprovar Saque ─── */}
@@ -1310,6 +1674,184 @@ export default function AdminWalletPage() {
                 </Button>
               </DialogFooter>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 8. Modal: Detalhes & Comprovante de Auditoria da Venda ─── */}
+      <Dialog open={auditModalOpen} onOpenChange={setAuditModalOpen}>
+        <DialogContent className="sm:max-w-lg border-slate-800 bg-[#0a0f1d] text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
+              <Receipt className="h-5 w-5 text-emerald-400" />
+              Comprovante & Auditoria de Entrada
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Conferência contábil do pagamento e divisão (split) do saldo entre loja e plataforma.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAuditSale && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Status Header */}
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <span className="font-semibold text-white">Venda Confirmada & Auditada</span>
+                </div>
+                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-mono">
+                  {selectedAuditSale.payment_provider || "PIX"}
+                </Badge>
+              </div>
+
+              {/* Informações da Loja & Comprador */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1">
+                  <span className="text-[10px] uppercase text-slate-500 font-semibold block">Loja Vendedora</span>
+                  <p className="font-bold text-white text-xs truncate">
+                    {selectedAuditSale.tenants?.name || "Loja"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">
+                    ID: {selectedAuditSale.tenant_id}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1">
+                  <span className="text-[10px] uppercase text-slate-500 font-semibold block">Comprador Discord</span>
+                  <p className="font-bold text-blue-300 text-xs truncate font-mono">
+                    {selectedAuditSale.discord_username ? `@${selectedAuditSale.discord_username}` : "Usuário Discord"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">
+                    ID: {selectedAuditSale.discord_user_id || "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Detalhes do Pedido & Split Financeiro */}
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Produto:</span>
+                    <span className="font-bold text-white text-sm">
+                      {selectedAuditSale.product_name}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-400 block text-[11px]">Número do Pedido:</span>
+                    <span className="font-mono font-bold text-amber-400 text-xs">
+                      {selectedAuditSale.order_number ? `#${selectedAuditSale.order_number}` : selectedAuditSale.id.slice(0, 8)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Divisão do Dinheiro (Split) */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Entrada Bruta no Caixa:</span>
+                    <span className="font-mono font-extrabold text-emerald-400 text-sm">
+                      +{formatBRL(selectedAuditSale.total_cents)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Taxa Intermediação Plataforma (2%):</span>
+                    <span className="font-mono font-bold text-purple-400">
+                      +{formatBRL(Math.round(selectedAuditSale.total_cents * 0.02))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t border-slate-800/80 pt-1.5">
+                    <span className="font-semibold text-slate-200">Crédito Líquido na Carteira da Loja:</span>
+                    <span className="font-mono font-bold text-white">
+                      {formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.02))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados Técnicos de Pagamento */}
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2">
+                <span className="text-[10px] uppercase text-slate-500 font-semibold block">
+                  Identificadores Técnicos da Transação
+                </span>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">ID do Pedido:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-slate-200 max-w-[200px] truncate">{selectedAuditSale.id}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleCopyAuditText(selectedAuditSale.id, "order-id")}
+                        className="h-6 w-6 text-slate-400 hover:text-white"
+                        title="Copiar ID"
+                      >
+                        {copiedAuditId === "order-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {selectedAuditSale.payment_id && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">ID Gateway / Transação:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-slate-200 max-w-[200px] truncate">{selectedAuditSale.payment_id}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleCopyAuditText(selectedAuditSale.payment_id!, "pay-id")}
+                          className="h-6 w-6 text-slate-400 hover:text-white"
+                          title="Copiar ID do Pagamento"
+                        >
+                          {copiedAuditId === "pay-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Data e Hora do Registro:</span>
+                    <span className="font-mono text-slate-300">
+                      {selectedAuditSale.created_at
+                        ? format(parseISO(selectedAuditSale.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const report = `--- COMPROVANTE DE AUDITORIA ---
+Loja: ${selectedAuditSale.tenants?.name || "Loja"}
+Pedido: #${selectedAuditSale.order_number || selectedAuditSale.id.slice(0, 8)}
+Produto: ${selectedAuditSale.product_name}
+Cliente: @${selectedAuditSale.discord_username || "desconhecido"} (${selectedAuditSale.discord_user_id || "N/A"})
+Valor Bruto: ${formatBRL(selectedAuditSale.total_cents)}
+Taxa 2%: ${formatBRL(Math.round(selectedAuditSale.total_cents * 0.02))}
+Líquido Loja: ${formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.02))}
+Gateway: ${selectedAuditSale.payment_provider || "PIX"}
+ID Transação: ${selectedAuditSale.payment_id || selectedAuditSale.id}
+Data: ${selectedAuditSale.created_at}`;
+                    handleCopyAuditText(report, "full-report");
+                  }}
+                  className="border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs gap-1.5"
+                >
+                  {copiedAuditId === "full-report" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedAuditId === "full-report" ? "Relatório Copiado!" : "Copiar Relatório"}
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => setAuditModalOpen(false)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs"
+                >
+                  Concluir
+                </Button>
+              </DialogFooter>
+            </div>
           )}
         </DialogContent>
       </Dialog>

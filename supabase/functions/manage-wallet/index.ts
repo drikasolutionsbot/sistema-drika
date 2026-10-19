@@ -295,6 +295,114 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── 9. Admin: Audit Sales & Inflows ───
+    if (action === "admin_audit_sales") {
+      const { tenant_id, limit = 150 } = body;
+
+      // 1. Fetch paid/delivered orders (sales proof from bot & checkout)
+      let ordersQuery = supabase
+        .from("orders")
+        .select(`
+          id,
+          order_number,
+          tenant_id,
+          discord_username,
+          discord_user_id,
+          product_name,
+          total_cents,
+          status,
+          payment_provider,
+          payment_id,
+          created_at,
+          updated_at,
+          tenants (
+            id,
+            name,
+            logo_url,
+            plan
+          )
+        `)
+        .in("status", ["paid", "delivering", "delivered"])
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (tenant_id && tenant_id !== "all") {
+        ordersQuery = ordersQuery.eq("tenant_id", tenant_id);
+      }
+
+      const { data: salesOrders, error: ordersErr } = await ordersQuery;
+      if (ordersErr) {
+        console.error("Error fetching sales orders:", ordersErr);
+      }
+
+      // 2. Fetch wallet deposits (money credited into store balances)
+      let depositsQuery = supabase
+        .from("wallet_transactions")
+        .select(`
+          id,
+          tenant_id,
+          type,
+          amount_cents,
+          fee_cents,
+          net_amount_cents,
+          description,
+          status,
+          payment_id,
+          created_at,
+          completed_at,
+          tenants (
+            id,
+            name,
+            logo_url,
+            plan
+          )
+        `)
+        .eq("type", "deposit")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (tenant_id && tenant_id !== "all") {
+        depositsQuery = depositsQuery.eq("tenant_id", tenant_id);
+      }
+
+      const { data: walletDeposits, error: depErr } = await depositsQuery;
+      if (depErr) {
+        console.error("Error fetching wallet deposits:", depErr);
+      }
+
+      // Calculate audit totals
+      let totalSalesCents = 0;
+      let totalSalesCount = 0;
+
+      for (const o of salesOrders || []) {
+        totalSalesCents += o.total_cents || 0;
+        totalSalesCount += 1;
+      }
+
+      // If no orders yet but wallet has deposits
+      if (totalSalesCents === 0 && (walletDeposits || []).length > 0) {
+        for (const d of walletDeposits || []) {
+          totalSalesCents += d.amount_cents || 0;
+          totalSalesCount += 1;
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          sales: salesOrders || [],
+          deposits: walletDeposits || [],
+          summary: {
+            total_sales_cents: totalSalesCents,
+            total_sales_count: totalSalesCount,
+            total_platform_fees_cents: Math.round(totalSalesCents * 0.02),
+            average_ticket_cents: totalSalesCount > 0 ? Math.round(totalSalesCents / totalSalesCount) : 0,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(JSON.stringify({ error: "Ação não reconhecida" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
