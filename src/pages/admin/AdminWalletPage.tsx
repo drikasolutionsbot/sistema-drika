@@ -488,9 +488,10 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      const refundedCents = data?.refunded_cents || selectedTx.amount_cents;
       toast({
         title: "Saque rejeitado!",
-        description: "O valor bruto foi devolvido ao saldo disponível da loja.",
+        description: `O valor de ${formatBRL(refundedCents)} foi devolvido ao saldo disponível da loja.`,
       });
 
       setRejectModalOpen(false);

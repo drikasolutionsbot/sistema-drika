@@ -478,7 +478,15 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify(res), {
+      // RPC returns { success, error, refunded_cents, ... }
+      if (res && !res.success) {
+        return new Response(JSON.stringify({ error: res.error || "Erro ao rejeitar saque" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ ...res, success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
