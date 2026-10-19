@@ -3605,19 +3605,76 @@ async function generatePixInThread(
     preferredKey = (prod as any)?.payment_provider_key || null;
   }
 
-  // Check for active payment provider
-  const { data: providers } = await supabase
-    .from("payment_providers")
-    .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
-    .eq("tenant_id", tenantId)
-    .eq("active", true);
+  // Check if platform Split / Central Wallet mode is enabled
+  const { data: splitRow } = await supabase
+    .from("platform_gateway_settings")
+    .select("enabled")
+    .eq("gateway_key", "system_split_wallet")
+    .maybeSingle();
+
+  const isSplitActive = splitRow ? splitRow.enabled : true;
 
   let activeProvider: any = null;
-  if (preferredKey) {
-    activeProvider = providers?.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+
+  if (isSplitActive) {
+    // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
+    const { data: lc } = await supabase
+      .from("landing_config")
+      .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key, coldpayments_active, coldpayments_api_key")
+      .limit(1)
+      .maybeSingle();
+
+    if (lc) {
+      if (lc.efi_active && lc.efi_client_id) {
+        activeProvider = {
+          provider_key: "efi",
+          api_key_encrypted: lc.efi_client_id,
+          secret_key_encrypted: lc.efi_client_secret,
+          efi_cert_pem: lc.efi_cert_pem,
+          efi_key_pem: lc.efi_key_pem,
+          efi_pix_key: lc.efi_pix_key,
+          is_central: true,
+          is_split: true,
+        };
+      } else if (lc.pushinpay_active && lc.pushinpay_api_key) {
+        activeProvider = {
+          provider_key: "pushinpay",
+          api_key_encrypted: lc.pushinpay_api_key,
+          is_central: true,
+          is_split: true,
+        };
+      } else if (lc.abacatepay_active && lc.abacatepay_api_key) {
+        activeProvider = {
+          provider_key: "abacatepay",
+          api_key_encrypted: lc.abacatepay_api_key,
+          is_central: true,
+          is_split: true,
+        };
+      } else if ((lc as any).coldpayments_active && (lc as any).coldpayments_api_key) {
+        activeProvider = {
+          provider_key: "coldpayments",
+          api_key_encrypted: (lc as any).coldpayments_api_key,
+          is_central: true,
+          is_split: true,
+        };
+      }
+    }
   }
+
   if (!activeProvider) {
-    activeProvider = providers?.find((p: any) => p.api_key_encrypted) || null;
+    // Check for active tenant individual payment provider
+    const { data: providers } = await supabase
+      .from("payment_providers")
+      .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
+      .eq("tenant_id", tenantId)
+      .eq("active", true);
+
+    if (preferredKey) {
+      activeProvider = providers?.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+    }
+    if (!activeProvider) {
+      activeProvider = providers?.find((p: any) => p.api_key_encrypted) || null;
+    }
   }
   const amountBRL = priceCents / 100;
   const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
@@ -3641,9 +3698,8 @@ async function generatePixInThread(
 
   if (activeProvider && amountBRL > 0) {
     const providerKey = activeProvider.provider_key;
-    const apiKey = activeProvider.api_key_encrypted;
-    const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenantId}`;
-    const externalRef = `order_${order.id}`;
+    const cleanOrderId = String(order.id).replace(/[^a-zA-Z0-9]/g, "");
+    const externalRef = `order_${cleanOrderId}`.slice(0, 32);
 
     if (providerKey === "stripe") {
       const stripeRes = await fetch(`${supabaseUrl}/functions/v1/stripe-create-checkout`, {
@@ -3721,7 +3777,23 @@ async function generatePixInThread(
     // Log: Pedido solicitado (gateway)
     await sendPixGeneratedLog(supabase, botToken, order, providerKey);
   } else {
-    // Static PIX fallback
+    // If Split mode is active, never allow static PIX
+    if (isSplitActive) {
+      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "❌ Gateway Central Indisponível",
+            description: "O modo Split da plataforma está ativo, mas o gateway central não pôde gerar o PIX. Contate o suporte.",
+            color: 0xED4245,
+          }],
+        }),
+      });
+      return;
+    }
+
+    // Static PIX fallback (only when split mode is INACTIVE)
     const { data: tenant } = await supabase.from("tenants").select("name, pix_key, pix_key_type").eq("id", tenantId).single();
     if (!tenant?.pix_key) {
       await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {

@@ -7,7 +7,7 @@ const {
   getProducts, getProductById, getProductFields, countStock, getAvailableStock,
   createOrder, getOrder, updateOrderStatus, deliverStockItems,
   getStoreConfig, getCoupon, incrementCouponUsage,
-  getActivePaymentProvider, triggerAutomation, deliverOrder, supabase, applyCdn
+  getActivePaymentProvider, isSplitWalletActive, triggerAutomation, deliverOrder, supabase, applyCdn
 } = require("../supabase");
 const { sendWithIdentity, editWithIdentity } = require("./webhookSender");
 const QRCode = require("qrcode");
@@ -727,8 +727,8 @@ async function goToPayment(interaction, tenant, orderId) {
   if (provider && amountBRL > 0) {
     const providerKey = provider.provider_key;
     const apiKey = provider.api_key_encrypted;
-    const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
-    const externalRef = `order_${order.id}`;
+    const cleanOrderId = String(order.id).replace(/[^a-zA-Z0-9]/g, "");
+    const externalRef = `order_${cleanOrderId}`.slice(0, 32);
 
     if (providerKey === "mercadopago") {
       const r = await generateMercadoPagoPix(apiKey, amountBRL, order.product_name, externalRef, webhookUrl);
@@ -749,13 +749,19 @@ async function goToPayment(interaction, tenant, orderId) {
 
     await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, pix_brcode: brcode });
 
-    const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
-      : providerKey === "efi" ? "Pix – Efi Bank"
-      : providerKey === "mercadopago" ? "Pix – Mercado Pago"
-      : providerKey === "misticpay" ? "Pix – Mistic Pay"
-      : providerKey === "coldpayments" ? "Pix – ColdPayments"
-      : providerKey === "abacatepay" ? "Pix – AbacatePay"
-      : `Pix – ${providerKey}`;
+    const provLabel = provider.is_central
+      ? (providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
+        : providerKey === "efi" ? "Pix – Efi Bank (Split)"
+        : providerKey === "abacatepay" ? "Pix – AbacatePay (Split)"
+        : providerKey === "coldpayments" ? "Pix – ColdPayments (Split)"
+        : `Pix – ${providerKey} (Split)`)
+      : (providerKey === "pushinpay" ? "Pix – PushinPay"
+        : providerKey === "efi" ? "Pix – Efi Bank"
+        : providerKey === "mercadopago" ? "Pix – Mercado Pago"
+        : providerKey === "misticpay" ? "Pix – Mistic Pay"
+        : providerKey === "coldpayments" ? "Pix – ColdPayments"
+        : providerKey === "abacatepay" ? "Pix – AbacatePay"
+        : `Pix – ${providerKey}`);
 
     await sendLog(interaction.guild, tenant, {
       title: "🆕 Pedido solicitado",
@@ -773,7 +779,20 @@ async function goToPayment(interaction, tenant, orderId) {
       labelTotal: "VALOR A PAGAR"
     });
   } else {
-    // Static PIX
+    // Check if platform Split mode is active: if active, never allow static PIX
+    const splitActive = await isSplitWalletActive();
+    if (splitActive) {
+      return sendWithIdentity(channel, tenant, {
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("<:close:1521192513048674505> Gateway Central Indisponível")
+            .setDescription("O modo Split da plataforma está ativo, mas o gateway central não pôde gerar o pagamento. Por favor, verifique as credenciais da Landing Page ou contate o suporte.")
+            .setColor(0xED4245)
+        ]
+      });
+    }
+
+    // Static PIX (only allowed when split mode is INACTIVE)
     if (!tenant.pix_key) {
       return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
     }

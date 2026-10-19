@@ -299,8 +299,24 @@ async function getTicketById(ticketId) {
   return data;
 }
 
+// ── Split Wallet Helper ──
+async function isSplitWalletActive() {
+  try {
+    const { data: splitRow } = await supabase
+      .from("platform_gateway_settings")
+      .select("enabled")
+      .eq("gateway_key", "system_split_wallet")
+      .maybeSingle();
+
+    return splitRow ? splitRow.enabled : true;
+  } catch (err) {
+    return true;
+  }
+}
+
 // ── Payment Providers ──
 async function getActivePaymentProvider(tenantId) {
+  let isSplitActive = true;
   try {
     // 1. Check if platform Split / Central Wallet mode is enabled
     const { data: splitRow } = await supabase
@@ -309,7 +325,7 @@ async function getActivePaymentProvider(tenantId) {
       .eq("gateway_key", "system_split_wallet")
       .maybeSingle();
 
-    const isSplitActive = splitRow ? splitRow.enabled : false;
+    isSplitActive = splitRow ? splitRow.enabled : true;
 
     if (isSplitActive) {
       // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
@@ -329,6 +345,7 @@ async function getActivePaymentProvider(tenantId) {
             efi_key_pem: lc.efi_key_pem,
             efi_pix_key: lc.efi_pix_key,
             is_central: true,
+            is_split: true,
           };
         }
         if (lc.pushinpay_active && lc.pushinpay_api_key) {
@@ -336,6 +353,7 @@ async function getActivePaymentProvider(tenantId) {
             provider_key: "pushinpay",
             api_key_encrypted: lc.pushinpay_api_key,
             is_central: true,
+            is_split: true,
           };
         }
         if (lc.abacatepay_active && lc.abacatepay_api_key) {
@@ -343,6 +361,7 @@ async function getActivePaymentProvider(tenantId) {
             provider_key: "abacatepay",
             api_key_encrypted: lc.abacatepay_api_key,
             is_central: true,
+            is_split: true,
           };
         }
         if (lc.coldpayments_active && lc.coldpayments_api_key) {
@@ -350,15 +369,18 @@ async function getActivePaymentProvider(tenantId) {
             provider_key: "coldpayments",
             api_key_encrypted: lc.coldpayments_api_key,
             is_central: true,
+            is_split: true,
           };
         }
       }
+      console.warn("[getActivePaymentProvider] Split mode is active but central gateway not found in landing_config");
+      return null;
     }
   } catch (err) {
     console.error("Error checking split wallet mode in getActivePaymentProvider:", err);
   }
 
-  // 2. Split mode is INACTIVE (or fallback): Operate with tenant's individual gateways avulsas
+  // 2. Split mode is INACTIVE: Operate with tenant's individual gateways avulsas
   const { data: gwSettings } = await supabase
     .from("platform_gateway_settings")
     .select("gateway_key, enabled")
@@ -370,10 +392,8 @@ async function getActivePaymentProvider(tenantId) {
     .select("*")
     .eq("tenant_id", tenantId)
     .eq("active", true);
-  if (!data) return null;
 
-  // Exclude gateways disabled at platform level
-  const allowed = data.filter((p) => !disabledKeys.has(p.provider_key));
+  const allowed = (data || []).filter((p) => !disabledKeys.has(p.provider_key));
   return allowed.find((p) => p.api_key_encrypted) || null;
 }
 
@@ -443,6 +463,7 @@ module.exports = {
   getTicketByChannel,
   getTicketById,
   getActivePaymentProvider,
+  isSplitWalletActive,
   triggerAutomation,
   deliverOrder,
   getGlobalBotConfig,

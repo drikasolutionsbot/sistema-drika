@@ -156,7 +156,7 @@ const PaymentsPage = () => {
   });
 
   // Check if Platform Split & Central Wallet Mode is active
-  const isSplitWalletMode = platformGwSettings.find(s => s.key === "system_split_wallet")?.enabled ?? false;
+  const isSplitWalletMode = platformGwSettings.find(s => s.key === "system_split_wallet")?.enabled ?? true;
 
   // Filter providers by platform visibility settings
   const providers = allProviders.filter(p => {

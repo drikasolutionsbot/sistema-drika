@@ -192,7 +192,13 @@ async function generateViaEfi(
   const accessToken = tokenData.access_token;
 
   // Step 2: Create immediate charge (cob)
-  const safeTxId = txId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 30) || crypto.randomUUID().replace(/-/g, "").slice(0, 30);
+  let cleanTx = (txId || "").replace(/[^a-zA-Z0-9]/g, "");
+  if (cleanTx.length < 26) {
+    cleanTx = (cleanTx + crypto.randomUUID().replace(/-/g, "")).slice(0, 30);
+  } else {
+    cleanTx = cleanTx.slice(0, 35);
+  }
+  const safeTxId = cleanTx;
   const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${safeTxId}`, {
     method: "PUT",
     headers: {
@@ -398,7 +404,7 @@ serve(async (req) => {
       .select("gateway_key, enabled");
 
     const splitSetting = (gwSettings || []).find((g: any) => g.gateway_key === "system_split_wallet");
-    const isSplitActive = splitSetting ? splitSetting.enabled : false;
+    const isSplitActive = splitSetting ? splitSetting.enabled : true;
 
     const disabledGateways = new Set(
       (gwSettings || []).filter((g: any) => !g.enabled && g.gateway_key !== "system_split_wallet").map((g: any) => g.gateway_key)
@@ -532,7 +538,11 @@ serve(async (req) => {
       );
     }
 
-    // 3. Fallback: static PIX using tenant's pix_key
+    // 3. Fallback: static PIX using tenant's pix_key (only if split mode is INACTIVE)
+    if (isSplitActive) {
+      throw new Error("Modo Split ativo, mas o gateway central da plataforma não pôde gerar o PIX dinâmico. Verifique as credenciais da Landing Page.");
+    }
+
     const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
       .select("name, pix_key, pix_key_type")
