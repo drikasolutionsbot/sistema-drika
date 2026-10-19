@@ -28,7 +28,8 @@ const GATEWAY_ICONS: Record<string, { bg: string; text: string }> = {
   efi:         { bg: "bg-emerald-500/15",text: "text-emerald-400" },
   misticpay:   { bg: "bg-purple-500/15", text: "text-purple-400" },
   abacatepay:  { bg: "bg-lime-500/15",   text: "text-lime-400" },
-  lofypay:     { bg: "bg-cyan-500/15",   text: "text-cyan-400" },
+  lofypay:      { bg: "bg-cyan-500/15",   text: "text-cyan-400" },
+  coldpayments: { bg: "bg-sky-500/15",   text: "text-sky-400" },
 };
 
 async function invokeGateway(action: string, payload?: object) {

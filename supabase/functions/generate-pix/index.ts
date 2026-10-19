@@ -296,7 +296,45 @@ async function generateViaAbacatePay(
   };
 }
 
-// ─── Gateway: MisticPay ───────────────────────────────────────────
+// ─── Gateway: ColdPayments ────────────────────────────────────────
+async function generateViaColdPayments(
+  apiKey: string,
+  amountCents: number,
+  description: string,
+  externalRef: string,
+  webhookUrl: string
+): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string }> {
+  const res = await fetch("https://coldpayments.com/api/v1/payments", {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amountCents,
+      description: description.substring(0, 140),
+      externalId: externalRef,
+      webhookUrl: webhookUrl || undefined,
+      method: "pix",
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `ColdPayments error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  // ColdPayments returns brcode/pixCode + id + expiresAt
+  return {
+    brcode: data.brcode || data.pixCode || data.qrCode || "",
+    qr_code_base64: data.qrCodeBase64 || data.qr_code_base64 || undefined,
+    payment_id: String(data.id || externalRef),
+    expires_at: data.expiresAt || undefined,
+  };
+}
+
+// ─── Gateway: MisticPay ────────────────────────────────────────────────────
 async function generateViaMisticPay(
   clientId: string,
   clientSecret: string,
@@ -368,7 +406,7 @@ serve(async (req) => {
     if (isSplitActive) {
       const { data: lc } = await supabase
         .from("landing_config")
-        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
+        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key, coldpayments_active, coldpayments_api_key")
         .limit(1)
         .maybeSingle();
 
@@ -393,6 +431,12 @@ serve(async (req) => {
           activeProvider = {
             provider_key: "abacatepay",
             api_key_encrypted: lc.abacatepay_api_key,
+            is_central: true,
+          };
+        } else if ((lc as any).coldpayments_active && (lc as any).coldpayments_api_key) {
+          activeProvider = {
+            provider_key: "coldpayments",
+            api_key_encrypted: (lc as any).coldpayments_api_key,
             is_central: true,
           };
         }
@@ -461,6 +505,9 @@ serve(async (req) => {
           break;
         case "abacatepay":
           result = await generateViaAbacatePay(apiKey, amount_cents, description, externalRef);
+          break;
+        case "coldpayments":
+          result = await generateViaColdPayments(apiKey, amount_cents, description, externalRef, webhookUrl);
           break;
         default:
           throw new Error(`Provider ${providerKey} não suporta PIX dinâmico`);

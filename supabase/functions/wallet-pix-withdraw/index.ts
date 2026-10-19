@@ -191,6 +191,39 @@ async function withdrawViaMisticPay(opts: {
   };
 }
 
+// ─── ColdPayments — POST /withdrawals ──────────────────────────────
+async function withdrawViaColdPayments(opts: {
+  apiKey: string;
+  destinationKey: string;
+  destinationKeyType: string;
+  amountCents: number;
+  description?: string;
+}): Promise<{ payment_id: string; status: string }> {
+  const res = await fetch("https://coldpayments.com/api/v1/withdrawals", {
+    method: "POST",
+    headers: {
+      "X-API-Key": opts.apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amountCents: opts.amountCents,
+      pixKey: opts.destinationKey,
+      pixKeyType: opts.destinationKeyType,
+      description: (opts.description || "Saque carteira").substring(0, 140),
+    }),
+  });
+  const text = await res.text();
+  let data: any = {};
+  try { data = JSON.parse(text); } catch { /* keep raw */ }
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || `ColdPayments ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return {
+    payment_id: String(data.id || data.withdrawalId || crypto.randomUUID()),
+    status: data.status || "processing",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -207,14 +240,53 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     // Load gateway config
-    const { data: provider, error: provErr } = await supabase
+    let { data: provider, error: provErr } = await supabase
       .from("payment_providers")
       .select("provider_key, api_key_encrypted, secret_key_encrypted, active, pix_out_enabled, efi_cert_pem, efi_key_pem, efi_pix_key")
       .eq("tenant_id", tenant_id)
       .eq("provider_key", provider_key)
       .maybeSingle();
 
-    if (provErr || !provider) {
+    // Fallback: if provider not configured per-tenant, check central platform gateway in landing_config
+    if (!provider) {
+      if (provider_key === "coldpayments") {
+        const { data: lc } = await supabase
+          .from("landing_config")
+          .select("coldpayments_active, coldpayments_api_key")
+          .limit(1)
+          .maybeSingle();
+        if (lc?.coldpayments_active && lc?.coldpayments_api_key) {
+          provider = {
+            provider_key: "coldpayments",
+            api_key_encrypted: lc.coldpayments_api_key,
+            active: true,
+            pix_out_enabled: true,
+            is_central: true,
+          } as any;
+        }
+      } else if (provider_key === "efi") {
+        const { data: lc } = await supabase
+          .from("landing_config")
+          .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key")
+          .limit(1)
+          .maybeSingle();
+        if (lc?.efi_active && lc?.efi_client_id) {
+          provider = {
+            provider_key: "efi",
+            api_key_encrypted: lc.efi_client_id,
+            secret_key_encrypted: lc.efi_client_secret,
+            efi_cert_pem: lc.efi_cert_pem,
+            efi_key_pem: lc.efi_key_pem,
+            efi_pix_key: lc.efi_pix_key,
+            active: true,
+            pix_out_enabled: true,
+            is_central: true,
+          } as any;
+        }
+      }
+    }
+
+    if (!provider) {
       return new Response(JSON.stringify({ error: "gateway_not_found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -285,6 +357,17 @@ Deno.serve(async (req) => {
         result = await withdrawViaMisticPay({
           clientId: provider.api_key_encrypted,
           clientSecret: provider.secret_key_encrypted,
+          destinationKey: pix_key,
+          destinationKeyType: keyType,
+          amountCents: amount_cents,
+          description,
+        });
+      } else if (provider_key === "coldpayments") {
+        if (!provider.api_key_encrypted) {
+          throw new Error("ColdPayments API Key não configurada");
+        }
+        result = await withdrawViaColdPayments({
+          apiKey: provider.api_key_encrypted,
           destinationKey: pix_key,
           destinationKeyType: keyType,
           amountCents: amount_cents,
