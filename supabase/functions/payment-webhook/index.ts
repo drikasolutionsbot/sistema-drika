@@ -595,7 +595,28 @@ serve(async (req) => {
 
       if (orderId) {
         try {
-          // Call deliver-order function
+          // --- Resolve the REAL tenant_id from the order ---
+          // When the webhook arrives at /coldpayments/central, tenantId is "central" (not a UUID).
+          // We must always use the tenant_id stored in the order row.
+          const { data: paidOrder } = await supabase
+            .from("orders")
+            .select("id, tenant_id, order_number, product_name, discord_user_id, discord_username, total_cents")
+            .eq("id", orderId)
+            .single();
+
+          // Determine effective tenant: prefer order.tenant_id, fallback to tenantId only if it looks like a UUID
+          const isCentralRoute = tenantId === "central" || tenantId === "platform";
+          const effectiveTenantId: string | null =
+            paidOrder?.tenant_id ||
+            (!isCentralRoute ? tenantId : null);
+
+          if (!effectiveTenantId) {
+            console.error(`[Webhook] Cannot resolve tenant_id for order ${orderId}. tenantId=${tenantId}`);
+          } else {
+            console.log(`[Webhook] Resolved effectiveTenantId=${effectiveTenantId} for order ${orderId}`);
+          }
+
+          // Call deliver-order function with the real tenant_id
           const deliverRes = await fetch(
             `${supabaseUrl}/functions/v1/deliver-order`,
             {
@@ -606,43 +627,49 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 order_id: orderId,
-                tenant_id: tenantId,
+                tenant_id: effectiveTenantId,
               }),
             }
           );
           const deliverResult = await deliverRes.json();
           console.log("Auto-delivery result:", JSON.stringify(deliverResult));
 
-          // Trigger order_paid automations
-          try {
-            const { data: paidOrder } = await supabase
-              .from("orders")
-              .select("order_number, product_name, discord_user_id, discord_username, total_cents")
-              .eq("id", orderId)
-              .single();
+          if (paidOrder && effectiveTenantId) {
+            // Credit tenant wallet for the sale (1% fee deducted, 99% net credited)
+            try {
+              if (paidOrder.total_cents && paidOrder.total_cents > 0) {
+                const feeCents = Math.round(paidOrder.total_cents * 0.01);
+                const netCents = paidOrder.total_cents - feeCents;
+                const desc = `Venda Pedido #${paidOrder.order_number || String(orderId).slice(0, 8)} - ${paidOrder.product_name || "Produto"}`;
 
-            if (paidOrder) {
-              // Credit tenant wallet for the sale
-              try {
-                if (paidOrder.total_cents && paidOrder.total_cents > 0) {
-                  const desc = `Venda Pedido #${paidOrder.order_number || String(orderId).slice(0, 8)} - ${paidOrder.product_name || "Produto"}`;
-                  await supabase.rpc("credit_order_to_wallet", {
-                    _tenant_id: tenantId,
-                    _order_id: String(orderId),
-                    _amount_cents: paidOrder.total_cents,
-                    _description: desc,
-                  });
-                  console.log(`[Wallet] Credited ${paidOrder.total_cents} cents to tenant ${tenantId} for order ${orderId}`);
-                }
-              } catch (walletErr) {
-                console.error("[Wallet] Failed to credit wallet for order:", walletErr);
+                const walletResult = await supabase.rpc("credit_order_to_wallet", {
+                  _tenant_id: effectiveTenantId,
+                  _order_id: String(orderId),
+                  _amount_cents: paidOrder.total_cents,
+                  _description: desc,
+                });
+                console.log(`[Wallet] Credited: total=${paidOrder.total_cents}¢ fee=${feeCents}¢ net=${netCents}¢ to tenant=${effectiveTenantId} order=${orderId}`, walletResult);
+
+                // Persist commission and net amount on the order row for reporting
+                await supabase
+                  .from("orders")
+                  .update({
+                    commission_cents: feeCents,
+                    seller_received_cents: netCents,
+                  })
+                  .eq("id", orderId);
               }
+            } catch (walletErr) {
+              console.error("[Wallet] Failed to credit wallet for order:", walletErr);
+            }
 
+            // Trigger order_paid automations
+            try {
               await fetch(`${supabaseUrl}/functions/v1/execute-automation`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
                 body: JSON.stringify({
-                  tenant_id: tenantId,
+                  tenant_id: effectiveTenantId,
                   trigger_type: "order_paid",
                   trigger_data: {
                     discord_user_id: paidOrder.discord_user_id,
@@ -655,9 +682,9 @@ serve(async (req) => {
                 }),
               });
               console.log("Automation order_paid triggered");
+            } catch (autoErr) {
+              console.error("Automation trigger failed:", autoErr);
             }
-          } catch (autoErr) {
-            console.error("Automation trigger failed:", autoErr);
           }
         } catch (deliverErr) {
           console.error("Auto-delivery failed:", deliverErr);
