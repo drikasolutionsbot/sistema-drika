@@ -478,7 +478,7 @@ export default function AdminWalletPage() {
   // ── Projected future platform fees from existing available balances
   const projectedFutureFeesCents = useMemo(() => {
     if (!metrics?.total_balance_cents) return 0;
-    return Math.round(metrics.total_balance_cents * 0.02);
+    return Math.round(metrics.total_balance_cents * 0.01);
   }, [metrics]);
 
   // Donut chart percentages
@@ -1535,7 +1535,7 @@ export default function AdminWalletPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-800/40">
                         {displayedAuditSales.map((sale) => {
-                          const feeCents = Math.round(sale.total_cents * 0.02);
+                          const feeCents = Math.round(sale.total_cents * 0.01);
                           const netCents = sale.total_cents - feeCents;
 
                           return (
@@ -1980,15 +1980,15 @@ export default function AdminWalletPage() {
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Taxa Intermediação Plataforma (2%):</span>
+                    <span className="text-slate-400">Taxa Intermediação Plataforma (1%):</span>
                     <span className="font-mono font-bold text-purple-400">
-                      +{formatBRL(Math.round(selectedAuditSale.total_cents * 0.02))}
+                      +{formatBRL(Math.round(selectedAuditSale.total_cents * 0.01))}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs border-t border-slate-800/80 pt-1.5">
                     <span className="font-semibold text-slate-200">Crédito Líquido na Carteira da Loja:</span>
                     <span className="font-mono font-bold text-white">
-                      {formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.02))}
+                      {formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.01))}
                     </span>
                   </div>
                 </div>
@@ -2057,8 +2057,8 @@ Pedido: #${selectedAuditSale.order_number || selectedAuditSale.id.slice(0, 8)}
 Produto: ${selectedAuditSale.product_name}
 Cliente: @${selectedAuditSale.discord_username || "desconhecido"} (${selectedAuditSale.discord_user_id || "N/A"})
 Valor Bruto: ${formatBRL(selectedAuditSale.total_cents)}
-Taxa 2%: ${formatBRL(Math.round(selectedAuditSale.total_cents * 0.02))}
-Líquido Loja: ${formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.02))}
+Taxa 1%: ${formatBRL(Math.round(selectedAuditSale.total_cents * 0.01))}
+Líquido Loja: ${formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.01))}
 Gateway: ${selectedAuditSale.payment_provider || "PIX"}
 ID Transação: ${selectedAuditSale.payment_id || selectedAuditSale.id}
 Data: ${selectedAuditSale.created_at}`;

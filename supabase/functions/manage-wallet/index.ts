@@ -450,7 +450,7 @@ Deno.serve(async (req) => {
           summary: {
             total_sales_cents: totalSalesCents,
             total_sales_count: totalSalesCount,
-            total_platform_fees_cents: Math.round(totalSalesCents * 0.02),
+            total_platform_fees_cents: Math.round(totalSalesCents * 0.01),
             average_ticket_cents: totalSalesCount > 0 ? Math.round(totalSalesCents / totalSalesCount) : 0,
           },
         }),

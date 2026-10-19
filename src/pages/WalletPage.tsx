@@ -300,7 +300,7 @@ export default function WalletPage() {
 
   const platformFeeCents = useMemo(() => {
     if (parsedAmountCents <= 0) return 0;
-    return Math.round(parsedAmountCents * 0.02); // 2%
+    return Math.round(parsedAmountCents * 0.01); // 1%
   }, [parsedAmountCents]);
 
   const netWithdrawCents = useMemo(() => {
@@ -311,16 +311,16 @@ export default function WalletPage() {
   const effectivePixKey = useCustomKey || !tenant?.pix_key ? modalPixKey : tenant.pix_key;
   const effectivePixKeyType = useCustomKey || !tenant?.pix_key ? modalPixKeyType : (tenant.pix_key_type || "cpf");
 
-  const isAmountValid = parsedAmountCents >= 500 && parsedAmountCents <= availableBalanceCents;
+  const isAmountValid = parsedAmountCents > 0 && parsedAmountCents <= availableBalanceCents;
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId) return;
 
-    if (parsedAmountCents < 500) {
+    if (parsedAmountCents <= 0) {
       toast({
-        title: "Valor mínimo não atingido",
-        description: "O valor mínimo para solicitação de saque é de R$ 5,00.",
+        title: "Valor inválido",
+        description: "Informe um valor válido para solicitar o saque.",
         variant: "destructive",
       });
       return;
@@ -1233,7 +1233,7 @@ export default function WalletPage() {
               </div>
               <div className="text-right">
                 <span className="text-[11px] text-slate-400 block font-medium">Saque Mínimo:</span>
-                <span className="text-xs font-bold text-white">R$ 5,00</span>
+                <span className="text-xs font-bold text-emerald-400">Sem valor mínimo</span>
               </div>
             </div>
 
@@ -1365,14 +1365,14 @@ export default function WalletPage() {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span className="flex items-center gap-1">
-                    Taxa da Plataforma (2%):
+                    Taxa da Plataforma (1%):
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3 w-3 text-slate-500 cursor-pointer" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs">Taxa de intermediação de 2% retida pela plataforma</p>
+                          <p className="text-xs">Taxa de intermediação de 1% retida pela plataforma</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
