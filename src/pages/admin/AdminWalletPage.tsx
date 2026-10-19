@@ -237,11 +237,11 @@ export default function AdminWalletPage() {
   const [splitWalletEnabled, setSplitWalletEnabled] = useState(true);
   const [savingSplit, setSavingSplit] = useState(false);
 
-  // Approval Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<WithdrawalItem | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [processingAction, setProcessingAction] = useState(false);
+  const [gatewayErrorAlert, setGatewayErrorAlert] = useState<string | null>(null);
 
   // Rejection Modal
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -407,36 +407,55 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     });
   };
 
-  // Handle Approve
-  const handleApproveSubmit = async () => {
+  // Handle Approve (automated gateway PIX or manual)
+  const handleApproveSubmit = async (manual = false) => {
     if (!selectedTx) return;
     setProcessingAction(true);
+    setGatewayErrorAlert(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("manage-wallet", {
+      const res = await supabase.functions.invoke("manage-wallet", {
         body: {
           action: "admin_approve_withdrawal",
           tx_id: selectedTx.id,
           admin_notes: adminNotes.trim() || undefined,
+          manual_approval: manual,
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (res.error) {
+        let msg = res.error.message;
+        try {
+          const body = await res.error.context?.json();
+          if (body?.message) msg = body.message;
+          else if (body?.error) msg = body.error;
+        } catch { /* fallback */ }
+        throw new Error(msg);
+      }
+
+      if (res.data?.error) {
+        throw new Error(res.data.message || res.data.error);
+      }
 
       toast({
-        title: "Saque aprovado com sucesso!",
-        description: `O saque de ${formatBRL(selectedTx.net_amount_cents)} foi marcado como concluído.`,
+        title: manual ? "Saque aprovado manualmente!" : "Saque aprovado e PIX enviado!",
+        description: manual
+          ? `O saque de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi registrado como concluído.`
+          : `O PIX de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi transferido com sucesso pela ColdPayments.`,
       });
 
       setApproveModalOpen(false);
       setSelectedTx(null);
       setAdminNotes("");
+      setGatewayErrorAlert(null);
       loadData(true);
     } catch (err: any) {
+      console.error("Approve error:", err);
+      const msg = err.message || "Erro ao aprovar saque";
+      setGatewayErrorAlert(msg);
       toast({
         title: "Erro ao aprovar saque",
-        description: err.message,
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -2054,8 +2073,40 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                 </div>
               </div>
 
+              {/* Alerta de Erro na Gateway (se houver tentativa com erro) */}
+              {gatewayErrorAlert && (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-3.5 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-rose-300 text-xs">Falha no Disparo Automático via Gateway</p>
+                      <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">{gatewayErrorAlert}</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#070b14]/70 p-2.5 rounded-lg">
+                    <span className="text-[11px] text-slate-300">
+                      Caso já tenha realizado o PIX pelo seu banco, aprove manualmente:
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleApproveSubmit(true)}
+                      disabled={processingAction}
+                      className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 shadow-sm"
+                    >
+                      {processingAction ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      Aprovar Manualmente Agora
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Informação sobre transferência automática */}
-              {selectedTx.status === "pending" && (
+              {selectedTx.status === "pending" && !gatewayErrorAlert && (
                 <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-3 flex items-start gap-2.5">
                   <Zap className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-emerald-300 leading-relaxed">
@@ -2091,7 +2142,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                   Copiar Relatório Completo
                 </Button>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                   {selectedTx.status === "pending" ? (
                     <>
                       <Button
@@ -2108,7 +2159,17 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                       </Button>
                       <Button
                         type="button"
-                        onClick={handleApproveSubmit}
+                        variant="outline"
+                        onClick={() => handleApproveSubmit(true)}
+                        disabled={processingAction}
+                        title="Marca como aprovado e debita a carteira sem acionar a gateway (use se o PIX foi feito pelo banco)"
+                        className="text-xs border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                      >
+                        Aprovar Manualmente
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => handleApproveSubmit(false)}
                         disabled={processingAction}
                         className="text-xs gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-950/40"
                       >
@@ -2117,7 +2178,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                         ) : (
                           <CheckCircle2 className="h-4 w-4" />
                         )}
-                        Confirmar e Enviar PIX ({formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)})
+                        Enviar PIX Automático ({formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)})
                       </Button>
                     </>
                   ) : (

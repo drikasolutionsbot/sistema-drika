@@ -16,8 +16,9 @@ interface WithdrawBody {
   amount_cents: number;
   pix_key: string;
   pix_key_type?: "cpf" | "cnpj" | "email" | "telefone" | "aleatoria";
-  provider_key: string; // efi | misticpay
+  provider_key: string; // efi | misticpay | coldpayments
   description?: string;
+  existing_tx_id?: string;
 }
 
 function detectKeyType(key: string): string {
@@ -216,6 +217,9 @@ async function withdrawViaColdPayments(opts: {
   let data: any = {};
   try { data = JSON.parse(text); } catch { /* keep raw */ }
   if (!res.ok) {
+    if (res.status === 403 && (data?.message?.includes("withdrawals:write") || text?.includes("withdrawals:write") || data?.title?.includes("withdrawals:write"))) {
+      throw new Error("A chave de API da ColdPayments não possui a permissão de saque (escopo 'withdrawals:write'). Habilite essa permissão no painel da ColdPayments.");
+    }
     throw new Error(data?.message || data?.error || `ColdPayments ${res.status}: ${text.slice(0, 200)}`);
   }
   return {
@@ -315,22 +319,26 @@ Deno.serve(async (req) => {
       }
     } catch { /* non-blocking — gateway will reject if truly insufficient */ }
 
-    // Insert tx in 'processing' state (so it doesn't run twice)
+    // If existing_tx_id is provided, use it; otherwise insert tx in 'processing' state
     const keyType = body.pix_key_type || detectKeyType(pix_key);
-    const { data: tx, error: txErr } = await supabase
-      .from("wallet_transactions")
-      .insert({
-        tenant_id,
-        type: "withdrawal",
-        amount_cents,
-        description: description || "Saque PIX automático",
-        status: "pending",
-        pix_key,
-        provider: provider_key,
-      } as any)
-      .select("id")
-      .single();
-    if (txErr || !tx) throw new Error(txErr?.message || "tx_insert_failed");
+    let txId = body.existing_tx_id;
+    if (!txId) {
+      const { data: tx, error: txErr } = await supabase
+        .from("wallet_transactions")
+        .insert({
+          tenant_id,
+          type: "withdrawal",
+          amount_cents,
+          description: description || "Saque PIX automático",
+          status: "pending",
+          pix_key,
+          provider: provider_key,
+        } as any)
+        .select("id")
+        .single();
+      if (txErr || !tx) throw new Error(txErr?.message || "tx_insert_failed");
+      txId = tx.id;
+    }
 
     // Dispatch to gateway
     let result: { payment_id: string; status: string };
@@ -377,22 +385,24 @@ Deno.serve(async (req) => {
         throw new Error(`Provider ${provider_key} not supported for PIX OUT`);
       }
     } catch (gatewayErr: any) {
-      await supabase
-        .from("wallet_transactions")
-        .update({ status: "rejected", description: `Falhou: ${gatewayErr.message}`.slice(0, 250) })
-        .eq("id", tx.id);
+      if (!body.existing_tx_id && txId) {
+        await supabase
+          .from("wallet_transactions")
+          .update({ status: "rejected", description: `Falhou: ${gatewayErr.message}`.slice(0, 250) })
+          .eq("id", txId);
+      }
       return new Response(JSON.stringify({ error: "gateway_error", message: gatewayErr.message }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Save payment_id and mark transaction completed.
-    // We do NOT call debit_wallet_withdrawal anymore: the funds live at the gateway,
-    // not in `wallets.balance_cents`. We only track total_withdrawn_cents for history/UI.
-    await supabase
-      .from("wallet_transactions")
-      .update({ payment_id: result.payment_id, status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", tx.id);
+    if (txId) {
+      await supabase
+        .from("wallet_transactions")
+        .update({ payment_id: result.payment_id, status: "completed", completed_at: new Date().toISOString() })
+        .eq("id", txId);
+    }
 
     await supabase
       .from("wallets")
