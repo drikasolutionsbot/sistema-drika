@@ -514,7 +514,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
               <KeyRound className="mr-2 h-4 w-4 text-[#5865F2]" />
               Discord & Token
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings?tab=wallet")} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => navigate("/wallet")} className="cursor-pointer">
               <Wallet className="mr-2 h-4 w-4" />
               {t.topbar.wallet}
             </DropdownMenuItem>

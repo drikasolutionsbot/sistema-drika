@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Upload, Users, Crown, QrCode, Loader2, Copy, CheckCircle2, UserPlus, Sparkles, Zap, Shield, HelpCircle, ChevronDown, User, Bot, Palette, LayoutTemplate, Trash2, Database, HardDrive, Plug, Wallet } from "lucide-react";
 import PaymentsPage from "@/pages/PaymentsPage";
+import WalletPage from "@/pages/WalletPage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,8 +61,15 @@ const PIX_KEY_TYPES = [
 const SettingsPage = () => {
   const { tenant, tenantId, refetch: refetchTenant } = useTenant();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const currentTab = searchParams.get("tab") || "profile";
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "wallet") {
+      navigate("/wallet", { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   // PIX state with draft persistence
   const [savingPix, setSavingPix] = useState(false);
@@ -209,6 +217,9 @@ const SettingsPage = () => {
               <TabsTrigger value="gateways" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Plug className="h-4 w-4" /> Gateways
               </TabsTrigger>
+              <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Wallet className="h-4 w-4" /> Carteira
+              </TabsTrigger>
               <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Crown className="h-4 w-4" /> Plano
               </TabsTrigger>
@@ -217,6 +228,11 @@ const SettingsPage = () => {
               </TabsTrigger>
             </TabsList>
           </div>
+
+        {/* Wallet Tab */}
+        <TabsContent value="wallet">
+          <WalletPage />
+        </TabsContent>
 
         {/* Profile Tab */}
         <TabsContent value="profile">
