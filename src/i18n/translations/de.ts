@@ -9,6 +9,7 @@ export const de: TranslationKeys = {
     overview: "Übersicht",
     aiGenerator: "KI-Generator",
     finance: "Finanzen",
+    wallet: "Geldbörse",
     approvals: "Genehmigungen",
     server: "Server",
     resources: "Ressourcen",

@@ -63,6 +63,8 @@ import AdminGlobalMarketplacePage from "./pages/admin/AdminGlobalMarketplacePage
 import VerifiedMembersPage from "./pages/VerifiedMembersPage";
 import TranscriptPage from "./pages/TranscriptPage";
 import DmTemplatesPage from "./pages/DmTemplatesPage";
+import WalletPage from "./pages/WalletPage";
+import AdminWalletPage from "./pages/admin/AdminWalletPage";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +110,7 @@ const AppRoutes = () => (
     <Route element={<ProtectedRoute><AdminProvider><AdminLayout /></AdminProvider></ProtectedRoute>}>
       <Route path="/admin" element={<AdminDashboardPage />} />
       <Route path="/admin/pagamentos" element={<AdminPaymentsPage />} />
+      <Route path="/admin/carteira" element={<AdminWalletPage />} />
       <Route path="/admin/clientes" element={<AdminClientsPage />} />
       <Route path="/admin/suporte" element={<AdminSupportPage />} />
       <Route path="/admin/landing" element={<AdminLandingConfigPage />} />
@@ -134,6 +137,7 @@ const AppRoutes = () => (
       <Route path="/payments" element={<PaymentsPage />} />
       <Route path="/tickets" element={<TicketsPage />} />
       <Route path="/finance" element={<FinancePage />} />
+      <Route path="/wallet" element={<WalletPage />} />
       <Route path="/approvals" element={<ApprovalsPage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/customization" element={<CustomizationPage />} />

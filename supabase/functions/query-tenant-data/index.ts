@@ -21,6 +21,8 @@ const ALLOWED_TABLES = [
   "automation_logs",
   "webhook_logs",
   "tenant_audit_logs",
+  "wallets",
+  "wallet_transactions",
 ];
 
 Deno.serve(async (req) => {

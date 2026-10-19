@@ -520,6 +520,22 @@ serve(async (req) => {
               .single();
 
             if (paidOrder) {
+              // Credit tenant wallet for the sale
+              try {
+                if (paidOrder.total_cents && paidOrder.total_cents > 0) {
+                  const desc = `Venda Pedido #${paidOrder.order_number || String(orderId).slice(0, 8)} - ${paidOrder.product_name || "Produto"}`;
+                  await supabase.rpc("credit_order_to_wallet", {
+                    _tenant_id: tenantId,
+                    _order_id: String(orderId),
+                    _amount_cents: paidOrder.total_cents,
+                    _description: desc,
+                  });
+                  console.log(`[Wallet] Credited ${paidOrder.total_cents} cents to tenant ${tenantId} for order ${orderId}`);
+                }
+              } catch (walletErr) {
+                console.error("[Wallet] Failed to credit wallet for order:", walletErr);
+              }
+
               await fetch(`${supabaseUrl}/functions/v1/execute-automation`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },

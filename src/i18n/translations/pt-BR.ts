@@ -8,6 +8,7 @@ export const ptBR = {
     overview: "Visão Geral",
     aiGenerator: "Gerador IA",
     finance: "Finanças",
+    wallet: "Carteira",
     approvals: "Aprovações",
     server: "Servidor",
     resources: "Recursos",

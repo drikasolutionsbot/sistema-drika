@@ -6,7 +6,7 @@ import {
   LayoutDashboard, CreditCard, Users, LogOut, Headphones, Globe, Bell,
   Crown, UserPlus, Inbox, CheckCircle, BarChart3, ClipboardList, Shield,
   Menu, BookOpen, Store, GripVertical, Settings2, RotateCcw, Bot,
-  ChevronRight, Zap, MessageSquareHeart
+  ChevronRight, Zap, MessageSquareHeart, Wallet
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTheme } from "next-themes";
@@ -32,6 +32,7 @@ const DEFAULT_NAV_ITEMS: NavItem[] = [
   { label: "Feedbacks",          icon: MessageSquareHeart, path: "/admin/feedbacks",      section: "Principal" },
   { label: "Clientes",           icon: Users,           path: "/admin/clientes",          section: "Gestão" },
   { label: "Pagamentos",         icon: CreditCard,      path: "/admin/pagamentos",        section: "Gestão" },
+  { label: "Carteira & Saques",  icon: Wallet,          path: "/admin/carteira",          section: "Gestão" },
   { label: "Suporte",            icon: Headphones,      path: "/admin/suporte",           section: "Gestão" },
   { label: "Logs",               icon: ClipboardList,   path: "/admin/logs",              section: "Gestão" },
   { label: "Landing Page",       icon: Globe,           path: "/admin/landing",           section: "Config" },

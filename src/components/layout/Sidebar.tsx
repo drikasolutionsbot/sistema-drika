@@ -5,7 +5,7 @@ import {
   Store, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck, Sparkles, BookOpen,
   ShoppingBag, Gift, Users, HandMetal, LayoutTemplate, Mail,
-  ChevronUp, ChevronDown, GripVertical, Check,
+  ChevronUp, ChevronDown, GripVertical, Check, Wallet,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ const navLabelKeys: Record<string, keyof typeof import("@/i18n/translations/pt-B
   "/dashboard": "overview",
   "/ai-assistant": "aiGenerator",
   "/finance": "finance",
+  "/wallet": "wallet",
   "/approvals": "approvals",
   "/customization": "server",
   "/resources": "resources",
@@ -79,6 +80,7 @@ const defaultNavGroups: NavGroup[] = [
     key: "gerenciamento",
     items: [
       { label: "finance", icon: DollarSign, path: "/finance" },
+      { label: "wallet", icon: Wallet, path: "/wallet" },
       { label: "approvals", icon: ClipboardCheck, path: "/approvals" },
     ],
     reorderable: true,
@@ -125,6 +127,7 @@ const iconMap: Record<string, React.ElementType> = {
   "/dashboard": LayoutDashboard,
   "/ai-assistant": Sparkles,
   "/finance": DollarSign,
+  "/wallet": Wallet,
   "/approvals": ClipboardCheck,
   "/customization": Server,
   "/resources": Box,
