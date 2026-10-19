@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Crown, User, HardDrive, Plug, Database, Trash2 } from "lucide-react";
+import { Crown, User, HardDrive, Plug, Database, Trash2, Wallet } from "lucide-react";
 import PaymentsPage from "@/pages/PaymentsPage";
+import WalletPage from "@/pages/WalletPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -26,9 +27,6 @@ const SettingsPage = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (searchParams.get("tab") === "wallet") {
-      navigate("/wallet", { replace: true });
-    }
     if (searchParams.get("tab") === "pix") {
       navigate("/wallet?tab=pix", { replace: true });
     }
@@ -59,6 +57,9 @@ const SettingsPage = () => {
               <TabsTrigger value="gateways" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Plug className="h-4 w-4" /> Gateways
               </TabsTrigger>
+              <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                <Wallet className="h-4 w-4" /> Carteira
+              </TabsTrigger>
               <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Crown className="h-4 w-4" /> Plano
               </TabsTrigger>
@@ -78,10 +79,14 @@ const SettingsPage = () => {
           <SettingsDiscordProfileTab tenant={tenant} tenantId={tenantId} />
         </TabsContent>
 
-
         {/* Gateways Tab — Configuração de gateways do CLIENTE (payment_providers do tenant) */}
         <TabsContent value="gateways">
           <PaymentsPage />
+        </TabsContent>
+
+        {/* Carteira Tab */}
+        <TabsContent value="wallet">
+          <WalletPage />
         </TabsContent>
 
         {/* Plan Tab */}
