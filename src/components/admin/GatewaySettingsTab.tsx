@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Plug, Eye, EyeOff, ShieldOff, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Plug, Eye, EyeOff, ShieldOff, ShieldCheck, Wallet, Sparkles, CheckCircle2, XCircle, ArrowRightLeft } from "lucide-react";
 
 interface GatewaySetting {
   key: string;
@@ -42,8 +42,10 @@ async function invokeGateway(action: string, payload?: object) {
 
 export default function GatewaySettingsTab() {
   const [gateways, setGateways] = useState<GatewaySetting[]>([]);
+  const [splitWalletEnabled, setSplitWalletEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [savingSplit, setSavingSplit] = useState(false);
 
   // Confirmation dialog
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -54,8 +56,14 @@ export default function GatewaySettingsTab() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await invokeGateway("list");
+      const [data, splitRes] = await Promise.all([
+        invokeGateway("list"),
+        invokeGateway("get_split_mode"),
+      ]);
       setGateways(data || []);
+      if (splitRes && typeof splitRes.enabled === "boolean") {
+        setSplitWalletEnabled(splitRes.enabled);
+      }
     } catch (e: any) {
       toast({ title: "Erro", description: e.message, variant: "destructive" });
     } finally {
@@ -64,6 +72,24 @@ export default function GatewaySettingsTab() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleToggleSplit = async (newVal: boolean) => {
+    setSavingSplit(true);
+    try {
+      await invokeGateway("set_split_mode", { enabled: newVal });
+      setSplitWalletEnabled(newVal);
+      toast({
+        title: newVal ? "Modo Split & Carteira ATIVADO" : "Modo Split DESATIVADO",
+        description: newVal
+          ? "O Bot Externo e o Checkout agora operam exclusivamente com a Gateway Central da Plataforma. Vendas caem na Carteira."
+          : "O Bot Externo agora opera com as gateways avulsas configuradas pelos lojistas.",
+      });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar modo split", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingSplit(false);
+    }
+  };
 
   const requestChange = (key: string, label: string, field: "enabled" | "visible", value: boolean) => {
     // Disabling requires confirmation
@@ -113,13 +139,75 @@ export default function GatewaySettingsTab() {
 
   return (
     <>
+      {/* ─── CARD MESTRE: SISTEMA DE CARTEIRA & SPLIT ─── */}
+      <div className={`relative overflow-hidden rounded-2xl border p-5 sm:p-6 mb-6 shadow-xl transition-all duration-300 ${
+        splitWalletEnabled
+          ? "border-emerald-500/40 bg-gradient-to-br from-emerald-950/60 via-[#0d1726] to-[#070b14]"
+          : "border-slate-800 bg-gradient-to-br from-slate-900/60 via-[#0d1726] to-[#070b14]"
+      }`}>
+        <div className="absolute -top-12 -right-12 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className={`text-[10px] font-bold uppercase tracking-wider ${
+                splitWalletEnabled
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                  : "bg-slate-800 text-slate-400 border-slate-700"
+              }`}>
+                <Wallet className="h-3 w-3 mr-1" />
+                {splitWalletEnabled ? "Modo Split & Carteira: ATIVO" : "Modo Split: DESATIVADO"}
+              </Badge>
+              <span className="text-xs text-slate-400 flex items-center gap-1">
+                <ArrowRightLeft className="h-3.5 w-3.5 text-slate-500" />
+                Controle do Bot Externo & Checkout
+              </span>
+            </div>
+
+            <h3 className="text-lg sm:text-xl font-extrabold text-white">
+              Sistema de Split & Carteira Geral da Plataforma
+            </h3>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              {splitWalletEnabled ? (
+                <>
+                  <strong className="text-emerald-400">✅ ATIVADO (Operação Central):</strong> O Bot Externo e o Checkout operam exclusivamente com a <strong>Gateway Central da Plataforma</strong> (Drika Hub). O dinheiro das vendas entra na conta da plataforma e é creditado na <strong>Carteira do Lojista</strong> para saque via PIX (com taxa fixa de 2%). As gateways avulsas abaixo ficam em segundo plano.
+                </>
+              ) : (
+                <>
+                  <strong className="text-amber-400">⚪ DESATIVADO (Gateways Avulsas):</strong> O Bot Externo e o Checkout operam com as <strong>gateways próprias (avulsas)</strong> configuradas por cada lojista (Mercado Pago, PushinPay, etc.), respeitando as opções ativadas e visíveis configuradas abaixo.
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start sm:items-end gap-2 shrink-0 pt-2 sm:pt-0">
+            <div className="flex items-center gap-3 bg-[#070b14]/80 border border-slate-800 p-2 px-3 rounded-xl">
+              <span className="text-xs font-semibold text-slate-300">
+                {splitWalletEnabled ? "Split Ativo" : "Split Desativado"}
+              </span>
+              <Switch
+                checked={splitWalletEnabled}
+                onCheckedChange={handleToggleSplit}
+                disabled={savingSplit}
+              />
+            </div>
+            <span className="text-[10px] text-slate-500 font-medium">
+              Altera instantaneamente no bot e na web
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Warning banner */}
       <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 mb-6">
         <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
         <div className="text-sm text-amber-300">
-          <p className="font-semibold">Controle global de gateways</p>
+          <p className="font-semibold">Controle individual de gateways avulsas</p>
           <p className="text-amber-300/80 mt-0.5">
-            Desativar uma gateway bloqueia seu uso em <strong>todos os clientes</strong> — nenhum PIX será gerado e webhooks serão ignorados. Ocultar apenas esconde a opção no painel do cliente.
+            {splitWalletEnabled
+              ? "Como o Modo Split está ATIVO, o bot e checkout usam a gateway central da Drika Hub. As opções abaixo definem a visibilidade no painel dos lojistas e valem para quando o split for desativado."
+              : "Desativar uma gateway bloqueia seu uso em todos os clientes — nenhum PIX será gerado e webhooks serão ignorados. Ocultar apenas esconde a opção no painel do cliente."}
           </p>
         </div>
       </div>

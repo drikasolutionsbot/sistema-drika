@@ -301,7 +301,57 @@ async function getTicketById(ticketId) {
 
 // ── Payment Providers ──
 async function getActivePaymentProvider(tenantId) {
-  // Fetch platform-level disabled gateways first
+  try {
+    // 1. Check if platform Split / Central Wallet mode is enabled
+    const { data: splitRow } = await supabase
+      .from("platform_gateway_settings")
+      .select("enabled")
+      .eq("gateway_key", "system_split_wallet")
+      .maybeSingle();
+
+    const isSplitActive = splitRow ? splitRow.enabled : false;
+
+    if (isSplitActive) {
+      // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
+      const { data: lc } = await supabase
+        .from("landing_config")
+        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
+        .limit(1)
+        .maybeSingle();
+
+      if (lc) {
+        if (lc.efi_active && lc.efi_client_id) {
+          return {
+            provider_key: "efi",
+            api_key_encrypted: lc.efi_client_id,
+            secret_key_encrypted: lc.efi_client_secret,
+            efi_cert_pem: lc.efi_cert_pem,
+            efi_key_pem: lc.efi_key_pem,
+            efi_pix_key: lc.efi_pix_key,
+            is_central: true,
+          };
+        }
+        if (lc.pushinpay_active && lc.pushinpay_api_key) {
+          return {
+            provider_key: "pushinpay",
+            api_key_encrypted: lc.pushinpay_api_key,
+            is_central: true,
+          };
+        }
+        if (lc.abacatepay_active && lc.abacatepay_api_key) {
+          return {
+            provider_key: "abacatepay",
+            api_key_encrypted: lc.abacatepay_api_key,
+            is_central: true,
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error checking split wallet mode in getActivePaymentProvider:", err);
+  }
+
+  // 2. Split mode is INACTIVE (or fallback): Operate with tenant's individual gateways avulsas
   const { data: gwSettings } = await supabase
     .from("platform_gateway_settings")
     .select("gateway_key, enabled")

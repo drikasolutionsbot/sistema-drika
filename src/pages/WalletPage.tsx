@@ -130,6 +130,7 @@ export default function WalletPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [transactionsVisibleCount, setTransactionsVisibleCount] = useState(10);
 
   // PIX Key configuration form state (aba Minha Chave PIX)
   const [pixInput, setPixInput] = useState(tenant?.pix_key || "");
@@ -420,6 +421,14 @@ export default function WalletPage() {
     });
   }, [transactions, typeFilter, statusFilter, search]);
 
+  // Displayed transactions (progressive pagination)
+  const displayedTransactions = useMemo(() => {
+    if (search.trim()) {
+      return filteredTransactions;
+    }
+    return filteredTransactions.slice(0, transactionsVisibleCount);
+  }, [filteredTransactions, search, transactionsVisibleCount]);
+
   // Display user / tenant name
   const accountHolderName = useMemo(() => {
     return (
@@ -438,7 +447,7 @@ export default function WalletPage() {
   }, [tenantId]);
 
   return (
-    <div className="space-y-6 p-4 md:p-8 max-w-7xl mx-auto text-slate-100">
+    <div className="space-y-6 p-1 sm:p-4 md:p-6 w-full max-w-7xl mx-auto text-slate-100">
       {/* ─── 1. Header estilo Fintech ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -793,7 +802,7 @@ export default function WalletPage() {
 
       {/* ─── 4. Abas: Extrato de Transações vs Minha Chave PIX ─── */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="bg-slate-900/60 p-1 border border-slate-800/80">
+        <TabsList className="bg-slate-900/60 p-1 border border-slate-800/80 flex flex-wrap h-auto gap-1 w-full justify-start">
           <TabsTrigger value="extrato" className="gap-2 text-xs data-[state=active]:bg-[#0a0f1d] data-[state=active]:text-white">
             <SlidersHorizontal className="h-4 w-4 text-pink-500" /> Extrato & Histórico
           </TabsTrigger>
@@ -878,7 +887,8 @@ export default function WalletPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                       <tr>
@@ -892,7 +902,7 @@ export default function WalletPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40">
-                      {filteredTransactions.map((tx) => {
+                      {displayedTransactions.map((tx) => {
                         const isDeposit = tx.type === "deposit";
                         const isWithdrawal = tx.type === "withdrawal";
                         const isAdjustment = tx.type === "adjustment";
@@ -987,7 +997,58 @@ export default function WalletPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
+
+                {/* Paginação progressiva do Extrato */}
+                {filteredTransactions.length > 0 && (
+                  <div className="p-3 border-t border-slate-800/60 bg-[#070b14]/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+                    <div>
+                      {search.trim() ? (
+                        <span>
+                          Encontradas <strong className="text-white">{filteredTransactions.length}</strong> transações para &quot;{search}&quot;
+                        </span>
+                      ) : (
+                        <span>
+                          Mostrando <strong className="text-white">{Math.min(transactionsVisibleCount, filteredTransactions.length)}</strong> de <strong className="text-white">{filteredTransactions.length}</strong> transações
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {filteredTransactions.length > transactionsVisibleCount && !search.trim() && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTransactionsVisibleCount((prev) => prev + 20)}
+                            className="h-7 text-xs border-slate-700 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white"
+                          >
+                            Carregar mais (+20)
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTransactionsVisibleCount(filteredTransactions.length)}
+                            className="h-7 text-xs border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                          >
+                            Ver todas ({filteredTransactions.length})
+                          </Button>
+                        </>
+                      )}
+                      {transactionsVisibleCount > 10 && !search.trim() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setTransactionsVisibleCount(10)}
+                          className="h-7 text-xs text-slate-400 hover:text-slate-200"
+                        >
+                          Mostrar apenas 10
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             </CardContent>
           </Card>
         </TabsContent>

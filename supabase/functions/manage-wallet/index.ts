@@ -250,7 +250,18 @@ Deno.serve(async (req) => {
 
     // ─── 7. Admin: List All Wallets ───
     if (action === "admin_list_wallets") {
-      const { data, error } = await supabase
+      // 1. Fetch all tenants so every client is visible in admin
+      const { data: allTenants, error: tenantsErr } = await supabase
+        .from("tenants")
+        .select("id, name, logo_url, plan")
+        .order("created_at", { ascending: false });
+
+      if (tenantsErr) {
+        console.error("Error fetching tenants:", tenantsErr);
+      }
+
+      // 2. Fetch existing wallets
+      const { data: existingWallets, error } = await supabase
         .from("wallets")
         .select("*, tenants(name, logo_url, plan)")
         .order("balance_cents", { ascending: false })
@@ -263,7 +274,43 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ success: true, wallets: data || [] }), {
+      // 3. Map existing wallets by tenant_id
+      const existingMap = new Map<string, any>();
+      (existingWallets || []).forEach((w: any) => {
+        existingMap.set(w.tenant_id, w);
+      });
+
+      // 4. Combine: ensure every registered tenant has a wallet item
+      const combinedWallets = (allTenants || []).map((t: any) => {
+        const existing = existingMap.get(t.id);
+        if (existing) {
+          return existing;
+        }
+        return {
+          id: `w-${t.id}`,
+          tenant_id: t.id,
+          balance_cents: 0,
+          locked_balance_cents: 0,
+          total_earned_cents: 0,
+          total_withdrawn_cents: 0,
+          created_at: new Date().toISOString(),
+          tenants: {
+            name: t.name,
+            logo_url: t.logo_url,
+            plan: t.plan,
+          },
+        };
+      });
+
+      // Sort: wallets with positive balance first, then alphabetically
+      combinedWallets.sort((a: any, b: any) => {
+        if (b.balance_cents !== a.balance_cents) {
+          return b.balance_cents - a.balance_cents;
+        }
+        return (a.tenants?.name || "").localeCompare(b.tenants?.name || "");
+      });
+
+      return new Response(JSON.stringify({ success: true, wallets: combinedWallets }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

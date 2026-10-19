@@ -350,44 +350,87 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 0. Check platform-level gateway settings (admin can disable gateways globally)
+    // 0. Check platform-level gateway settings (admin can disable gateways globally and control split mode)
     const { data: gwSettings } = await supabase
       .from("platform_gateway_settings")
       .select("gateway_key, enabled");
+
+    const splitSetting = (gwSettings || []).find((g: any) => g.gateway_key === "system_split_wallet");
+    const isSplitActive = splitSetting ? splitSetting.enabled : false;
+
     const disabledGateways = new Set(
-      (gwSettings || []).filter((g: any) => !g.enabled).map((g: any) => g.gateway_key)
+      (gwSettings || []).filter((g: any) => !g.enabled && g.gateway_key !== "system_split_wallet").map((g: any) => g.gateway_key)
     );
 
-    // 1. Resolve preferred provider: explicit > product-level > tenant default
-    let preferredKey: string | null = provider_key || null;
-    // If preferred gateway is platform-disabled, clear it
-    if (preferredKey && disabledGateways.has(preferredKey)) preferredKey = null;
-    if (!preferredKey && product_id) {
-      const { data: prod } = await supabase
-        .from("products")
-        .select("payment_provider_key")
-        .eq("id", product_id)
-        .eq("tenant_id", tenant_id)
-        .maybeSingle();
-      preferredKey = (prod as any)?.payment_provider_key || null;
-    }
-
-    // 2. Load active payment providers for tenant — exclude platform-disabled gateways
-    const { data: providers } = await supabase
-      .from("payment_providers")
-      .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
-      .eq("tenant_id", tenant_id)
-      .eq("active", true);
-
-    // Filter out platform-disabled gateways
-    const allowedProviders = (providers || []).filter((p: any) => !disabledGateways.has(p.provider_key));
-
     let activeProvider: any = null;
-    if (preferredKey) {
-      activeProvider = allowedProviders.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+
+    // If Split & Carteira mode is active: use Central Platform Gateway from landing_config
+    if (isSplitActive) {
+      const { data: lc } = await supabase
+        .from("landing_config")
+        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
+        .limit(1)
+        .maybeSingle();
+
+      if (lc) {
+        if (lc.efi_active && lc.efi_client_id) {
+          activeProvider = {
+            provider_key: "efi",
+            api_key_encrypted: lc.efi_client_id,
+            secret_key_encrypted: lc.efi_client_secret,
+            efi_cert_pem: lc.efi_cert_pem,
+            efi_key_pem: lc.efi_key_pem,
+            efi_pix_key: lc.efi_pix_key,
+            is_central: true,
+          };
+        } else if (lc.pushinpay_active && lc.pushinpay_api_key) {
+          activeProvider = {
+            provider_key: "pushinpay",
+            api_key_encrypted: lc.pushinpay_api_key,
+            is_central: true,
+          };
+        } else if (lc.abacatepay_active && lc.abacatepay_api_key) {
+          activeProvider = {
+            provider_key: "abacatepay",
+            api_key_encrypted: lc.abacatepay_api_key,
+            is_central: true,
+          };
+        }
+      }
     }
+
+    // If Split mode is INACTIVE (or central fallback): resolve lojista's own gateways avulsas
     if (!activeProvider) {
-      activeProvider = allowedProviders.find((p: any) => p.api_key_encrypted) || null;
+      // 1. Resolve preferred provider: explicit > product-level > tenant default
+      let preferredKey: string | null = provider_key || null;
+      // If preferred gateway is platform-disabled, clear it
+      if (preferredKey && disabledGateways.has(preferredKey)) preferredKey = null;
+      if (!preferredKey && product_id) {
+        const { data: prod } = await supabase
+          .from("products")
+          .select("payment_provider_key")
+          .eq("id", product_id)
+          .eq("tenant_id", tenant_id)
+          .maybeSingle();
+        preferredKey = (prod as any)?.payment_provider_key || null;
+      }
+
+      // 2. Load active payment providers for tenant — exclude platform-disabled gateways
+      const { data: providers } = await supabase
+        .from("payment_providers")
+        .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
+        .eq("tenant_id", tenant_id)
+        .eq("active", true);
+
+      // Filter out platform-disabled gateways
+      const allowedProviders = (providers || []).filter((p: any) => !disabledGateways.has(p.provider_key));
+
+      if (preferredKey) {
+        activeProvider = allowedProviders.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+      }
+      if (!activeProvider) {
+        activeProvider = allowedProviders.find((p: any) => p.api_key_encrypted) || null;
+      }
     }
     const amount = amount_cents ? amount_cents / 100 : undefined;
     const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;

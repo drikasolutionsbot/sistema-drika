@@ -1,4 +1,5 @@
-import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key, Settings2 } from "lucide-react";
+import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key, Settings2, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 import * as forge from "node-forge";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import misticPayIcon from "@/assets/misticpay-icon.png";
@@ -154,6 +155,9 @@ const PaymentsPage = () => {
     staleTime: 30_000,
   });
 
+  // Check if Platform Split & Central Wallet Mode is active
+  const isSplitWalletMode = platformGwSettings.find(s => s.key === "system_split_wallet")?.enabled ?? false;
+
   // Filter providers by platform visibility settings
   const providers = allProviders.filter(p => {
     const setting = platformGwSettings.find(s => s.key === p.key);
@@ -255,6 +259,32 @@ const PaymentsPage = () => {
         <h1 className="font-display text-3xl font-bold tracking-tight text-white mb-2">{t.paymentsPage.title}</h1>
         <p className="text-muted-foreground text-lg">{t.paymentsPage.description}</p>
       </div>
+
+      {isSplitWalletMode && (
+        <div className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0a1628] to-[#070b14] p-4 sm:p-5 shadow-lg">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0 mt-0.5">
+              <Zap className="h-5 w-5 text-emerald-400 animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-white">
+                  Sistema de Split & Carteira Central Ativo
+                </h3>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">
+                  Operação Centralizada
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                A plataforma está operando no <strong>Modo Central com Carteira Digital</strong>. Suas vendas são processadas automaticamente pela Gateway Central e creditadas diretamente na sua <Link to="/wallet" className="underline font-semibold text-emerald-400 hover:text-emerald-300">Carteira</Link>. Você pode solicitar saques via PIX a qualquer momento!
+              </p>
+              <p className="text-[11px] text-slate-400">
+                (As credenciais das suas gateways abaixo permanecem salvas para o caso de a administração alternar para o modo de gateways avulsas).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

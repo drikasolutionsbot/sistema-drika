@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Tabs,
@@ -206,6 +207,9 @@ export default function AdminWalletPage() {
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
   const [auditVisibleCount, setAuditVisibleCount] = useState(10);
   const [walletsVisibleCount, setWalletsVisibleCount] = useState(20);
+  const [withdrawalsVisibleCount, setWithdrawalsVisibleCount] = useState(10);
+  const [splitWalletEnabled, setSplitWalletEnabled] = useState(true);
+  const [savingSplit, setSavingSplit] = useState(false);
 
   // Approval Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -260,6 +264,14 @@ export default function AdminWalletPage() {
         setAuditDeposits(aRes.data.deposits || []);
         setAuditSummary(aRes.data.summary || null);
       }
+
+      // 5. Split Wallet Mode
+      const sRes = await supabase.functions.invoke("manage-gateway-settings", {
+        body: { action: "get_split_mode" },
+      });
+      if (sRes.data && typeof sRes.data.enabled === "boolean") {
+        setSplitWalletEnabled(sRes.data.enabled);
+      }
     } catch (err: any) {
       console.error("Error loading admin wallet data:", err);
       toast({
@@ -272,6 +284,32 @@ export default function AdminWalletPage() {
       setRefreshing(false);
     }
   }, []);
+
+  // Handle Toggle Split Mode
+  const handleToggleSplit = async (newVal: boolean) => {
+    setSavingSplit(true);
+    try {
+      const res = await supabase.functions.invoke("manage-gateway-settings", {
+        body: { action: "set_split_mode", enabled: newVal },
+      });
+      if (res.error) throw res.error;
+      setSplitWalletEnabled(newVal);
+      toast({
+        title: newVal ? "Modo Split & Carteira ATIVADO" : "Modo Split DESATIVADO",
+        description: newVal
+          ? "O Bot Externo e o Checkout agora operam exclusivamente com a Gateway Central da Plataforma."
+          : "O Bot Externo agora opera com as gateways avulsas configuradas pelos lojistas.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao alternar modo split",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSplit(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -469,6 +507,14 @@ export default function AdminWalletPage() {
     });
   }, [withdrawals, withdrawalStatusFilter, searchWithdrawals]);
 
+  // Displayed Withdrawals (progressive pagination)
+  const displayedWithdrawals = useMemo(() => {
+    if (searchWithdrawals.trim()) {
+      return filteredWithdrawals;
+    }
+    return filteredWithdrawals.slice(0, withdrawalsVisibleCount);
+  }, [filteredWithdrawals, searchWithdrawals, withdrawalsVisibleCount]);
+
   // Filtered Wallets
   const filteredWallets = useMemo(() => {
     return wallets.filter((w) => {
@@ -532,8 +578,11 @@ export default function AdminWalletPage() {
 
   // Paginated/progressive slice
   const displayedAuditSales = useMemo(() => {
+    if (searchAudit.trim()) {
+      return filteredAuditSales;
+    }
     return filteredAuditSales.slice(0, auditVisibleCount);
-  }, [filteredAuditSales, auditVisibleCount]);
+  }, [filteredAuditSales, searchAudit, auditVisibleCount]);
 
   // Unique payment providers found in sales for the filter dropdown
   const availableProviders = useMemo(() => {
@@ -564,7 +613,29 @@ export default function AdminWalletPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Master Switch Split & Carteira */}
+          <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all ${
+            splitWalletEnabled
+              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+              : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+          }`}>
+            <div className="flex flex-col text-right">
+              <span className="text-[11px] font-bold leading-tight flex items-center gap-1">
+                <span className={`h-2 w-2 rounded-full ${splitWalletEnabled ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+                {splitWalletEnabled ? "Split & Carteira: ATIVO" : "Split: DESATIVADO"}
+              </span>
+              <span className="text-[9px] text-slate-400">
+                {splitWalletEnabled ? "Central (2% taxa)" : "Gateways dos lojistas"}
+              </span>
+            </div>
+            <Switch
+              checked={splitWalletEnabled}
+              disabled={savingSplit}
+              onCheckedChange={handleToggleSplit}
+            />
+          </div>
+
           <Button
             variant="outline"
             size="sm"
@@ -884,7 +955,7 @@ export default function AdminWalletPage() {
 
       {/* ─── 4. Tabs: Solicitações de Saque (A Pagar) vs Carteiras das Lojas ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-slate-900/60 p-1 border border-slate-800/80">
+        <TabsList className="bg-slate-900/60 p-1 border border-slate-800/80 flex flex-wrap h-auto gap-1 w-full justify-start">
           <TabsTrigger value="withdrawals" className="gap-2 relative data-[state=active]:bg-[#0a0f1d] text-xs">
             <Clock className="h-4 w-4" />
             Solicitações de Saque (A Pagar)
@@ -962,7 +1033,8 @@ export default function AdminWalletPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                  <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                       <tr>
@@ -977,7 +1049,7 @@ export default function AdminWalletPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40">
-                      {filteredWithdrawals.map((w) => {
+                      {displayedWithdrawals.map((w) => {
                         const isPending = w.status === "pending";
 
                         return (
@@ -1102,7 +1174,58 @@ export default function AdminWalletPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
+
+                {/* Paginação progressiva de Saques */}
+                {filteredWithdrawals.length > 0 && (
+                  <div className="p-3 border-t border-slate-800/60 bg-[#070b14]/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+                    <div>
+                      {searchWithdrawals.trim() ? (
+                        <span>
+                          Encontrados <strong className="text-white">{filteredWithdrawals.length}</strong> saques para &quot;{searchWithdrawals}&quot;
+                        </span>
+                      ) : (
+                        <span>
+                          Mostrando <strong className="text-white">{Math.min(withdrawalsVisibleCount, filteredWithdrawals.length)}</strong> de <strong className="text-white">{filteredWithdrawals.length}</strong> saques
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {filteredWithdrawals.length > withdrawalsVisibleCount && !searchWithdrawals.trim() && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setWithdrawalsVisibleCount((prev) => prev + 20)}
+                            className="h-7 text-xs border-slate-700 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white"
+                          >
+                            Carregar mais (+20)
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setWithdrawalsVisibleCount(filteredWithdrawals.length)}
+                            className="h-7 text-xs border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                          >
+                            Ver todos ({filteredWithdrawals.length})
+                          </Button>
+                        </>
+                      )}
+                      {withdrawalsVisibleCount > 10 && !searchWithdrawals.trim() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setWithdrawalsVisibleCount(10)}
+                          className="h-7 text-xs text-slate-400 hover:text-slate-200"
+                        >
+                          Mostrar apenas 10
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1500,7 +1623,7 @@ export default function AdminWalletPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        {filteredAuditSales.length > auditVisibleCount && (
+                        {filteredAuditSales.length > auditVisibleCount && !searchAudit.trim() && (
                           <>
                             <Button
                               variant="outline"
@@ -1522,7 +1645,7 @@ export default function AdminWalletPage() {
                             </Button>
                           </>
                         )}
-                        {auditVisibleCount > 10 && (
+                        {auditVisibleCount > 10 && !searchAudit.trim() && (
                           <Button
                             variant="ghost"
                             size="sm"

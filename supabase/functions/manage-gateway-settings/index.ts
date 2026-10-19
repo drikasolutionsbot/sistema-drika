@@ -52,7 +52,48 @@ Deno.serve(async (req) => {
         };
       });
 
+      const splitRow = settingsMap.get("system_split_wallet");
+      const splitEnabled = splitRow ? splitRow.enabled : true;
+
+      if (body.include_split) {
+        return new Response(JSON.stringify({ gateways: result, split_wallet_enabled: splitEnabled }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── GET SPLIT MODE ───────────────────────────────────────────────────
+    if (action === "get_split_mode") {
+      const { data } = await supabase
+        .from("platform_gateway_settings")
+        .select("enabled")
+        .eq("gateway_key", "system_split_wallet")
+        .maybeSingle();
+
+      return new Response(JSON.stringify({ enabled: data ? data.enabled : true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── SET SPLIT MODE ───────────────────────────────────────────────────
+    if (action === "set_split_mode") {
+      const { enabled } = body;
+      const { error } = await supabase
+        .from("platform_gateway_settings")
+        .upsert({
+          gateway_key: "system_split_wallet",
+          enabled: Boolean(enabled),
+          visible: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "gateway_key" });
+
+      if (error) throw error;
+
+      return new Response(JSON.stringify({ ok: true, enabled: Boolean(enabled) }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
