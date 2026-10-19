@@ -336,6 +336,14 @@ async function getActivePaymentProvider(tenantId) {
         .maybeSingle();
 
       if (lc) {
+        if (lc.coldpayments_active && lc.coldpayments_api_key) {
+          return {
+            provider_key: "coldpayments",
+            api_key_encrypted: lc.coldpayments_api_key,
+            is_central: true,
+            is_split: true,
+          };
+        }
         if (lc.efi_active && lc.efi_client_id) {
           return {
             provider_key: "efi",
@@ -360,14 +368,6 @@ async function getActivePaymentProvider(tenantId) {
           return {
             provider_key: "abacatepay",
             api_key_encrypted: lc.abacatepay_api_key,
-            is_central: true,
-            is_split: true,
-          };
-        }
-        if (lc.coldpayments_active && lc.coldpayments_api_key) {
-          return {
-            provider_key: "coldpayments",
-            api_key_encrypted: lc.coldpayments_api_key,
             is_central: true,
             is_split: true,
           };

@@ -475,18 +475,21 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify tenant exists
-    const { data: tenant, error: tenantErr } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("id", tenantId)
-      .single();
+    // Verify tenant exists (or allow central platform webhook)
+    const isCentralWebhook = tenantId === "central" || tenantId === "platform";
+    if (!isCentralWebhook) {
+      const { data: tenant, error: tenantErr } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("id", tenantId)
+        .single();
 
-    if (tenantErr || !tenant) {
-      return new Response(JSON.stringify({ error: "Tenant not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (tenantErr || !tenant) {
+        return new Response(JSON.stringify({ error: "Tenant not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     let result;

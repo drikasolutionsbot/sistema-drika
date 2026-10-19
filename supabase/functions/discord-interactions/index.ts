@@ -3625,7 +3625,14 @@ async function generatePixInThread(
       .maybeSingle();
 
     if (lc) {
-      if (lc.efi_active && lc.efi_client_id) {
+      if ((lc as any).coldpayments_active && (lc as any).coldpayments_api_key) {
+        activeProvider = {
+          provider_key: "coldpayments",
+          api_key_encrypted: (lc as any).coldpayments_api_key,
+          is_central: true,
+          is_split: true,
+        };
+      } else if (lc.efi_active && lc.efi_client_id) {
         activeProvider = {
           provider_key: "efi",
           api_key_encrypted: lc.efi_client_id,
@@ -3647,13 +3654,6 @@ async function generatePixInThread(
         activeProvider = {
           provider_key: "abacatepay",
           api_key_encrypted: lc.abacatepay_api_key,
-          is_central: true,
-          is_split: true,
-        };
-      } else if ((lc as any).coldpayments_active && (lc as any).coldpayments_api_key) {
-        activeProvider = {
-          provider_key: "coldpayments",
-          api_key_encrypted: (lc as any).coldpayments_api_key,
           is_central: true,
           is_split: true,
         };
