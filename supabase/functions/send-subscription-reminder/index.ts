@@ -82,12 +82,14 @@ serve(async (req) => {
       }
       tenantsToProcess = [singleTenant];
     } else {
-      // Busca tenants que possuem plano e data de expiração definida, não expirados há muito tempo
+      // Busca tenants que possuem plano PAGO e data de expiração definida, não expirados há muito tempo
+      // Plano free é excluído pois não deve receber lembretes de renovação via DM
       const { data: tenants, error: tenantsErr } = await admin
         .from("tenants")
         .select("id, name, plan, plan_expires_at, owner_discord_id, owner_discord_username, reminder_d1_sent_at, reminder_d0_sent_at, logo_url, bot_name")
         .not("plan_expires_at", "is", null)
-        .neq("plan", "expired");
+        .neq("plan", "expired")
+        .neq("plan", "free");
 
       if (tenantsErr) throw tenantsErr;
       tenantsToProcess = tenants || [];
@@ -101,6 +103,18 @@ serve(async (req) => {
     let errorCount = 0;
 
     for (const tenant of tenantsToProcess) {
+      // Ignora tenants no plano free — lembretes via DM são exclusivos para planos pagos
+      if (!tenant.plan || tenant.plan === "free") {
+        results.push({
+          tenant_id: tenant.id,
+          tenant_name: tenant.name,
+          status: "skipped",
+          reason: "Plano free não recebe lembretes de renovação via DM",
+        });
+        skippedCount++;
+        continue;
+      }
+
       if (!tenant.plan_expires_at) {
         results.push({
           tenant_id: tenant.id,
