@@ -384,11 +384,12 @@ Data do Saque: ${format(new Date(tx.created_at), "dd/MM/yyyy HH:mm:ss", { locale
 Status: ${tx.status.toUpperCase()}
 
 PRODUTO & VENDA DE ORIGEM:
+Loja: ${tx.tenants?.name || "Loja"}
 Produto: ${tx.source_order?.product_name || "Venda Loja"}
 Pedido: #${tx.source_order?.order_number || tx.source_order?.id?.slice(0, 8) || "—"}
 Comprador Discord: ${tx.source_order?.discord_username ? `@${tx.source_order.discord_username}` : "—"}
 Entrada Bruta da Venda: ${formatBRL(tx.source_order?.total_cents || tx.amount_cents)}
-Taxa Intermediação Plataforma (1%): ${formatBRL(Math.round(((tx.source_order?.total_cents || tx.amount_cents) * 0.01)))}
+Taxas Retidas na Venda: ${formatBRL(tx.source_deposit?.fee_cents ?? (tx.source_order?.commission_cents ?? 0))}
 Crédito na Carteira: ${formatBRL(tx.source_deposit?.net_amount_cents || tx.amount_cents)}
 
 DADOS DO PAGAMENTO PIX:
@@ -692,7 +693,13 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     const paidCount = paidSales.length;
     const totalCount = filteredAuditSales.length;
     const feesCents = paidSales.reduce(
-      (acc, s) => acc + (s.commission_cents || Math.round((s.total_cents || 0) * 0.01)),
+      (acc, s) =>
+        acc +
+        (s.commission_cents != null
+          ? s.commission_cents
+          : s.total_cents
+          ? 60 + Math.round(s.total_cents * 0.02)
+          : 0),
       0
     );
     const avgTicket = paidCount > 0 ? Math.round(totalPaidCents / paidCount) : totalCount > 0 ? Math.round(allVolumeCents / totalCount) : 0;
@@ -1584,11 +1591,11 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
 
             <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
               <div className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Taxas Retidas (1%)</span>
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Total Taxas Retidas</span>
                 <span className="text-xl font-extrabold text-purple-400 block font-mono">
                   {showBalance ? formatBRL(auditMetrics.total_platform_fees_cents) : "••••"}
                 </span>
-                <span className="text-[10px] text-slate-500">Lucro líquido da plataforma</span>
+                <span className="text-[10px] text-slate-500">Gateway + taxa da plataforma</span>
               </div>
               <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
                 <Percent className="h-6 w-6" />
@@ -1683,7 +1690,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                           <th className="py-3 px-3">Produto & Pedido</th>
                           <th className="py-3 px-3">Comprador Discord</th>
                           <th className="py-3 px-3 text-right whitespace-nowrap">Entrada Bruta</th>
-                          <th className="py-3 px-3 text-right whitespace-nowrap">Taxa (2%)</th>
+                          <th className="py-3 px-3 text-right whitespace-nowrap">Taxas Retidas</th>
                           <th className="py-3 px-3 text-right whitespace-nowrap">Líquido Loja</th>
                           <th className="py-3 px-3 text-center whitespace-nowrap">Gateway</th>
                           <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
@@ -1692,8 +1699,16 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                       </thead>
                       <tbody className="divide-y divide-slate-800/40">
                         {displayedAuditSales.map((sale) => {
-                          const feeCents = Math.round(sale.total_cents * 0.01);
-                          const netCents = sale.total_cents - feeCents;
+                          const feeCents =
+                            sale.commission_cents != null
+                              ? sale.commission_cents
+                              : sale.total_cents
+                              ? 60 + Math.round(sale.total_cents * 0.02)
+                              : 0;
+                          const netCents =
+                            sale.seller_received_cents != null
+                              ? sale.seller_received_cents
+                              : Math.max(0, sale.total_cents - feeCents);
 
                           return (
                             <tr key={sale.id} className="hover:bg-slate-900/40 transition-colors">
