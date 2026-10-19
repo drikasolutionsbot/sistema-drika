@@ -1146,116 +1146,117 @@ export default function AdminWalletPage() {
                   <p className="text-base font-semibold text-white">Nenhuma carteira encontrada</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
-                      <tr>
-                        <th className="py-3 px-4">Loja / Cliente</th>
-                        <th className="py-3 px-4">Plano</th>
-                        <th className="py-3 px-4 text-right">Saldo Disponível</th>
-                        <th className="py-3 px-4 text-right">Em Saque (Bloqueado)</th>
-                        <th className="py-3 px-4 text-right">Total Recebido</th>
-                        <th className="py-3 px-4 text-right">Total Já Sacado</th>
-                        <th className="py-3 px-4 text-right">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/40">
-                      {displayedWallets.map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
-                          <td className="py-3.5 px-4">
-                            <div className="font-semibold text-xs text-white">
-                              {w.tenants?.name || "Loja"}
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              {w.tenant_id}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <Badge variant="outline" className="text-[10px] uppercase border-slate-700">
-                              {w.tenants?.plan || "free"}
-                            </Badge>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-bold text-xs text-emerald-400">
-                            {formatBRL(w.balance_cents)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-xs text-amber-400">
-                            {formatBRL(w.locked_balance_cents || 0)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-xs text-blue-400">
-                            {formatBRL(w.total_earned_cents)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-medium text-xs text-purple-400">
-                            {formatBRL(w.total_withdrawn_cents)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
+                        <tr>
+                          <th className="py-3 px-4">Loja / Cliente</th>
+                          <th className="py-3 px-4">Plano</th>
+                          <th className="py-3 px-4 text-right">Saldo Disponível</th>
+                          <th className="py-3 px-4 text-right">Em Saque (Bloqueado)</th>
+                          <th className="py-3 px-4 text-right">Total Recebido</th>
+                          <th className="py-3 px-4 text-right">Total Já Sacado</th>
+                          <th className="py-3 px-4 text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/40">
+                        {displayedWallets.map((w) => (
+                          <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-xs text-white">
+                                {w.tenants?.name || "Loja"}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono">
+                                {w.tenant_id}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <Badge variant="outline" className="text-[10px] uppercase border-slate-700">
+                                {w.tenants?.plan || "free"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-bold text-xs text-emerald-400">
+                              {formatBRL(w.balance_cents)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-xs text-amber-400">
+                              {formatBRL(w.locked_balance_cents || 0)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-xs text-blue-400">
+                              {formatBRL(w.total_earned_cents)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-xs text-purple-400">
+                              {formatBRL(w.total_withdrawn_cents)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedWallet(w);
+                                  setAdjustAmount("");
+                                  setAdjustReason("");
+                                  setAdjustModalOpen(true);
+                                }}
+                                className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
+                              >
+                                <Edit3 className="h-3 w-3" />
+                                Ajustar Saldo
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Barra de Paginação / Carregar Mais para Carteiras */}
+                  {filteredWallets.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-slate-800/60 bg-[#070b14]/50">
+                      <div className="text-xs text-slate-400">
+                        Exibindo <span className="font-semibold text-white">{displayedWallets.length}</span> de{" "}
+                        <span className="font-semibold text-white">{filteredWallets.length}</span> carteiras de lojas
+                        {searchWallets && <span className="text-emerald-400 font-medium"> (filtradas por busca)</span>}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {filteredWallets.length > walletsVisibleCount && !searchWallets && (
+                          <>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                setSelectedWallet(w);
-                                setAdjustAmount("");
-                                setAdjustReason("");
-                                setAdjustModalOpen(true);
-                              }}
-                              className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
+                              onClick={() =>
+                                setWalletsVisibleCount((prev) => Math.min(prev + 20, filteredWallets.length))
+                              }
+                              className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
                             >
-                              <Edit3 className="h-3 w-3" />
-                              Ajustar Saldo
+                              Carregar mais (+20)
                             </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Barra de Paginação / Carregar Mais para Carteiras */}
-                {filteredWallets.length > 0 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-slate-800/60 bg-[#070b14]/50">
-                    <div className="text-xs text-slate-400">
-                      Exibindo <span className="font-semibold text-white">{displayedWallets.length}</span> de{" "}
-                      <span className="font-semibold text-white">{filteredWallets.length}</span> carteiras de lojas
-                      {searchWallets && <span className="text-emerald-400 font-medium"> (filtradas por busca)</span>}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {filteredWallets.length > walletsVisibleCount && !searchWallets && (
-                        <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setWalletsVisibleCount(filteredWallets.length)}
+                              className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
+                            >
+                              Ver todas ({filteredWallets.length})
+                            </Button>
+                          </>
+                        )}
+                        {walletsVisibleCount > 20 && !searchWallets && (
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() =>
-                              setWalletsVisibleCount((prev) => Math.min(prev + 20, filteredWallets.length))
-                            }
-                            className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
+                            onClick={() => setWalletsVisibleCount(20)}
+                            className="h-8 text-xs text-slate-400 hover:text-white"
                           >
-                            Carregar mais (+20)
+                            Mostrar apenas 20
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setWalletsVisibleCount(filteredWallets.length)}
-                            className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
-                          >
-                            Ver todas ({filteredWallets.length})
-                          </Button>
-                        </>
-                      )}
-                      {walletsVisibleCount > 20 && !searchWallets && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setWalletsVisibleCount(20)}
-                          className="h-8 text-xs text-slate-400 hover:text-white"
-                        >
-                          Mostrar apenas 20
-                        </Button>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
