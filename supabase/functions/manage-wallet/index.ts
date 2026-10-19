@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
     if (action === "admin_audit_sales") {
       const { tenant_id, search, limit = 500 } = body;
 
-      // 1. Fetch paid/delivered orders (sales proof from bot & checkout)
+      // 1. Fetch all orders (paid, delivered, delivering AND pending — so admin sees everything in flight)
       let ordersQuery = supabase
         .from("orders")
         .select(`
@@ -361,6 +361,8 @@ Deno.serve(async (req) => {
           status,
           payment_provider,
           payment_id,
+          commission_cents,
+          seller_received_cents,
           created_at,
           updated_at,
           tenants (
@@ -370,7 +372,7 @@ Deno.serve(async (req) => {
             plan
           )
         `)
-        .in("status", ["paid", "delivering", "delivered"])
+        .in("status", ["paid", "delivering", "delivered", "pending"])
         .order("created_at", { ascending: false })
         .limit(limit);
 

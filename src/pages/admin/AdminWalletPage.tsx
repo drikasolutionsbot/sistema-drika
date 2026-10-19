@@ -1576,10 +1576,17 @@ export default function AdminWalletPage() {
                                 </Badge>
                               </td>
                               <td className="py-3 px-3 text-center">
-                                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase gap-1 font-semibold">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  {sale.status === "delivered" ? "Entregue" : "Pago"}
-                                </Badge>
+                                {sale.status === "pending" ? (
+                                  <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] uppercase gap-1 font-semibold">
+                                    <Clock className="h-3 w-3" />
+                                    Aguardando
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase gap-1 font-semibold">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    {sale.status === "delivered" ? "Entregue" : "Pago"}
+                                  </Badge>
+                                )}
                               </td>
                               <td className="py-3 px-3 text-center">
                                 <Button
