@@ -372,7 +372,7 @@ Deno.serve(async (req) => {
             plan
           )
         `)
-        .in("status", ["paid", "delivering", "delivered", "pending"])
+        .in("status", ["paid", "delivering", "delivered", "pending", "pending_payment"])
         .order("created_at", { ascending: false })
         .limit(limit);
 

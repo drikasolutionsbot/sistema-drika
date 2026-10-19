@@ -38,6 +38,7 @@ import {
   Hash,
   FileText,
   ExternalLink,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,7 +202,8 @@ export default function AdminWalletPage() {
   const [auditSummary, setAuditSummary] = useState<AuditSummary | null>(null);
   const [searchAudit, setSearchAudit] = useState("");
   const [auditStoreFilter, setAuditStoreFilter] = useState("all");
-  const [auditProviderFilter, setAuditProviderFilter] = useState("coldpayments");
+  // Audit provider is always coldpayments (the only split gateway on the platform)
+  const auditProviderFilter = "coldpayments";
   const [selectedAuditSale, setSelectedAuditSale] = useState<SalesAuditItem | null>(null);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
@@ -584,9 +586,6 @@ export default function AdminWalletPage() {
     return filteredAuditSales.slice(0, auditVisibleCount);
   }, [filteredAuditSales, searchAudit, auditVisibleCount]);
 
-  // Gateway filter: only the central split gateway (ColdPayments) is shown as a filter option
-  // — other per-tenant gateways are not tracked at platform level
-  const availableProviders = ["coldpayments"];
 
   const pendingCount = metrics?.pending_count || 0;
 
@@ -1476,16 +1475,11 @@ export default function AdminWalletPage() {
                     </SelectContent>
                   </Select>
 
-                  {/* Filtro por Gateway */}
-                  <Select value={auditProviderFilter} onValueChange={setAuditProviderFilter}>
-                    <SelectTrigger className="h-9 w-[170px] text-xs border-slate-800 bg-[#070b14] text-slate-200">
-                      <SelectValue placeholder="Gateway" />
-                    </SelectTrigger>
-                    <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
-                      <SelectItem value="all">Todos Gateways</SelectItem>
-                      <SelectItem value="coldpayments">⚡ ColdPayments (Split)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* Gateway fixo: ColdPayments (Split) */}
+                  <div className="flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-800 bg-[#070b14] text-xs text-emerald-400 font-semibold whitespace-nowrap">
+                    <Zap className="h-3.5 w-3.5" />
+                    ColdPayments (Split)
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -1576,7 +1570,7 @@ export default function AdminWalletPage() {
                                 </Badge>
                               </td>
                               <td className="py-3 px-3 text-center">
-                                {sale.status === "pending" ? (
+                                {sale.status === "pending" || sale.status === "pending_payment" ? (
                                   <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] uppercase gap-1 font-semibold">
                                     <Clock className="h-3 w-3" />
                                     Aguardando
