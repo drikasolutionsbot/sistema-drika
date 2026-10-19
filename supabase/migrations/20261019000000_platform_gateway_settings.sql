@@ -12,11 +12,13 @@ create table if not exists public.platform_gateway_settings (
 -- But expose via anon for the client-side "visible" check (read-only)
 alter table public.platform_gateway_settings enable row level security;
 
+drop policy if exists "anon_read_gateway_settings" on public.platform_gateway_settings;
 create policy "anon_read_gateway_settings"
   on public.platform_gateway_settings
   for select
   using (true);
 
+drop policy if exists "service_role_all_gateway_settings" on public.platform_gateway_settings;
 create policy "service_role_all_gateway_settings"
   on public.platform_gateway_settings
   for all
