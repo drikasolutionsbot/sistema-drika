@@ -201,7 +201,7 @@ export default function AdminWalletPage() {
   const [auditSummary, setAuditSummary] = useState<AuditSummary | null>(null);
   const [searchAudit, setSearchAudit] = useState("");
   const [auditStoreFilter, setAuditStoreFilter] = useState("all");
-  const [auditProviderFilter, setAuditProviderFilter] = useState("all");
+  const [auditProviderFilter, setAuditProviderFilter] = useState("coldpayments");
   const [selectedAuditSale, setSelectedAuditSale] = useState<SalesAuditItem | null>(null);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
