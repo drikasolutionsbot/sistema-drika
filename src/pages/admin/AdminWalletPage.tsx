@@ -102,6 +102,30 @@ interface WithdrawalItem {
     logo_url: string | null;
     plan: string;
   } | null;
+  source_order?: {
+    id: string;
+    order_number?: number;
+    tenant_id: string;
+    discord_username: string | null;
+    discord_user_id: string | null;
+    product_name: string;
+    total_cents: number;
+    status: string;
+    payment_provider: string | null;
+    payment_id: string | null;
+    created_at: string;
+  } | null;
+  source_deposit?: {
+    id: string;
+    amount_cents: number;
+    net_amount_cents: number;
+    fee_cents: number;
+    description: string | null;
+    payment_id: string | null;
+    created_at: string;
+  } | null;
+  recent_orders?: any[];
+  wallet_balance_cents?: number;
 }
 
 interface TenantWalletItem {
@@ -350,6 +374,37 @@ export default function AdminWalletPage() {
     setCopiedAuditId(id);
     toast({ title: "Copiado para a área de transferência!", description: text });
     setTimeout(() => setCopiedAuditId(null), 2500);
+  };
+
+  // Handle Copy full withdrawal audit report
+  const handleCopyWithdrawalReport = (tx: WithdrawalItem) => {
+    const report = `--- COMPROVANTE & REVISÃO DE SAQUE ---
+Loja: ${tx.tenants?.name || "Loja"} (${tx.tenant_id})
+Data do Saque: ${format(new Date(tx.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+Status: ${tx.status.toUpperCase()}
+
+PRODUTO & VENDA DE ORIGEM:
+Produto: ${tx.source_order?.product_name || "Venda Loja"}
+Pedido: #${tx.source_order?.order_number || tx.source_order?.id?.slice(0, 8) || "—"}
+Comprador Discord: ${tx.source_order?.discord_username ? `@${tx.source_order.discord_username}` : "—"}
+Entrada Bruta da Venda: ${formatBRL(tx.source_order?.total_cents || tx.amount_cents)}
+Taxa Intermediação Plataforma (1%): ${formatBRL(Math.round(((tx.source_order?.total_cents || tx.amount_cents) * 0.01)))}
+Crédito na Carteira: ${formatBRL(tx.source_deposit?.net_amount_cents || tx.amount_cents)}
+
+DADOS DO PAGAMENTO PIX:
+Bruto Solicitado: ${formatBRL(tx.amount_cents)}
+Taxa Saque Plataforma (2%): ${formatBRL(tx.fee_cents)}
+LÍQUIDO A PAGAR: ${formatBRL(tx.net_amount_cents || tx.amount_cents - tx.fee_cents)}
+Chave PIX: ${tx.pix_key} (${tx.pix_key_type?.toUpperCase() || "PIX"})
+
+ID Saque: ${tx.id}
+ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—"}
+--------------------------------------`;
+    navigator.clipboard.writeText(report);
+    toast({
+      title: "Relatório de Revisão Copiado!",
+      description: "O resumo detalhado foi copiado para a área de transferência.",
+    });
   };
 
   // Handle Approve
@@ -829,10 +884,16 @@ export default function AdminWalletPage() {
                 onClick={() => {
                   setActiveTab("withdrawals");
                   setWithdrawalStatusFilter("pending");
+                  const firstPending = withdrawals.find((w) => w.status === "pending");
+                  if (firstPending) {
+                    setSelectedTx(firstPending);
+                    setApproveModalOpen(true);
+                  }
                 }}
-                className="mt-3 w-full bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs"
+                className="mt-3 w-full bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
               >
-                Revisar e Aprovar Saques
+                <Eye className="h-4 w-4" />
+                Revisar e Aprovar Saques ({pendingCount})
               </Button>
             )}
           </div>
@@ -1073,7 +1134,8 @@ export default function AdminWalletPage() {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                       <tr>
-                        <th className="py-3 px-4">Loja / Cliente</th>
+                        <th className="py-3 px-4">Loja / Solicitante</th>
+                        <th className="py-3 px-4">Origem / Venda Auditada</th>
                         <th className="py-3 px-4">Data</th>
                         <th className="py-3 px-4">Chave PIX</th>
                         <th className="py-3 px-4 text-right">Bruto Solicitado</th>
@@ -1097,6 +1159,42 @@ export default function AdminWalletPage() {
                               <div className="text-[10px] text-slate-500 font-mono">
                                 ID: {w.tenant_id.slice(0, 8)}...
                               </div>
+                              {typeof w.wallet_balance_cents === "number" && (
+                                <div className="text-[10px] text-slate-400 mt-0.5">
+                                  Saldo: <span className="text-emerald-400 font-semibold">{formatBRL(w.wallet_balance_cents)}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Origem / Venda Auditada */}
+                            <td className="py-3.5 px-4">
+                              {w.source_order ? (
+                                <div className="space-y-1 max-w-[210px]">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-xs text-white truncate max-w-[130px]" title={w.source_order.product_name}>
+                                      {w.source_order.product_name}
+                                    </span>
+                                    <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] px-1.5 py-0 font-mono">
+                                      #{w.source_order.order_number || w.source_order.id.slice(0, 6)}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 flex-wrap">
+                                    {w.source_order.discord_username && (
+                                      <span className="text-blue-300 font-mono bg-blue-500/10 px-1 py-0.2 rounded">
+                                        @{w.source_order.discord_username}
+                                      </span>
+                                    )}
+                                    <span className="text-slate-500">•</span>
+                                    <span className="text-emerald-400 font-semibold">
+                                      +{formatBRL(w.source_order.total_cents)}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-slate-500 italic">
+                                  Saldo consolidado
+                                </div>
+                              )}
                             </td>
 
                             {/* Data */}
@@ -1177,10 +1275,10 @@ export default function AdminWalletPage() {
                                       setSelectedTx(w);
                                       setApproveModalOpen(true);
                                     }}
-                                    className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-2.5 shadow-sm"
+                                    className="h-8 gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-semibold px-3 shadow-md shadow-emerald-950/40"
                                   >
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Aprovar
+                                    <Eye className="h-3.5 w-3.5" />
+                                    Revisar & Aprovar
                                   </Button>
                                   <Button
                                     size="sm"
@@ -1196,11 +1294,25 @@ export default function AdminWalletPage() {
                                   </Button>
                                 </div>
                               ) : (
-                                <span className="text-[11px] text-slate-500">
-                                  {w.completed_at
-                                    ? format(new Date(w.completed_at), "dd/MM HH:mm")
-                                    : "Finalizado"}
-                                </span>
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setSelectedTx(w);
+                                      setApproveModalOpen(true);
+                                    }}
+                                    className="h-7 text-[11px] gap-1 text-slate-300 hover:text-white hover:bg-slate-800/60 px-2"
+                                  >
+                                    <FileText className="h-3 w-3 text-blue-400" />
+                                    Ver Revisão
+                                  </Button>
+                                  <span className="text-[10px] text-slate-500">
+                                    {w.completed_at
+                                      ? format(new Date(w.completed_at), "dd/MM HH:mm")
+                                      : "Finalizado"}
+                                  </span>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -1696,82 +1808,329 @@ export default function AdminWalletPage() {
         </TabsContent>
       </Tabs>
 
-      {/* ─── 5. Modal: Aprovar Saque ─── */}
+      {/* ─── 5. Modal: Revisão & Auditoria Completa de Saque ─── */}
       <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
-        <DialogContent className="sm:max-w-md border-slate-800 bg-[#0a0f1d] text-white">
+        <DialogContent className="sm:max-w-2xl border-slate-800 bg-[#0a0f1d] text-white max-h-[92vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-emerald-400">
-              <CheckCircle2 className="h-5 w-5" />
-              Confirmar Aprovação de Saque
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
+              <Receipt className="h-5 w-5 text-amber-400" />
+              Revisão & Auditoria de Saque
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-xs">
-              Certifique-se de que a transferência PIX foi realizada para a chave abaixo.
+              Conferência contábil da venda do produto, dados bancários do lojista e autorização de pagamento PIX.
             </DialogDescription>
           </DialogHeader>
 
           {selectedTx && (
-            <div className="space-y-4 py-2 text-sm">
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Loja Solicitante:</span>
-                  <span className="font-bold text-white">{selectedTx.tenants?.name || "Loja"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Chave PIX:</span>
-                  <span className="font-mono font-bold text-white">{selectedTx.pix_key}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Valor Bruto Solicitado:</span>
-                  <span className="font-medium text-slate-300">{formatBRL(selectedTx.amount_cents)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Taxa da Plataforma (2%):</span>
-                  <span className="font-bold text-emerald-400">+{formatBRL(selectedTx.fee_cents)}</span>
-                </div>
-                <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
-                  <span className="font-bold text-white">Valor Líquido a Enviar:</span>
-                  <span className="text-lg font-black text-amber-400">
-                    {formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}
+            <div className="space-y-4 py-2 text-xs">
+              {/* Status Header */}
+              <div className={`rounded-xl border p-3.5 flex items-center justify-between ${
+                selectedTx.status === "pending"
+                  ? "border-amber-500/30 bg-amber-950/20"
+                  : selectedTx.status === "completed"
+                  ? "border-emerald-500/30 bg-emerald-950/20"
+                  : "border-rose-500/30 bg-rose-950/20"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {selectedTx.status === "pending" ? (
+                    <Clock className="h-4 w-4 text-amber-400" />
+                  ) : selectedTx.status === "completed" ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-rose-400" />
+                  )}
+                  <span className="font-semibold text-white">
+                    {selectedTx.status === "pending"
+                      ? "Saque Aguardando Aprovação (A Pagar)"
+                      : selectedTx.status === "completed"
+                      ? "Saque Aprovado & Transferido via PIX"
+                      : "Saque Rejeitado"}
                   </span>
                 </div>
+                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-mono tracking-wider">
+                  {selectedTx.source_order?.payment_provider || selectedTx.provider || "COLDPAYMENTS"}
+                </Badge>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="adminNotes" className="text-xs font-semibold text-slate-200">
-                  Observações / Código da Transação PIX (Opcional)
-                </Label>
-                <Input
-                  id="adminNotes"
-                  placeholder="Ex: ID EndToEnd do PIX ou comprovante"
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  className="text-xs border-slate-800 bg-[#070b14] text-white"
-                />
+              {/* Informações da Loja & Comprador (2 colunas) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1">
+                  <span className="text-[10px] uppercase text-slate-500 font-semibold block">Loja Solicitante</span>
+                  <p className="font-bold text-white text-xs truncate">
+                    {selectedTx.tenants?.name || "Loja"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">
+                    ID: {selectedTx.tenant_id}
+                  </p>
+                  {typeof selectedTx.wallet_balance_cents === "number" && (
+                    <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80">
+                      Saldo Atual em Carteira: <span className="font-bold text-emerald-400">{formatBRL(selectedTx.wallet_balance_cents)}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1">
+                  <span className="text-[10px] uppercase text-slate-500 font-semibold block">Comprador Discord (Origem)</span>
+                  <p className="font-bold text-blue-300 text-xs truncate font-mono">
+                    {selectedTx.source_order?.discord_username ? `@${selectedTx.source_order.discord_username}` : "Usuário Discord"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono truncate">
+                    ID: {selectedTx.source_order?.discord_user_id || "—"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80">
+                    Origem: <span className="text-slate-300 font-medium">Discord Bot / Checkout</span>
+                  </p>
+                </div>
               </div>
 
-              <DialogFooter className="pt-2">
+              {/* Origem dos Fundos: Auditoria da Venda do Produto */}
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-3">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Produto Vendido:</span>
+                    <span className="font-bold text-white text-sm flex items-center gap-1.5">
+                      <ShoppingBag className="h-4 w-4 text-emerald-400" />
+                      {selectedTx.source_order?.product_name || "Venda do Lojista"}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-400 block text-[11px]">Número do Pedido:</span>
+                    <span className="font-mono font-bold text-amber-400 text-xs">
+                      {selectedTx.source_order?.order_number ? `#${selectedTx.source_order.order_number}` : (selectedTx.source_order?.id ? `#${selectedTx.source_order.id.slice(0, 8)}` : "—")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Split Contábil da Venda */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Entrada Bruta no Caixa Gateway:</span>
+                    <span className="font-mono font-extrabold text-emerald-400 text-sm">
+                      +{formatBRL(selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Taxa Intermediação Plataforma (1%):</span>
+                    <span className="font-mono font-bold text-purple-400">
+                      +{formatBRL(Math.round(((selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents) * 0.01)))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t border-slate-800/80 pt-1.5">
+                    <span className="font-semibold text-slate-200">Crédito Líquido que entrou na Carteira:</span>
+                    <span className="font-mono font-bold text-white">
+                      {formatBRL(selectedTx.source_deposit?.net_amount_cents || (selectedTx.source_order?.total_cents ? selectedTx.source_order.total_cents - Math.round(selectedTx.source_order.total_cents * 0.01) : selectedTx.amount_cents))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalhes do Saque a Pagar via PIX */}
+              <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 space-y-3">
+                <span className="text-[10px] uppercase text-amber-400 font-bold tracking-wider block">
+                  Conferência do Saque a Pagar
+                </span>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Valor Bruto Solicitado:</span>
+                    <span className="font-medium text-slate-300">{formatBRL(selectedTx.amount_cents)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Taxa de Saque Plataforma (2%):</span>
+                    <span className="font-bold text-emerald-400">+{formatBRL(selectedTx.fee_cents)}</span>
+                  </div>
+                  <div className="border-t border-slate-800/80 pt-2 flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-white block text-sm">Líquido a Transferir:</span>
+                      <span className="text-[10px] text-slate-400">Valor exato enviado via PIX</span>
+                    </div>
+                    <span className="text-xl font-black text-amber-400 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-lg">
+                      {formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Chave PIX Destino em destaque */}
+                <div className="pt-2 border-t border-slate-800/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 text-xs font-semibold">Chave PIX de Destino:</span>
+                    <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                      Tipo: {selectedTx.pix_key_type || "CPF"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between bg-[#070b14] border border-slate-800 rounded-lg p-2.5">
+                    <span className="font-mono font-bold text-sm text-white select-all">
+                      {selectedTx.pix_key}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleCopyPixKey(selectedTx.pix_key || "", `modal-${selectedTx.id}`)}
+                      className="h-7 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
+                    >
+                      {copiedKeyId === `modal-${selectedTx.id}` ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-emerald-400 mr-1" />
+                          <span className="text-emerald-400">Copiado</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5 mr-1" />
+                          Copiar Chave
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Identificadores Técnicos da Transação */}
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2">
+                <span className="text-[10px] uppercase text-slate-500 font-semibold block">
+                  Identificadores Técnicos & Rastreabilidade
+                </span>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">ID da Solicitação de Saque:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-slate-200 max-w-[200px] truncate">{selectedTx.id}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleCopyAuditText(selectedTx.id, "tx-id")}
+                        className="h-6 w-6 text-slate-400 hover:text-white"
+                        title="Copiar ID do Saque"
+                      >
+                        {copiedAuditId === "tx-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {selectedTx.source_order?.id && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">ID do Pedido de Origem:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-slate-200 max-w-[200px] truncate">{selectedTx.source_order.id}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleCopyAuditText(selectedTx.source_order!.id, "order-id")}
+                          className="h-6 w-6 text-slate-400 hover:text-white"
+                          title="Copiar ID do Pedido"
+                        >
+                          {copiedAuditId === "order-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedTx.source_order?.payment_id || selectedTx.payment_id) && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">ID Gateway / Transação:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-slate-200 max-w-[200px] truncate">
+                          {selectedTx.source_order?.payment_id || selectedTx.payment_id}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleCopyAuditText(selectedTx.source_order?.payment_id || selectedTx.payment_id!, "pay-id")}
+                          className="h-6 w-6 text-slate-400 hover:text-white"
+                          title="Copiar ID do Pagamento"
+                        >
+                          {copiedAuditId === "pay-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Data e Hora do Saque:</span>
+                    <span className="font-mono text-slate-300">
+                      {format(parseISO(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informação sobre transferência automática */}
+              {selectedTx.status === "pending" && (
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-3 flex items-start gap-2.5">
+                  <Zap className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-emerald-300 leading-relaxed">
+                    <strong>Transferência Automática PIX:</strong> Ao confirmar a aprovação, a gateway <strong>ColdPayments</strong> enviará exatamente <strong>{formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}</strong> de forma instantânea para a chave PIX informada.
+                  </p>
+                </div>
+              )}
+
+              {/* Observações / Notas do Admin (se pendente) */}
+              {selectedTx.status === "pending" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="adminNotes" className="text-xs font-semibold text-slate-200">
+                    Observações Administrativas (Opcional)
+                  </Label>
+                  <Input
+                    id="adminNotes"
+                    placeholder="Ex: Pagamento autorizado após auditoria do pedido #3464"
+                    value={adminNotes}
+                    onChange={(e) => setAdminNotes(e.target.value)}
+                    className="text-xs border-slate-800 bg-[#070b14] text-white"
+                  />
+                </div>
+              )}
+
+              <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-between items-center">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setApproveModalOpen(false)}
-                  disabled={processingAction}
-                  className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                  onClick={() => handleCopyWithdrawalReport(selectedTx)}
+                  className="w-full sm:w-auto text-xs border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 gap-1.5"
                 >
-                  Cancelar
+                  <Copy className="h-3.5 w-3.5" />
+                  Copiar Relatório Completo
                 </Button>
-                <Button
-                  type="button"
-                  onClick={handleApproveSubmit}
-                  disabled={processingAction}
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                >
-                  {processingAction ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  {selectedTx.status === "pending" ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setApproveModalOpen(false);
+                          setRejectModalOpen(true);
+                        }}
+                        disabled={processingAction}
+                        className="text-xs border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                      >
+                        Rejeitar Saque
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleApproveSubmit}
+                        disabled={processingAction}
+                        className="text-xs gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-950/40"
+                      >
+                        {processingAction ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        Confirmar e Enviar PIX ({formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)})
+                      </Button>
+                    </>
                   ) : (
-                    <CheckCircle2 className="h-4 w-4" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setApproveModalOpen(false)}
+                      className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs"
+                    >
+                      Concluir / Fechar
+                    </Button>
                   )}
-                  Confirmar Pagamento Realizado
-                </Button>
+                </div>
               </DialogFooter>
             </div>
           )}

@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ─── 4. Admin: List Withdrawals (with Tenant names) ───
+    // ─── 4. Admin: List Withdrawals (with Tenant names & enriched Sale details) ───
     if (action === "admin_list_withdrawals") {
       const { status } = body; // 'pending' | 'completed' | 'rejected' | 'all'
 
@@ -224,7 +224,70 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ success: true, withdrawals: data || [] }), {
+      const withdrawals = data || [];
+      const tenantIds = Array.from(new Set(withdrawals.map((w: any) => w.tenant_id).filter(Boolean)));
+
+      const ordersMap = new Map<string, any[]>();
+      const depositsMap = new Map<string, any[]>();
+      const walletsMap = new Map<string, any>();
+
+      if (tenantIds.length > 0) {
+        const [ordersRes, depositsRes, walletsRes] = await Promise.all([
+          supabase
+            .from("orders")
+            .select("id, order_number, tenant_id, discord_username, discord_user_id, product_name, total_cents, status, payment_provider, payment_id, created_at")
+            .in("tenant_id", tenantIds)
+            .in("status", ["paid", "delivered", "delivering"])
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase
+            .from("wallet_transactions")
+            .select("id, tenant_id, amount_cents, net_amount_cents, fee_cents, description, payment_id, created_at")
+            .in("tenant_id", tenantIds)
+            .eq("type", "deposit")
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase
+            .from("wallets")
+            .select("tenant_id, balance_cents, locked_balance_cents, total_earned_cents")
+            .in("tenant_id", tenantIds),
+        ]);
+
+        (ordersRes.data || []).forEach((o: any) => {
+          const list = ordersMap.get(o.tenant_id) || [];
+          list.push(o);
+          ordersMap.set(o.tenant_id, list);
+        });
+
+        (depositsRes.data || []).forEach((d: any) => {
+          const list = depositsMap.get(d.tenant_id) || [];
+          list.push(d);
+          depositsMap.set(d.tenant_id, list);
+        });
+
+        (walletsRes.data || []).forEach((w: any) => {
+          walletsMap.set(w.tenant_id, w);
+        });
+      }
+
+      const enrichedWithdrawals = withdrawals.map((w: any) => {
+        const tenantOrders = ordersMap.get(w.tenant_id) || [];
+        const tenantDeposits = depositsMap.get(w.tenant_id) || [];
+        const tenantWallet = walletsMap.get(w.tenant_id);
+
+        const matchedDeposit = tenantDeposits[0] || null;
+        const matchedOrder = tenantOrders.find((o: any) => o.id === matchedDeposit?.payment_id) || tenantOrders[0] || null;
+
+        return {
+          ...w,
+          source_order: matchedOrder,
+          source_deposit: matchedDeposit,
+          recent_orders: tenantOrders.slice(0, 3),
+          wallet_balance_cents: tenantWallet?.balance_cents ?? 0,
+        };
+      });
+
+      return new Response(JSON.stringify({ success: true, withdrawals: enrichedWithdrawals }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
