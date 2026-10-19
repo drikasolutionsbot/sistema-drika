@@ -21,6 +21,7 @@ import {
   Building,
   ChevronRight,
   ShieldAlert,
+  Shield,
   Edit3,
   Eye,
   EyeOff,
