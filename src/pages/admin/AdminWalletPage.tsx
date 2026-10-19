@@ -22,6 +22,15 @@ import {
   ChevronRight,
   ShieldAlert,
   Edit3,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Wifi,
+  CreditCard,
+  Send,
+  AlertCircle,
+  PiggyBank,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +119,17 @@ export default function AdminWalletPage() {
   const [wallets, setWallets] = useState<TenantWalletItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Toggle hide/show balance
+  const [showBalance, setShowBalance] = useState(() => {
+    return localStorage.getItem("drika_admin_show_balance") !== "false";
+  });
+
+  const toggleShowBalance = () => {
+    const next = !showBalance;
+    setShowBalance(next);
+    localStorage.setItem("drika_admin_show_balance", String(next));
+  };
 
   // Active Tab
   const [activeTab, setActiveTab] = useState("withdrawals");
@@ -319,6 +339,33 @@ export default function AdminWalletPage() {
     }
   };
 
+  // Calculations for total cash in vault
+  const totalInVaultCents = useMemo(() => {
+    if (!metrics) return 0;
+    // Total in vault = saldo disponível dos clientes + saldo retido em saques pendentes + taxas lucradas
+    return (
+      (metrics.total_balance_cents || 0) +
+      (metrics.total_locked_cents || 0) +
+      (metrics.total_fees_collected_cents || 0)
+    );
+  }, [metrics]);
+
+  // Projected future platform fees from existing available balances
+  const projectedFutureFeesCents = useMemo(() => {
+    if (!metrics?.total_balance_cents) return 0;
+    return Math.round(metrics.total_balance_cents * 0.02);
+  }, [metrics]);
+
+  // Donut chart percentages
+  const distributionPercentages = useMemo(() => {
+    const total = totalInVaultCents || 1;
+    const clientBalancePct = Math.round(((metrics?.total_balance_cents || 0) / total) * 100);
+    const pendingPct = Math.round(((metrics?.total_locked_cents || 0) / total) * 100);
+    const feesPct = Math.max(0, 100 - clientBalancePct - pendingPct);
+
+    return { clientBalancePct, pendingPct, feesPct };
+  }, [totalInVaultCents, metrics]);
+
   // Filtered Withdrawals
   const filteredWithdrawals = useMemo(() => {
     return withdrawals.filter((w) => {
@@ -351,181 +398,403 @@ export default function AdminWalletPage() {
   const pendingCount = metrics?.pending_count || 0;
 
   return (
-    <div className="space-y-6 p-4 md:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/40 pb-5">
+    <div className="space-y-6 p-4 md:p-8 max-w-7xl mx-auto text-slate-100">
+      {/* ─── 1. Header estilo Fintech ─── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary">
-              <Wallet className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                  Carteira & Gestão de Saques
-                </h1>
-                <Badge variant="outline" className="border-primary/30 text-primary text-xs">
-                  Taxa Plataforma: 2%
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Painel central de split, controle financeiro das lojas e aprovação manual de transferências PIX.
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white font-sans uppercase">
+              ADMINISTRAÇÃO FINANCEIRA & SPLIT
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Modo Master Admin
+            </span>
+            <span className="text-xs text-slate-400 hidden sm:inline">
+              Gestão central de liquidez, fluxo de caixa e aprovação de saques.
+            </span>
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => loadData(true)}
-          disabled={refreshing || loading}
-          className="gap-2 border-border/60 hover:bg-muted/50"
-        >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-          Atualizar Dados
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData(true)}
+            disabled={refreshing || loading}
+            className="gap-2 border-slate-800 bg-[#0d1321] text-slate-300 hover:bg-slate-800 hover:text-white"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            Atualizar Dados
+          </Button>
+        </div>
       </div>
 
-      {/* Global Platform Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Saques Pendentes */}
-        <Card className="relative overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-amber-950/20 shadow-md">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Saques Pendentes
-              </span>
+      {/* ─── 2. Hero Card Principal (Total em Caixa + Cartão 3D Master) ─── */}
+      <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#080d19] via-[#0b1324] to-[#070b14] p-6 md:p-8 shadow-2xl">
+        {/* Glow de fundo */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-600/10 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* Lado Esquerdo: Saldo Total em Caixa + Métricas Detalhadas */}
+          <div className="lg:col-span-7 space-y-6">
+            <div>
+              <div className="flex items-center gap-2.5 text-xs text-slate-400 font-medium">
+                <span>Total em Caixa da Plataforma (Custódia + Lucro)</span>
+                <button
+                  type="button"
+                  onClick={toggleShowBalance}
+                  className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+                  title={showBalance ? "Ocultar valores" : "Mostrar valores"}
+                >
+                  {showBalance ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => loadData(true)}
+                  className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+                  title="Atualizar"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+
+              <div className="mt-2 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-white font-sans">
+                {showBalance ? formatBRL(totalInVaultCents) : "R$ ••••••"}
+              </div>
+            </div>
+
+            {/* Sub-métricas: A Pagar, Saldo Lojas, Lucro 2%, Total Já Pago */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800/80">
+              {/* A Pagar (Saques Pendentes) */}
+              <div className="space-y-1">
+                <span className="text-xs text-amber-400 block font-semibold flex items-center gap-1">
+                  A Pagar (Saques)
+                  {pendingCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                      {pendingCount}
+                    </span>
+                  )}
+                </span>
+                <p className="text-base sm:text-lg font-bold text-amber-400">
+                  {showBalance ? formatBRL(metrics?.pending_net_cents || 0) : "••••"}
+                </p>
+                <span className="text-[10px] text-slate-500 block">Líquido a transferir</span>
+              </div>
+
+              {/* Saldo das Lojas */}
+              <div className="space-y-1 border-l border-slate-800/80 pl-4 sm:pl-4">
+                <span className="text-xs text-slate-400 block font-medium">Saldo das Lojas</span>
+                <p className="text-base sm:text-lg font-bold text-slate-200">
+                  {showBalance ? formatBRL(metrics?.total_balance_cents || 0) : "••••"}
+                </p>
+                <span className="text-[10px] text-slate-500 block">Livre para saque</span>
+              </div>
+
+              {/* Lucro Plataforma (2%) */}
+              <div className="space-y-1 sm:border-l border-slate-800/80 sm:pl-4">
+                <span className="text-xs text-emerald-400 block font-semibold">Lucro Plataforma</span>
+                <p className="text-base sm:text-lg font-bold text-emerald-400">
+                  {showBalance ? formatBRL(metrics?.total_fees_collected_cents || 0) : "••••"}
+                </p>
+                <span className="text-[10px] text-slate-500 block">Taxas de 2% retidas</span>
+              </div>
+
+              {/* Total Já Pago */}
+              <div className="space-y-1 border-l border-slate-800/80 pl-4 sm:pl-4">
+                <span className="text-xs text-purple-400 block font-medium">Total Já Pago</span>
+                <p className="text-base sm:text-lg font-bold text-purple-300">
+                  {showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}
+                </p>
+                <span className="text-[10px] text-slate-500 block">Volume liquidado</span>
+              </div>
+            </div>
+
+            {/* Banner de Status / Operações */}
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3.5 flex items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3">
+                <Clock className="h-5 w-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+                <div className="text-xs text-amber-200/90 leading-relaxed">
+                  <strong className="text-white font-semibold">
+                    {pendingCount > 0 ? `${pendingCount} saque(s) aguardando sua aprovação!` : "Nenhum saque pendente no momento."}
+                  </strong>{" "}
+                  Taxa ativa de 2% retida pela plataforma. Projeção de taxas futuras sobre saldo atual das lojas:{" "}
+                  <strong className="text-emerald-400">{formatBRL(projectedFutureFeesCents)}</strong>.
+                </div>
+              </div>
+
               {pendingCount > 0 && (
-                <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-ping" />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setActiveTab("withdrawals");
+                    setWithdrawalStatusFilter("pending");
+                  }}
+                  className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs shrink-0"
+                >
+                  Revisar Saques
+                </Button>
               )}
             </div>
-            <div className="flex items-baseline gap-2">
-              <CardTitle className="text-3xl font-black tracking-tight text-amber-400">
-                {pendingCount}
+          </div>
+
+          {/* Lado Direito: Cartão 3D Virtual Estilo Fintech Master */}
+          <div className="lg:col-span-5 flex justify-center lg:justify-end">
+            <div className="relative group w-full max-w-[360px] aspect-[1.586/1] rounded-2xl p-6 bg-gradient-to-br from-white via-slate-100 to-slate-200 text-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-white/80 transition-all duration-500 hover:scale-[1.03] hover:-rotate-1 cursor-pointer overflow-hidden flex flex-col justify-between">
+              {/* Marca d'água */}
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+              <div className="absolute -right-16 -top-16 w-48 h-48 bg-gradient-to-br from-amber-400/20 via-pink-400/20 to-transparent rounded-full blur-2xl pointer-events-none" />
+
+              {/* Top Row: Chip + Contactless + Brand */}
+              <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-3">
+                  {/* Golden Chip */}
+                  <div className="w-10 h-8 rounded-md bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-600 border border-amber-600/40 relative shadow-sm overflow-hidden flex items-center justify-center">
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-amber-800/40" />
+                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-amber-800/40" />
+                    <div className="w-5 h-4 border border-amber-700/30 rounded-sm" />
+                  </div>
+
+                  <Wifi className="h-5 w-5 text-slate-400 rotate-90" />
+                </div>
+
+                <div className="flex items-center gap-1.5 font-black text-xs tracking-wider text-slate-800 uppercase">
+                  <Sparkles className="h-4 w-4 text-amber-600" />
+                  <span>DRIKA PLATFORM</span>
+                </div>
+              </div>
+
+              {/* Card Number */}
+              <div className="my-auto pt-2 relative z-10">
+                <p className="font-mono text-lg sm:text-xl font-bold tracking-[0.22em] text-slate-700">
+                  •••• •••• •••• 0001
+                </p>
+              </div>
+
+              {/* Bottom Row */}
+              <div className="flex items-end justify-between relative z-10">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">
+                    Titular da Plataforma
+                  </span>
+                  <p className="font-mono text-xs sm:text-sm font-bold tracking-wider text-slate-800 truncate max-w-[200px]">
+                    ADMINISTRADOR MASTER
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">
+                      Validade
+                    </span>
+                    <span className="font-mono text-xs font-bold text-slate-700">12/30</span>
+                  </div>
+
+                  <span className="px-2 py-0.5 rounded border border-slate-300 bg-white/80 text-[10px] font-black uppercase tracking-wider text-slate-800 shadow-sm">
+                    MASTER
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 3. Segunda Linha: Distribuição de Fundos + Resumo de Liquidez ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Card: Distribuição de Fundos (estilo Imagem 3) */}
+        <Card className="lg:col-span-6 border-slate-800/80 bg-[#0a0f1d] shadow-lg">
+          <CardHeader className="pb-3 border-b border-slate-800/60">
+            <CardTitle className="text-base font-bold text-white flex items-center gap-2">
+              Distribuição de Fundos em Caixa
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+              {/* Gráfico Donut SVG Circular */}
+              <div className="sm:col-span-5 flex justify-center">
+                <div className="relative w-36 h-36 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      className="text-slate-800/60 stroke-current"
+                      strokeWidth="10"
+                      fill="transparent"
+                    />
+                    {/* Fatias */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      className="text-emerald-500 stroke-current"
+                      strokeWidth="10"
+                      strokeDasharray="251.2"
+                      strokeDashoffset={251.2 - (251.2 * distributionPercentages.clientBalancePct) / 100}
+                      strokeLinecap="round"
+                      fill="transparent"
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total</span>
+                    <span className="text-xs sm:text-sm font-extrabold text-white">
+                      {showBalance ? formatBRL(totalInVaultCents) : "••••"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista com porcentagens e valores */}
+              <div className="sm:col-span-7 space-y-3.5">
+                {/* Saldo Livre dos Clientes */}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                    <span className="font-medium text-slate-200">Saldo Livre (Lojas)</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-semibold text-white block">
+                      {showBalance ? formatBRL(metrics?.total_balance_cents || 0) : "••••"}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{distributionPercentages.clientBalancePct}%</span>
+                  </div>
+                </div>
+
+                {/* A Pagar (Saques Pendentes) */}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                    <span className="font-medium text-slate-200">A Pagar (Saques)</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-semibold text-amber-400 block">
+                      {showBalance ? formatBRL(metrics?.pending_net_cents || 0) : "••••"}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{distributionPercentages.pendingPct}%</span>
+                  </div>
+                </div>
+
+                {/* Lucro Retido da Plataforma (2%) */}
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-purple-400" />
+                    <span className="font-medium text-slate-200">Lucro Retido (2%)</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-semibold text-purple-300 block">
+                      {showBalance ? formatBRL(metrics?.total_fees_collected_cents || 0) : "••••"}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{distributionPercentages.feesPct}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card: Resumo de Liquidez & Faturamento */}
+        <Card className="lg:col-span-6 border-slate-800/80 bg-[#0a0f1d] shadow-lg flex flex-col justify-between">
+          <CardHeader className="pb-3 border-b border-slate-800/60">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-bold text-white flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+                Resumo Geral de Faturamento & Lojas
               </CardTitle>
-              <span className="text-xs font-semibold text-muted-foreground">
-                ({formatBRL(metrics?.pending_net_cents || 0)} líquido)
-              </span>
+              <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-400">
+                Taxa Plataforma: 2%
+              </Badge>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-xs text-muted-foreground">
-              Solicitações aguardando sua conferência e envio PIX
-            </p>
-          </CardContent>
-        </Card>
+          <CardContent className="pt-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
+                <span className="text-slate-400 block">Total Transacionado em Vendas:</span>
+                <span className="text-base font-extrabold text-blue-400 block">
+                  {showBalance ? formatBRL(metrics?.total_earned_cents || 0) : "••••"}
+                </span>
+                <span className="text-[10px] text-slate-500">Volume bruto de todos os lojistas</span>
+              </div>
 
-        {/* Taxas Arrecadadas (2%) */}
-        <Card className="relative overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-emerald-950/20 shadow-md">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Taxas da Plataforma (2%)
-              </span>
-              <Percent className="h-4 w-4 text-emerald-400" />
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
+                <span className="text-slate-400 block">Total de Lojas Cadastradas:</span>
+                <span className="text-base font-extrabold text-white block">
+                  {wallets.length} lojas
+                </span>
+                <span className="text-[10px] text-slate-500">Lojas ativas na plataforma</span>
+              </div>
             </div>
-            <CardTitle className="text-3xl font-black tracking-tight text-emerald-400">
-              {formatBRL(metrics?.total_fees_collected_cents || 0)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-xs text-muted-foreground">
-              Lucro retido pela taxa de 2% sobre saques concluídos
-            </p>
-          </CardContent>
-        </Card>
 
-        {/* Saldo Total Retido nas Lojas */}
-        <Card className="relative overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-blue-950/20 shadow-md">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Saldo Total das Lojas
-              </span>
-              <Coins className="h-4 w-4 text-blue-400" />
-            </div>
-            <CardTitle className="text-3xl font-black tracking-tight text-blue-400">
-              {formatBRL(metrics?.total_balance_cents || 0)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-xs text-muted-foreground">
-              Soma dos saldos disponíveis em todas as carteiras
-            </p>
-          </CardContent>
-        </Card>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
+                <span className="text-slate-400 block">Projeção de Taxas a Receber:</span>
+                <span className="text-base font-extrabold text-emerald-400 block">
+                  {showBalance ? formatBRL(projectedFutureFeesCents) : "••••"}
+                </span>
+                <span className="text-[10px] text-slate-500">2% sobre saldos em carteira</span>
+              </div>
 
-        {/* Total Já Pago em Saques */}
-        <Card className="relative overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-purple-950/20 shadow-md">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Total Já Sacado
-              </span>
-              <CheckCircle2 className="h-4 w-4 text-purple-400" />
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
+                <span className="text-slate-400 block">Total Já Pago em Saques:</span>
+                <span className="text-base font-extrabold text-purple-300 block">
+                  {showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}
+                </span>
+                <span className="text-[10px] text-slate-500">PIX transferidos com sucesso</span>
+              </div>
             </div>
-            <CardTitle className="text-3xl font-black tracking-tight text-purple-400">
-              {formatBRL(metrics?.total_withdrawn_cents || 0)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-xs text-muted-foreground">
-              Volume total aprovado e transferido via PIX
-            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs: Saques vs Carteiras */}
+      {/* ─── 4. Tabs: Solicitações de Saque (A Pagar) vs Carteiras das Lojas ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-muted/60 p-1 border border-border/60">
-          <TabsTrigger value="withdrawals" className="gap-2 relative">
+        <TabsList className="bg-slate-900/60 p-1 border border-slate-800/80">
+          <TabsTrigger value="withdrawals" className="gap-2 relative data-[state=active]:bg-[#0a0f1d] text-xs">
             <Clock className="h-4 w-4" />
-            Solicitações de Saque
+            Solicitações de Saque (A Pagar)
             {pendingCount > 0 && (
-              <Badge className="ml-1 px-1.5 py-0 text-[10px] bg-amber-500 text-black font-bold">
+              <Badge className="ml-1 px-1.5 py-0 text-[10px] bg-amber-500 text-black font-bold animate-pulse">
                 {pendingCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="wallets" className="gap-2">
+          <TabsTrigger value="wallets" className="gap-2 data-[state=active]:bg-[#0a0f1d] text-xs">
             <Building className="h-4 w-4" />
             Carteiras dos Clientes ({wallets.length})
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Solicitações de Saque */}
+        {/* Tab 1: Solicitações de Saque (A Pagar) */}
         <TabsContent value="withdrawals" className="space-y-4">
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="border-b border-border/40 pb-4">
+          <Card className="border-slate-800/80 bg-[#0a0f1d] shadow-lg">
+            <CardHeader className="border-b border-slate-800/60 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
                     <Clock className="h-5 w-5 text-amber-400" />
-                    Gerenciamento e Aprovação de Saques
+                    Gerenciamento & Aprovação de Saques (A Pagar)
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-slate-400 text-xs">
                     Analise os saques solicitados pelos clientes, copie a chave PIX, faça a transferência e confirme.
                   </CardDescription>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
                   <div className="relative min-w-[220px]">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                     <Input
                       placeholder="Buscar por loja ou chave PIX..."
                       value={searchWithdrawals}
                       onChange={(e) => setSearchWithdrawals(e.target.value)}
-                      className="pl-8 h-9 text-xs"
+                      className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
                     />
                   </div>
 
                   <Select value={withdrawalStatusFilter} onValueChange={setWithdrawalStatusFilter}>
-                    <SelectTrigger className="h-9 w-[150px] text-xs">
+                    <SelectTrigger className="h-9 w-[150px] text-xs border-slate-800 bg-[#070b14] text-slate-200">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
                       <SelectItem value="pending">Apenas Pendentes</SelectItem>
                       <SelectItem value="completed">Concluídos</SelectItem>
                       <SelectItem value="rejected">Rejeitados</SelectItem>
@@ -538,15 +807,15 @@ export default function AdminWalletPage() {
 
             <CardContent className="p-0">
               {loading ? (
-                <div className="p-12 text-center text-muted-foreground">
-                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-primary opacity-60" />
+                <div className="p-12 text-center text-slate-400">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-pink-500 opacity-60" />
                   <p className="text-sm">Carregando solicitações de saque...</p>
                 </div>
               ) : filteredWithdrawals.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground">
+                <div className="p-12 text-center text-slate-400">
                   <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-20 text-emerald-400" />
-                  <p className="text-base font-semibold text-foreground">Nenhuma solicitação encontrada</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-base font-semibold text-white">Nenhuma solicitação encontrada</p>
+                  <p className="text-xs text-slate-400 mt-1">
                     {withdrawalStatusFilter === "pending"
                       ? "Não há saques pendentes de aprovação no momento."
                       : "Nenhum registro corresponde aos filtros selecionados."}
@@ -555,50 +824,50 @@ export default function AdminWalletPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/40">
+                    <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                       <tr>
                         <th className="py-3 px-4">Loja / Cliente</th>
                         <th className="py-3 px-4">Data</th>
                         <th className="py-3 px-4">Chave PIX</th>
-                        <th className="py-3 px-4 text-right">Bruto</th>
-                        <th className="py-3 px-4 text-right">Taxa (2%)</th>
+                        <th className="py-3 px-4 text-right">Bruto Solicitado</th>
+                        <th className="py-3 px-4 text-right">Taxa (2%) Lucro</th>
                         <th className="py-3 px-4 text-right">Líquido a Pagar</th>
                         <th className="py-3 px-4 text-center">Status</th>
                         <th className="py-3 px-4 text-right">Ações</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/30">
+                    <tbody className="divide-y divide-slate-800/40">
                       {filteredWithdrawals.map((w) => {
                         const isPending = w.status === "pending";
 
                         return (
-                          <tr key={w.id} className="hover:bg-muted/20 transition-colors">
+                          <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
                             {/* Loja */}
                             <td className="py-3.5 px-4">
-                              <div className="font-semibold text-xs text-foreground">
+                              <div className="font-semibold text-xs text-white">
                                 {w.tenants?.name || "Loja"}
                               </div>
-                              <div className="text-[10px] text-muted-foreground font-mono">
+                              <div className="text-[10px] text-slate-500 font-mono">
                                 ID: {w.tenant_id.slice(0, 8)}...
                               </div>
                             </td>
 
                             {/* Data */}
-                            <td className="py-3.5 px-4 text-xs text-muted-foreground whitespace-nowrap">
+                            <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
                               {format(new Date(w.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </td>
 
                             {/* Chave PIX */}
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-xs font-semibold text-foreground bg-muted/50 px-2 py-0.5 rounded border border-border/50">
+                                <span className="font-mono text-xs font-semibold text-white bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
                                   {w.pix_key}
                                 </span>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleCopyPixKey(w.pix_key || "", w.id)}
-                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  className="h-7 w-7 text-slate-400 hover:text-white"
                                   title="Copiar Chave PIX"
                                 >
                                   {copiedKeyId === w.id ? (
@@ -609,25 +878,25 @@ export default function AdminWalletPage() {
                                 </Button>
                               </div>
                               {w.pix_key_type && (
-                                <div className="text-[10px] uppercase text-muted-foreground mt-0.5">
+                                <div className="text-[10px] uppercase text-slate-500 mt-0.5">
                                   Tipo: {w.pix_key_type}
                                 </div>
                               )}
                             </td>
 
                             {/* Bruto */}
-                            <td className="py-3.5 px-4 text-right text-xs font-medium text-foreground whitespace-nowrap">
+                            <td className="py-3.5 px-4 text-right text-xs font-medium text-slate-300 whitespace-nowrap">
                               {formatBRL(w.amount_cents)}
                             </td>
 
-                            {/* Taxa */}
+                            {/* Taxa 2% Lucro */}
                             <td className="py-3.5 px-4 text-right text-xs text-emerald-400 font-semibold whitespace-nowrap">
                               +{formatBRL(w.fee_cents)}
                             </td>
 
-                            {/* Líquido */}
+                            {/* Líquido a Pagar */}
                             <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                              <span className="text-sm font-extrabold text-foreground bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded">
+                              <span className="text-sm font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
                                 {formatBRL(w.net_amount_cents || w.amount_cents - w.fee_cents)}
                               </span>
                             </td>
@@ -645,7 +914,7 @@ export default function AdminWalletPage() {
                                 </Badge>
                               )}
                               {w.status === "rejected" && (
-                                <Badge className="bg-destructive/15 text-destructive border border-destructive/30 text-[11px]">
+                                <Badge className="bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[11px]">
                                   Rejeitado
                                 </Badge>
                               )}
@@ -661,7 +930,7 @@ export default function AdminWalletPage() {
                                       setSelectedTx(w);
                                       setApproveModalOpen(true);
                                     }}
-                                    className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-2.5"
+                                    className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-2.5 shadow-sm"
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5" />
                                     Aprovar
@@ -673,14 +942,14 @@ export default function AdminWalletPage() {
                                       setSelectedTx(w);
                                       setRejectModalOpen(true);
                                     }}
-                                    className="h-8 gap-1 border-destructive/30 text-destructive hover:bg-destructive/10 text-xs px-2.5"
+                                    className="h-8 gap-1 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs px-2.5"
                                   >
                                     <XCircle className="h-3.5 w-3.5" />
                                     Rejeitar
                                   </Button>
                                 </div>
                               ) : (
-                                <span className="text-[11px] text-muted-foreground">
+                                <span className="text-[11px] text-slate-500">
                                   {w.completed_at
                                     ? format(new Date(w.completed_at), "dd/MM HH:mm")
                                     : "Finalizado"}
@@ -700,26 +969,26 @@ export default function AdminWalletPage() {
 
         {/* Tab 2: Todas as Carteiras das Lojas */}
         <TabsContent value="wallets" className="space-y-4">
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="border-b border-border/40 pb-4">
+          <Card className="border-slate-800/80 bg-[#0a0f1d] shadow-lg">
+            <CardHeader className="border-b border-slate-800/60 pb-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <Building className="h-5 w-5 text-primary" />
-                    Carteiras de Todos os Clientes
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                    <Building className="h-5 w-5 text-emerald-400" />
+                    Detalhamento de Saldo por Loja
                   </CardTitle>
-                  <CardDescription>
-                    Visão geral dos saldos disponíveis, bloqueados e movimentações de cada loja cadastrada.
+                  <CardDescription className="text-slate-400 text-xs">
+                    Visão geral dos saldos disponíveis, bloqueados em saque e faturamento de cada loja cadastrada.
                   </CardDescription>
                 </div>
 
                 <div className="relative min-w-[240px]">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                   <Input
                     placeholder="Buscar loja por nome ou ID..."
                     value={searchWallets}
                     onChange={(e) => setSearchWallets(e.target.value)}
-                    className="pl-8 h-9 text-xs"
+                    className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
                   />
                 </div>
               </div>
@@ -727,42 +996,42 @@ export default function AdminWalletPage() {
 
             <CardContent className="p-0">
               {loading ? (
-                <div className="p-12 text-center text-muted-foreground">
-                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-primary opacity-60" />
+                <div className="p-12 text-center text-slate-400">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-pink-500 opacity-60" />
                   <p className="text-sm">Carregando carteiras...</p>
                 </div>
               ) : filteredWallets.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground">
+                <div className="p-12 text-center text-slate-400">
                   <Building className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p className="text-base font-semibold text-foreground">Nenhuma carteira encontrada</p>
+                  <p className="text-base font-semibold text-white">Nenhuma carteira encontrada</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/40">
+                    <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                       <tr>
                         <th className="py-3 px-4">Loja / Cliente</th>
                         <th className="py-3 px-4">Plano</th>
                         <th className="py-3 px-4 text-right">Saldo Disponível</th>
-                        <th className="py-3 px-4 text-right">Em Aprovação</th>
+                        <th className="py-3 px-4 text-right">Em Saque (Bloqueado)</th>
                         <th className="py-3 px-4 text-right">Total Recebido</th>
-                        <th className="py-3 px-4 text-right">Total Sacado</th>
+                        <th className="py-3 px-4 text-right">Total Já Sacado</th>
                         <th className="py-3 px-4 text-right">Ações</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/30">
+                    <tbody className="divide-y divide-slate-800/40">
                       {filteredWallets.map((w) => (
-                        <tr key={w.id} className="hover:bg-muted/20 transition-colors">
+                        <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
                           <td className="py-3.5 px-4">
-                            <div className="font-semibold text-xs text-foreground">
+                            <div className="font-semibold text-xs text-white">
                               {w.tenants?.name || "Loja"}
                             </div>
-                            <div className="text-[10px] text-muted-foreground font-mono">
+                            <div className="text-[10px] text-slate-500 font-mono">
                               {w.tenant_id}
                             </div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <Badge variant="outline" className="text-[10px] uppercase">
+                            <Badge variant="outline" className="text-[10px] uppercase border-slate-700">
                               {w.tenants?.plan || "free"}
                             </Badge>
                           </td>
@@ -788,7 +1057,7 @@ export default function AdminWalletPage() {
                                 setAdjustReason("");
                                 setAdjustModalOpen(true);
                               }}
-                              className="h-8 text-xs gap-1 hover:bg-primary/10 hover:text-primary"
+                              className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
                             >
                               <Edit3 className="h-3 w-3" />
                               Ajustar Saldo
@@ -805,48 +1074,48 @@ export default function AdminWalletPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal: Aprovar Saque */}
+      {/* ─── 5. Modal: Aprovar Saque ─── */}
       <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-slate-800 bg-[#0a0f1d] text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold text-emerald-400">
               <CheckCircle2 className="h-5 w-5" />
               Confirmar Aprovação de Saque
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-slate-400 text-xs">
               Certifique-se de que a transferência PIX foi realizada para a chave abaixo.
             </DialogDescription>
           </DialogHeader>
 
           {selectedTx && (
             <div className="space-y-4 py-2 text-sm">
-              <div className="rounded-xl border border-border/80 bg-muted/40 p-3.5 space-y-2 text-xs">
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Loja Solicitante:</span>
-                  <span className="font-bold text-foreground">{selectedTx.tenants?.name || "Loja"}</span>
+                  <span className="text-slate-400">Loja Solicitante:</span>
+                  <span className="font-bold text-white">{selectedTx.tenants?.name || "Loja"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Chave PIX:</span>
-                  <span className="font-mono font-bold text-foreground">{selectedTx.pix_key}</span>
+                  <span className="text-slate-400">Chave PIX:</span>
+                  <span className="font-mono font-bold text-white">{selectedTx.pix_key}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Valor Bruto Solicitado:</span>
-                  <span className="font-medium text-foreground">{formatBRL(selectedTx.amount_cents)}</span>
+                  <span className="text-slate-400">Valor Bruto Solicitado:</span>
+                  <span className="font-medium text-slate-300">{formatBRL(selectedTx.amount_cents)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxa da Plataforma (2%):</span>
+                  <span className="text-slate-400">Taxa da Plataforma (2%):</span>
                   <span className="font-bold text-emerald-400">+{formatBRL(selectedTx.fee_cents)}</span>
                 </div>
-                <div className="border-t border-border/60 pt-2 flex justify-between items-center">
-                  <span className="font-bold text-foreground">Valor Líquido a Enviar:</span>
-                  <span className="text-lg font-black text-emerald-400">
+                <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
+                  <span className="font-bold text-white">Valor Líquido a Enviar:</span>
+                  <span className="text-lg font-black text-amber-400">
                     {formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="adminNotes" className="text-xs font-semibold">
+                <Label htmlFor="adminNotes" className="text-xs font-semibold text-slate-200">
                   Observações / Código da Transação PIX (Opcional)
                 </Label>
                 <Input
@@ -854,7 +1123,7 @@ export default function AdminWalletPage() {
                   placeholder="Ex: ID EndToEnd do PIX ou comprovante"
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  className="text-xs"
+                  className="text-xs border-slate-800 bg-[#070b14] text-white"
                 />
               </div>
 
@@ -864,6 +1133,7 @@ export default function AdminWalletPage() {
                   variant="outline"
                   onClick={() => setApproveModalOpen(false)}
                   disabled={processingAction}
+                  className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
                 >
                   Cancelar
                 </Button>
@@ -886,28 +1156,28 @@ export default function AdminWalletPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Rejeitar Saque */}
+      {/* ─── 6. Modal: Rejeitar Saque ─── */}
       <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-slate-800 bg-[#0a0f1d] text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-destructive">
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-rose-500">
               <XCircle className="h-5 w-5" />
               Rejeitar Solicitação de Saque
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-slate-400 text-xs">
               O saldo total será imediatamente devolvido à carteira da loja.
             </DialogDescription>
           </DialogHeader>
 
           {selectedTx && (
             <div className="space-y-4 py-2 text-sm">
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive">
+              <div className="rounded-lg bg-rose-950/30 border border-rose-500/20 p-3 text-xs text-rose-200">
                 Ao rejeitar, o valor bruto de <strong>{formatBRL(selectedTx.amount_cents)}</strong> retornará
                 integralmente ao saldo disponível de <strong>{selectedTx.tenants?.name || "Loja"}</strong>.
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="rejectionReason" className="text-xs font-semibold">
+                <Label htmlFor="rejectionReason" className="text-xs font-semibold text-slate-200">
                   Motivo da Rejeição (Visível para o cliente) *
                 </Label>
                 <Input
@@ -915,7 +1185,7 @@ export default function AdminWalletPage() {
                   placeholder="Ex: Chave PIX inexistente / Dados divergentes"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  className="text-xs"
+                  className="text-xs border-slate-800 bg-[#070b14] text-white"
                   required
                 />
               </div>
@@ -926,6 +1196,7 @@ export default function AdminWalletPage() {
                   variant="outline"
                   onClick={() => setRejectModalOpen(false)}
                   disabled={processingAction}
+                  className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
                 >
                   Cancelar
                 </Button>
@@ -934,7 +1205,7 @@ export default function AdminWalletPage() {
                   variant="destructive"
                   onClick={handleRejectSubmit}
                   disabled={processingAction || !rejectionReason.trim()}
-                  className="gap-2 font-semibold"
+                  className="gap-2 font-semibold bg-rose-600 hover:bg-rose-700 text-white"
                 >
                   {processingAction ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -949,40 +1220,40 @@ export default function AdminWalletPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Ajustar Saldo Manual */}
+      {/* ─── 7. Modal: Ajustar Saldo Manual ─── */}
       <Dialog open={adjustModalOpen} onOpenChange={setAdjustModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-slate-800 bg-[#0a0f1d] text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              <Edit3 className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
+              <Edit3 className="h-5 w-5 text-emerald-400" />
               Ajuste Administrativo de Saldo
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-slate-400 text-xs">
               Adicione créditos ou faça débitos na carteira da loja selecionada.
             </DialogDescription>
           </DialogHeader>
 
           {selectedWallet && (
             <form onSubmit={handleAdjustSubmit} className="space-y-4 py-2 text-sm">
-              <div className="rounded-lg bg-muted/60 p-3 flex justify-between items-center text-xs">
+              <div className="rounded-lg bg-[#070b14] border border-slate-800 p-3 flex justify-between items-center text-xs">
                 <div>
-                  <span className="text-muted-foreground">Loja:</span>
-                  <p className="font-bold text-foreground text-sm">{selectedWallet.tenants?.name || "Loja"}</p>
+                  <span className="text-slate-400">Loja:</span>
+                  <p className="font-bold text-white text-sm">{selectedWallet.tenants?.name || "Loja"}</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-muted-foreground">Saldo Atual:</span>
+                  <span className="text-slate-400">Saldo Atual:</span>
                   <p className="font-bold text-emerald-400 text-sm">{formatBRL(selectedWallet.balance_cents)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Tipo de Ajuste</Label>
+                  <Label className="text-xs font-semibold text-slate-200">Tipo de Ajuste</Label>
                   <Select value={adjustType} onValueChange={(v: "credit" | "debit") => setAdjustType(v)}>
-                    <SelectTrigger className="text-xs">
+                    <SelectTrigger className="text-xs border-slate-800 bg-[#070b14] text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="border-slate-800 bg-[#0a0f1d] text-white">
                       <SelectItem value="credit">Crédito (+)</SelectItem>
                       <SelectItem value="debit">Débito (-)</SelectItem>
                     </SelectContent>
@@ -990,19 +1261,19 @@ export default function AdminWalletPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Valor (R$)</Label>
+                  <Label className="text-xs font-semibold text-slate-200">Valor (R$)</Label>
                   <Input
                     placeholder="0,00"
                     value={adjustAmount}
                     onChange={(e) => setAdjustAmount(e.target.value)}
-                    className="text-xs font-semibold"
+                    className="text-xs font-semibold border-slate-800 bg-[#070b14] text-white"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="adjustReason" className="text-xs font-semibold">
+                <Label htmlFor="adjustReason" className="text-xs font-semibold text-slate-200">
                   Justificativa / Motivo do Ajuste *
                 </Label>
                 <Input
@@ -1010,7 +1281,7 @@ export default function AdminWalletPage() {
                   placeholder="Ex: Correção de lançamento / Bonificação"
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
-                  className="text-xs"
+                  className="text-xs border-slate-800 bg-[#070b14] text-white"
                   required
                 />
               </div>
@@ -1021,13 +1292,14 @@ export default function AdminWalletPage() {
                   variant="outline"
                   onClick={() => setAdjustModalOpen(false)}
                   disabled={processingAction}
+                  className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
                   disabled={processingAction || !adjustAmount.trim() || !adjustReason.trim()}
-                  className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                 >
                   {processingAction ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
