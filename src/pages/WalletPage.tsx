@@ -474,7 +474,7 @@ export default function WalletPage() {
 
           <Button
             onClick={() => setWithdrawModalOpen(true)}
-            disabled={availableBalanceCents < 500}
+            disabled={availableBalanceCents <= 0}
             className="gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold shadow-lg shadow-pink-900/30 transition-all hover:scale-[1.02]"
           >
             <ArrowUpRight className="h-4 w-4" />
@@ -721,7 +721,7 @@ export default function WalletPage() {
                 Chave PIX de Saque & Regras
               </CardTitle>
               <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-400">
-                Taxa: 2%
+                Taxa: 1%
               </Badge>
             </div>
           </CardHeader>
@@ -780,13 +780,13 @@ export default function WalletPage() {
               </div>
               <div className="rounded-lg bg-slate-900/60 border border-slate-800/60 p-3">
                 <span className="text-slate-400 block">Saque Mínimo:</span>
-                <span className="text-sm font-bold text-emerald-400 mt-0.5 block">R$ 5,00</span>
+                <span className="text-sm font-bold text-emerald-400 mt-0.5 block">Sem valor mínimo</span>
               </div>
             </div>
 
             <Button
               onClick={() => setWithdrawModalOpen(true)}
-              disabled={availableBalanceCents < 500}
+              disabled={availableBalanceCents <= 0}
               className="w-full gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold shadow-md"
             >
               <ArrowUpRight className="h-4 w-4" />
@@ -1112,7 +1112,7 @@ export default function WalletPage() {
                       <Button
                         size="sm"
                         onClick={() => setWithdrawModalOpen(true)}
-                        disabled={availableBalanceCents < 500}
+                        disabled={availableBalanceCents <= 0}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1 shadow-md"
                       >
                         <ArrowUpRight className="h-3.5 w-3.5" />
