@@ -626,7 +626,7 @@ export default function AdminWalletPage() {
                 {splitWalletEnabled ? "Split & Carteira: ATIVO" : "Split: DESATIVADO"}
               </span>
               <span className="text-[9px] text-slate-400">
-                {splitWalletEnabled ? "Central (2% taxa)" : "Gateways dos lojistas"}
+                {splitWalletEnabled ? "Central (1% taxa)" : "Gateways dos lojistas"}
               </span>
             </div>
             <Switch
@@ -665,7 +665,7 @@ export default function AdminWalletPage() {
               <p className="mt-2 text-3xl font-black text-emerald-400 font-mono tracking-tight">
                 {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
               </p>
-              <p className="mt-1.5 text-[10px] text-slate-400">Taxas de 2% retidas de todos os saques aprovados</p>
+              <p className="mt-1.5 text-[10px] text-slate-400">Taxa de 1% retida diretamente de cada venda</p>
             </div>
             <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
               <TrendingUp className="h-5 w-5 text-emerald-400" />

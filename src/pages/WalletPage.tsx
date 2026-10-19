@@ -298,14 +298,10 @@ export default function WalletPage() {
     return isNaN(val) ? 0 : Math.round(val * 100);
   }, [withdrawAmount]);
 
-  const platformFeeCents = useMemo(() => {
-    if (parsedAmountCents <= 0) return 0;
-    return Math.round(parsedAmountCents * 0.01); // 1%
-  }, [parsedAmountCents]);
+  // Taxa de saque é 0 (isenta), pois a taxa de 1% da plataforma já é descontada diretamente em cada venda
+  const platformFeeCents = 0;
 
-  const netWithdrawCents = useMemo(() => {
-    return Math.max(0, parsedAmountCents - platformFeeCents);
-  }, [parsedAmountCents, platformFeeCents]);
+  const netWithdrawCents = parsedAmountCents;
 
   const availableBalanceCents = wallet?.balance_cents || 0;
   const effectivePixKey = useCustomKey || !tenant?.pix_key ? modalPixKey : tenant.pix_key;
@@ -896,7 +892,7 @@ export default function WalletPage() {
                         <th className="py-3 px-4">Tipo</th>
                         <th className="py-3 px-4">Descrição / Detalhes</th>
                         <th className="py-3 px-4 text-right">Valor Bruto</th>
-                        <th className="py-3 px-4 text-right">Taxa (2%)</th>
+                        <th className="py-3 px-4 text-right">Taxa (1%)</th>
                         <th className="py-3 px-4 text-right">Valor Líquido</th>
                         <th className="py-3 px-4 text-center">Status</th>
                       </tr>
@@ -1365,19 +1361,19 @@ export default function WalletPage() {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span className="flex items-center gap-1">
-                    Taxa da Plataforma (1%):
+                    Taxa de Saque:
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3 w-3 text-slate-500 cursor-pointer" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs">Taxa de intermediação de 1% retida pela plataforma</p>
+                          <p className="text-xs">Isento de taxa no saque — a taxa de 1% da plataforma já é descontada automaticamente em cada venda.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </span>
-                  <span className="font-semibold text-rose-400">-{formatBRL(platformFeeCents)}</span>
+                  <span className="font-semibold text-emerald-400">R$ 0,00 (Isento)</span>
                 </div>
                 <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
                   <span className="font-bold text-white">Valor Líquido a Receber:</span>
