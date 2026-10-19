@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
 
     // ─── 9. Admin: Audit Sales & Inflows ───
     if (action === "admin_audit_sales") {
-      const { tenant_id, limit = 150 } = body;
+      const { tenant_id, search, limit = 500 } = body;
 
       // 1. Fetch paid/delivered orders (sales proof from bot & checkout)
       let ordersQuery = supabase
@@ -328,6 +328,13 @@ Deno.serve(async (req) => {
 
       if (tenant_id && tenant_id !== "all") {
         ordersQuery = ordersQuery.eq("tenant_id", tenant_id);
+      }
+
+      if (search && typeof search === "string" && search.trim()) {
+        const s = search.trim();
+        ordersQuery = ordersQuery.or(
+          `product_name.ilike.%${s}%,discord_username.ilike.%${s}%,discord_user_id.ilike.%${s}%,payment_id.ilike.%${s}%`
+        );
       }
 
       const { data: salesOrders, error: ordersErr } = await ordersQuery;

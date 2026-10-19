@@ -203,6 +203,7 @@ export default function AdminWalletPage() {
   const [selectedAuditSale, setSelectedAuditSale] = useState<SalesAuditItem | null>(null);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
+  const [auditVisibleCount, setAuditVisibleCount] = useState(10);
 
   // Approval Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -513,6 +514,16 @@ export default function AdminWalletPage() {
       return true;
     });
   }, [auditSales, auditStoreFilter, auditProviderFilter, searchAudit]);
+
+  // Reset pagination to 10 when user filters or searches
+  useEffect(() => {
+    setAuditVisibleCount(10);
+  }, [searchAudit, auditStoreFilter, auditProviderFilter]);
+
+  // Paginated/progressive slice
+  const displayedAuditSales = useMemo(() => {
+    return filteredAuditSales.slice(0, auditVisibleCount);
+  }, [filteredAuditSales, auditVisibleCount]);
 
   // Unique payment providers found in sales for the filter dropdown
   const availableProviders = useMemo(() => {
@@ -1276,14 +1287,14 @@ export default function AdminWalletPage() {
                   </CardDescription>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="relative min-w-[220px]">
+                <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                  <div className="relative w-full sm:w-[260px]">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                     <Input
-                      placeholder="Buscar por loja, produto, Discord, ID..."
+                      placeholder="Buscar loja, produto, Discord, ID..."
                       value={searchAudit}
                       onChange={(e) => setSearchAudit(e.target.value)}
-                      className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
+                      className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200 w-full"
                     />
                   </div>
 
@@ -1337,101 +1348,149 @@ export default function AdminWalletPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
-                      <tr>
-                        <th className="py-3 px-4">Data / Hora</th>
-                        <th className="py-3 px-4">Loja / Vendedor</th>
-                        <th className="py-3 px-4">Produto & Pedido</th>
-                        <th className="py-3 px-4">Comprador Discord</th>
-                        <th className="py-3 px-4 text-right">Entrada Bruta</th>
-                        <th className="py-3 px-4 text-right">Taxa (2%)</th>
-                        <th className="py-3 px-4 text-right">Líquido Loja</th>
-                        <th className="py-3 px-4 text-center">Gateway</th>
-                        <th className="py-3 px-4 text-center">Status</th>
-                        <th className="py-3 px-4 text-right">Auditoria</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/40">
-                      {filteredAuditSales.map((sale) => {
-                        const feeCents = Math.round(sale.total_cents * 0.02);
-                        const netCents = sale.total_cents - feeCents;
+                <>
+                  <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950 pb-2">
+                    <table className="w-full min-w-[1180px] text-left text-sm table-auto">
+                      <thead className="bg-[#070b14]/90 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/80">
+                        <tr>
+                          <th className="py-3 px-4 w-[130px] whitespace-nowrap">Data / Hora</th>
+                          <th className="py-3 px-4 w-[160px]">Loja / Vendedor</th>
+                          <th className="py-3 px-4 w-[190px]">Produto & Pedido</th>
+                          <th className="py-3 px-4 w-[160px]">Comprador Discord</th>
+                          <th className="py-3 px-4 text-right w-[110px] whitespace-nowrap">Entrada Bruta</th>
+                          <th className="py-3 px-4 text-right w-[95px] whitespace-nowrap">Taxa (2%)</th>
+                          <th className="py-3 px-4 text-right w-[100px] whitespace-nowrap">Líquido Loja</th>
+                          <th className="py-3 px-4 text-center w-[110px] whitespace-nowrap">Gateway</th>
+                          <th className="py-3 px-4 text-center w-[110px] whitespace-nowrap">Status</th>
+                          <th className="py-3 px-4 text-center w-[125px] whitespace-nowrap">Auditoria</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/40">
+                        {displayedAuditSales.map((sale) => {
+                          const feeCents = Math.round(sale.total_cents * 0.02);
+                          const netCents = sale.total_cents - feeCents;
 
-                        return (
-                          <tr key={sale.id} className="hover:bg-slate-900/40 transition-colors">
-                            <td className="py-3.5 px-4 font-mono text-xs text-slate-300 whitespace-nowrap">
-                              {sale.created_at
-                                ? format(parseISO(sale.created_at), "dd/MM/yy HH:mm", { locale: ptBR })
-                                : "—"}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-semibold text-xs text-white">
-                                {sale.tenants?.name || "Loja Desconhecida"}
-                              </div>
-                              <span className="text-[10px] text-slate-500 uppercase">
-                                {sale.tenants?.plan || "Plano Ativo"}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-semibold text-xs text-slate-200">
-                                {sale.product_name || "Produto Digital"}
-                              </div>
-                              <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
-                                <Hash className="h-3 w-3 text-slate-500" />
-                                {sale.order_number ? `Pedido #${sale.order_number}` : sale.id.slice(0, 8)}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-mono text-xs text-blue-300">
-                                {sale.discord_username ? `@${sale.discord_username}` : "Discord User"}
-                              </div>
-                              {sale.discord_user_id && (
-                                <div className="text-[10px] text-slate-500 font-mono">
-                                  ID: {sale.discord_user_id}
+                          return (
+                            <tr key={sale.id} className="hover:bg-slate-900/40 transition-colors">
+                              <td className="py-3.5 px-4 font-mono text-xs text-slate-300 whitespace-nowrap">
+                                {sale.created_at
+                                  ? format(parseISO(sale.created_at), "dd/MM/yy HH:mm", { locale: ptBR })
+                                  : "—"}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="font-semibold text-xs text-white">
+                                  {sale.tenants?.name || "Loja Desconhecida"}
                                 </div>
-                              )}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-extrabold text-xs text-emerald-400 font-mono whitespace-nowrap">
-                              +{formatBRL(sale.total_cents)}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-semibold text-xs text-purple-400 font-mono whitespace-nowrap">
-                              +{formatBRL(feeCents)}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-medium text-xs text-slate-300 font-mono whitespace-nowrap">
-                              {formatBRL(netCents)}
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 bg-slate-900/60 text-slate-300">
-                                {sale.payment_provider || "PIX Global"}
-                              </Badge>
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase gap-1 font-semibold">
-                                <CheckCircle2 className="h-3 w-3" />
-                                {sale.status === "delivered" ? "Entregue" : "Pago"}
-                              </Badge>
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedAuditSale(sale);
-                                  setAuditModalOpen(true);
-                                }}
-                                className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
-                              >
-                                <FileText className="h-3.5 w-3.5 text-blue-400" />
-                                Comprovante
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                <span className="text-[10px] text-slate-500 uppercase">
+                                  {sale.tenants?.plan || "Plano Ativo"}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="font-semibold text-xs text-slate-200">
+                                  {sale.product_name || "Produto Digital"}
+                                </div>
+                                <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                                  <Hash className="h-3 w-3 text-slate-500" />
+                                  {sale.order_number ? `Pedido #${sale.order_number}` : sale.id.slice(0, 8)}
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="font-mono text-xs text-blue-300">
+                                  {sale.discord_username ? `@${sale.discord_username}` : "Discord User"}
+                                </div>
+                                {sale.discord_user_id && (
+                                  <div className="text-[10px] text-slate-500 font-mono">
+                                    ID: {sale.discord_user_id}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-extrabold text-xs text-emerald-400 font-mono whitespace-nowrap">
+                                +{formatBRL(sale.total_cents)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-semibold text-xs text-purple-400 font-mono whitespace-nowrap">
+                                +{formatBRL(feeCents)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-medium text-xs text-slate-300 font-mono whitespace-nowrap">
+                                {formatBRL(netCents)}
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 bg-slate-900/60 text-slate-300">
+                                  {sale.payment_provider || "PIX Global"}
+                                </Badge>
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase gap-1 font-semibold">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  {sale.status === "delivered" ? "Entregue" : "Pago"}
+                                </Badge>
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedAuditSale(sale);
+                                    setAuditModalOpen(true);
+                                  }}
+                                  className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
+                                >
+                                  <FileText className="h-3.5 w-3.5 text-blue-400" />
+                                  Comprovante
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Barra de Paginação / Carregar Mais */}
+                  {filteredAuditSales.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-slate-800/60 bg-[#070b14]/50">
+                      <div className="text-xs text-slate-400">
+                        Exibindo <span className="font-semibold text-white">{displayedAuditSales.length}</span> de{" "}
+                        <span className="font-semibold text-white">{filteredAuditSales.length}</span> vendas auditadas
+                        {searchAudit && <span className="text-emerald-400 font-medium"> (filtradas por busca)</span>}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {filteredAuditSales.length > auditVisibleCount && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setAuditVisibleCount((prev) => Math.min(prev + 20, filteredAuditSales.length))
+                              }
+                              className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
+                            >
+                              Carregar mais (+20)
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAuditVisibleCount(filteredAuditSales.length)}
+                              className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
+                            >
+                              Ver todas ({filteredAuditSales.length})
+                            </Button>
+                          </>
+                        )}
+                        {auditVisibleCount > 10 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setAuditVisibleCount(10)}
+                            className="h-8 text-xs text-slate-400 hover:text-white"
+                          >
+                            Mostrar apenas 10
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
