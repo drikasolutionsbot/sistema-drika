@@ -62,7 +62,42 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(100);
 
-      return new Response(JSON.stringify({ success: true, wallet, transactions: txs || [] }), {
+      // Fetch pending orders for this tenant (awaiting payment in bot or checkout)
+      const { data: pendingOrders } = await supabase
+        .from("orders")
+        .select("id, order_number, product_name, total_cents, status, created_at, payment_id")
+        .eq("tenant_id", tenant_id)
+        .eq("status", "pending_payment")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      const pendingTxs = (pendingOrders || []).map((o: any) => {
+        const feeCents = Math.round((o.total_cents || 0) * 0.01);
+        const netCents = (o.total_cents || 0) - feeCents;
+        return {
+          id: `order-pending-${o.id}`,
+          tenant_id,
+          type: "deposit",
+          amount_cents: o.total_cents || 0,
+          fee_cents: feeCents,
+          net_amount_cents: netCents,
+          description: `Venda Pedido #${o.order_number || String(o.id).slice(0, 8)} - ${o.product_name || "Produto"} (Aguardando Pagamento)`,
+          status: "pending",
+          payment_id: o.payment_id,
+          pix_key: null,
+          pix_key_type: null,
+          rejection_reason: null,
+          created_at: o.created_at,
+          completed_at: null,
+          is_pending_order: true,
+        };
+      });
+
+      const combinedTxs = [...pendingTxs, ...(txs || [])].sort((a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      return new Response(JSON.stringify({ success: true, wallet, transactions: combinedTxs }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -372,7 +407,7 @@ Deno.serve(async (req) => {
             plan
           )
         `)
-        .in("status", ["paid", "delivering", "delivered", "pending", "pending_payment"])
+        .in("status", ["paid", "delivering", "delivered", "pending_payment"])
         .order("created_at", { ascending: false })
         .limit(limit);
 

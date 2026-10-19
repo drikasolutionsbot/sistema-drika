@@ -315,6 +315,25 @@ export default function AdminWalletPage() {
 
   useEffect(() => {
     loadData();
+
+    // Realtime: auto-refresh when orders are created or updated, or wallet transactions change
+    const channel = supabase
+      .channel("admin-wallet-realtime")
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "orders" },
+        () => loadData()
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "wallet_transactions" },
+        () => loadData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   // Handle Copy PIX Key
@@ -586,6 +605,28 @@ export default function AdminWalletPage() {
     return filteredAuditSales.slice(0, auditVisibleCount);
   }, [filteredAuditSales, searchAudit, auditVisibleCount]);
 
+
+  // Dynamic metrics for the ColdPayments audit view
+  const auditMetrics = useMemo(() => {
+    const paidSales = filteredAuditSales.filter(
+      (s) => s.status === "paid" || s.status === "delivered" || s.status === "delivering"
+    );
+    const totalPaidCents = paidSales.reduce((acc, s) => acc + (s.total_cents || 0), 0);
+    const allVolumeCents = filteredAuditSales.reduce((acc, s) => acc + (s.total_cents || 0), 0);
+    const paidCount = paidSales.length;
+    const totalCount = filteredAuditSales.length;
+    const feesCents = paidSales.reduce(
+      (acc, s) => acc + (s.commission_cents || Math.round((s.total_cents || 0) * 0.01)),
+      0
+    );
+    const avgTicket = paidCount > 0 ? Math.round(totalPaidCents / paidCount) : totalCount > 0 ? Math.round(allVolumeCents / totalCount) : 0;
+    return {
+      total_sales_cents: totalPaidCents > 0 ? totalPaidCents : allVolumeCents,
+      total_sales_count: paidCount > 0 ? paidCount : totalCount,
+      total_platform_fees_cents: feesCents,
+      average_ticket_cents: avgTicket,
+    };
+  }, [filteredAuditSales]);
 
   const pendingCount = metrics?.pending_count || 0;
 
@@ -965,7 +1006,7 @@ export default function AdminWalletPage() {
           </TabsTrigger>
           <TabsTrigger value="audit" className="gap-2 data-[state=active]:bg-[#0a0f1d] text-xs">
             <Receipt className="h-4 w-4 text-emerald-400" />
-            Entradas de Vendas (Auditoria) ({auditSales.length || auditDeposits.length})
+            Entradas de Vendas (Auditoria) ({filteredAuditSales.length})
           </TabsTrigger>
         </TabsList>
 
@@ -1386,7 +1427,7 @@ export default function AdminWalletPage() {
               <div className="space-y-1">
                 <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Total Entrado em Caixa</span>
                 <span className="text-xl font-extrabold text-emerald-400 block font-mono">
-                  {showBalance ? formatBRL(auditSummary?.total_sales_cents || 0) : "••••"}
+                  {showBalance ? formatBRL(auditMetrics.total_sales_cents) : "••••"}
                 </span>
                 <span className="text-[10px] text-slate-500">Volume bruto de todas as vendas</span>
               </div>
@@ -1399,7 +1440,7 @@ export default function AdminWalletPage() {
               <div className="space-y-1">
                 <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Vendas Concluídas</span>
                 <span className="text-xl font-extrabold text-white block font-mono">
-                  {auditSummary?.total_sales_count || auditSales.length}
+                  {auditMetrics.total_sales_count}
                 </span>
                 <span className="text-[10px] text-slate-500">Pedidos pagos e comprovados</span>
               </div>
@@ -1410,9 +1451,9 @@ export default function AdminWalletPage() {
 
             <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
               <div className="space-y-1">
-                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Taxas Retidas (2%)</span>
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Taxas Retidas (1%)</span>
                 <span className="text-xl font-extrabold text-purple-400 block font-mono">
-                  {showBalance ? formatBRL(auditSummary?.total_platform_fees_cents || 0) : "••••"}
+                  {showBalance ? formatBRL(auditMetrics.total_platform_fees_cents) : "••••"}
                 </span>
                 <span className="text-[10px] text-slate-500">Lucro líquido da plataforma</span>
               </div>
@@ -1425,7 +1466,7 @@ export default function AdminWalletPage() {
               <div className="space-y-1">
                 <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">Ticket Médio</span>
                 <span className="text-xl font-extrabold text-amber-400 block font-mono">
-                  {showBalance ? formatBRL(auditSummary?.average_ticket_cents || 0) : "••••"}
+                  {showBalance ? formatBRL(auditMetrics.average_ticket_cents) : "••••"}
                 </span>
                 <span className="text-[10px] text-slate-500">Valor médio por transação</span>
               </div>

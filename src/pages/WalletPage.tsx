@@ -209,6 +209,11 @@ export default function WalletPage() {
         { event: "*", schema: "public", table: "wallets", filter: `tenant_id=eq.${tenantId}` },
         () => loadWalletData(true)
       )
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "orders", filter: `tenant_id=eq.${tenantId}` },
+        () => loadWalletData(true)
+      )
       .subscribe();
 
     return () => {
