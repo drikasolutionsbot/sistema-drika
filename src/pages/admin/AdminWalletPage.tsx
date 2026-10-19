@@ -558,7 +558,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     }
   };
 
-  // ── Meu Lucro: taxas 2% já retidas em saques concluídos (pode sacar)
+  // ── Meu Lucro: R$0,60 gateway fixo + 2% plataforma retidos na venda (pode sacar)
   const platformProfitCents = useMemo(() => metrics?.total_fees_collected_cents || 0, [metrics]);
 
   // ── Saldo comprometido: dinheiro dos clientes que ainda está na plataforma
@@ -570,10 +570,11 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
   // ── Total físico custodiado pela plataforma
   const totalInVaultCents = useMemo(() => platformProfitCents + clientsCommittedCents, [platformProfitCents, clientsCommittedCents]);
 
-  // ── Projected future platform fees from existing available balances
+  // ── Projeção de taxas futuras com base nos saldos disponíveis (R$0,60 + 2% por saque)
   const projectedFutureFeesCents = useMemo(() => {
     if (!metrics?.total_balance_cents) return 0;
-    return Math.round(metrics.total_balance_cents * 0.01);
+    // Estimativa: 2% de plataforma sobre o saldo disponível
+    return Math.round(metrics.total_balance_cents * 0.02);
   }, [metrics]);
 
   // Donut chart percentages
@@ -774,7 +775,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
               <p className="mt-2 text-3xl font-black text-emerald-400 font-mono tracking-tight">
                 {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
               </p>
-              <p className="mt-1.5 text-[10px] text-slate-400">Taxa de 1% retida diretamente de cada venda</p>
+              <p className="mt-1.5 text-[10px] text-slate-400">R$ 0,60 fixo + 2% da plataforma retidos a cada venda</p>
             </div>
             <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
               <TrendingUp className="h-5 w-5 text-emerald-400" />
@@ -998,7 +999,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-purple-400" />
-                    <span className="font-medium text-slate-200">Lucro Retido (2%)</span>
+                    <span className="font-medium text-slate-200">Lucro Retido (R$0,60 + 2%)</span>
                   </div>
                   <div className="text-right">
                     <span className="font-semibold text-purple-300 block">
@@ -1029,7 +1030,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                   <p className="text-2xl font-black text-emerald-400 font-mono mt-1">
                     {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
                   </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Taxas de 2% retidas em saques já aprovados</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">R$ 0,60 gateway + 2% plataforma retidos a cada venda</p>
                 </div>
                 <Coins className="h-8 w-8 text-emerald-400/40" />
               </div>
@@ -1042,7 +1043,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                 <p className="text-sm font-extrabold text-emerald-300">
                   {showBalance ? formatBRL(projectedFutureFeesCents) : "••••"}
                 </p>
-                <p className="text-[10px] text-slate-500">2% sobre saldos livres</p>
+                <p className="text-[10px] text-slate-500">2% plataforma sobre saldos livres</p>
               </div>
               <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Faturado (Vendas)</p>

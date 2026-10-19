@@ -635,11 +635,14 @@ serve(async (req) => {
           console.log("Auto-delivery result:", JSON.stringify(deliverResult));
 
           if (paidOrder && effectiveTenantId) {
-            // Credit tenant wallet for the sale (1% fee deducted, 99% net credited)
+            // Credit tenant wallet for the sale
+            // Taxa Gateway: R$0,60 fixo + Taxa Plataforma: 2% (lucro plataforma)
             try {
               if (paidOrder.total_cents && paidOrder.total_cents > 0) {
-                const feeCents = Math.round(paidOrder.total_cents * 0.01);
-                const netCents = paidOrder.total_cents - feeCents;
+                const gatewayFeeCents = 60; // R$0,60 fixo
+                const platformFeeCents = Math.round(paidOrder.total_cents * 0.02); // 2%
+                const feeCents = gatewayFeeCents + platformFeeCents;
+                const netCents = Math.max(0, paidOrder.total_cents - feeCents);
                 const desc = `Venda Pedido #${paidOrder.order_number || String(orderId).slice(0, 8)} - ${paidOrder.product_name || "Produto"}`;
 
                 const walletResult = await supabase.rpc("credit_order_to_wallet", {
@@ -648,7 +651,7 @@ serve(async (req) => {
                   _amount_cents: paidOrder.total_cents,
                   _description: desc,
                 });
-                console.log(`[Wallet] Credited: total=${paidOrder.total_cents}¢ fee=${feeCents}¢ net=${netCents}¢ to tenant=${effectiveTenantId} order=${orderId}`, walletResult);
+                console.log(`[Wallet] Credited: total=${paidOrder.total_cents}¢ gateway=${gatewayFeeCents}¢ platform=${platformFeeCents}¢ net=${netCents}¢ to tenant=${effectiveTenantId} order=${orderId}`, walletResult);
 
                 // Persist commission and net amount on the order row for reporting
                 await supabase
