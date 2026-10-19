@@ -6,7 +6,7 @@ import {
   LayoutDashboard, CreditCard, Users, LogOut, Headphones, Globe, Bell,
   Crown, UserPlus, Inbox, CheckCircle, BarChart3, ClipboardList, Shield,
   Menu, BookOpen, Store, GripVertical, Settings2, RotateCcw, Bot,
-  ChevronRight, Zap, MessageSquareHeart, Wallet
+  ChevronRight, Zap, MessageSquareHeart, Wallet, Volume2, VolumeX, ShoppingBag
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTheme } from "next-themes";
@@ -236,7 +236,47 @@ interface AdminNotif {
   desc: string;
   time: string;
   read: boolean;
-  type: "pro_activated" | "new_tenant" | "payment";
+  type: "pro_activated" | "new_tenant" | "payment" | "sale";
+}
+
+// ── Sound: plays a premium electronic blip via Web Audio API (no file needed) ──
+function playBlip() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const now = ctx.currentTime;
+
+    // Layer 1: main click/blip
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(880, now);
+    osc1.frequency.exponentialRampToValueAtTime(1320, now + 0.06);
+    gain1.gain.setValueAtTime(0.35, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.18);
+
+    // Layer 2: harmonic sparkle
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(1760, now + 0.04);
+    osc2.frequency.exponentialRampToValueAtTime(2640, now + 0.12);
+    gain2.gain.setValueAtTime(0.0, now);
+    gain2.gain.setValueAtTime(0.18, now + 0.04);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.04);
+    osc2.stop(now + 0.22);
+
+    // Auto-close context to free memory
+    setTimeout(() => ctx.close(), 600);
+  } catch (e) {
+    // Silently fail if browser blocks AudioContext
+  }
 }
 
 function timeAgo(dateStr: string): string {
@@ -275,6 +315,26 @@ export const AdminLayout = () => {
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch { return new Set(); }
   });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem("admin_sale_sound") !== "false"; }
+    catch { return true; }
+  });
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem("admin_sale_sound", String(next));
+      if (next) {
+        playBlip();
+        toast.success("🔊 Som de vendas ativado");
+      } else {
+        toast.info("🔇 Som de vendas desativado");
+      }
+      return next;
+    });
+  }, []);
 
   const handleReorder = useCallback((from: number, to: number) => {
     setOrderedItems(prev => {
@@ -382,6 +442,62 @@ export const AdminLayout = () => {
     return () => { supabase.removeChannel(channel); };
   }, [isSuperAdmin, fetchNotifications]);
 
+  // ── Realtime: listen for new PAID orders (all tenants via service-level subscription) ──
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+
+    const saleChannel = supabase
+      .channel("admin-sale-alerts")
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: "status=eq.paid",
+        },
+        (payload: any) => {
+          const row = payload.new;
+          const oldRow = payload.old;
+          // Only fire if it just became paid (old status was not paid)
+          if (oldRow?.status === "paid") return;
+
+          const valor = row.total_cents ? `R$ ${(row.total_cents / 100).toFixed(2)}` : "";
+          const produto = row.product_name || "Produto";
+          const pedido = row.order_number ? `#${row.order_number}` : "";
+          const comprador = row.discord_username || row.discord_user_id || "";
+
+          // Play blip sound if enabled
+          if (soundEnabledRef.current) playBlip();
+
+          // Toast notification
+          toast.success(`💰 Venda aprovada! ${valor}`, {
+            description: [produto, pedido, comprador].filter(Boolean).join(" · "),
+            duration: 6000,
+          });
+
+          // Add to notifications panel
+          const notifId = `sale-${row.id}`;
+          setNotifications(prev => {
+            if (prev.find(n => n.id === notifId)) return prev;
+            const newNotif: AdminNotif = {
+              id: notifId,
+              title: `💰 Venda aprovada ${valor}`,
+              desc: [produto, pedido, comprador].filter(Boolean).join(" · "),
+              time: "agora",
+              read: false,
+              type: "sale",
+            };
+            return [newNotif, ...prev].slice(0, 30);
+          });
+          setReadIds(prev => { const s = new Set(prev); s.delete(notifId); return s; });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(saleChannel); };
+  }, [isSuperAdmin]);
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAllRead = () => {
@@ -413,6 +529,11 @@ export const AdminLayout = () => {
     if (type === "new_tenant") return (
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/15">
         <UserPlus className="h-4 w-4 text-blue-400" />
+      </div>
+    );
+    if (type === "sale") return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">
+        <ShoppingBag className="h-4 w-4 text-emerald-500" />
       </div>
     );
     return (
@@ -473,6 +594,28 @@ export const AdminLayout = () => {
 
           <div className="flex items-center gap-1.5 shrink-0">
             <ThemeToggle checked={theme === "dark"} onChange={(checked) => setTheme(checked ? "dark" : "light")} />
+
+            {/* Sound toggle */}
+            <button
+              id="admin-sound-toggle"
+              onClick={toggleSound}
+              title={soundEnabled ? "Som de vendas ativado (clique para desativar)" : "Som de vendas desativado (clique para ativar)"}
+              className={[
+                "relative flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                soundEnabled
+                  ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+              ].join(" ")}
+            >
+              {soundEnabled ? (
+                <Volume2 className="h-4 w-4" />
+              ) : (
+                <VolumeX className="h-4 w-4" />
+              )}
+              {soundEnabled && (
+                <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+            </button>
 
             {/* Notifications */}
             <Popover open={notifOpen} onOpenChange={setNotifOpen}>
