@@ -4,6 +4,7 @@ import { Crown, User, HardDrive, Plug, Database, Trash2 } from "lucide-react";
 import PaymentsPage from "@/pages/PaymentsPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
