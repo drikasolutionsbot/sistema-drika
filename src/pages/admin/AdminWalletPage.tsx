@@ -537,7 +537,7 @@ export default function AdminWalletPage() {
   const pendingCount = metrics?.pending_count || 0;
 
   return (
-    <div className="space-y-6 p-4 md:p-8 max-w-7xl mx-auto text-slate-100">
+    <div className="space-y-6 w-full text-slate-100">
       {/* ─── 1. Header estilo Fintech ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -1349,20 +1349,20 @@ export default function AdminWalletPage() {
                 </div>
               ) : (
                 <>
-                  <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-slate-950 pb-2">
-                    <table className="w-full min-w-[1180px] text-left text-sm table-auto">
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full text-left text-sm min-w-[920px]">
                       <thead className="bg-[#070b14]/90 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/80">
                         <tr>
-                          <th className="py-3 px-4 w-[130px] whitespace-nowrap">Data / Hora</th>
-                          <th className="py-3 px-4 w-[160px]">Loja / Vendedor</th>
-                          <th className="py-3 px-4 w-[190px]">Produto & Pedido</th>
-                          <th className="py-3 px-4 w-[160px]">Comprador Discord</th>
-                          <th className="py-3 px-4 text-right w-[110px] whitespace-nowrap">Entrada Bruta</th>
-                          <th className="py-3 px-4 text-right w-[95px] whitespace-nowrap">Taxa (2%)</th>
-                          <th className="py-3 px-4 text-right w-[100px] whitespace-nowrap">Líquido Loja</th>
-                          <th className="py-3 px-4 text-center w-[110px] whitespace-nowrap">Gateway</th>
-                          <th className="py-3 px-4 text-center w-[110px] whitespace-nowrap">Status</th>
-                          <th className="py-3 px-4 text-center w-[125px] whitespace-nowrap">Auditoria</th>
+                          <th className="py-3 px-3 whitespace-nowrap">Data / Hora</th>
+                          <th className="py-3 px-3">Loja / Vendedor</th>
+                          <th className="py-3 px-3">Produto & Pedido</th>
+                          <th className="py-3 px-3">Comprador Discord</th>
+                          <th className="py-3 px-3 text-right whitespace-nowrap">Entrada Bruta</th>
+                          <th className="py-3 px-3 text-right whitespace-nowrap">Taxa (2%)</th>
+                          <th className="py-3 px-3 text-right whitespace-nowrap">Líquido Loja</th>
+                          <th className="py-3 px-3 text-center whitespace-nowrap">Gateway</th>
+                          <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                          <th className="py-3 px-3 text-center whitespace-nowrap">Auditoria</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/40">
@@ -1372,12 +1372,12 @@ export default function AdminWalletPage() {
 
                           return (
                             <tr key={sale.id} className="hover:bg-slate-900/40 transition-colors">
-                              <td className="py-3.5 px-4 font-mono text-xs text-slate-300 whitespace-nowrap">
+                              <td className="py-3 px-3 font-mono text-xs text-slate-300 whitespace-nowrap">
                                 {sale.created_at
                                   ? format(parseISO(sale.created_at), "dd/MM/yy HH:mm", { locale: ptBR })
                                   : "—"}
                               </td>
-                              <td className="py-3.5 px-4">
+                              <td className="py-3 px-3">
                                 <div className="font-semibold text-xs text-white">
                                   {sale.tenants?.name || "Loja Desconhecida"}
                                 </div>
@@ -1385,7 +1385,7 @@ export default function AdminWalletPage() {
                                   {sale.tenants?.plan || "Plano Ativo"}
                                 </span>
                               </td>
-                              <td className="py-3.5 px-4">
+                              <td className="py-3 px-3">
                                 <div className="font-semibold text-xs text-slate-200">
                                   {sale.product_name || "Produto Digital"}
                                 </div>
@@ -1394,7 +1394,7 @@ export default function AdminWalletPage() {
                                   {sale.order_number ? `Pedido #${sale.order_number}` : sale.id.slice(0, 8)}
                                 </div>
                               </td>
-                              <td className="py-3.5 px-4">
+                              <td className="py-3 px-3">
                                 <div className="font-mono text-xs text-blue-300">
                                   {sale.discord_username ? `@${sale.discord_username}` : "Discord User"}
                                 </div>
@@ -1404,27 +1404,27 @@ export default function AdminWalletPage() {
                                   </div>
                                 )}
                               </td>
-                              <td className="py-3.5 px-4 text-right font-extrabold text-xs text-emerald-400 font-mono whitespace-nowrap">
+                              <td className="py-3 px-3 text-right font-extrabold text-xs text-emerald-400 font-mono whitespace-nowrap">
                                 +{formatBRL(sale.total_cents)}
                               </td>
-                              <td className="py-3.5 px-4 text-right font-semibold text-xs text-purple-400 font-mono whitespace-nowrap">
+                              <td className="py-3 px-3 text-right font-semibold text-xs text-purple-400 font-mono whitespace-nowrap">
                                 +{formatBRL(feeCents)}
                               </td>
-                              <td className="py-3.5 px-4 text-right font-medium text-xs text-slate-300 font-mono whitespace-nowrap">
+                              <td className="py-3 px-3 text-right font-medium text-xs text-slate-300 font-mono whitespace-nowrap">
                                 {formatBRL(netCents)}
                               </td>
-                              <td className="py-3.5 px-4 text-center">
+                              <td className="py-3 px-3 text-center">
                                 <Badge variant="outline" className="text-[10px] uppercase font-mono border-slate-700 bg-slate-900/60 text-slate-300">
                                   {sale.payment_provider || "PIX Global"}
                                 </Badge>
                               </td>
-                              <td className="py-3.5 px-4 text-center">
+                              <td className="py-3 px-3 text-center">
                                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase gap-1 font-semibold">
                                   <CheckCircle2 className="h-3 w-3" />
                                   {sale.status === "delivered" ? "Entregue" : "Pago"}
                                 </Badge>
                               </td>
-                              <td className="py-3.5 px-4 text-center">
+                              <td className="py-3 px-3 text-center">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1432,7 +1432,7 @@ export default function AdminWalletPage() {
                                     setSelectedAuditSale(sale);
                                     setAuditModalOpen(true);
                                   }}
-                                  className="h-8 text-xs gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
+                                  className="h-7 text-xs px-2.5 gap-1 border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
                                 >
                                   <FileText className="h-3.5 w-3.5 text-blue-400" />
                                   Comprovante
@@ -1739,7 +1739,7 @@ export default function AdminWalletPage() {
 
       {/* ─── 8. Modal: Detalhes & Comprovante de Auditoria da Venda ─── */}
       <Dialog open={auditModalOpen} onOpenChange={setAuditModalOpen}>
-        <DialogContent className="sm:max-w-lg border-slate-800 bg-[#0a0f1d] text-white">
+        <DialogContent className="sm:max-w-2xl border-slate-800 bg-[#0a0f1d] text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
               <Receipt className="h-5 w-5 text-emerald-400" />
