@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     // Resolve tenant data + use external bot token
     const { data: tenant, error: tenantErr } = await supabase
       .from("tenants")
-      .select("name, logo_url, verify_slug")
+      .select("name, logo_url, verify_slug, plan, bot_banner_url")
       .eq("id", tenant_id)
       .single();
 
@@ -55,7 +55,19 @@ Deno.serve(async (req) => {
     }
 
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
+    let safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
+
+    if (!safeImageUrl) {
+      const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
+      if (isMaster && tenant.bot_banner_url) {
+        safeImageUrl = formatCdnUrl(tenant.bot_banner_url);
+      } else {
+        const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
+        if (globalConfig?.global_bot_banner_url) {
+          safeImageUrl = formatCdnUrl(globalConfig.global_bot_banner_url);
+        }
+      }
+    }
 
     const embed: any = {
       title: title || "👑 Verificação",

@@ -1033,7 +1033,20 @@ async function approveOrder(interaction, tenant, orderId) {
     const user = await interaction.client.users.fetch(order.discord_user_id);
     const dmStoreConfig = await getStoreConfig(tenant.id);
     const dmEmbedColor = await resolveOrderColor(order, dmStoreConfig);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("Pagamento Confirmado!").setDescription(`<:check:1521190651146801222> Seu pedido **#${order.order_number}** (${order.product_name}) foi aprovado!\nSeu produto será entregue em instantes.`).setColor(dmEmbedColor).setTimestamp()] });
+    const storeName = tenant?.bot_name || tenant?.name || "Loja";
+    const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
+    const paidEmbed = new EmbedBuilder()
+      .setTitle(`Pagamento Confirmado • ${storeName}`)
+      .setDescription(`<:check:1521190651146801222> Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi aprovado!\nSeu produto será entregue em instantes.`)
+      .setColor(dmEmbedColor)
+      .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
+      .setTimestamp();
+
+    if (storeAvatar) paidEmbed.setAuthor({ name: storeName, iconURL: storeAvatar });
+    else paidEmbed.setAuthor({ name: storeName });
+
+    await user.send({ content: `✅ Mensagem de **${storeName}**:`, embeds: [paidEmbed] });
   } catch {}
 
   const approveStoreConfig = await getStoreConfig(tenant.id);
@@ -1084,7 +1097,20 @@ async function rejectOrder(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Recusado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi recusado.`).setColor(0xED4245).setTimestamp()] });
+    const storeName = tenant?.bot_name || tenant?.name || "Loja";
+    const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
+    const rejectEmbed = new EmbedBuilder()
+      .setTitle(`<:close:1521192513048674505> Pedido Recusado • ${storeName}`)
+      .setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi recusado.`)
+      .setColor(0xED4245)
+      .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
+      .setTimestamp();
+
+    if (storeAvatar) rejectEmbed.setAuthor({ name: storeName, iconURL: storeAvatar });
+    else rejectEmbed.setAuthor({ name: storeName });
+
+    await user.send({ content: `⚠️ Mensagem de **${storeName}**:`, embeds: [rejectEmbed] });
   } catch {}
 
   await interaction.editReply({
@@ -1343,8 +1369,22 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
   if (content && content.trim() !== "") {
     try {
       const user = await interaction.client.users.fetch(order.discord_user_id);
+      const storeName = tenant?.bot_name || tenant?.name || "Loja";
+      const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
+      const delEmbed = new EmbedBuilder()
+        .setTitle(`📦 Pedido Entregue • ${storeName}`)
+        .setDescription(`Olá! Seu pedido **#${order.order_number}** em **${storeName}** foi entregue com sucesso.\n\n**Produto:** ${order.product_name}\n\n\`\`\`\n${content}\n\`\`\``)
+        .setColor(0x57F287)
+        .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
+        .setTimestamp();
+
+      if (storeAvatar) delEmbed.setAuthor({ name: storeName, iconURL: storeAvatar });
+      else delEmbed.setAuthor({ name: storeName });
+
       await user.send({
-        embeds: [new EmbedBuilder().setTitle("📦 Pedido Entregue").setDescription(`Olá! Seu pedido **#${order.order_number}** foi entregue com sucesso.\n\n**Produto:** ${order.product_name}\n\n\`\`\`\n${content}\n\`\`\``).setColor(0x57F287)]
+        content: `📦 **${storeName}** — Seu pedido foi entregue:`,
+        embeds: [delEmbed],
       });
     } catch (err) {
       console.log("Failed to send DM for manual delivery:", err);
@@ -1469,7 +1509,20 @@ async function cancelManual(interaction, tenant, orderId) {
 
   try {
     const user = await interaction.client.users.fetch(order.discord_user_id);
-    await user.send({ embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Cancelado").setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) foi cancelado.`).setColor(0xED4245)] });
+    const storeName = tenant?.bot_name || tenant?.name || "Loja";
+    const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
+    const cancelEmbed = new EmbedBuilder()
+      .setTitle(`<:close:1521192513048674505> Pedido Cancelado • ${storeName}`)
+      .setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi cancelado.`)
+      .setColor(0xED4245)
+      .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
+      .setTimestamp();
+
+    if (storeAvatar) cancelEmbed.setAuthor({ name: storeName, iconURL: storeAvatar });
+    else cancelEmbed.setAuthor({ name: storeName });
+
+    await user.send({ content: `⛔ Mensagem de **${storeName}**:`, embeds: [cancelEmbed] });
   } catch {}
 
   await interaction.editReply({

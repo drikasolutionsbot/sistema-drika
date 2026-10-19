@@ -310,7 +310,7 @@ Deno.serve(async (req) => {
 
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("name")
+      .select("name, bot_name, bot_avatar_url, logo_url, plan, bot_banner_url")
       .eq("id", tenant_id)
       .single();
 
@@ -489,18 +489,23 @@ Deno.serve(async (req) => {
           });
           if (dmRes.ok) {
             const dmChannel = await dmRes.json();
-            const dmEmbed = {
-              title: "📜 Transcript do Ticket",
-              description: `Seu ticket foi **${statusLabel.toLowerCase()}** por **${closed_by || "Painel"}**.\nClique no botão abaixo para visualizar o histórico completo.`,
+            const storeName = tenant?.bot_name || tenant?.name || "Loja";
+            const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
+            const dmEmbed: any = {
+              author: storeAvatar ? { name: storeName, icon_url: storeAvatar } : { name: storeName },
+              title: `📜 Transcript do Ticket • ${storeName}`,
+              description: `Seu ticket em **${storeName}** foi **${statusLabel.toLowerCase()}** por **${closed_by || "Painel"}**.\nClique no botão abaixo para visualizar o histórico completo.`,
               color: 0x2B2D31,
               timestamp: closedAt.toISOString(),
-              footer: { text: "Drika Hub" },
+              footer: { text: storeName, icon_url: storeAvatar || undefined },
             };
 
             await fetch(`${DISCORD_API}/channels/${dmChannel.id}/messages`, {
               method: "POST",
               headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
               body: JSON.stringify({
+                content: `📜 **${storeName}** — Seu atendimento foi finalizado:`,
                 embeds: [dmEmbed],
                 components: [{
                   type: 1,

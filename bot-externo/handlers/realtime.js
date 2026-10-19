@@ -29,11 +29,19 @@ function initRealtimeListeners(client) {
 
               const product = await getProductById(product_id, tenant_id);
               if (product) {
+                const { data: tenant } = await supabase
+                  .from("tenants")
+                  .select("id, name, bot_name, bot_avatar_url, logo_url")
+                  .eq("id", tenant_id)
+                  .maybeSingle();
+
+                const storeName = tenant?.bot_name || tenant?.name || "Loja";
+
                 for (const notif of pending) {
                   try {
                     const user = await client.users.fetch(notif.user_id);
                     if (user) {
-                      await user.send(`📦 **Boas notícias!** O produto **${product.name}** acabou de ser reabastecido! Corra para garantir o seu antes que acabe novamente!`);
+                      await user.send(`📦 **${storeName}** — Boas notícias! O produto **${product.name}** acabou de ser reabastecido! Corra para garantir o seu antes que acabe novamente!`);
                     }
                   } catch (e) {
                     console.error(`Failed to DM user ${notif.user_id}:`, e.message);

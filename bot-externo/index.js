@@ -298,11 +298,85 @@ async function syncGuildOwners() {
   }
 }
 
+async function syncGuildProfile(guildId) {
+  try {
+    const { supabase, applyCdn } = require("./supabase");
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("id, name, plan, bot_name, bot_avatar_url, bot_banner_url")
+      .eq("discord_guild_id", guildId)
+      .maybeSingle();
+
+    const config = await getGlobalBotConfig();
+    const globalBannerUrl = config?.global_bot_banner_url;
+
+    let bannerUrl = null;
+    if (tenant?.plan === "master" && tenant?.bot_banner_url) {
+      bannerUrl = tenant.bot_banner_url;
+    } else if (globalBannerUrl) {
+      bannerUrl = globalBannerUrl;
+    }
+
+    const memberPatch = {};
+    if (tenant?.bot_name) {
+      memberPatch.nick = tenant.bot_name;
+    }
+
+    if (bannerUrl) {
+      try {
+        const cdnUrl = applyCdn(bannerUrl);
+        const res = await fetch(cdnUrl);
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          const ct = res.headers.get("content-type") || "image/png";
+          memberPatch.banner = `data:${ct};base64,${buf.toString("base64")}`;
+        }
+      } catch (e) {
+        console.error(`[BANNER] Erro ao baixar banner para guild ${guildId}:`, e.message);
+      }
+    }
+
+    if (tenant?.bot_avatar_url) {
+      try {
+        const cdnUrl = applyCdn(tenant.bot_avatar_url);
+        const res = await fetch(cdnUrl);
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          const ct = res.headers.get("content-type") || "image/png";
+          memberPatch.avatar = `data:${ct};base64,${buf.toString("base64")}`;
+        }
+      } catch (e) {
+        console.error(`[AVATAR] Erro ao baixar avatar para guild ${guildId}:`, e.message);
+      }
+    }
+
+    if (Object.keys(memberPatch).length > 0) {
+      const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/@me`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(memberPatch),
+      });
+      if (res.ok) {
+        console.log(`[PROFILE] Perfil de membro sincronizado para guild ${guildId}!`);
+      } else {
+        const errText = await res.text();
+        console.error(`[PROFILE] Falha ao sincronizar perfil para guild ${guildId}:`, res.status, errText);
+      }
+    }
+  } catch (err) {
+    console.error(`[PROFILE] Erro ao sincronizar perfil da guild ${guildId}:`, err.message);
+  }
+}
+
 // ── Ao entrar em um novo servidor ──
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
   await syncBotStatus();
   await syncGuildOwners();
+  await syncGuildProfile(guild.id);
   
   try {
     const invites = await guild.invites.fetch();

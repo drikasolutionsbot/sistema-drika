@@ -40,14 +40,32 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify admin
+    // Verify admin or service role
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing auth");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authError || !user) throw new Error("Unauthorized");
+    const apiKeyHeader = req.headers.get("apikey");
+    if (!authHeader && !apiKeyHeader) throw new Error("Missing auth");
+    const token = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim() || "";
 
-    const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
-    if (userRole?.role !== "admin") throw new Error("Acesso negado");
+    let isServiceRole = token === serviceRoleKey || apiKeyHeader === serviceRoleKey;
+    if (!isServiceRole && token.includes(".")) {
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload.role === "service_role") {
+            isServiceRole = true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!isServiceRole) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) throw new Error("Unauthorized");
+
+      const { data: userRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
+      if (userRole?.role !== "admin") throw new Error("Acesso negado");
+    }
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
     if (!botToken) throw new Error("DISCORD_BOT_TOKEN not configured");
@@ -62,10 +80,10 @@ serve(async (req) => {
       });
     }
 
-    const dataUri = await urlToDataUri(globalBannerUrl);
-    if (!dataUri) throw new Error("Failed to process global banner image");
+    const globalDataUri = await urlToDataUri(globalBannerUrl);
+    if (!globalDataUri) throw new Error("Failed to process global banner image");
 
-    // Fetch all non-master tenants that have a discord_guild_id
+    // Fetch all tenants that have a discord_guild_id
     const { data: tenants, error: tenantsError } = await supabase
       .from("tenants")
       .select("id, name, plan, discord_guild_id, bot_banner_url")
@@ -77,14 +95,21 @@ serve(async (req) => {
     let failCount = 0;
 
     for (const tenant of tenants || []) {
-      // Skip if master (they have their own banner) or if they already have a custom banner saved
+      if (!tenant.discord_guild_id) continue;
+
+      let bannerToApply: string | null = globalDataUri;
+
+      // If tenant is master and has custom banner, use their custom banner
       if (tenant.plan === "master" && tenant.bot_banner_url) {
-        continue;
+        const customDataUri = await urlToDataUri(tenant.bot_banner_url);
+        if (customDataUri) {
+          bannerToApply = customDataUri;
+        }
       }
 
-      console.log(`Syncing global banner for tenant ${tenant.name} (${tenant.id}), guild: ${tenant.discord_guild_id}`);
+      console.log(`Syncing banner for tenant ${tenant.name} (${tenant.id}), guild: ${tenant.discord_guild_id}`);
       
-      const memberPatch = { banner: dataUri };
+      const memberPatch = { banner: bannerToApply };
 
       try {
         const patchRes = await fetch(
@@ -108,7 +133,10 @@ serve(async (req) => {
           failCount++;
           
           if (patchRes.status === 429) {
-            const retryAfter = JSON.parse(patchBody).retry_after || 1;
+            let retryAfter = 1;
+            try {
+              retryAfter = JSON.parse(patchBody).retry_after || 1;
+            } catch (_) {}
             console.log(`Rate limited, waiting ${retryAfter}s...`);
             await new Promise(r => setTimeout(r, retryAfter * 1000));
           }

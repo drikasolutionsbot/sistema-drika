@@ -14,10 +14,10 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check if suspend_on_expire is enabled
+    // Check if suspend_on_expire is enabled and fetch global banner
     const { data: config } = await supabase
       .from("landing_config")
-      .select("suspend_on_expire")
+      .select("suspend_on_expire, global_bot_banner_url")
       .limit(1)
       .single();
 
@@ -44,10 +44,30 @@ Deno.serve(async (req) => {
     let bannersCleared = 0;
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
 
-    // Helper: remove banner customizado do bot na guild
+    // Helper: restaura banner global do bot na guild
     const clearDiscordBanner = async (guildId: string) => {
       if (!guildId || !botToken) return;
       try {
+        let bannerDataUri: string | null = null;
+        if (config?.global_bot_banner_url) {
+          try {
+            const r = await fetch(config.global_bot_banner_url);
+            if (r.ok) {
+              const buf = new Uint8Array(await r.arrayBuffer());
+              let binary = "";
+              const chunk = 8192;
+              for (let i = 0; i < buf.length; i += chunk) {
+                binary += String.fromCharCode(...buf.subarray(i, i + chunk));
+              }
+              const base64 = btoa(binary);
+              const ct = r.headers.get("content-type") || "image/png";
+              bannerDataUri = `data:${ct};base64,${base64}`;
+            }
+          } catch (e) {
+            console.error("Failed to download global banner:", e);
+          }
+        }
+
         const res = await fetch(
           `https://discord.com/api/v10/guilds/${guildId}/members/@me`,
           {
@@ -56,7 +76,7 @@ Deno.serve(async (req) => {
               Authorization: `Bot ${botToken}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ banner: null }),
+            body: JSON.stringify({ banner: bannerDataUri }),
           }
         );
         if (!res.ok) {

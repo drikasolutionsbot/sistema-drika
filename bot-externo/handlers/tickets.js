@@ -498,9 +498,25 @@ async function handleRemindTicket(interaction, tenant, ticketId) {
   try {
     const user = await interaction.client.users.fetch(ticket.discord_user_id);
     const ticketUrl = `https://discord.com/channels/${interaction.guild.id}/${ticket.discord_channel_id}`;
-    const remindEmbed = new EmbedBuilder().setDescription(`${greeting} <@${ticket.discord_user_id}>, você possui um ticket pendente de resposta; se não for respondido, poderá ser fechado.`).setColor(parseInt((storeConfig?.embed_color || "#5865F2").replace("#", ""), 16));
+    const storeName = tenant?.bot_name || tenant?.name || "Loja";
+    const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
+    const remindEmbed = new EmbedBuilder()
+      .setTitle(`🔔 Lembrete de Atendimento • ${storeName}`)
+      .setDescription(`${greeting} <@${ticket.discord_user_id}>, você possui um ticket pendente de resposta em **${storeName}**; se não for respondido, poderá ser fechado.`)
+      .setColor(parseInt((storeConfig?.embed_color || "#5865F2").replace("#", ""), 16))
+      .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
+      .setTimestamp();
+
+    if (storeAvatar) {
+      remindEmbed.setAuthor({ name: storeName, iconURL: storeAvatar });
+    } else {
+      remindEmbed.setAuthor({ name: storeName });
+    }
+
     applyDrikaCover(remindEmbed, tenant);
     await user.send({
+      content: `🔔 Mensagem de **${storeName}**:`,
       embeds: [remindEmbed],
       components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setLabel("Ir para o ticket").setStyle(ButtonStyle.Link).setURL(ticketUrl))],
     });
@@ -1035,18 +1051,29 @@ async function sendTicketLog(client, ticket, closedByUserId, closedByUsername, a
     try {
       const user = await client.users.fetch(ticket.discord_user_id);
       const transcriptUrl = components[0].components[0].data.url;
+      const storeName = tenant?.bot_name || tenant?.name || "Loja";
+      const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
+
       const dmEmbed = new EmbedBuilder()
-        .setTitle("📜 Transcript do Ticket")
-        .setDescription(`Seu ticket foi **${statusLabel.toLowerCase()}** por **@${closedByUsername}**.\nClique no botão abaixo para visualizar o histórico completo.`)
+        .setTitle(`📜 Transcript do Ticket • ${storeName}`)
+        .setDescription(`Seu ticket em **${storeName}** foi **${statusLabel.toLowerCase()}** por **@${closedByUsername}**.\nClique no botão abaixo para visualizar o histórico completo.`)
         .setColor(embedColor)
         .addFields(
           { name: "Produto", value: ticket.product_name || "Suporte Geral", inline: true },
           { name: "Duração", value: durationStr, inline: true },
         )
         .setTimestamp()
-        .setFooter({ text: tenant.name || "Drika Hub" });
+        .setFooter({ text: storeName, iconURL: storeAvatar || undefined });
+
+      if (storeAvatar) {
+        dmEmbed.setAuthor({ name: storeName, iconURL: storeAvatar });
+      } else {
+        dmEmbed.setAuthor({ name: storeName });
+      }
+
       applyDrikaCover(dmEmbed, tenant);
       await user.send({
+        content: `📜 **${storeName}** — Seu atendimento foi finalizado:`,
         embeds: [dmEmbed],
         components: [new ActionRowBuilder().addComponents(
           new ButtonBuilder().setLabel("Ver Transcript").setEmoji("🔄").setStyle(ButtonStyle.Link).setURL(transcriptUrl)

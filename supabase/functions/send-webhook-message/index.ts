@@ -676,72 +676,8 @@ serve(async (req) => {
       payload.components = components;
     }
 
-    let messageId: string | null = null;
-    let usedWebhookId: string | null = null;
-    let usedWebhookToken: string | null = null;
-
-    if (product_id) {
-      messageId = await sendBotMessage(channel_id, botToken, payload);
-    } else
-
-    // Try webhook first for custom branding
-    if (!product_id && (customBotName || customAvatarUrl)) {
-      const webhook = await getOrCreateWebhook(channel_id, botToken, botUserId);
-      if (webhook) {
-        usedWebhookId = webhook.id;
-        usedWebhookToken = webhook.token;
-        const webhookPayload: Record<string, any> = { ...payload };
-        if (customBotName) webhookPayload.username = customBotName;
-        if (customAvatarUrl) webhookPayload.avatar_url = customAvatarUrl;
-
-        const sendRes = await fetch(`${DISCORD_API}/webhooks/${webhook.id}/${webhook.token}?wait=true`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(webhookPayload),
-        });
-
-        if (sendRes.ok) {
-          const message = await sendRes.json();
-          messageId = message.id;
-        } else {
-          const errText = await sendRes.text();
-          console.error("Webhook send failed, falling back to Bot API:", sendRes.status, errText);
-          usedWebhookId = null;
-          usedWebhookToken = null;
-          const fallbackRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bot ${botToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
-          if (!fallbackRes.ok) {
-            const fallbackErr = await fallbackRes.text();
-            throw new Error(`Discord API error: ${fallbackRes.status} - ${fallbackErr}`);
-          }
-          const message = await fallbackRes.json();
-          messageId = message.id;
-        }
-      } else {
-        const sendRes = await fetch(`${DISCORD_API}/channels/${channel_id}/messages`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bot ${botToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-        if (!sendRes.ok) {
-          const errText = await sendRes.text();
-          throw new Error(`Discord API error: ${sendRes.status} - ${errText}`);
-        }
-        const message = await sendRes.json();
-        messageId = message.id;
-      }
-    } else if (!product_id) {
-      messageId = await sendBotMessage(channel_id, botToken, payload);
-    }
+    // Always send via Bot API so the bot's server profile (nickname, banner, avatar, bio, tag, roles) is displayed
+    const messageId = await sendBotMessage(channel_id, botToken, payload);
 
     if (!messageId) {
       throw new Error("Falha ao enviar mensagem para o Discord");
@@ -754,8 +690,8 @@ serve(async (req) => {
         product_id,
         channel_id,
         message_id: messageId,
-        webhook_id: usedWebhookId,
-        webhook_token: usedWebhookToken,
+        webhook_id: null,
+        webhook_token: null,
       }).then(({ error: insertErr }: any) => {
         if (insertErr) console.error("Failed to track message:", insertErr.message);
       });
