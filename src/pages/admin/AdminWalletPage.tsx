@@ -204,6 +204,7 @@ export default function AdminWalletPage() {
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
   const [auditVisibleCount, setAuditVisibleCount] = useState(10);
+  const [walletsVisibleCount, setWalletsVisibleCount] = useState(20);
 
   // Approval Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -423,18 +424,19 @@ export default function AdminWalletPage() {
     }
   };
 
-  // Calculations for total cash in vault
-  const totalInVaultCents = useMemo(() => {
-    if (!metrics) return 0;
-    // Total in vault = saldo disponível dos clientes + saldo retido em saques pendentes + taxas lucradas
-    return (
-      (metrics.total_balance_cents || 0) +
-      (metrics.total_locked_cents || 0) +
-      (metrics.total_fees_collected_cents || 0)
-    );
+  // ── Meu Lucro: taxas 2% já retidas em saques concluídos (pode sacar)
+  const platformProfitCents = useMemo(() => metrics?.total_fees_collected_cents || 0, [metrics]);
+
+  // ── Saldo comprometido: dinheiro dos clientes que ainda está na plataforma
+  // (saldo livre nas carteiras + em saque bloqueado aguardando PIX)
+  const clientsCommittedCents = useMemo(() => {
+    return (metrics?.total_balance_cents || 0) + (metrics?.total_locked_cents || 0);
   }, [metrics]);
 
-  // Projected future platform fees from existing available balances
+  // ── Total físico custodiado pela plataforma
+  const totalInVaultCents = useMemo(() => platformProfitCents + clientsCommittedCents, [platformProfitCents, clientsCommittedCents]);
+
+  // ── Projected future platform fees from existing available balances
   const projectedFutureFeesCents = useMemo(() => {
     if (!metrics?.total_balance_cents) return 0;
     return Math.round(metrics.total_balance_cents * 0.02);
@@ -446,7 +448,6 @@ export default function AdminWalletPage() {
     const clientBalancePct = Math.round(((metrics?.total_balance_cents || 0) / total) * 100);
     const pendingPct = Math.round(((metrics?.total_locked_cents || 0) / total) * 100);
     const feesPct = Math.max(0, 100 - clientBalancePct - pendingPct);
-
     return { clientBalancePct, pendingPct, feesPct };
   }, [totalInVaultCents, metrics]);
 
@@ -478,6 +479,14 @@ export default function AdminWalletPage() {
       return true;
     });
   }, [wallets, searchWallets]);
+
+  // Displayed Wallets (progressive pagination)
+  const displayedWallets = useMemo(() => {
+    if (searchWallets.trim()) {
+      return filteredWallets;
+    }
+    return filteredWallets.slice(0, walletsVisibleCount);
+  }, [filteredWallets, searchWallets, walletsVisibleCount]);
 
   // Filtered Audit Sales
   const filteredAuditSales = useMemo(() => {
@@ -568,180 +577,164 @@ export default function AdminWalletPage() {
         </div>
       </div>
 
-      {/* ─── 2. Hero Card Principal (Total em Caixa + Cartão 3D Master) ─── */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#080d19] via-[#0b1324] to-[#070b14] p-6 md:p-8 shadow-2xl">
-        {/* Glow de fundo */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-600/10 rounded-full blur-[100px] pointer-events-none" />
+      {/* ─── 2. CARDS FINANCEIROS: Lucro Admin + Comprometido Clientes + KPIs ─── */}
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Lado Esquerdo: Saldo Total em Caixa + Métricas Detalhadas */}
-          <div className="lg:col-span-7 space-y-6">
+      {/* Linha 1: Os 3 cards principais de caixa */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card: Meu Lucro (Plataforma pode sacar) */}
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/60 via-[#0b1324] to-[#070b14] p-5 shadow-lg">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-start justify-between relative z-10">
             <div>
-              <div className="flex items-center gap-2.5 text-xs text-slate-400 font-medium">
-                <span>Total em Caixa da Plataforma (Custódia + Lucro)</span>
-                <button
-                  type="button"
-                  onClick={toggleShowBalance}
-                  className="text-slate-400 hover:text-slate-200 transition-colors p-1"
-                  title={showBalance ? "Ocultar valores" : "Mostrar valores"}
-                >
-                  {showBalance ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => loadData(true)}
-                  className="text-slate-400 hover:text-slate-200 transition-colors p-1"
-                  title="Atualizar"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                </button>
-              </div>
-
-              <div className="mt-2 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-white font-sans">
-                {showBalance ? formatBRL(totalInVaultCents) : "R$ ••••••"}
-              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400/80 flex items-center gap-1.5">
+                <Coins className="h-3.5 w-3.5" />
+                Meu Lucro (Sacar para mim)
+              </p>
+              <p className="mt-2 text-3xl font-black text-emerald-400 font-mono tracking-tight">
+                {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
+              </p>
+              <p className="mt-1.5 text-[10px] text-slate-400">Taxas de 2% retidas de todos os saques aprovados</p>
             </div>
-
-            {/* Sub-métricas: A Pagar, Saldo Lojas, Lucro 2%, Total Já Pago */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800/80">
-              {/* A Pagar (Saques Pendentes) */}
-              <div className="space-y-1">
-                <span className="text-xs text-amber-400 block font-semibold flex items-center gap-1">
-                  A Pagar (Saques)
-                  {pendingCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                      {pendingCount}
-                    </span>
-                  )}
-                </span>
-                <p className="text-base sm:text-lg font-bold text-amber-400">
-                  {showBalance ? formatBRL(metrics?.pending_net_cents || 0) : "••••"}
-                </p>
-                <span className="text-[10px] text-slate-500 block">Líquido a transferir</span>
-              </div>
-
-              {/* Saldo das Lojas */}
-              <div className="space-y-1 border-l border-slate-800/80 pl-4 sm:pl-4">
-                <span className="text-xs text-slate-400 block font-medium">Saldo das Lojas</span>
-                <p className="text-base sm:text-lg font-bold text-slate-200">
-                  {showBalance ? formatBRL(metrics?.total_balance_cents || 0) : "••••"}
-                </p>
-                <span className="text-[10px] text-slate-500 block">Livre para saque</span>
-              </div>
-
-              {/* Lucro Plataforma (2%) */}
-              <div className="space-y-1 sm:border-l border-slate-800/80 sm:pl-4">
-                <span className="text-xs text-emerald-400 block font-semibold">Lucro Plataforma</span>
-                <p className="text-base sm:text-lg font-bold text-emerald-400">
-                  {showBalance ? formatBRL(metrics?.total_fees_collected_cents || 0) : "••••"}
-                </p>
-                <span className="text-[10px] text-slate-500 block">Taxas de 2% retidas</span>
-              </div>
-
-              {/* Total Já Pago */}
-              <div className="space-y-1 border-l border-slate-800/80 pl-4 sm:pl-4">
-                <span className="text-xs text-purple-400 block font-medium">Total Já Pago</span>
-                <p className="text-base sm:text-lg font-bold text-purple-300">
-                  {showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}
-                </p>
-                <span className="text-[10px] text-slate-500 block">Volume liquidado</span>
-              </div>
-            </div>
-
-            {/* Banner de Status / Operações */}
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3.5 flex items-start sm:items-center justify-between gap-3">
-              <div className="flex items-start sm:items-center gap-3">
-                <Clock className="h-5 w-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
-                <div className="text-xs text-amber-200/90 leading-relaxed">
-                  <strong className="text-white font-semibold">
-                    {pendingCount > 0 ? `${pendingCount} saque(s) aguardando sua aprovação!` : "Nenhum saque pendente no momento."}
-                  </strong>{" "}
-                  Taxa ativa de 2% retida pela plataforma. Projeção de taxas futuras sobre saldo atual das lojas:{" "}
-                  <strong className="text-emerald-400">{formatBRL(projectedFutureFeesCents)}</strong>.
-                </div>
-              </div>
-
-              {pendingCount > 0 && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setActiveTab("withdrawals");
-                    setWithdrawalStatusFilter("pending");
-                  }}
-                  className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs shrink-0"
-                >
-                  Revisar Saques
-                </Button>
-              )}
+            <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
             </div>
           </div>
+          <div className="mt-4 pt-3 border-t border-emerald-500/10 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Projeção próximas taxas:</span>
+            <span className="font-semibold text-emerald-400">{formatBRL(projectedFutureFeesCents)}</span>
+          </div>
+        </div>
 
-          {/* Lado Direito: Cartão 3D Virtual Estilo Fintech Master */}
-          <div className="lg:col-span-5 flex justify-center lg:justify-end">
-            <div className="relative group w-full max-w-[360px] aspect-[1.586/1] rounded-2xl p-6 bg-gradient-to-br from-white via-slate-100 to-slate-200 text-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-white/80 transition-all duration-500 hover:scale-[1.03] hover:-rotate-1 cursor-pointer overflow-hidden flex flex-col justify-between">
-              {/* Marca d'água */}
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
-              <div className="absolute -right-16 -top-16 w-48 h-48 bg-gradient-to-br from-amber-400/20 via-pink-400/20 to-transparent rounded-full blur-2xl pointer-events-none" />
+        {/* Card: Saldo Comprometido (dinheiro dos clientes) */}
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-[#0b1324] to-[#070b14] p-5 shadow-lg">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-start justify-between relative z-10">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/80 flex items-center gap-1.5">
+                <Building className="h-3.5 w-3.5" />
+                Saldo Comprometido (Clientes)
+              </p>
+              <p className="mt-2 text-3xl font-black text-amber-400 font-mono tracking-tight">
+                {showBalance ? formatBRL(clientsCommittedCents) : "R$ ••••"}
+              </p>
+              <p className="mt-1.5 text-[10px] text-slate-400">Dinheiro dos clientes que você guarda (não é seu)</p>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/20">
+              <Shield className="h-5 w-5 text-amber-400" />
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-amber-500/10 text-[11px] text-slate-400 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Livre p/ saque: <span className="text-white font-semibold ml-1">{showBalance ? formatBRL(metrics?.total_balance_cents || 0) : "••••"}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+              Bloqueado: <span className="text-amber-300 font-semibold ml-1">{showBalance ? formatBRL(metrics?.total_locked_cents || 0) : "••••"}</span>
+            </span>
+          </div>
+        </div>
 
-              {/* Top Row: Chip + Contactless + Brand */}
-              <div className="flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-3">
-                  {/* Golden Chip */}
-                  <div className="w-10 h-8 rounded-md bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-600 border border-amber-600/40 relative shadow-sm overflow-hidden flex items-center justify-center">
-                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[1px] bg-amber-800/40" />
-                    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-amber-800/40" />
-                    <div className="w-5 h-4 border border-amber-700/30 rounded-sm" />
-                  </div>
-
-                  <Wifi className="h-5 w-5 text-slate-400 rotate-90" />
-                </div>
-
-                <div className="flex items-center gap-1.5 font-black text-xs tracking-wider text-slate-800 uppercase">
-                  <Sparkles className="h-4 w-4 text-amber-600" />
-                  <span>DRIKA PLATFORM</span>
-                </div>
-              </div>
-
-              {/* Card Number */}
-              <div className="my-auto pt-2 relative z-10">
-                <p className="font-mono text-lg sm:text-xl font-bold tracking-[0.22em] text-slate-700">
-                  •••• •••• •••• 0001
-                </p>
-              </div>
-
-              {/* Bottom Row */}
-              <div className="flex items-end justify-between relative z-10">
-                <div className="space-y-0.5">
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">
-                    Titular da Plataforma
-                  </span>
-                  <p className="font-mono text-xs sm:text-sm font-bold tracking-wider text-slate-800 truncate max-w-[200px]">
-                    ADMINISTRADOR MASTER
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">
-                      Validade
-                    </span>
-                    <span className="font-mono text-xs font-bold text-slate-700">12/30</span>
-                  </div>
-
-                  <span className="px-2 py-0.5 rounded border border-slate-300 bg-white/80 text-[10px] font-black uppercase tracking-wider text-slate-800 shadow-sm">
-                    MASTER
-                  </span>
-                </div>
-              </div>
+        {/* Card: Total em Custódia + Saques Pendentes */}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900/80 via-[#0b1324] to-[#070b14] p-5 shadow-lg">
+          <div className="flex items-start justify-between relative z-10">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Wallet className="h-3.5 w-3.5" />
+                Total em Custódia
+              </p>
+              <p className="mt-2 text-3xl font-black text-white font-mono tracking-tight">
+                {showBalance ? formatBRL(totalInVaultCents) : "R$ ••••"}
+              </p>
+              <p className="mt-1.5 text-[10px] text-slate-400">Lucro + saldo dos clientes juntos</p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleShowBalance}
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title={showBalance ? "Ocultar valores" : "Mostrar valores"}
+            >
+              {showBalance ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </button>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-700/50 grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <p className="text-slate-500">A Pagar (PIX)</p>
+              <p className="font-bold text-rose-400">{showBalance ? formatBRL(metrics?.pending_net_cents || 0) : "••••"}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">Já Pago (Total)</p>
+              <p className="font-bold text-purple-300">{showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── 3. Segunda Linha: Distribuição de Fundos + Resumo de Liquidez ─── */}
+      {/* Linha 2: KPIs + Alertas de Saques */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* KPIs de Faturamento */}
+        <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-0.5">
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Faturamento Total</p>
+            <p className="text-sm font-extrabold text-blue-400">{showBalance ? formatBRL(metrics?.total_earned_cents || 0) : "••••"}</p>
+            <p className="text-[10px] text-slate-600">Volume bruto de vendas</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-0.5">
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Lojas Cadastradas</p>
+            <p className="text-sm font-extrabold text-white">{wallets.length}</p>
+            <p className="text-[10px] text-slate-600">Com carteira ativa</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-0.5">
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Saques Pendentes</p>
+            <p className="text-sm font-extrabold text-amber-400">{pendingCount}</p>
+            <p className="text-[10px] text-slate-600">Aguardando PIX</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-0.5">
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Taxa da Plataforma</p>
+            <p className="text-sm font-extrabold text-emerald-400">2%</p>
+            <p className="text-[10px] text-slate-600">Sobre cada saque</p>
+          </div>
+        </div>
+
+        {/* Alerta de saques pendentes */}
+        <div className="lg:col-span-4 flex">
+          <div className={`flex-1 rounded-xl border p-4 flex flex-col justify-between ${
+            pendingCount > 0
+              ? "border-amber-500/30 bg-amber-950/20"
+              : "border-emerald-500/20 bg-emerald-950/10"
+          }`}>
+            <div className="flex items-start gap-3">
+              {pendingCount > 0 ? (
+                <Clock className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+              )}
+              <div className="text-xs">
+                <p className={`font-bold ${pendingCount > 0 ? "text-amber-300" : "text-emerald-300"}`}>
+                  {pendingCount > 0 ? `${pendingCount} saque(s) aguardando aprovação` : "Nenhum saque pendente"}
+                </p>
+                <p className="text-slate-400 mt-0.5">Total líquido a transferir: <span className="text-white font-semibold">{showBalance ? formatBRL(metrics?.pending_net_cents || 0) : "••••"}</span></p>
+              </div>
+            </div>
+            {pendingCount > 0 && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setActiveTab("withdrawals");
+                  setWithdrawalStatusFilter("pending");
+                }}
+                className="mt-3 w-full bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs"
+              >
+                Revisar e Aprovar Saques
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 3. Distribuição de Fundos + Detalhamento de Lucro ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Card: Distribuição de Fundos (estilo Imagem 3) */}
+        {/* Card: Distribuição de Fundos */}
         <Card className="lg:col-span-6 border-slate-800/80 bg-[#0a0f1d] shadow-lg">
           <CardHeader className="pb-3 border-b border-slate-800/60">
             <CardTitle className="text-base font-bold text-white flex items-center gap-2">
@@ -832,53 +825,56 @@ export default function AdminWalletPage() {
           </CardContent>
         </Card>
 
-        {/* Card: Resumo de Liquidez & Faturamento */}
-        <Card className="lg:col-span-6 border-slate-800/80 bg-[#0a0f1d] shadow-lg flex flex-col justify-between">
+        {/* Card: Detalhamento de Lucro Admin */}
+        <Card className="lg:col-span-6 border-emerald-500/20 bg-[#0a0f1d] shadow-lg">
           <CardHeader className="pb-3 border-b border-slate-800/60">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-bold text-white flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-400" />
-                Resumo Geral de Faturamento & Lojas
-              </CardTitle>
-              <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-400">
-                Taxa Plataforma: 2%
-              </Badge>
-            </div>
+            <CardTitle className="text-base font-bold text-white flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-emerald-400" />
+              Detalhamento do Lucro da Plataforma
+            </CardTitle>
           </CardHeader>
-          <CardContent className="pt-5 space-y-4">
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
-                <span className="text-slate-400 block">Total Transacionado em Vendas:</span>
-                <span className="text-base font-extrabold text-blue-400 block">
-                  {showBalance ? formatBRL(metrics?.total_earned_cents || 0) : "••••"}
-                </span>
-                <span className="text-[10px] text-slate-500">Volume bruto de todos os lojistas</span>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
-                <span className="text-slate-400 block">Total de Lojas Cadastradas:</span>
-                <span className="text-base font-extrabold text-white block">
-                  {wallets.length} lojas
-                </span>
-                <span className="text-[10px] text-slate-500">Lojas ativas na plataforma</span>
+          <CardContent className="pt-5 space-y-3">
+            {/* Lucro atual confirmado */}
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase text-emerald-400/70 font-semibold tracking-wider">Lucro Confirmado (Já Ganho)</p>
+                  <p className="text-2xl font-black text-emerald-400 font-mono mt-1">
+                    {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Taxas de 2% retidas em saques já aprovados</p>
+                </div>
+                <Coins className="h-8 w-8 text-emerald-400/40" />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            {/* Projeção futura */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
-                <span className="text-slate-400 block">Projeção de Taxas a Receber:</span>
-                <span className="text-base font-extrabold text-emerald-400 block">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Projeção (Próximos saques)</p>
+                <p className="text-sm font-extrabold text-emerald-300">
                   {showBalance ? formatBRL(projectedFutureFeesCents) : "••••"}
-                </span>
-                <span className="text-[10px] text-slate-500">2% sobre saldos em carteira</span>
+                </p>
+                <p className="text-[10px] text-slate-500">2% sobre saldos livres</p>
               </div>
-
               <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-1">
-                <span className="text-slate-400 block">Total Já Pago em Saques:</span>
-                <span className="text-base font-extrabold text-purple-300 block">
-                  {showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}
-                </span>
-                <span className="text-[10px] text-slate-500">PIX transferidos com sucesso</span>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Faturado (Vendas)</p>
+                <p className="text-sm font-extrabold text-blue-400">
+                  {showBalance ? formatBRL(metrics?.total_earned_cents || 0) : "••••"}
+                </p>
+                <p className="text-[10px] text-slate-500">Volume bruto de lojistas</p>
+              </div>
+            </div>
+
+            {/* Resumo de saques */}
+            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 flex items-center justify-between text-xs">
+              <div className="space-y-0.5">
+                <p className="text-slate-400">Saques já liquidados (PIX enviados):</p>
+                <p className="font-extrabold text-purple-300">{showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}</p>
+              </div>
+              <div className="text-right space-y-0.5">
+                <p className="text-slate-400">Taxa acumulada nesses saques:</p>
+                <p className="font-extrabold text-emerald-400">{showBalance ? formatBRL(platformProfitCents) : "••••"}</p>
               </div>
             </div>
           </CardContent>
@@ -1163,7 +1159,7 @@ export default function AdminWalletPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40">
-                      {filteredWallets.map((w) => (
+                      {displayedWallets.map((w) => (
                         <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
                           <td className="py-3.5 px-4">
                             <div className="font-semibold text-xs text-white">
@@ -1211,7 +1207,54 @@ export default function AdminWalletPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
+
+                {/* Barra de Paginação / Carregar Mais para Carteiras */}
+                {filteredWallets.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-slate-800/60 bg-[#070b14]/50">
+                    <div className="text-xs text-slate-400">
+                      Exibindo <span className="font-semibold text-white">{displayedWallets.length}</span> de{" "}
+                      <span className="font-semibold text-white">{filteredWallets.length}</span> carteiras de lojas
+                      {searchWallets && <span className="text-emerald-400 font-medium"> (filtradas por busca)</span>}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {filteredWallets.length > walletsVisibleCount && !searchWallets && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setWalletsVisibleCount((prev) => Math.min(prev + 20, filteredWallets.length))
+                            }
+                            className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
+                          >
+                            Carregar mais (+20)
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setWalletsVisibleCount(filteredWallets.length)}
+                            className="h-8 text-xs border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-medium"
+                          >
+                            Ver todas ({filteredWallets.length})
+                          </Button>
+                        </>
+                      )}
+                      {walletsVisibleCount > 20 && !searchWallets && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setWalletsVisibleCount(20)}
+                          className="h-8 text-xs text-slate-400 hover:text-white"
+                        >
+                          Mostrar apenas 20
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -253,7 +253,8 @@ Deno.serve(async (req) => {
       const { data, error } = await supabase
         .from("wallets")
         .select("*, tenants(name, logo_url, plan)")
-        .order("balance_cents", { ascending: false });
+        .order("balance_cents", { ascending: false })
+        .limit(1000);
 
       if (error) {
         return new Response(JSON.stringify({ error: error.message }), {
