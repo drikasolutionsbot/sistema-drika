@@ -301,9 +301,23 @@ async function getTicketById(ticketId) {
 
 // ── Payment Providers ──
 async function getActivePaymentProvider(tenantId) {
-  const { data } = await supabase.from("payment_providers").select("*").eq("tenant_id", tenantId).eq("active", true);
+  // Fetch platform-level disabled gateways first
+  const { data: gwSettings } = await supabase
+    .from("platform_gateway_settings")
+    .select("gateway_key, enabled")
+    .eq("enabled", false);
+  const disabledKeys = new Set((gwSettings || []).map((g) => g.gateway_key));
+
+  const { data } = await supabase
+    .from("payment_providers")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("active", true);
   if (!data) return null;
-  return data.find((p) => p.api_key_encrypted) || null;
+
+  // Exclude gateways disabled at platform level
+  const allowed = data.filter((p) => !disabledKeys.has(p.provider_key));
+  return allowed.find((p) => p.api_key_encrypted) || null;
 }
 
 // ── Automations ──
