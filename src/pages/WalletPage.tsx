@@ -513,7 +513,7 @@ export default function WalletPage() {
                     <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">
                       Validade
                     </span>
-                    <span className="font-mono text-xs font-bold text-slate-700">12/29</span>
+                    <span className="font-mono text-xs font-bold text-slate-700">12/30</span>
                   </div>
 
                   <span className="px-2 py-0.5 rounded border border-slate-300 bg-white/80 text-[10px] font-black uppercase tracking-wider text-slate-700 shadow-sm">
