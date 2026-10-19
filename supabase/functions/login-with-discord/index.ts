@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     const discordAvatar = user.user_metadata?.avatar_url || null;
     const userEmail = user.email || null;
 
-    // --- Check if user already has a tenant linked ---
+    // --- Check if user already has a tenant linked (by auth user_id) ---
     const { data: roleRow } = await admin
       .from("user_roles")
       .select("tenant_id")
@@ -68,10 +68,10 @@ Deno.serve(async (req) => {
 
     let tenantId: string;
     let tenantName: string;
-    const isNew = !roleRow?.tenant_id;
+    let isNew = false;
 
     if (roleRow?.tenant_id) {
-      // Existing user — get tenant info
+      // Existing auth user — get tenant info directly
       tenantId = roleRow.tenant_id;
       const { data: tenant } = await admin
         .from("tenants")
@@ -97,53 +97,105 @@ Deno.serve(async (req) => {
           })
           .eq("id", tenantId);
       }
-    } else {
-      // New user via Discord — create tenant with 4-day trial
-      const clientIp =
-        req.headers.get("cf-connecting-ip") ||
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        req.headers.get("x-real-ip") ||
-        null;
-
-      const now = new Date();
-      const trialExpires = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
-
-      // Insert único — sem retry para evitar tenants duplicados.
-      const { data: newTenant, error: tenantError } = await admin
+    } else if (discordId) {
+      // Sem user_role para este auth user — verifica se já existe um tenant
+      // com este discord_id (evita duplicatas quando o mesmo Discord gera múltiplos auth users)
+      const { data: existingTenant } = await admin
         .from("tenants")
-        .insert({
-          name: discordUsername,
-          email: userEmail,
-          whatsapp: null,
-          plan: "free",
-          plan_started_at: now.toISOString(),
-          plan_expires_at: trialExpires.toISOString(),
-          registration_ip: clientIp,
-          owner_discord_id: discordId,
-          owner_discord_username: discordUsername,
-        })
-        .select()
-        .single();
+        .select("id, name")
+        .eq("owner_discord_id", discordId)
+        .maybeSingle();
 
-      if (tenantError) {
-        console.error("Tenant create error:", tenantError.message);
-        return new Response(
-          JSON.stringify({ error: "Erro ao criar loja: " + tenantError.message }),
-          {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+      if (existingTenant) {
+        // Tenant já existe para este Discord — apenas vincula o auth user atual
+        tenantId = existingTenant.id;
+        tenantName = existingTenant.name;
+
+        // Vincula o novo auth user_id ao tenant existente (upsert seguro)
+        await admin.from("user_roles").upsert(
+          { user_id: userId, tenant_id: tenantId, role: "owner" },
+          { onConflict: "user_id,tenant_id" }
         );
+
+        // Atualiza username caso tenha mudado
+        await admin
+          .from("tenants")
+          .update({ owner_discord_username: discordUsername })
+          .eq("id", tenantId);
+      } else {
+        // Realmente novo usuário — cria o tenant com trial de 4 dias
+        isNew = true;
+        const clientIp =
+          req.headers.get("cf-connecting-ip") ||
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          req.headers.get("x-real-ip") ||
+          null;
+
+        const now = new Date();
+        const trialExpires = new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000);
+
+        const { data: newTenant, error: tenantError } = await admin
+          .from("tenants")
+          .insert({
+            name: discordUsername,
+            email: userEmail,
+            whatsapp: null,
+            plan: "free",
+            plan_started_at: now.toISOString(),
+            plan_expires_at: trialExpires.toISOString(),
+            registration_ip: clientIp,
+            owner_discord_id: discordId,
+            owner_discord_username: discordUsername,
+          })
+          .select()
+          .single();
+
+        if (tenantError) {
+          // Se falhou por constraint de unicidade (race condition), busca o tenant existente
+          if (tenantError.code === "23505") {
+            const { data: raceTenant } = await admin
+              .from("tenants")
+              .select("id, name")
+              .eq("owner_discord_id", discordId)
+              .maybeSingle();
+            if (raceTenant) {
+              tenantId = raceTenant.id;
+              tenantName = raceTenant.name;
+              isNew = false;
+              await admin.from("user_roles").upsert(
+                { user_id: userId, tenant_id: tenantId, role: "owner" },
+                { onConflict: "user_id,tenant_id" }
+              );
+            } else {
+              return new Response(
+                JSON.stringify({ error: "Erro ao criar loja: " + tenantError.message }),
+                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          } else {
+            console.error("Tenant create error:", tenantError.message);
+            return new Response(
+              JSON.stringify({ error: "Erro ao criar loja: " + tenantError.message }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } else {
+          tenantId = newTenant.id;
+          tenantName = newTenant.name;
+
+          // Atribui role de owner
+          await admin.from("user_roles").insert({
+            user_id: userId,
+            tenant_id: tenantId,
+            role: "owner",
+          });
+        }
       }
-
-      tenantId = newTenant.id;
-      tenantName = newTenant.name;
-
-      // Assign owner role
-      await admin.from("user_roles").insert({
-        user_id: userId,
-        tenant_id: tenantId,
-        role: "owner",
+    } else {
+      // Sem discord_id e sem tenant — não deveria chegar aqui
+      return new Response(JSON.stringify({ error: "Discord ID não encontrado na sessão" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
