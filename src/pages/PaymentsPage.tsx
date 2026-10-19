@@ -139,8 +139,27 @@ const PaymentsPage = () => {
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
-  const providers = buildProviders(t);
+  const allProviders = buildProviders(t);
   const [selectedProviderKey, setSelectedProviderKey] = useState<string | null>(null);
+
+  // Fetch platform-level gateway settings (which are visible to clients)
+  const { data: platformGwSettings = [] } = useQuery<{ key: string; enabled: boolean; visible: boolean }[]>({
+    queryKey: ["platform-gateway-settings"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("platform_gateway_settings")
+        .select("gateway_key, enabled, visible");
+      return (data || []).map((r: any) => ({ key: r.gateway_key, enabled: r.enabled, visible: r.visible }));
+    },
+    staleTime: 30_000,
+  });
+
+  // Filter providers by platform visibility settings
+  const providers = allProviders.filter(p => {
+    const setting = platformGwSettings.find(s => s.key === p.key);
+    if (!setting) return true; // default = visible
+    return setting.enabled && setting.visible;
+  });
 
   const { data: configs = [], isLoading } = useQuery<PaymentProvider[]>({
     queryKey: ["payment-providers", tenantId],
@@ -154,6 +173,7 @@ const PaymentsPage = () => {
   });
 
   const refetch = () => queryClient.invalidateQueries({ queryKey: ["payment-providers", tenantId] });
+
 
   // Realtime subscription for payment_providers changes
   useEffect(() => {

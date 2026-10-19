@@ -396,6 +396,19 @@ serve(async (req) => {
     let result;
     const eventType = body?.action || body?.event || body?.type || "unknown";
 
+    // Check if this gateway is platform-disabled — if so, ignore webhook silently
+    const { data: gwRow } = await supabase
+      .from("platform_gateway_settings")
+      .select("enabled")
+      .eq("gateway_key", provider)
+      .maybeSingle();
+    if (gwRow && !gwRow.enabled) {
+      console.log(`payment-webhook: gateway ${provider} is platform-disabled, ignoring.`);
+      return new Response(JSON.stringify({ success: true, handled: false, reason: "gateway_disabled" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Helper: extract a payment_id from the webhook body for any provider
     const extractPaymentId = (): string | null => {
       const id =

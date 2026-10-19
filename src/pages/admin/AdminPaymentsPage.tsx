@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, Plug, Zap } from "lucide-react";
+import { CreditCard, Plug, Zap, Settings2 } from "lucide-react";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
 import SubscriptionPaymentsTab from "@/components/admin/SubscriptionPaymentsTab";
 import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
 import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
 import AbacatePayIntegrationTab from "@/components/admin/AbacatePayIntegrationTab";
+import GatewaySettingsTab from "@/components/admin/GatewaySettingsTab";
 
 const AdminPaymentsPage = () => {
   return (
@@ -20,6 +21,10 @@ const AdminPaymentsPage = () => {
             <TabsTrigger value="payments" className="gap-2">
               <CreditCard className="h-4 w-4" />
               Pagamentos
+            </TabsTrigger>
+            <TabsTrigger value="gateways" className="gap-2">
+              <Settings2 className="h-4 w-4" />
+              Gateways
             </TabsTrigger>
             <TabsTrigger value="efi" className="gap-2">
               <Plug className="h-4 w-4" />
@@ -38,6 +43,18 @@ const AdminPaymentsPage = () => {
 
         <TabsContent value="payments">
           <SubscriptionPaymentsTab />
+        </TabsContent>
+
+        <TabsContent value="gateways">
+          <div className="space-y-2">
+            <div>
+              <h2 className="text-base font-semibold">Controle de Gateways</h2>
+              <p className="text-sm text-muted-foreground">
+                Ative, desative ou oculte gateways de pagamento para todos os clientes da plataforma.
+              </p>
+            </div>
+            <GatewaySettingsTab />
+          </div>
         </TabsContent>
 
         <TabsContent value="efi">

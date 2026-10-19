@@ -350,8 +350,18 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // 0. Check platform-level gateway settings (admin can disable gateways globally)
+    const { data: gwSettings } = await supabase
+      .from("platform_gateway_settings")
+      .select("gateway_key, enabled");
+    const disabledGateways = new Set(
+      (gwSettings || []).filter((g: any) => !g.enabled).map((g: any) => g.gateway_key)
+    );
+
     // 1. Resolve preferred provider: explicit > product-level > tenant default
     let preferredKey: string | null = provider_key || null;
+    // If preferred gateway is platform-disabled, clear it
+    if (preferredKey && disabledGateways.has(preferredKey)) preferredKey = null;
     if (!preferredKey && product_id) {
       const { data: prod } = await supabase
         .from("products")
@@ -362,19 +372,22 @@ serve(async (req) => {
       preferredKey = (prod as any)?.payment_provider_key || null;
     }
 
-    // 2. Load active payment providers for tenant
+    // 2. Load active payment providers for tenant — exclude platform-disabled gateways
     const { data: providers } = await supabase
       .from("payment_providers")
       .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
       .eq("tenant_id", tenant_id)
       .eq("active", true);
 
+    // Filter out platform-disabled gateways
+    const allowedProviders = (providers || []).filter((p: any) => !disabledGateways.has(p.provider_key));
+
     let activeProvider: any = null;
     if (preferredKey) {
-      activeProvider = providers?.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
+      activeProvider = allowedProviders.find((p: any) => p.provider_key === preferredKey && p.api_key_encrypted) || null;
     }
     if (!activeProvider) {
-      activeProvider = providers?.find((p: any) => p.api_key_encrypted) || null;
+      activeProvider = allowedProviders.find((p: any) => p.api_key_encrypted) || null;
     }
     const amount = amount_cents ? amount_cents / 100 : undefined;
     const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
