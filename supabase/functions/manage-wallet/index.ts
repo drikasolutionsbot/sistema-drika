@@ -112,6 +112,13 @@ Deno.serve(async (req) => {
         });
       }
 
+      if (amount_cents < 100) {
+        return new Response(JSON.stringify({ error: "O valor mínimo para solicitação de saque é de R$ 1,00 (100 centavos)" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: rpcRes, error: rpcErr } = await supabase.rpc("request_wallet_withdrawal", {
         _tenant_id: tenant_id,
         _amount_cents: amount_cents,

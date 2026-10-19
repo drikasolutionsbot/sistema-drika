@@ -312,16 +312,16 @@ export default function WalletPage() {
   const effectivePixKey = useCustomKey || !tenant?.pix_key ? modalPixKey : tenant.pix_key;
   const effectivePixKeyType = useCustomKey || !tenant?.pix_key ? modalPixKeyType : (tenant.pix_key_type || "cpf");
 
-  const isAmountValid = parsedAmountCents > 0 && parsedAmountCents <= availableBalanceCents;
+  const isAmountValid = parsedAmountCents >= 100 && parsedAmountCents <= availableBalanceCents;
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId) return;
 
-    if (parsedAmountCents <= 0) {
+    if (parsedAmountCents < 100) {
       toast({
-        title: "Valor inválido",
-        description: "Informe um valor válido para solicitar o saque.",
+        title: "Valor mínimo de saque",
+        description: "O valor mínimo para solicitar saque é de R$ 1,00 (100 centavos).",
         variant: "destructive",
       });
       return;
@@ -1268,6 +1268,9 @@ export default function WalletPage() {
                   required
                 />
               </div>
+              <p className="text-[11px] text-slate-400">
+                Valor mínimo para saque: <span className="text-slate-200 font-semibold">R$ 1,00</span>
+              </p>
             </div>
 
             {/* Chave PIX de Destino */}

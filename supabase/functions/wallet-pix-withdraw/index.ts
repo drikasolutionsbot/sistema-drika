@@ -200,6 +200,13 @@ async function withdrawViaColdPayments(opts: {
   amountCents: number;
   description?: string;
 }): Promise<{ payment_id: string; status: string }> {
+  if (opts.amountCents < 100) {
+    throw new Error(
+      `O gateway ColdPayments exige valor mínimo de R$ 1,00 para transferência PIX automática (valor atual: R$ ${(opts.amountCents / 100).toFixed(2)}). Aprove manualmente caso já tenha realizado o PIX pelo seu banco.`
+    );
+  }
+
+  // ColdPayments accepts amountCents, pixKey and description. pixKeyType should NOT be sent.
   const res = await fetch("https://coldpayments.com/api/v1/withdrawals", {
     method: "POST",
     headers: {
@@ -209,7 +216,6 @@ async function withdrawViaColdPayments(opts: {
     body: JSON.stringify({
       amountCents: opts.amountCents,
       pixKey: opts.destinationKey,
-      pixKeyType: opts.destinationKeyType,
       description: (opts.description || "Saque carteira").substring(0, 140),
     }),
   });
