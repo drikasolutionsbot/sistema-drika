@@ -239,21 +239,127 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { data: res, error } = await supabase.rpc("approve_wallet_withdrawal", {
-        _tx_id: tx_id,
-        _admin_notes: admin_notes || null,
-      });
+      // 1. Load the withdrawal transaction details
+      const { data: tx, error: txErr } = await supabase
+        .from("wallet_transactions")
+        .select("id, tenant_id, amount_cents, net_amount_cents, pix_key, pix_key_type, status, provider, description")
+        .eq("id", tx_id)
+        .single();
 
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
+      if (txErr || !tx) {
+        return new Response(JSON.stringify({ error: "Transação não encontrada" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (tx.status !== "pending") {
+        return new Response(JSON.stringify({ error: `Transação já foi ${tx.status}` }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      return new Response(JSON.stringify(res), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (!tx.pix_key) {
+        return new Response(JSON.stringify({ error: "Chave PIX do cliente não encontrada na transação" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // 2. Determine the amount to send: use net_amount_cents (after platform fee) or amount_cents
+      const amountToSendCents = tx.net_amount_cents && tx.net_amount_cents > 0
+        ? tx.net_amount_cents
+        : tx.amount_cents;
+
+      // 3. Determine which gateway to use (stored on tx, or fallback to central ColdPayments)
+      let providerKey = tx.provider || "coldpayments";
+
+      // 4. Call wallet-pix-withdraw to execute the real PIX transfer
+      let pixResult: any = null;
+      try {
+        const withdrawRes = await fetch(`${SUPABASE_URL}/functions/v1/wallet-pix-withdraw`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SERVICE_ROLE}`,
+          },
+          body: JSON.stringify({
+            tenant_id: tx.tenant_id,
+            amount_cents: amountToSendCents,
+            pix_key: tx.pix_key,
+            pix_key_type: tx.pix_key_type || "aleatoria",
+            provider_key: providerKey,
+            description: `Saque aprovado - ${tx.description || "Saque carteira"}`,
+          }),
+        });
+
+        const withdrawData = await withdrawRes.json();
+
+        if (!withdrawRes.ok || withdrawData.error) {
+          // Gateway rejected — mark as rejected and return error
+          await supabase
+            .from("wallet_transactions")
+            .update({
+              status: "rejected",
+              description: `Falhou: ${withdrawData.error || withdrawData.message || "Erro no gateway"}`.slice(0, 250),
+            })
+            .eq("id", tx_id);
+
+          return new Response(
+            JSON.stringify({ error: "gateway_error", message: withdrawData.error || withdrawData.message || "Erro ao enviar PIX" }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        pixResult = withdrawData;
+      } catch (gatewayErr: any) {
+        await supabase
+          .from("wallet_transactions")
+          .update({
+            status: "rejected",
+            description: `Falhou: ${gatewayErr.message}`.slice(0, 250),
+          })
+          .eq("id", tx_id);
+
+        return new Response(
+          JSON.stringify({ error: "gateway_error", message: gatewayErr.message }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 5. PIX sent successfully — mark the original withdrawal tx as completed
+      await supabase
+        .from("wallet_transactions")
+        .update({
+          status: "completed",
+          payment_id: pixResult?.payment_id || null,
+          completed_at: new Date().toISOString(),
+          description: admin_notes
+            ? `Aprovado: ${admin_notes}`.slice(0, 250)
+            : (tx.description || "Saque PIX aprovado"),
+        })
+        .eq("id", tx_id);
+
+      // Also debit from wallet balance
+      try {
+        await supabase.rpc("debit_wallet_withdrawal", {
+          _tenant_id: tx.tenant_id,
+          _amount_cents: tx.amount_cents,
+        });
+      } catch { /* non-blocking */ }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tx_id,
+          pix_payment_id: pixResult?.payment_id,
+          amount_sent_cents: amountToSendCents,
+          pix_key: tx.pix_key,
+          status: "completed",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // ─── 6. Admin: Reject Withdrawal ───
