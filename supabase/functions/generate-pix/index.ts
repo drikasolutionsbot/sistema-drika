@@ -302,8 +302,11 @@ async function generateViaColdPayments(
   amountCents: number,
   description: string,
   externalRef: string,
-  webhookUrl: string
+  _webhookUrl: string
 ): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string }> {
+  // ColdPayments requires minimum R$ 2,00 (200 cents)
+  const safeAmountCents = Math.max(amountCents, 200);
+
   const res = await fetch("https://coldpayments.com/api/v1/payments", {
     method: "POST",
     headers: {
@@ -311,23 +314,24 @@ async function generateViaColdPayments(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amountCents,
-      description: description.substring(0, 140),
-      externalId: externalRef,
-      webhookUrl: webhookUrl || undefined,
-      method: "pix",
+      amountCents: safeAmountCents,
+      description: (description || "Pagamento PIX").substring(0, 140),
+      metadata: {
+        order_id: externalRef,
+        external_id: externalRef,
+      },
     }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `ColdPayments error: ${res.status}`);
+    throw new Error(err.message || err.title || `ColdPayments error: ${res.status}`);
   }
 
   const data = await res.json();
-  // ColdPayments returns brcode/pixCode + id + expiresAt
+  // ColdPayments returns copyPaste for the PIX code and qrCodeBase64 for the QR image
   return {
-    brcode: data.brcode || data.pixCode || data.qrCode || "",
+    brcode: data.copyPaste || data.brcode || data.pixCode || data.qrCode || "",
     qr_code_base64: data.qrCodeBase64 || data.qr_code_base64 || undefined,
     payment_id: String(data.id || externalRef),
     expires_at: data.expiresAt || undefined,

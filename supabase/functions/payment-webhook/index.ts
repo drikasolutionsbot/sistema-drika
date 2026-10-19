@@ -381,7 +381,13 @@ async function handleColdPayments(body: any, rawBody: string, headers: Headers, 
   }
 
   const paymentId = String(body?.id || eventId || "");
-  const externalId = body?.externalId || body?.external_id || body?.externalReference || null;
+  const externalId =
+    body?.metadata?.order_id ||
+    body?.metadata?.external_id ||
+    body?.externalId ||
+    body?.external_id ||
+    body?.externalReference ||
+    null;
   const amountCents = body?.amountCents || body?.amount_cents || null;
 
   if (!paymentId) return { handled: false, reason: "No payment ID" };
