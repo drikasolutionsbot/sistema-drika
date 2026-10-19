@@ -584,14 +584,9 @@ export default function AdminWalletPage() {
     return filteredAuditSales.slice(0, auditVisibleCount);
   }, [filteredAuditSales, searchAudit, auditVisibleCount]);
 
-  // Unique payment providers found in sales for the filter dropdown
-  const availableProviders = useMemo(() => {
-    const set = new Set<string>();
-    auditSales.forEach((s) => {
-      if (s.payment_provider) set.add(s.payment_provider);
-    });
-    return Array.from(set);
-  }, [auditSales]);
+  // Gateway filter: only the central split gateway (ColdPayments) is shown as a filter option
+  // — other per-tenant gateways are not tracked at platform level
+  const availableProviders = ["coldpayments"];
 
   const pendingCount = metrics?.pending_count || 0;
 
@@ -1482,21 +1477,15 @@ export default function AdminWalletPage() {
                   </Select>
 
                   {/* Filtro por Gateway */}
-                  {availableProviders.length > 0 && (
-                    <Select value={auditProviderFilter} onValueChange={setAuditProviderFilter}>
-                      <SelectTrigger className="h-9 w-[140px] text-xs border-slate-800 bg-[#070b14] text-slate-200">
-                        <SelectValue placeholder="Gateway" />
-                      </SelectTrigger>
-                      <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
-                        <SelectItem value="all">Todos Gateways</SelectItem>
-                        {availableProviders.map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {p.toUpperCase()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <Select value={auditProviderFilter} onValueChange={setAuditProviderFilter}>
+                    <SelectTrigger className="h-9 w-[170px] text-xs border-slate-800 bg-[#070b14] text-slate-200">
+                      <SelectValue placeholder="Gateway" />
+                    </SelectTrigger>
+                    <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
+                      <SelectItem value="all">Todos Gateways</SelectItem>
+                      <SelectItem value="coldpayments">⚡ ColdPayments (Split)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeader>
