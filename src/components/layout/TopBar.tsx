@@ -281,6 +281,46 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
     };
   }, [tenantId]);
 
+  // Wallet balance state and realtime sync
+  const [walletBalanceCents, setWalletBalanceCents] = useState<number | null>(null);
+
+  const fetchWallet = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const { data } = await supabase
+        .from("wallets")
+        .select("balance_cents")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      setWalletBalanceCents(data?.balance_cents ?? 0);
+    } catch (e) {
+      console.error("Failed to fetch wallet in TopBar:", e);
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    fetchWallet();
+    if (!tenantId) return;
+
+    const channel = supabase
+      .channel(`topbar-wallet-${tenantId}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "wallets", filter: `tenant_id=eq.${tenantId}` },
+        () => fetchWallet()
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "wallet_transactions", filter: `tenant_id=eq.${tenantId}` },
+        () => fetchWallet()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, fetchWallet]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllRead = () => {
@@ -308,7 +348,21 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         </div>
       </div>
       <div className="flex items-center gap-1.5 md:gap-3">
-        <div className="hidden sm:block h-6 w-px bg-border mx-1" />
+        {/* Wallet Balance Button */}
+        <button
+          onClick={() => navigate("/wallet")}
+          className="flex items-center gap-2 h-8 md:h-9 px-2.5 md:px-3 rounded-full border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 cursor-pointer shadow-sm group shrink-0"
+          title="Minha Carteira • Ver Saldo & Extrato"
+        >
+          <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
+            <Wallet className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-xs font-bold font-mono text-emerald-300 whitespace-nowrap">
+            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((walletBalanceCents || 0) / 100)}
+          </span>
+        </button>
+
+        <div className="hidden sm:block h-6 w-px bg-border mx-0.5" />
         {/* Language Switcher */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
