@@ -736,7 +736,7 @@ async function goToPayment(interaction, tenant, orderId) {
     } else if (providerKey === "pushinpay") {
       const r = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "efi" || providerKey === "misticpay") {
+    } else if (providerKey === "efi" || providerKey === "misticpay" || providerKey === "coldpayments" || providerKey === "abacatepay") {
       const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
@@ -753,6 +753,8 @@ async function goToPayment(interaction, tenant, orderId) {
       : providerKey === "efi" ? "Pix – Efi Bank"
       : providerKey === "mercadopago" ? "Pix – Mercado Pago"
       : providerKey === "misticpay" ? "Pix – Mistic Pay"
+      : providerKey === "coldpayments" ? "Pix – ColdPayments"
+      : providerKey === "abacatepay" ? "Pix – AbacatePay"
       : `Pix – ${providerKey}`;
 
     await sendLog(interaction.guild, tenant, {
