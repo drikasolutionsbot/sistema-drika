@@ -518,9 +518,9 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
               <Wallet className="mr-2 h-4 w-4" />
               {t.topbar.wallet}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/settings?tab=pix")} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => navigate("/wallet?tab=pix")} className="cursor-pointer">
               <QrCode className="mr-2 h-4 w-4" />
-              {t.topbar.configurePix}
+              Chave PIX (Saques)
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
