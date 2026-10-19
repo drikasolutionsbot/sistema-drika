@@ -726,7 +726,7 @@ export default function WalletPage() {
                 Chave PIX de Saque & Regras
               </CardTitle>
               <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-400">
-                Taxa: 1%
+                Saque: Isento (0%)
               </Badge>
             </div>
           </CardHeader>
@@ -897,7 +897,7 @@ export default function WalletPage() {
                         <th className="py-3 px-4">Tipo</th>
                         <th className="py-3 px-4">Descrição / Detalhes</th>
                         <th className="py-3 px-4 text-right">Valor Bruto</th>
-                        <th className="py-3 px-4 text-right">Taxa (1%)</th>
+                        <th className="py-3 px-4 text-right">Taxas (R$0,60 + 2%)</th>
                         <th className="py-3 px-4 text-right">Valor Líquido</th>
                         <th className="py-3 px-4 text-center">Status</th>
                       </tr>
@@ -1373,7 +1373,7 @@ export default function WalletPage() {
                           <Info className="h-3 w-3 text-slate-500 cursor-pointer" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs">Isento de taxa no saque — a taxa de 1% da plataforma já é descontada automaticamente em cada venda.</p>
+                          <p className="text-xs">Isento de taxa no saque — a taxa fixa de gateway (R$ 0,60) e a taxa da plataforma (2%) já foram deduzidas na venda.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

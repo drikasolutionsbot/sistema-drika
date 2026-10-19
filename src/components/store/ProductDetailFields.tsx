@@ -12,6 +12,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 import { EmojiPicker } from "./EmojiPicker";
 import { AddStockModal } from "./AddStockModal";
+import { ProductFeeExplainer } from "./ProductFeeExplainer";
 
 interface AutoMessage {
   id: string;
@@ -162,6 +163,15 @@ const FieldGeralTab = ({
           />
         </div>
       </div>
+
+      {/* Explicação de taxas & recebimento líquido da variedade */}
+      <ProductFeeExplainer
+        priceCents={(() => {
+          const raw = (priceDisplay || "").replace(/[^0-9.,]/g, "").replace(",", ".");
+          const num = parseFloat(raw);
+          return isNaN(num) ? (field.price_cents || 0) : Math.round(num * 100);
+        })()}
+      />
 
       {/* Toggles */}
       <div className="space-y-3">

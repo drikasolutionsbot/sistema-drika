@@ -9,6 +9,7 @@ import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { ProductFeeExplainer } from "./ProductFeeExplainer";
 
 interface Category {
   id: string;
@@ -112,6 +113,12 @@ const PriceSection = ({ product, onChange }: { product: Product; onChange: (u: P
           />
         </div>
       </div>
+
+      {/* Explicação de taxas & recebimento líquido */}
+      <ProductFeeExplainer
+        priceCents={parseToCents(priceStr) ?? (product.price_cents || 0)}
+        currency={product.currency || "BRL"}
+      />
     </section>
   );
 };
