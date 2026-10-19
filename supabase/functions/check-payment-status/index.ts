@@ -377,15 +377,36 @@ serve(async (req) => {
         console.error("Delivery trigger failed:", e);
       }
 
-      // Trigger automation
+      // ── Credit tenant wallet for the sale ──
       try {
-        const { data: paidOrder } = await supabase
+        const { data: orderForWallet } = await supabase
           .from("orders")
           .select("order_number, product_name, discord_user_id, discord_username, total_cents")
           .eq("id", order_id)
           .single();
 
-        if (paidOrder) {
+        if (orderForWallet && orderForWallet.total_cents && orderForWallet.total_cents > 0) {
+          const desc = `Venda Pedido #${orderForWallet.order_number || order_id.slice(0, 8)} - ${orderForWallet.product_name || "Produto"}`;
+          const walletResult = await supabase.rpc("credit_order_to_wallet", {
+            _tenant_id: tenant_id,
+            _order_id: String(order_id),
+            _amount_cents: orderForWallet.total_cents,
+            _description: desc,
+          });
+          console.log(`[Wallet] Credited via polling: total=${orderForWallet.total_cents}¢ tenant=${tenant_id} order=${order_id}`, walletResult);
+
+          // Persist commission and net amount on the order row
+          if (walletResult.data) {
+            await supabase
+              .from("orders")
+              .update({
+                commission_cents: walletResult.data.fee_cents ?? null,
+                seller_received_cents: walletResult.data.net_amount_cents ?? null,
+              })
+              .eq("id", order_id);
+          }
+
+          // Trigger automation
           await fetch(`${supabaseUrl}/functions/v1/execute-automation`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
@@ -393,17 +414,19 @@ serve(async (req) => {
               tenant_id,
               trigger_type: "order_paid",
               trigger_data: {
-                discord_user_id: paidOrder.discord_user_id,
-                discord_username: paidOrder.discord_username,
+                discord_user_id: orderForWallet.discord_user_id,
+                discord_username: orderForWallet.discord_username,
                 order_id,
-                order_number: paidOrder.order_number,
-                product_name: paidOrder.product_name,
-                total_cents: paidOrder.total_cents,
+                order_number: orderForWallet.order_number,
+                product_name: orderForWallet.product_name,
+                total_cents: orderForWallet.total_cents,
               },
             }),
-          });
+          }).catch(() => {});
         }
-      } catch {}
+      } catch (e) {
+        console.error("[Wallet] Failed to credit wallet via polling:", e);
+      }
 
       return new Response(JSON.stringify({ status: "paid", changed: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
