@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -21,7 +21,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Resolve tenant guild and use external bot token único
+    // Resolve tenant guild and use external bot token Ãºnico
     const { data: tenantInfo } = await supabase
       .from("tenants")
       .select("discord_guild_id")
@@ -33,7 +33,7 @@ serve(async (req) => {
     // Handle guild icon update (separate flow)
     if (guild_icon_base64) {
       if (!tenantInfo?.discord_guild_id) throw new Error("No Discord guild linked");
-      if (!tenantBotToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN)");
+      if (!tenantBotToken) throw new Error("Bot externo nÃ£o configurado (DISCORD_BOT_TOKEN)");
 
       const iconRes = await fetch(
         `https://discord.com/api/v10/guilds/${tenantInfo.discord_guild_id}`,
@@ -46,9 +46,9 @@ serve(async (req) => {
       if (!iconRes.ok) {
         const errBody = await iconRes.text();
         console.error("Discord guild icon update failed:", iconRes.status, errBody);
-        throw new Error("Falha ao atualizar ícone no Discord");
+        throw new Error("Falha ao atualizar Ã­cone no Discord");
       }
-      console.log("Discord guild icon updated successfully");
+      // console.log("Discord guild icon updated successfully");
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -66,7 +66,7 @@ serve(async (req) => {
       }
     }
 
-    // Master-only enforcement: bloquear bot_banner_url para tenants não-Master
+    // Master-only enforcement: bloquear bot_banner_url para tenants nÃ£o-Master
     let blockedMasterOnly = false;
     if ("bot_banner_url" in safeUpdates) {
       const { data: tenantPlan } = await supabase
@@ -77,13 +77,13 @@ serve(async (req) => {
       if (tenantPlan?.plan !== "master") {
         delete safeUpdates.bot_banner_url;
         blockedMasterOnly = true;
-        console.warn(`Tenant ${tenant_id} (plano ${tenantPlan?.plan || "?"}) tentou salvar bot_banner_url — bloqueado (Master only).`);
+        console.warn(`Tenant ${tenant_id} (plano ${tenantPlan?.plan || "?"}) tentou salvar bot_banner_url â€” bloqueado (Master only).`);
       }
     }
 
     if (Object.keys(safeUpdates).length === 0) {
       if (blockedMasterOnly) {
-        throw new Error("A capa personalizada do bot é exclusiva do plano Master. Esta loja está em outro plano.");
+        throw new Error("A capa personalizada do bot Ã© exclusiva do plano Master. Esta loja estÃ¡ em outro plano.");
       }
       throw new Error("No valid fields to update");
     }
@@ -94,7 +94,7 @@ serve(async (req) => {
 
       // Check format
       if (!/^\d{17,20}$/.test(guildId)) {
-        throw new Error("ID do servidor inválido. Deve conter 17-20 dígitos.");
+        throw new Error("ID do servidor invÃ¡lido. Deve conter 17-20 dÃ­gitos.");
       }
 
       const { data: pendingInvite } = await supabase
@@ -127,14 +127,14 @@ serve(async (req) => {
         });
         if (!guildRes.ok) {
           if (guildRes.status === 404 || guildRes.status === 403) {
-            throw new Error("O bot não está neste servidor. Adicione o bot primeiro.");
+            throw new Error("O bot nÃ£o estÃ¡ neste servidor. Adicione o bot primeiro.");
           }
         }
       }
 
       if (existingTenant) {
         if (!appearedAfterDashboardInvite) {
-          throw new Error("Este servidor já está vinculado a outra loja.");
+          throw new Error("Este servidor jÃ¡ estÃ¡ vinculado a outra loja.");
         }
 
         const { error: clearClaimError } = await supabase
@@ -144,7 +144,7 @@ serve(async (req) => {
           .eq("discord_guild_id", guildId);
 
         if (clearClaimError) {
-          throw new Error("Não foi possível liberar o vínculo antigo deste servidor.");
+          throw new Error("NÃ£o foi possÃ­vel liberar o vÃ­nculo antigo deste servidor.");
         }
 
         await supabase.from("tenant_audit_logs").insert({
@@ -185,7 +185,7 @@ serve(async (req) => {
     // If name was updated, also rename the Discord guild
     if (safeUpdates.name && data.discord_guild_id) {
       const effectiveBotToken = tenantBotToken;
-      console.log("Attempting Discord guild rename to:", safeUpdates.name, "for guild:", data.discord_guild_id);
+      // console.log("Attempting Discord guild rename to:", safeUpdates.name, "for guild:", data.discord_guild_id);
       try {
         if (effectiveBotToken) {
           const renameRes = await fetch(
@@ -200,14 +200,14 @@ serve(async (req) => {
             }
           );
           const resBody = await renameRes.text();
-          console.log("Discord guild rename response:", renameRes.status, resBody);
+          // console.log("Discord guild rename response:", renameRes.status, resBody);
         }
       } catch (discordErr) {
         console.error("Discord guild rename error:", discordErr);
       }
     }
 
-    // Se o cliente alterou informações do bot OU acabou de vincular o bot (discord_guild_id)
+    // Se o cliente alterou informaÃ§Ãµes do bot OU acabou de vincular o bot (discord_guild_id)
     const guildIdChanged = "discord_guild_id" in safeUpdates;
     const shouldSyncDiscordProfile = "bot_name" in safeUpdates || 
                                      "bot_avatar_url" in safeUpdates || 
@@ -218,11 +218,11 @@ serve(async (req) => {
       try {
         const memberPatch: Record<string, any> = {};
 
-        // Usa o nome novo ou o que já estava no banco
+        // Usa o nome novo ou o que jÃ¡ estava no banco
         const newBotName = "bot_name" in safeUpdates ? safeUpdates.bot_name : data.bot_name;
         if (newBotName) memberPatch.nick = newBotName;
 
-        // Helper: download URL → data URI base64 (chunked p/ evitar stack overflow)
+        // Helper: download URL â†’ data URI base64 (chunked p/ evitar stack overflow)
         const urlToDataUri = async (url: string): Promise<string | null> => {
           try {
             const r = await fetch(url);
@@ -253,7 +253,7 @@ serve(async (req) => {
           memberPatch.avatar = null;
         }
 
-        // Banner é Master-only (já validado acima, então se chegou aqui é permitido)
+        // Banner Ã© Master-only (jÃ¡ validado acima, entÃ£o se chegou aqui Ã© permitido)
         if ("bot_banner_url" in safeUpdates) {
           if (safeUpdates.bot_banner_url) {
             const dataUri = await urlToDataUri(safeUpdates.bot_banner_url);
@@ -262,14 +262,14 @@ serve(async (req) => {
             memberPatch.banner = null; // remover banner
           }
         } else if (guildIdChanged) {
-          // Se for uma nova vinculação (guildIdChanged), precisamos aplicar o banner correto
+          // Se for uma nova vinculaÃ§Ã£o (guildIdChanged), precisamos aplicar o banner correto
           if (data?.plan === "master") {
             if (data.bot_banner_url) {
               const dataUri = await urlToDataUri(data.bot_banner_url);
               if (dataUri) memberPatch.banner = dataUri;
             }
           } else {
-            // Fallback para a capa global se o cliente for padrão e acabou de adicionar o bot
+            // Fallback para a capa global se o cliente for padrÃ£o e acabou de adicionar o bot
             const { data: config } = await supabase.from("landing_config").select("global_bot_banner_url").limit(1).single();
             if (config?.global_bot_banner_url) {
               const dataUri = await urlToDataUri(config.global_bot_banner_url);
@@ -279,7 +279,7 @@ serve(async (req) => {
         }
 
         if (Object.keys(memberPatch).length > 0) {
-          console.log("Syncing bot member profile for guild:", data.discord_guild_id, "fields:", Object.keys(memberPatch));
+          // console.log("Syncing bot member profile for guild:", data.discord_guild_id, "fields:", Object.keys(memberPatch));
           const patchRes = await fetch(
             `https://discord.com/api/v10/guilds/${data.discord_guild_id}/members/@me`,
             {
@@ -292,7 +292,7 @@ serve(async (req) => {
             }
           );
           const patchBody = await patchRes.text();
-          console.log("Discord bot member patch response:", patchRes.status, patchBody);
+          // console.log("Discord bot member patch response:", patchRes.status, patchBody);
 
           // Detect Discord banner rate limit and surface a friendly error
           if (!patchRes.ok) {
@@ -332,7 +332,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    // Retornamos 200 para que o supabase-js client não oculte a mensagem de erro
+    // Retornamos 200 para que o supabase-js client nÃ£o oculte a mensagem de erro
     return new Response(JSON.stringify({ error: message }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

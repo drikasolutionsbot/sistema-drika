@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -10,7 +10,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// ─── Provider-specific webhook handlers ────────────────────────────
+// â”€â”€â”€ Provider-specific webhook handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function handleMercadoPago(body: any, tenantId: string, supabase: any) {
   const action = body?.action;
   if (!action?.startsWith("payment.")) return { handled: false, reason: "Not a payment event" };
@@ -62,7 +62,7 @@ async function handlePushinPay(body: any, tenantId: string, supabase: any) {
   const paymentId = body?.id || body?.payment_id || body?.transaction_id;
   const status = body?.status;
 
-  console.log(`PushinPay webhook: paymentId=${paymentId}, status=${status}, body=${JSON.stringify(body)}`);
+  // console.log(`PushinPay webhook: paymentId=${paymentId}, status=${status}, body=${JSON.stringify(body)}`);
 
   if (!paymentId) return { handled: false, reason: "No payment ID in webhook" };
 
@@ -114,7 +114,7 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
   const txid = pix.txid;
   const endToEndId = pix.endToEndId;
 
-  console.log(`Efí webhook: txid=${txid}, endToEndId=${endToEndId}, body=${JSON.stringify(body)}`);
+  // console.log(`EfÃ­ webhook: txid=${txid}, endToEndId=${endToEndId}, body=${JSON.stringify(body)}`);
 
   if (!txid && !endToEndId) return { handled: false, reason: "No txid or endToEndId" };
 
@@ -153,7 +153,7 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
   }
 
   if (!order) {
-    console.error(`Efí: No order found for txid=${txid} endToEndId=${endToEndId} in tenant=${tenantId}`);
+    console.error(`EfÃ­: No order found for txid=${txid} endToEndId=${endToEndId} in tenant=${tenantId}`);
     return { handled: false, reason: "Order not found" };
   }
 
@@ -176,7 +176,7 @@ async function handleMisticPay(body: any, tenantId: string, supabase: any) {
   const status = body?.status;
   const transactionType = body?.transactionType;
 
-  console.log(`MisticPay webhook: txId=${transactionId}, status=${status}, type=${transactionType}, body=${JSON.stringify(body)}`);
+  // console.log(`MisticPay webhook: txId=${transactionId}, status=${status}, type=${transactionType}, body=${JSON.stringify(body)}`);
 
   if (!transactionId) return { handled: false, reason: "No transactionId in webhook" };
   
@@ -222,7 +222,7 @@ async function handleAbacatePay(body: any, tenantId: string, supabase: any) {
   const paymentId = data?.id || data?.pixQrCodeId || body?.id;
   const status = (data?.status || body?.status || "").toString().toUpperCase();
 
-  console.log(`AbacatePay webhook: event=${event}, paymentId=${paymentId}, status=${status}`);
+  // console.log(`AbacatePay webhook: event=${event}, paymentId=${paymentId}, status=${status}`);
 
   if (!paymentId) return { handled: false, reason: "No payment ID in webhook" };
 
@@ -279,7 +279,7 @@ async function handleLofyPay(body: any, tenantId: string, supabase: any) {
   const paymentId = body?.idTransaction || body?.id;
   const extRef = body?.external_reference;
 
-  console.log(`LofyPay webhook: status=${status}, paymentId=${paymentId}, extRef=${extRef}`);
+  // console.log(`LofyPay webhook: status=${status}, paymentId=${paymentId}, extRef=${extRef}`);
 
   if (status !== "PAID") return { handled: false, reason: `Status not PAID: ${status}` };
   if (!paymentId && !extRef) return { handled: false, reason: "No payment ID or external_reference" };
@@ -333,7 +333,7 @@ async function handleLofyPay(body: any, tenantId: string, supabase: any) {
   return { handled: false, reason: "Order not found" };
 }
 
-// ─── Gateway: ColdPayments ────────────────────────────────────────
+// â”€â”€â”€ Gateway: ColdPayments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function handleColdPayments(body: any, rawBody: string, headers: Headers, tenantId: string, supabase: any) {
   // Validate HMAC-SHA256 signature if webhook secret is configured
   const sig = headers.get("x-coldpayments-signature");
@@ -373,7 +373,7 @@ async function handleColdPayments(body: any, rawBody: string, headers: Headers, 
   const event = headers.get("x-coldpayments-event") || body?.event || "";
   const eventId = headers.get("x-coldpayments-event-id") || body?.id || "";
 
-  console.log(`ColdPayments webhook: event=${event}, eventId=${eventId}, body=${JSON.stringify(body).slice(0, 300)}`);
+  // console.log(`ColdPayments webhook: event=${event}, eventId=${eventId}, body=${JSON.stringify(body).slice(0, 300)}`);
 
   // Only process payment.paid events
   if (event !== "payment.paid" && body?.status !== "PAID") {
@@ -429,7 +429,7 @@ async function handleColdPayments(body: any, rawBody: string, headers: Headers, 
   return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
 }
 
-// ─── Main handler ──────────────────────────────────────────────────
+// â”€â”€â”€ Main handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -457,10 +457,10 @@ serve(async (req) => {
       } else if (contentType.includes("application/x-www-form-urlencoded") || rawBody.includes("=")) {
         const params = new URLSearchParams(rawBody);
         body = Object.fromEntries(params.entries());
-        // PushinPay envia ID em maiúsculo (A18F2001...) — converter para o formato salvo (lowercase com hífens)
+        // PushinPay envia ID em maiÃºsculo (A18F2001...) â€” converter para o formato salvo (lowercase com hÃ­fens)
         if (body.id && typeof body.id === "string") {
           body.id = body.id.toLowerCase();
-          // Se vier sem hífens, reformatar UUID
+          // Se vier sem hÃ­fens, reformatar UUID
           if (body.id.length === 32 && !body.id.includes("-")) {
             body.id = `${body.id.slice(0,8)}-${body.id.slice(8,12)}-${body.id.slice(12,16)}-${body.id.slice(16,20)}-${body.id.slice(20)}`;
           }
@@ -471,7 +471,7 @@ serve(async (req) => {
     } catch (e) {
       console.error("Failed to parse webhook body:", e, "raw:", rawBody.slice(0, 200));
     }
-    console.log(`payment-webhook received: provider=${pathParts[pathParts.length-2]}, content-type=${contentType}, parsed=`, JSON.stringify(body).slice(0, 500));
+    // console.log(`payment-webhook received: provider=${pathParts[pathParts.length-2]}, content-type=${contentType}, parsed=`, JSON.stringify(body).slice(0, 500));
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -495,14 +495,14 @@ serve(async (req) => {
     let result;
     const eventType = body?.action || body?.event || body?.type || "unknown";
 
-    // Check if this gateway is platform-disabled — if so, ignore webhook silently
+    // Check if this gateway is platform-disabled â€” if so, ignore webhook silently
     const { data: gwRow } = await supabase
       .from("platform_gateway_settings")
       .select("enabled")
       .eq("gateway_key", provider)
       .maybeSingle();
     if (gwRow && !gwRow.enabled) {
-      console.log(`payment-webhook: gateway ${provider} is platform-disabled, ignoring.`);
+      // console.log(`payment-webhook: gateway ${provider} is platform-disabled, ignoring.`);
       return new Response(JSON.stringify({ success: true, handled: false, reason: "gateway_disabled" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -548,7 +548,7 @@ serve(async (req) => {
         result = { handled: false, reason: `Unknown provider: ${provider}` };
     }
 
-    // ─── Wallet deposit fallback: credit wallet if a pending deposit matches this payment ───
+    // â”€â”€â”€ Wallet deposit fallback: credit wallet if a pending deposit matches this payment â”€â”€â”€
     if (!result?.handled || result?.order_status === "paid") {
       try {
         const pid = extractPaymentId();
@@ -564,7 +564,7 @@ serve(async (req) => {
 
           if (walletTx) {
             await supabase.rpc("credit_wallet_deposit", { _tx_id: walletTx.id });
-            console.log(`Wallet deposit credited: tx=${walletTx.id} payment_id=${pid}`);
+            // console.log(`Wallet deposit credited: tx=${walletTx.id} payment_id=${pid}`);
             result = { ...(result || {}), wallet_credited: true };
           }
         }
@@ -587,7 +587,7 @@ serve(async (req) => {
       console.error("Failed to log webhook:", logErr);
     }
 
-    console.log(`Webhook ${provider}/${tenantId}:`, JSON.stringify(result));
+    // console.log(`Webhook ${provider}/${tenantId}:`, JSON.stringify(result));
 
     // If payment was confirmed, trigger auto-delivery
     if (result?.handled && result?.order_status === "paid") {
@@ -613,7 +613,7 @@ serve(async (req) => {
           if (!effectiveTenantId) {
             console.error(`[Webhook] Cannot resolve tenant_id for order ${orderId}. tenantId=${tenantId}`);
           } else {
-            console.log(`[Webhook] Resolved effectiveTenantId=${effectiveTenantId} for order ${orderId}`);
+            // console.log(`[Webhook] Resolved effectiveTenantId=${effectiveTenantId} for order ${orderId}`);
           }
 
           // Call deliver-order function with the real tenant_id
@@ -632,7 +632,7 @@ serve(async (req) => {
             }
           );
           const deliverResult = await deliverRes.json();
-          console.log("Auto-delivery result:", JSON.stringify(deliverResult));
+          // console.log("Auto-delivery result:", JSON.stringify(deliverResult));
 
           if (paidOrder && effectiveTenantId) {
             // Credit tenant wallet for the sale
@@ -651,7 +651,7 @@ serve(async (req) => {
                   _amount_cents: paidOrder.total_cents,
                   _description: desc,
                 });
-                console.log(`[Wallet] Credited: total=${paidOrder.total_cents}¢ gateway=${gatewayFeeCents}¢ platform=${platformFeeCents}¢ net=${netCents}¢ to tenant=${effectiveTenantId} order=${orderId}`, walletResult);
+                // console.log(`[Wallet] Credited: total=${paidOrder.total_cents}Â¢ gateway=${gatewayFeeCents}Â¢ platform=${platformFeeCents}Â¢ net=${netCents}Â¢ to tenant=${effectiveTenantId} order=${orderId}`, walletResult);
 
                 // Persist commission and net amount on the order row for reporting
                 await supabase
@@ -684,7 +684,7 @@ serve(async (req) => {
                   },
                 }),
               });
-              console.log("Automation order_paid triggered");
+              // console.log("Automation order_paid triggered");
             } catch (autoErr) {
               console.error("Automation trigger failed:", autoErr);
             }

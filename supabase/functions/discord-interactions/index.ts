@@ -1,11 +1,11 @@
-/// <reference lib="deno.ns" />
+﻿/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang, optionalLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
-// ─── Ed25519 Signature Verification ─────────────────────────
+// â”€â”€â”€ Ed25519 Signature Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function verifyDiscordSignature(
   publicKeyHex: string,
   signature: string,
@@ -99,7 +99,7 @@ async function resolveCheckoutLang(supabase: any, tenantId: string, productId?: 
   return normLang(product?.language || productLanguage || tenant?.language || "en");
 }
 
-// ─── PIX generation helpers (same as generate-pix) ──────────
+// â”€â”€â”€ PIX generation helpers (same as generate-pix) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function tlv(id: string, value: string): string {
   return `${id}${value.length.toString().padStart(2, "0")}${value}`;
 }
@@ -139,7 +139,7 @@ function generateStaticBRCode(pixKey: string, name: string, amount?: number, txI
   return payload + crc16(payload);
 }
 
-// ─── Mercado Pago PIX ───────────────────────────────────────
+// â”€â”€â”€ Mercado Pago PIX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateMercadoPagoPix(apiKey: string, amount: number, desc: string, ref: string, webhook: string) {
   const res = await fetch("https://api.mercadopago.com/v1/payments", {
     method: "POST",
@@ -160,7 +160,7 @@ async function generateMercadoPagoPix(apiKey: string, amount: number, desc: stri
   return { brcode: ptp?.qr_code || "", payment_id: String(data.id), expires_at: data.date_of_expiration };
 }
 
-// ─── PushinPay PIX ──────────────────────────────────────────
+// â”€â”€â”€ PushinPay PIX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generatePushinPayPix(apiKey: string, amountCents: number, webhook: string) {
   const res = await fetch("https://api.pushinpay.com.br/api/pix/cashIn", {
     method: "POST",
@@ -172,7 +172,7 @@ async function generatePushinPayPix(apiKey: string, amountCents: number, webhook
   return { brcode: data.qr_code || "", payment_id: data.id };
 }
 
-// ─── Format price ───────────────────────────────────────────
+// â”€â”€â”€ Format price â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SUPPORTED_CURRENCIES = new Set(["BRL", "USD", "EUR"]);
 const CURRENCY_LOCALES: Record<string, string> = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
 
@@ -191,7 +191,7 @@ const formatMoney = (cents: number, currency: string | null = "BRL") => {
 };
 
 
-// ─── Store Log Helper ───────────────────────────────────────
+// â”€â”€â”€ Store Log Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendStoreLog(
   supabase: any,
   botToken: string,
@@ -228,7 +228,7 @@ async function sendStoreLog(
       body: JSON.stringify({ embeds: [embed] }),
     });
     if (!res.ok) console.error(`sendStoreLog failed [${opts.title}]:`, res.status, await res.text());
-    else console.log(`[LOG] ${opts.title} sent for tenant ${tenantId}`);
+    // else log;
   } catch (err: any) {
     console.error(`sendStoreLog error [${opts.title}]:`, err.message);
   }
@@ -296,7 +296,7 @@ async function resolveProductFromCustomId(supabase: any, rawProductId: string, g
   return null;
 }
 
-// ─── Check ticket staff permission ──────────────────────────
+// â”€â”€â”€ Check ticket staff permission â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function checkTicketStaffPermission(
   supabase: any,
   botToken: string,
@@ -425,7 +425,7 @@ async function addTicketStaffToThread(
     if (!addRes.ok) console.warn(`[TICKET_OPEN] failed to add staff member ${staffUserId}: ${addRes.status} ${await addRes.text()}`);
   }
 
-  console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
+  // console.log(`[TICKET_OPEN] staff auto-add attempted: ${staffMemberIds.length} users`);
 }
 
 function normalizeRoleIds(value: any): string[] {
@@ -477,12 +477,12 @@ serve(async (req: Request) => {
     });
   }
 
-  // Usa sempre o bot externo 24h (token único)
+  // Usa sempre o bot externo 24h (token Ãºnico)
   const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || "";
   const interactionGuildId = interaction.guild_id;
   if (!botToken) {
     console.error("DISCORD_BOT_TOKEN not configured");
-    return new Response(JSON.stringify({ type: 4, data: { content: "❌ Bot externo não configurado.", flags: 64 } }), {
+    return new Response(JSON.stringify({ type: 4, data: { content: "âŒ Bot externo nÃ£o configurado.", flags: 64 } }), {
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -498,11 +498,11 @@ serve(async (req: Request) => {
     const getOption = (name: string) => options.find((o: any) => o.name === name)?.value;
 
     try {
-      // ─── /clear - Limpa TODAS as mensagens do canal ──────
+      // â”€â”€â”€ /clear - Limpa TODAS as mensagens do canal â”€â”€â”€â”€â”€â”€
       if (commandName === "clear") {
         const memberPerms = BigInt(interaction.member?.permissions || "0");
         if (!(memberPerms & BigInt(0x2000)) && !(memberPerms & BigInt(0x8))) {
-          return respondImmediate(interaction, "❌ Você não tem permissão para limpar mensagens.");
+          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para limpar mensagens.");
         }
 
         await respondDeferred(interaction, botToken);
@@ -556,21 +556,21 @@ serve(async (req: Request) => {
           await new Promise(r => setTimeout(r, 1000));
         }
 
-        await editFollowup(interaction, botToken, `✅ Canal limpo! ${totalDeleted} mensagem(ns) deletada(s).`);
+        await editFollowup(interaction, botToken, `âœ… Canal limpo! ${totalDeleted} mensagem(ns) deletada(s).`);
         return ok();
       }
 
-      // ─── /ban - Bane um usuário ───────────────────────────
+      // â”€â”€â”€ /ban - Bane um usuÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (commandName === "ban") {
         const targetUser = getOption("usuario") || getOption("user");
         const reason = getOption("motivo") || getOption("reason") || "Sem motivo especificado";
 
         const memberPerms = BigInt(interaction.member?.permissions || "0");
         if (!(memberPerms & BigInt(0x4))) {
-          return respondImmediate(interaction, "❌ Você não tem permissão para banir membros.");
+          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para banir membros.");
         }
 
-        if (!targetUser) return respondImmediate(interaction, "❌ Especifique um usuário.");
+        if (!targetUser) return respondImmediate(interaction, "âŒ Especifique um usuÃ¡rio.");
 
         await respondDeferred(interaction, botToken);
 
@@ -582,13 +582,13 @@ serve(async (req: Request) => {
 
         if (!banRes.ok) {
           const errText = await banRes.text();
-          await editFollowup(interaction, botToken, `❌ Erro ao banir: ${banRes.status}`);
+          await editFollowup(interaction, botToken, `âŒ Erro ao banir: ${banRes.status}`);
           return ok();
         }
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "🔨 Usuário Banido",
+            title: "ðŸ”¨ UsuÃ¡rio Banido",
             description: `<@${targetUser}> foi banido por <@${userId}>.`,
             fields: [{ name: "Motivo", value: String(reason) }],
             color: 0x2B2D31,
@@ -598,17 +598,17 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── /kick - Expulsa um usuário ───────────────────────
+      // â”€â”€â”€ /kick - Expulsa um usuÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (commandName === "kick") {
         const targetUser = getOption("usuario") || getOption("user");
         const reason = getOption("motivo") || getOption("reason") || "Sem motivo especificado";
 
         const memberPerms = BigInt(interaction.member?.permissions || "0");
         if (!(memberPerms & BigInt(0x2))) {
-          return respondImmediate(interaction, "❌ Você não tem permissão para expulsar membros.");
+          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para expulsar membros.");
         }
 
-        if (!targetUser) return respondImmediate(interaction, "❌ Especifique um usuário.");
+        if (!targetUser) return respondImmediate(interaction, "âŒ Especifique um usuÃ¡rio.");
 
         await respondDeferred(interaction, botToken);
 
@@ -618,13 +618,13 @@ serve(async (req: Request) => {
         });
 
         if (!kickRes.ok) {
-          await editFollowup(interaction, botToken, `❌ Erro ao expulsar: ${kickRes.status}`);
+          await editFollowup(interaction, botToken, `âŒ Erro ao expulsar: ${kickRes.status}`);
           return ok();
         }
 
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "👢 Usuário Expulso",
+            title: "ðŸ‘¢ UsuÃ¡rio Expulso",
             description: `<@${targetUser}> foi expulso por <@${userId}>.`,
             fields: [{ name: "Motivo", value: String(reason) }],
             color: 0x2B2D31,
@@ -634,7 +634,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── /ticket - Abre um ticket ─────────────────────────
+      // â”€â”€â”€ /ticket - Abre um ticket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (commandName === "ticket") {
         // Find tenant by guild_id
         const { data: tenant } = await supabase
@@ -643,13 +643,13 @@ serve(async (req: Request) => {
           .eq("discord_guild_id", guildId)
           .single();
 
-        if (!tenant) return respondImmediate(interaction, "❌ Servidor não configurado.");
+        if (!tenant) return respondImmediate(interaction, "âŒ Servidor nÃ£o configurado.");
 
         // Simulate ticket_open button click by redirecting logic
         await respondDeferred(interaction, botToken);
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "⠋ Abrindo ticket...",
+            title: "â ‹ Abrindo ticket...",
             description: "Aguarde enquanto preparamos seu canal de atendimento.",
             color: 0x5865F2,
           }]
@@ -675,7 +675,7 @@ serve(async (req: Request) => {
                 headers: { Authorization: `Bot ${botToken}` },
               });
               if (!chRes.ok) {
-                // Thread no longer exists — auto-close
+                // Thread no longer exists â€” auto-close
                 await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id);
               } else {
                 const chData = await chRes.json();
@@ -694,7 +694,7 @@ serve(async (req: Request) => {
         }
 
         if (hasRealOpenTicket) {
-          await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto.");
+          await editFollowup(interaction, botToken, "âš ï¸ VocÃª jÃ¡ possui um ticket aberto.");
           return ok();
         }
 
@@ -729,7 +729,7 @@ serve(async (req: Request) => {
         }
 
         const ticketSuffix = Date.now().toString(36).slice(-4);
-        const threadName = `🔄 • ticket-${username || userId}-${ticketSuffix}`.substring(0, 100);
+        const threadName = `ðŸ”„ â€¢ ticket-${username || userId}-${ticketSuffix}`.substring(0, 100);
         const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -737,7 +737,7 @@ serve(async (req: Request) => {
         });
 
         if (!createThreadRes.ok) {
-          await editFollowup(interaction, botToken, "❌ Não foi possível criar o ticket.");
+          await editFollowup(interaction, botToken, "âŒ NÃ£o foi possÃ­vel criar o ticket.");
           return ok();
         }
 
@@ -766,7 +766,7 @@ serve(async (req: Request) => {
             body: JSON.stringify({
               content: contentMention,
               allowed_mentions: { users: [userId], roles: staffRoleIds },
-              embeds: [{ title: storeConfig?.ticket_embed_title || "🎫 Ticket de Suporte", description: (storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8)), color: embedColor }],
+              embeds: [{ title: storeConfig?.ticket_embed_title || "ðŸŽ« Ticket de Suporte", description: (storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8)), color: embedColor }],
               components: [
                 { type: 1, components: [
                   { type: 2, style: 2, label: "Lembrar", custom_id: `ticket_remind_${ticket.id}` },
@@ -785,8 +785,8 @@ serve(async (req: Request) => {
         const threadLink = `https://discord.com/channels/${guildId || interaction.guild_id}/${ticketThread.id}`;
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "🎫 Ticket Aberto!",
-            description: `Seu canal de atendimento foi criado com sucesso!\n\n👉 **Acesse:** <#${ticketThread.id}>`,
+            title: "ðŸŽ« Ticket Aberto!",
+            description: `Seu canal de atendimento foi criado com sucesso!\n\nðŸ‘‰ **Acesse:** <#${ticketThread.id}>`,
             color: 0x57F287,
           }],
           components: [
@@ -806,15 +806,15 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── /fechar - Fecha o ticket atual ───────────────────
+      // â”€â”€â”€ /fechar - Fecha o ticket atual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (commandName === "fechar") {
         // Find tenant by guild_id to check staff role
         const { data: fecharTenant } = await supabase.from("tenants").select("id").eq("discord_guild_id", guildId).single();
-        if (!fecharTenant) return respondImmediate(interaction, "❌ Servidor não configurado.");
+        if (!fecharTenant) return respondImmediate(interaction, "âŒ Servidor nÃ£o configurado.");
 
         const isStaff = await checkTicketStaffPermission(supabase, botToken, fecharTenant.id, guildId, userId, interaction.member);
         if (!isStaff) {
-          return respondImmediate(interaction, "❌ Você não tem permissão para fechar tickets.");
+          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para fechar tickets.");
         }
 
         const { data: ticket } = await supabase
@@ -824,7 +824,7 @@ serve(async (req: Request) => {
           .in("status", ["open", "in_progress"])
           .single();
 
-        if (!ticket) return respondImmediate(interaction, "❌ Este canal não é um ticket ativo.");
+        if (!ticket) return respondImmediate(interaction, "âŒ Este canal nÃ£o Ã© um ticket ativo.");
 
         await respondDeferred(interaction, botToken);
 
@@ -836,7 +836,7 @@ serve(async (req: Request) => {
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ embeds: [{ title: "📁 Ticket Arquivado", description: `Ticket arquivado por <@${userId}>.`, color: 0x2B2D31 }] }),
+          body: JSON.stringify({ embeds: [{ title: "ðŸ“ Ticket Arquivado", description: `Ticket arquivado por <@${userId}>.`, color: 0x2B2D31 }] }),
         });
         await fetch(`${DISCORD_API}/channels/${channelId}`, {
           method: "PATCH",
@@ -844,14 +844,14 @@ serve(async (req: Request) => {
           body: JSON.stringify({ archived: true, locked: true }),
         });
 
-        await editFollowup(interaction, botToken, "✅ Ticket fechado e arquivado.");
+        await editFollowup(interaction, botToken, "âœ… Ticket fechado e arquivado.");
         return ok();
       }
 
-      // ─── /estoque - Verifica estoque ──────────────────────
+      // â”€â”€â”€ /estoque - Verifica estoque â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (commandName === "estoque") {
         const { data: tenant } = await supabase.from("tenants").select("id, language").eq("discord_guild_id", guildId).single();
-        if (!tenant) return respondImmediate(interaction, "❌ Servidor não configurado.");
+        if (!tenant) return respondImmediate(interaction, "âŒ Servidor nÃ£o configurado.");
         const L = await resolveOrderLang(supabase, { tenant_id: tenant.id, tenant_language: tenant.language });
 
         const { data: products } = await supabase
@@ -864,9 +864,9 @@ serve(async (req: Request) => {
         if (!products || products.length === 0) return respondImmediate(interaction, tr(L, "no_products_registered"));
 
         const lines = products.map((p: any) => {
-          const stockText = p.stock !== null ? `${p.stock}` : "∞";
-          const emoji = (p.stock === null || p.stock > 0) ? "🟢" : "🔴";
-          return `${emoji} **${p.name}** — ${trf(L, "stock_count", { stock: stockText })}`;
+          const stockText = p.stock !== null ? `${p.stock}` : "âˆž";
+          const emoji = (p.stock === null || p.stock > 0) ? "ðŸŸ¢" : "ðŸ”´";
+          return `${emoji} **${p.name}** â€” ${trf(L, "stock_count", { stock: stockText })}`;
         });
 
         return respondImmediate(interaction, {
@@ -874,15 +874,15 @@ serve(async (req: Request) => {
         });
       }
 
-      // ─── Default: unknown command ─────────────────────────
-      return respondImmediate(interaction, `❌ Comando \`/${commandName}\` não reconhecido.`);
+      // â”€â”€â”€ Default: unknown command â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      return respondImmediate(interaction, `âŒ Comando \`/${commandName}\` nÃ£o reconhecido.`);
 
     } catch (err) {
       console.error("Slash command error:", err);
       try {
-        await editFollowup(interaction, botToken, `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+        await editFollowup(interaction, botToken, `âŒ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
       } catch {
-        return respondImmediate(interaction, `❌ Erro ao processar comando.`);
+        return respondImmediate(interaction, `âŒ Erro ao processar comando.`);
       }
       return ok();
     }
@@ -893,7 +893,7 @@ serve(async (req: Request) => {
     const customId = interaction.data?.custom_id || "";
     const userId = interaction.member?.user?.id || interaction.user?.id;
     const username = interaction.member?.user?.username || interaction.user?.username;
-    console.log(`[INTERACTION] Type 3 button click: customId=${customId}, userId=${userId}`);
+    // console.log(`[INTERACTION] Type 3 button click: customId=${customId}, userId=${userId}`);
 
     // Helper to get store embed color for a tenant (returns undefined for default = no border)
     const getStoreEmbedColor = async (tid: string): Promise<number | undefined> => {
@@ -930,7 +930,7 @@ serve(async (req: Request) => {
     };
 
     try {
-      // ─── TICKET CATEGORY SELECT (tipo de atendimento) ───
+      // â”€â”€â”€ TICKET CATEGORY SELECT (tipo de atendimento) â”€â”€â”€
       if (customId.startsWith("ticket_category_select:")) {
         const customParts = customId.split(":");
         if (customParts.length < 3) return ok();
@@ -960,7 +960,7 @@ serve(async (req: Request) => {
               .eq("id", categoryId)
               .eq("tenant_id", tenantId)
               .maybeSingle();
-            if (!category) { await editFollowup(interaction, botToken, "❌ Categoria não encontrada."); return; }
+            if (!category) { await editFollowup(interaction, botToken, "âŒ Categoria nÃ£o encontrada."); return; }
             const topicName = `${category.emoji || ""} ${category.name}`.trim();
             const { data: existingTickets } = await supabase
               .from("tickets")
@@ -977,7 +977,7 @@ serve(async (req: Request) => {
                 else { const chData = await chRes.json(); if (chData.thread_metadata?.archived) { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); } else { hasRealOpenTicket = true; } }
               } catch { await supabase.from("tickets").update({ status: "closed" }).eq("id", t.id); }
             }
-            if (hasRealOpenTicket) { await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto."); return; }
+            if (hasRealOpenTicket) { await editFollowup(interaction, botToken, "âš ï¸ VocÃª jÃ¡ possui um ticket aberto."); return; }
             const { data: storeConfig } = await supabase
               .from("store_configs")
               .select("ticket_channel_id, ticket_staff_role_id, customer_role_id, ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_footer")
@@ -994,13 +994,13 @@ serve(async (req: Request) => {
               }
             } catch (e) { console.error("Channel check error:", e); }
             const ticketSuffix = Date.now().toString(36).slice(-4);
-            const threadName = `${category.emoji || "🎫"} ${username || userId}-${ticketSuffix}`.substring(0, 100);
+            const threadName = `${category.emoji || "ðŸŽ«"} ${username || userId}-${ticketSuffix}`.substring(0, 100);
             const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
               method: "POST",
               headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
               body: JSON.stringify({ name: threadName, type: 12, auto_archive_duration: 10080 }),
             });
-            if (!createThreadRes.ok) { await editFollowup(interaction, botToken, "❌ Não foi possível criar o ticket."); return; }
+            if (!createThreadRes.ok) { await editFollowup(interaction, botToken, "âŒ NÃ£o foi possÃ­vel criar o ticket."); return; }
             const ticketThread = await createThreadRes.json();
             await fetch(`${DISCORD_API}/channels/${ticketThread.id}/thread-members/${userId}`, { method: "PUT", headers: { Authorization: `Bot ${botToken}` } });
             const { data: ticket } = await supabase
@@ -1018,7 +1018,7 @@ serve(async (req: Request) => {
                 body: JSON.stringify({
                   content: contentMention,
                   allowed_mentions: { users: [userId], roles: staffRoleIds },
-                  embeds: [{ title: `${category.emoji || "🎫"} ${storeConfig?.ticket_embed_title || "Ticket de Suporte"}`, description: `**Tipo:** ${topicName}\n\n${(storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8))}`, color: embedColor }],
+                  embeds: [{ title: `${category.emoji || "ðŸŽ«"} ${storeConfig?.ticket_embed_title || "Ticket de Suporte"}`, description: `**Tipo:** ${topicName}\n\n${(storeConfig?.ticket_embed_description || "Seu ticket foi criado! Aguarde atendimento.").replace("{user}", `<@${userId}>`).replace("{ticket_id}", ticket.id.slice(0, 8))}`, color: embedColor }],
                   components: [
                     { type: 1, components: [{ type: 2, style: 2, label: "Lembrar", custom_id: `ticket_remind_${ticket.id}` }, { type: 2, style: 2, label: "Renomear", custom_id: `ticket_rename_${ticket.id}` }, { type: 2, style: 2, label: "Arquivar", custom_id: `ticket_close_${ticket.id}` }, { type: 2, style: 4, label: "Deletar", custom_id: `ticket_delete_${ticket.id}` }] },
                     { type: 1, components: [{ type: 5, custom_id: `ticket_assign_${ticket.id}`, placeholder: "Selecione algum membro", min_values: 1, max_values: 1 }] },
@@ -1029,12 +1029,12 @@ serve(async (req: Request) => {
             }
             const threadLink = `https://discord.com/channels/${guildId}/${ticketThread.id}`;
             await editFollowup(interaction, botToken, {
-              embeds: [{ title: `${category.emoji || "🎫"} Ticket Aberto!`, description: `**Tipo:** ${topicName}\n\nSeu canal foi criado!\n\n👉 **Acesse:** <#${ticketThread.id}>`, color: 0x57F287 }],
+              embeds: [{ title: `${category.emoji || "ðŸŽ«"} Ticket Aberto!`, description: `**Tipo:** ${topicName}\n\nSeu canal foi criado!\n\nðŸ‘‰ **Acesse:** <#${ticketThread.id}>`, color: 0x57F287 }],
               components: [{ type: 1, components: [{ type: 2, style: 5, label: "Ir para o ticket", url: threadLink }] }]
             });
           } catch (e) {
             console.error("Background ticket processing error:", e);
-            await editFollowup(interaction, botToken, "❌ Ocorreu um erro interno ao criar seu ticket.");
+            await editFollowup(interaction, botToken, "âŒ Ocorreu um erro interno ao criar seu ticket.");
           }
         };
 
@@ -1049,7 +1049,7 @@ serve(async (req: Request) => {
         });
       }
 
-      // ─── BUY GLOBAL MARKETPLACE LISTING ─────────────
+      // â”€â”€â”€ BUY GLOBAL MARKETPLACE LISTING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("gml_buy:")) {
         const listingId = customId.replace("gml_buy:", "");
         await respondDeferred(interaction, botToken);
@@ -1061,16 +1061,16 @@ serve(async (req: Request) => {
           .maybeSingle();
 
         if (!listing || listing.global_status !== "approved") {
-          await editFollowup(interaction, botToken, "❌ Este produto não está mais disponível no marketplace global.");
+          await editFollowup(interaction, botToken, "âŒ Este produto nÃ£o estÃ¡ mais disponÃ­vel no marketplace global.");
           return ok();
         }
         const product: any = listing.products;
         if (!product || !product.active) {
-          await editFollowup(interaction, botToken, "❌ Produto indisponível.");
+          await editFollowup(interaction, botToken, "âŒ Produto indisponÃ­vel.");
           return ok();
         }
         if (!product.price_cents || product.price_cents < 100) {
-          await editFollowup(interaction, botToken, "❌ Preço inválido. Preço mínimo: R$ 1,00.");
+          await editFollowup(interaction, botToken, "âŒ PreÃ§o invÃ¡lido. PreÃ§o mÃ­nimo: R$ 1,00.");
           return ok();
         }
 
@@ -1084,7 +1084,7 @@ serve(async (req: Request) => {
           .eq("tenant_id", sellerTenantId)
           .eq("delivered", false);
         if (productStock !== null && productStock !== undefined && productStock <= 0) {
-          await editFollowup(interaction, botToken, "❌ Produto esgotado.");
+          await editFollowup(interaction, botToken, "âŒ Produto esgotado.");
           return ok();
         }
 
@@ -1118,12 +1118,12 @@ serve(async (req: Request) => {
           .single();
         if (orderErr || !order) {
           console.error("[gml_buy] order insert failed:", orderErr);
-          await editFollowup(interaction, botToken, "❌ Erro ao criar pedido.");
+          await editFollowup(interaction, botToken, "âŒ Erro ao criar pedido.");
           return ok();
         }
 
         // Private thread on the global marketplace channel
-        const threadName = `🌍-${username || userId}-${order.order_number}`.substring(0, 100);
+        const threadName = `ðŸŒ-${username || userId}-${order.order_number}`.substring(0, 100);
         const threadRes = await fetch(`${DISCORD_API}/channels/${interaction.channel_id}/threads`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -1132,7 +1132,7 @@ serve(async (req: Request) => {
         if (!threadRes.ok) {
           const t = await threadRes.text();
           console.error("[gml_buy] thread create failed:", t);
-          await editFollowup(interaction, botToken, "❌ Não consegui criar a thread privada de checkout.");
+          await editFollowup(interaction, botToken, "âŒ NÃ£o consegui criar a thread privada de checkout.");
           return ok();
         }
         const thread = await threadRes.json();
@@ -1145,18 +1145,18 @@ serve(async (req: Request) => {
 
         const reviewEmbed: any = {
           author: { name: username || userId },
-          title: "🛒 Revisão do pedido",
+          title: "ðŸ›’ RevisÃ£o do pedido",
           description: [
-            product.auto_delivery ? "⚡ Entrega automática após a confirmação do pagamento\n" : "",
+            product.auto_delivery ? "âš¡ Entrega automÃ¡tica apÃ³s a confirmaÃ§Ã£o do pagamento\n" : "",
             product.description || "",
           ].filter(Boolean).join("\n"),
           color: 0xFF1493,
           fields: [
             { name: "Carrinho", value: `1x ${product.name}`, inline: false },
-            { name: "Preço", value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`, inline: true },
+            { name: "PreÃ§o", value: `R$ ${(product.price_cents / 100).toFixed(2).replace(".", ",")}`, inline: true },
             { name: "Tipo", value: "Marketplace Global", inline: true },
           ],
-          footer: { text: `Drika Hub • Pedido #${order.order_number}` },
+          footer: { text: `Drika Hub â€¢ Pedido #${order.order_number}` },
         };
         if (product.banner_url) reviewEmbed.image = { url: product.banner_url };
         if (product.icon_url) reviewEmbed.thumbnail = { url: product.icon_url };
@@ -1170,8 +1170,8 @@ serve(async (req: Request) => {
             components: [{
               type: 1,
               components: [
-                { type: 2, style: 3, label: "Ir para o pagamento", emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
-                { type: 2, style: 4, label: "Cancelar", emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
+                { type: 2, style: 3, label: "Ir para o pagamento", emoji: { name: "âœ…" }, custom_id: `checkout_pay:${order.id}` },
+                { type: 2, style: 4, label: "Cancelar", emoji: { name: "ðŸ—‘ï¸" }, custom_id: `checkout_cancel:${order.id}` },
               ],
             }],
             allowed_mentions: { users: [userId] },
@@ -1190,7 +1190,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── BUY PRODUCT ─────────────────────────────────────
+      // â”€â”€â”€ BUY PRODUCT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("buy_product:")) {
         const productId = customId.replace("buy_product:", "");
 
@@ -1198,7 +1198,7 @@ serve(async (req: Request) => {
         await respondDeferred(interaction, botToken);
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "⠋ Criando carrinho...",
+            title: "â ‹ Criando carrinho...",
             description: "Aguarde enquanto preparamos sua compra.",
             color: 0x5865F2,
           }]
@@ -1234,7 +1234,7 @@ serve(async (req: Request) => {
           .eq("tenant_id", tenantId)
           .order("sort_order", { ascending: true });
 
-        // ── Stock check: block purchase if stock is 0 ──
+        // â”€â”€ Stock check: block purchase if stock is 0 â”€â”€
         if (fields && fields.length > 0) {
           const fieldIds = fields.map((f: any) => f.id);
           const { count: totalFieldStock } = await supabase
@@ -1296,7 +1296,7 @@ serve(async (req: Request) => {
               content: "",
               embeds: [{
                 title: product.name,
-                description: "❌ Produto esgotado no momento.",
+                description: "âŒ Produto esgotado no momento.",
                 color: 0xED4245,
               }]
             });
@@ -1347,16 +1347,16 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── SELECT VARIATION (from dropdown) ─────────────────
+      // â”€â”€â”€ SELECT VARIATION (from dropdown) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("select_variation:")) {
-        console.log("SELECT_VARIATION handler entered, customId:", customId);
+        // console.log("SELECT_VARIATION handler entered, customId:", customId);
         const values = interaction.data?.values || [];
-        console.log("Selected values:", JSON.stringify(values));
+        // console.log("Selected values:", JSON.stringify(values));
         if (values.length === 0) return ok();
 
         const selectedValue = values[0]; // format: buy_field:productId:fieldId
         const parts = selectedValue.split(":");
-        console.log("Parsed parts:", JSON.stringify(parts));
+        // console.log("Parsed parts:", JSON.stringify(parts));
         if (parts.length < 3) return ok();
 
         const productId = parts[1];
@@ -1366,7 +1366,7 @@ serve(async (req: Request) => {
         await respondDeferred(interaction, botToken);
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "⠋ Criando carrinho...",
+            title: "â ‹ Criando carrinho...",
             description: "Aguarde enquanto preparamos sua compra.",
             color: 0x5865F2,
           }]
@@ -1383,7 +1383,7 @@ serve(async (req: Request) => {
         const { data: field } = await supabase.from("product_fields").select("*").eq("id", fieldId).single();
         if (!field) { await editFollowup(interaction, botToken, tr(Lproduct, "variation_not_found")); return ok(); }
 
-        // ── Stock check for this variation ──
+        // â”€â”€ Stock check for this variation â”€â”€
         const { count: fieldStock } = await supabase
           .from("product_stock_items")
           .select("id", { count: "exact", head: true })
@@ -1413,7 +1413,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── VIEW VARIATIONS ─────────────────────────────────
+      // â”€â”€â”€ VIEW VARIATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("view_variations:")) {
         const productId = customId.replace("view_variations:", "");
 
@@ -1433,10 +1433,10 @@ serve(async (req: Request) => {
         }
 
         const fieldLines = fields.map((f: any) => {
-          const emoji = f.emoji || "•";
+          const emoji = f.emoji || "â€¢";
           const priceStr = formatMoney(f.price_cents, product.currency);
           const desc = f.description ? ` - ${f.description}` : "";
-          return `${emoji} **${f.name}** — ${priceStr}${desc}`;
+          return `${emoji} **${f.name}** â€” ${priceStr}${desc}`;
         });
 
         const varEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
@@ -1449,7 +1449,7 @@ serve(async (req: Request) => {
         return respondImmediate(interaction, { embeds: [embed] });
       }
 
-      // ─── VIEW DETAILS ────────────────────────────────────
+      // â”€â”€â”€ VIEW DETAILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("view_details:")) {
         const productId = customId.replace("view_details:", "");
 
@@ -1466,21 +1466,21 @@ serve(async (req: Request) => {
         const detailEmbedColor = await resolveProductEmbedColor(product, product.tenant_id);
         const autoDeliveryText = product.auto_delivery ? `${tr(Lproduct, "auto_delivery_inline")}\n\n` : "";
         const embed: any = {
-          title: `ℹ️ ${product.name}`,
+          title: `â„¹ï¸ ${product.name}`,
           description: `${autoDeliveryText}${product.description || tr(Lproduct, "no_description")}`,
           color: detailEmbedColor,
           fields: [
             { name: tr(Lproduct, "price_label_md"), value: formatMoney(product.price_cents, product.currency), inline: true },
-            { name: `📦 ${tr(Lproduct, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(Lproduct, "service_type") : tr(Lproduct, "hybrid_type"), inline: true },
+            { name: `ðŸ“¦ ${tr(Lproduct, "type_label")}`, value: product.type === "digital_auto" ? "Digital" : product.type === "service" ? tr(Lproduct, "service_type") : tr(Lproduct, "hybrid_type"), inline: true },
           ],
         };
 
         if (product.show_stock && product.stock !== null) {
-          embed.fields.push({ name: `📊 ${tr(Lproduct, "stock_label_md")}`, value: trf(Lproduct, "stock_count", { stock: product.stock }), inline: true });
+          embed.fields.push({ name: `ðŸ“Š ${tr(Lproduct, "stock_label_md")}`, value: trf(Lproduct, "stock_count", { stock: product.stock }), inline: true });
         }
 
         if (fields && fields.length > 0) {
-          embed.fields.push({ name: `📋 ${tr(Lproduct, "variations_label")}`, value: trf(Lproduct, "variations_count", { count: fields.length }), inline: true });
+          embed.fields.push({ name: `ðŸ“‹ ${tr(Lproduct, "variations_label")}`, value: trf(Lproduct, "variations_count", { count: fields.length }), inline: true });
         }
 
         if (product.banner_url) embed.image = { url: product.banner_url };
@@ -1489,7 +1489,7 @@ serve(async (req: Request) => {
         return respondImmediate(interaction, { embeds: [embed] });
       }
 
-      // ─── APPROVE ORDER (admin button) ─────────────────────
+      // â”€â”€â”€ APPROVE ORDER (admin button) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("approve_order:")) {
         const orderId = customId.replace("approve_order:", "");
         await respondDeferredUpdate(interaction, botToken);
@@ -1572,9 +1572,9 @@ serve(async (req: Request) => {
             description: trf(L, "order_approved_panel_desc", { order_number: order.order_number, user_id: userId }),
             color: 0x2B2D31,
             fields: [
-              { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
-              { name: `💰 ${tr(L, "value_label")}`, value: formatMoney(order.total_cents, order.currency), inline: true },
-              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `ðŸ“¦ ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+              { name: `ðŸ’° ${tr(L, "value_label")}`, value: formatMoney(order.total_cents, order.currency), inline: true },
+              { name: `ðŸ‘¤ ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
           }],
@@ -1595,7 +1595,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── REJECT ORDER (admin button) ──────────────────────
+      // â”€â”€â”€ REJECT ORDER (admin button) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("reject_order:")) {
         const orderId = customId.replace("reject_order:", "");
         await respondDeferredUpdate(interaction, botToken);
@@ -1636,8 +1636,8 @@ serve(async (req: Request) => {
             description: trf(L, "order_rejected_panel_desc", { order_number: order.order_number, user_id: userId }),
             color: 0x2B2D31,
             fields: [
-              { name: `📦 ${tr(L, "product_label")}`, value: order.product_name, inline: true },
-              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `ðŸ“¦ ${tr(L, "product_label")}`, value: order.product_name, inline: true },
+              { name: `ðŸ‘¤ ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
             ],
             timestamp: new Date().toISOString(),
           }],
@@ -1658,7 +1658,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── CANCEL ORDER (buyer button in DM) ────────────────
+      // â”€â”€â”€ CANCEL ORDER (buyer button in DM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("cancel_order:")) {
         const orderId = customId.replace("cancel_order:", "");
         await respondDeferredUpdate(interaction, botToken);
@@ -1696,7 +1696,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── CHECKOUT: GO TO PAYMENT (Pix) ────────────────────
+      // â”€â”€â”€ CHECKOUT: GO TO PAYMENT (Pix) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("checkout_pay:")) {
         const orderId = customId.replace("checkout_pay:", "");
         await respondDeferredUpdate(interaction, botToken);
@@ -1729,7 +1729,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── CHECKOUT: CANCEL ORDER ───────────────────────────
+      // â”€â”€â”€ CHECKOUT: CANCEL ORDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("checkout_cancel:")) {
         const orderId = customId.replace("checkout_cancel:", "");
         await respondDeferredUpdate(interaction, botToken);
@@ -1787,7 +1787,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── CHECKOUT: USE COUPON (open modal) ────────────────
+      // â”€â”€â”€ CHECKOUT: USE COUPON (open modal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("checkout_coupon:")) {
         const orderId = customId.replace("checkout_coupon:", "");
         const { data: order } = await supabase.from("orders").select("tenant_id, product_id").eq("id", orderId).maybeSingle();
@@ -1820,7 +1820,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── CHECKOUT: EDIT QUANTITY (open modal) ─────────────
+      // â”€â”€â”€ CHECKOUT: EDIT QUANTITY (open modal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("checkout_quantity:")) {
         const orderId = customId.replace("checkout_quantity:", "");
         const { data: order } = await supabase.from("orders").select("tenant_id, product_id").eq("id", orderId).maybeSingle();
@@ -1853,7 +1853,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── COPY PIX CODE (ephemeral) ────────────────────────
+      // â”€â”€â”€ COPY PIX CODE (ephemeral) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("copy_pix:")) {
         const orderId = customId.replace("copy_pix:", "");
         const { data: order } = await supabase.from("orders").select("payment_id, tenant_id, product_id, total_cents, product_name, order_number, pix_brcode").eq("id", orderId).single();
@@ -1873,7 +1873,7 @@ serve(async (req: Request) => {
         return respondImmediate(interaction, tr(L, "pix_code_above"));
       }
 
-      // ─── COPY DELIVERED PRODUCT (ephemeral) ───────────────
+      // â”€â”€â”€ COPY DELIVERED PRODUCT (ephemeral) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("copy_delivered:")) {
         const orderId = customId.replace("copy_delivered:", "");
         const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id, discord_user_id, order_number").eq("id", orderId).single();
@@ -1899,10 +1899,10 @@ serve(async (req: Request) => {
         return respondImmediate(interaction, trf(L, "delivered_copy_response", { content }));
       }
 
-      // ─── BUY AGAIN (link to server) ───────────────────────
+      // â”€â”€â”€ BUY AGAIN (link to server) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // This is handled as a Link button (style 5) so no handler needed here.
 
-      // ─── TICKET OPEN (from ticket embed button) ───────────
+      // â”€â”€â”€ TICKET OPEN (from ticket embed button) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("ticket_open_")) {
         // Parse: ticket_open_{tenantId}_{channelId}
         const parts = customId.replace("ticket_open_", "").split("_");
@@ -1920,7 +1920,7 @@ serve(async (req: Request) => {
           try {
             await editFollowup(interaction, botToken, {
               embeds: [{
-                title: "⠋ Abrindo ticket...",
+                title: "â ‹ Abrindo ticket...",
                 description: "Aguarde enquanto preparamos seu canal de atendimento.",
                 color: 0x5865F2,
               }]
@@ -1934,7 +1934,7 @@ serve(async (req: Request) => {
           .single();
 
         if (!tenant?.discord_guild_id) {
-          await editFollowup(interaction, botToken, "❌ Servidor não configurado.");
+          await editFollowup(interaction, botToken, "âŒ Servidor nÃ£o configurado.");
           return ok();
         }
 
@@ -1973,7 +1973,7 @@ serve(async (req: Request) => {
         }
 
         if (hasRealOpenTicket) {
-          await editFollowup(interaction, botToken, "⚠️ Você já possui um ticket aberto.");
+          await editFollowup(interaction, botToken, "âš ï¸ VocÃª jÃ¡ possui um ticket aberto.");
           return ok();
         }
 
@@ -2024,7 +2024,7 @@ serve(async (req: Request) => {
 
         // Create private thread
         const ticketSuffix = Date.now().toString(36).slice(-4);
-        const threadName = `🔄 • ticket-${username || userId}-${ticketSuffix}`.substring(0, 100);
+        const threadName = `ðŸ”„ â€¢ ticket-${username || userId}-${ticketSuffix}`.substring(0, 100);
         const createThreadRes = await fetch(`${DISCORD_API}/channels/${parentChannelId}/threads`, {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -2034,7 +2034,7 @@ serve(async (req: Request) => {
         if (!createThreadRes.ok) {
           const errText = await createThreadRes.text();
           console.error("[TICKET_OPEN_BTN] Failed to create thread:", errText);
-          await editFollowup(interaction, botToken, "❌ Não foi possível criar o ticket.");
+          await editFollowup(interaction, botToken, "âŒ NÃ£o foi possÃ­vel criar o ticket.");
           return ok();
         }
 
@@ -2081,7 +2081,7 @@ serve(async (req: Request) => {
             );
 
             if (staffRoleIds.length > 0) {
-              console.log(`[TICKET_OPEN] using fallback tenant_roles for staff (${staffRoleIds.length})`);
+              // console.log(`[TICKET_OPEN] using fallback tenant_roles for staff (${staffRoleIds.length})`);
             }
           }
         }
@@ -2101,14 +2101,14 @@ serve(async (req: Request) => {
 
         if (ticketErr) {
           console.error("Ticket insert error:", ticketErr);
-          await editFollowup(interaction, botToken, "❌ Erro ao criar ticket no banco de dados.");
+          await editFollowup(interaction, botToken, "âŒ Erro ao criar ticket no banco de dados.");
           return ok();
         }
 
         // Send welcome embed with action buttons (including Rename)
         const embedColor = parseInt((storeConfig?.ticket_embed_color || "#2B2D31").replace("#", ""), 16);
         const welcomeEmbed: any = {
-          title: storeConfig?.ticket_embed_title || "🎫 Ticket de Suporte",
+          title: storeConfig?.ticket_embed_title || "ðŸŽ« Ticket de Suporte",
           description: (storeConfig?.ticket_embed_description || "Seu ticket foi criado com sucesso! Aguarde atendimento.")
             .replace("{user}", `<@${userId}>`)
             .replace("{ticket_id}", ticket.id.slice(0, 8)),
@@ -2176,7 +2176,7 @@ serve(async (req: Request) => {
                   {
                     type: 5,
                     custom_id: `ticket_assign_${ticket.id}`,
-                    placeholder: "Selecione algum membro para Ação",
+                    placeholder: "Selecione algum membro para AÃ§Ã£o",
                     min_values: 1,
                     max_values: 1,
                   },
@@ -2200,8 +2200,8 @@ serve(async (req: Request) => {
         const threadLink = `https://discord.com/channels/${guildId || interaction.guild_id}/${ticketThread.id}`;
         await editFollowup(interaction, botToken, {
           embeds: [{
-            title: "🎫 Ticket Aberto!",
-            description: `Seu canal de atendimento foi criado com sucesso!\n\n👉 **Acesse:** <#${ticketThread.id}>`,
+            title: "ðŸŽ« Ticket Aberto!",
+            description: `Seu canal de atendimento foi criado com sucesso!\n\nðŸ‘‰ **Acesse:** <#${ticketThread.id}>`,
             color: 0x57F287,
           }],
           components: [
@@ -2220,7 +2220,7 @@ serve(async (req: Request) => {
         });
           } catch (e) {
             console.error("Background ticket open error:", e);
-            await editFollowup(interaction, botToken, "❌ Ocorreu um erro interno ao criar seu ticket.");
+            await editFollowup(interaction, botToken, "âŒ Ocorreu um erro interno ao criar seu ticket.");
           }
         };
 
@@ -2235,10 +2235,10 @@ serve(async (req: Request) => {
         });
       }
 
-      // ─── TICKET REMIND (send DM to ticket creator) ───────
+      // â”€â”€â”€ TICKET REMIND (send DM to ticket creator) â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("ticket_remind_")) {
         const ticketId = customId.replace("ticket_remind_", "");
-        console.log(`[TICKET_REMIND] ticketId=${ticketId}`);
+        // console.log(`[TICKET_REMIND] ticketId=${ticketId}`);
         await respondDeferred(interaction, botToken);
 
         const { data: ticket } = await supabase
@@ -2248,12 +2248,12 @@ serve(async (req: Request) => {
           .single();
 
         if (!ticket) {
-          await editFollowup(interaction, botToken, "❌ Ticket não encontrado.");
+          await editFollowup(interaction, botToken, "âŒ Ticket nÃ£o encontrado.");
           return ok();
         }
 
         if (ticket.status === "closed") {
-          await editFollowup(interaction, botToken, "ℹ️ Este ticket já está fechado.");
+          await editFollowup(interaction, botToken, "â„¹ï¸ Este ticket jÃ¡ estÃ¡ fechado.");
           return ok();
         }
 
@@ -2287,7 +2287,7 @@ serve(async (req: Request) => {
               headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
               body: JSON.stringify({
                 embeds: [{
-                  description: `${greeting} <@${ticket.discord_user_id}>, você possui um ticket pendente de resposta; se não for respondido, poderá ser fechado.`,
+                  description: `${greeting} <@${ticket.discord_user_id}>, vocÃª possui um ticket pendente de resposta; se nÃ£o for respondido, poderÃ¡ ser fechado.`,
                   color: 0x2B2D31,
                 }],
                 components: [{
@@ -2309,24 +2309,24 @@ serve(async (req: Request) => {
           method: "POST",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: `🔔 <@${ticket.discord_user_id}>, este é um lembrete sobre seu ticket! Por favor, verifique se há atualizações pendentes.`,
+            content: `ðŸ”” <@${ticket.discord_user_id}>, este Ã© um lembrete sobre seu ticket! Por favor, verifique se hÃ¡ atualizaÃ§Ãµes pendentes.`,
           }),
         });
 
-        await editFollowup(interaction, botToken, `✅ Lembrete enviado para <@${ticket.discord_user_id}>!`);
+        await editFollowup(interaction, botToken, `âœ… Lembrete enviado para <@${ticket.discord_user_id}>!`);
         return ok();
       }
 
-      // ─── TICKET DELETE (permanently delete channel) ────────
+      // â”€â”€â”€ TICKET DELETE (permanently delete channel) â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("ticket_delete_")) {
         const ticketIdDel = customId.replace("ticket_delete_", "");
-        console.log(`[TICKET_DELETE] ticketId=${ticketIdDel}`);
+        // console.log(`[TICKET_DELETE] ticketId=${ticketIdDel}`);
         const { data: delTicket } = await supabase.from("tickets").select("tenant_id").eq("id", ticketIdDel).single();
         const delTenantId = delTicket?.tenant_id;
         
         const isStaffDel = delTenantId ? await checkTicketStaffPermission(supabase, botToken, delTenantId, interaction.guild_id, userId, interaction.member) : false;
         if (!isStaffDel) {
-          return respondImmediate(interaction, "❌ Você não tem permissão para deletar tickets.");
+          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para deletar tickets.");
         }
 
         const ticketId = customId.replace("ticket_delete_", "");
@@ -2339,7 +2339,7 @@ serve(async (req: Request) => {
           .single();
 
         if (!ticket) {
-          await editFollowup(interaction, botToken, "❌ Ticket não encontrado.");
+          await editFollowup(interaction, botToken, "âŒ Ticket nÃ£o encontrado.");
           return ok();
         }
 
@@ -2372,8 +2372,8 @@ serve(async (req: Request) => {
             headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               embeds: [{
-                title: "🗑️ Ticket Deletado",
-                description: `Este ticket foi deletado por <@${userId}>.\nO tópico será excluído em 5 segundos.`,
+                title: "ðŸ—‘ï¸ Ticket Deletado",
+                description: `Este ticket foi deletado por <@${userId}>.\nO tÃ³pico serÃ¡ excluÃ­do em 5 segundos.`,
                 color: 0x2B2D31,
               }],
             }),
@@ -2392,11 +2392,11 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── TICKET ASSIGN (user select menu) ─────────────────
+      // â”€â”€â”€ TICKET ASSIGN (user select menu) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("ticket_assign_")) {
         const ticketId = customId.replace("ticket_assign_", "");
         const selectedUserId = interaction.data?.values?.[0];
-        console.log(`[TICKET_ASSIGN] ticketId=${ticketId}, selectedUserId=${selectedUserId}`);
+        // console.log(`[TICKET_ASSIGN] ticketId=${ticketId}, selectedUserId=${selectedUserId}`);
         if (!selectedUserId) return ok();
 
         await respondDeferred(interaction, botToken);
@@ -2408,7 +2408,7 @@ serve(async (req: Request) => {
           .single();
 
         if (!ticket) {
-          await editFollowup(interaction, botToken, "❌ Ticket não encontrado.");
+          await editFollowup(interaction, botToken, "âŒ Ticket nÃ£o encontrado.");
           return ok();
         }
 
@@ -2420,26 +2420,26 @@ serve(async (req: Request) => {
             method: "PUT",
             headers: { Authorization: `Bot ${botToken}` },
           });
-          console.log(`[TICKET_ASSIGN] addMember status=${addMemberRes.status}`);
+          // console.log(`[TICKET_ASSIGN] addMember status=${addMemberRes.status}`);
 
           await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              content: `👤 <@${selectedUserId}> foi adicionado ao ticket por <@${userId}>.`,
+              content: `ðŸ‘¤ <@${selectedUserId}> foi adicionado ao ticket por <@${userId}>.`,
             }),
           });
         }
 
-        await editFollowup(interaction, botToken, `✅ <@${selectedUserId}> adicionado ao ticket!`);
+        await editFollowup(interaction, botToken, `âœ… <@${selectedUserId}> adicionado ao ticket!`);
         return ok();
       }
 
-      // ─── MARK DELIVERED (manual delivery button) ─────────
+      // â”€â”€â”€ MARK DELIVERED (manual delivery button) â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("mark_delivered_")) {
         const orderId = customId.replace("mark_delivered_", "");
 
-        // 🔒 Bloqueia clientes: somente staff (ADMINISTRATOR ou MANAGE_GUILD) pode confirmar
+        // ðŸ”’ Bloqueia clientes: somente staff (ADMINISTRATOR ou MANAGE_GUILD) pode confirmar
         const memberPerms = BigInt(interaction.member?.permissions || "0");
         const ADMIN = BigInt(0x8);
         const MANAGE_GUILD = BigInt(0x20);
@@ -2510,11 +2510,11 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── CANCEL MANUAL ORDER (button in delivery thread) ──
+      // â”€â”€â”€ CANCEL MANUAL ORDER (button in delivery thread) â”€â”€
       if (customId.startsWith("cancel_manual_")) {
         const orderId = customId.replace("cancel_manual_", "");
 
-        // 🔒 Bloqueia clientes: somente staff pode cancelar
+        // ðŸ”’ Bloqueia clientes: somente staff pode cancelar
         const memberPerms2 = BigInt(interaction.member?.permissions || "0");
         const ADMIN2 = BigInt(0x8);
         const MANAGE_GUILD2 = BigInt(0x20);
@@ -2589,10 +2589,10 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── TICKET RENAME (modal to rename the channel) ──────────
+      // â”€â”€â”€ TICKET RENAME (modal to rename the channel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("ticket_rename_")) {
         const ticketId = customId.replace("ticket_rename_", "");
-        console.log(`[TICKET_RENAME] ticketId=${ticketId}, opening modal`);
+        // console.log(`[TICKET_RENAME] ticketId=${ticketId}, opening modal`);
 
         // Show a modal for the new name
         const modalRes = await fetch(`${DISCORD_API}/interactions/${interaction.id}/${interaction.token}/callback`, {
@@ -2601,7 +2601,7 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             type: 9, // MODAL
             data: {
-              title: "✏️ Renomear Ticket",
+              title: "âœï¸ Renomear Ticket",
               custom_id: `ticket_rename_modal_${ticketId}`,
               components: [
                 {
@@ -2622,11 +2622,11 @@ serve(async (req: Request) => {
             },
           }),
         });
-        console.log(`[TICKET_RENAME] modal response status=${modalRes.status}`);
+        // console.log(`[TICKET_RENAME] modal response status=${modalRes.status}`);
         return ok();
       }
 
-      // ─── TRANSCRIPT VIEW (button in log channel) ──────────
+      // â”€â”€â”€ TRANSCRIPT VIEW (button in log channel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("transcript_view_")) {
         const ticketId = customId.replace("transcript_view_", "");
         await respondDeferred(interaction, botToken);
@@ -2638,7 +2638,7 @@ serve(async (req: Request) => {
           .single();
 
         if (!ticket) {
-          await editFollowup(interaction, botToken, "❌ Ticket não encontrado.");
+          await editFollowup(interaction, botToken, "âŒ Ticket nÃ£o encontrado.");
           return ok();
         }
 
@@ -2681,16 +2681,16 @@ serve(async (req: Request) => {
           // Check if transcript exists in storage
           const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(`transcripts/${ticket.tenant_id}/${ticket.id}.html`);
           if (urlData?.publicUrl) {
-            await editFollowup(interaction, botToken, `📜 Acesse o transcript: ${urlData.publicUrl}`);
+            await editFollowup(interaction, botToken, `ðŸ“œ Acesse o transcript: ${urlData.publicUrl}`);
           } else {
-            await editFollowup(interaction, botToken, "📜 O transcript está anexado como arquivo na mensagem acima. Clique no arquivo `.html` para visualizar.");
+            await editFollowup(interaction, botToken, "ðŸ“œ O transcript estÃ¡ anexado como arquivo na mensagem acima. Clique no arquivo `.html` para visualizar.");
           }
           return ok();
         }
 
         const L = await getTenantLang(supabase, ticket.tenant_id);
         const ticketName = `ticket-${ticket.discord_username || ticket.discord_user_id}`;
-        const htmlTranscript = generateHtmlTranscript(L, msgs, serverName, ticketName, `${tr(L, "support")} · transcript`);
+        const htmlTranscript = generateHtmlTranscript(L, msgs, serverName, ticketName, `${tr(L, "support")} Â· transcript`);
 
         // Upload to storage for easy access
         let transcriptUrl: string | null = null;
@@ -2702,14 +2702,14 @@ serve(async (req: Request) => {
         } catch {}
 
         if (transcriptUrl) {
-          await editFollowup(interaction, botToken, `📜 Acesse o transcript: ${transcriptUrl}`);
+          await editFollowup(interaction, botToken, `ðŸ“œ Acesse o transcript: ${transcriptUrl}`);
         } else {
           // Fallback: send as ephemeral file
           const formData = new FormData();
           const blob = new Blob([htmlTranscript], { type: "text/html" });
           formData.append("files[0]", blob, `transcript-${ticket.id.slice(0, 8)}.html`);
           formData.append("payload_json", JSON.stringify({
-            content: "📜 Aqui está o transcript do ticket:",
+            content: "ðŸ“œ Aqui estÃ¡ o transcript do ticket:",
             flags: 64,
           }));
 
@@ -2726,13 +2726,13 @@ serve(async (req: Request) => {
 
       if (customId.startsWith("ticket_close_")) {
         const ticketIdClose = customId.replace("ticket_close_", "");
-        console.log(`[TICKET_CLOSE] ticketId=${ticketIdClose}`);
+        // console.log(`[TICKET_CLOSE] ticketId=${ticketIdClose}`);
         const { data: closeTicketPerm } = await supabase.from("tickets").select("tenant_id").eq("id", ticketIdClose).single();
         const closeTenantId = closeTicketPerm?.tenant_id;
         
         const isStaffClose = closeTenantId ? await checkTicketStaffPermission(supabase, botToken, closeTenantId, interaction.guild_id, userId, interaction.member) : false;
         if (!isStaffClose) {
-          return respondImmediate(interaction, "❌ Você não tem permissão para arquivar tickets.");
+          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para arquivar tickets.");
         }
 
         const ticketId = customId.replace("ticket_close_", "");
@@ -2745,12 +2745,12 @@ serve(async (req: Request) => {
           .single();
 
         if (!ticket) {
-          await editFollowup(interaction, botToken, "❌ Ticket não encontrado.");
+          await editFollowup(interaction, botToken, "âŒ Ticket nÃ£o encontrado.");
           return ok();
         }
 
         if (ticket.status === "closed") {
-          await editFollowup(interaction, botToken, "ℹ️ Este ticket já está fechado.");
+          await editFollowup(interaction, botToken, "â„¹ï¸ Este ticket jÃ¡ estÃ¡ fechado.");
           return ok();
         }
 
@@ -2790,7 +2790,7 @@ serve(async (req: Request) => {
                   headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
                     embeds: [{
-                      description: "⏳ O ticket foi arquivado e este canal será excluído automaticamente em 5 segundos...",
+                      description: "â³ O ticket foi arquivado e este canal serÃ¡ excluÃ­do automaticamente em 5 segundos...",
                       color: 0xED4245,
                     }],
                   }),
@@ -2808,17 +2808,17 @@ serve(async (req: Request) => {
                   headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
                   body: JSON.stringify({
                     embeds: [{
-                      title: "📁 Ticket Arquivado",
-                      description: `Este ticket foi arquivado por <@${userId}>.\nO tópico está agora somente leitura.`,
+                      title: "ðŸ“ Ticket Arquivado",
+                      description: `Este ticket foi arquivado por <@${userId}>.\nO tÃ³pico estÃ¡ agora somente leitura.`,
                       color: 0xFEE75C,
                     }],
                   }),
                 });
 
                 const currentName = chanData.name || "";
-                const newName = currentName.startsWith("🔄 • ") 
-                  ? currentName.replace("🔄 • ", "🔒 • ") 
-                  : `🔒 • ${currentName}`;
+                const newName = currentName.startsWith("ðŸ”„ â€¢ ") 
+                  ? currentName.replace("ðŸ”„ â€¢ ", "ðŸ”’ â€¢ ") 
+                  : `ðŸ”’ â€¢ ${currentName}`;
                 await fetch(`${DISCORD_API}/channels/${channelId}`, {
                   method: "PATCH",
                   headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -2834,7 +2834,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── FEEDBACK OPEN: substitui o botão único pelos 3 de avaliação ─
+      // â”€â”€â”€ FEEDBACK OPEN: substitui o botÃ£o Ãºnico pelos 3 de avaliaÃ§Ã£o â”€
       if (customId.startsWith("feedback_open:")) {
         const orderId = customId.replace("feedback_open:", "");
         const { data: order } = await supabase.from("orders").select("id, tenant_id, product_id").eq("id", orderId).maybeSingle();
@@ -2869,7 +2869,7 @@ serve(async (req: Request) => {
         }), { headers: { "Content-Type": "application/json" } });
       }
 
-      // ─── FEEDBACK INLINE BUTTONS (Ruim/Mediano/Muito Bom) ─
+      // â”€â”€â”€ FEEDBACK INLINE BUTTONS (Ruim/Mediano/Muito Bom) â”€
       if (customId.startsWith("feedback_rate:")) {
         const [, orderId, ratingStr] = customId.split(":");
         const rating = parseInt(ratingStr);
@@ -2915,7 +2915,7 @@ serve(async (req: Request) => {
         }), { headers: { "Content-Type": "application/json" } });
       }
 
-      // ─── FEEDBACK BUTTON (legacy): opens rating modal ──────
+      // â”€â”€â”€ FEEDBACK BUTTON (legacy): opens rating modal â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("feedback_order:")) {
         const orderId = customId.replace("feedback_order:", "");
         
@@ -2973,7 +2973,7 @@ serve(async (req: Request) => {
     } catch (err) {
       console.error("Interaction error:", err);
       try {
-        await editFollowup(interaction, botToken, `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+        await editFollowup(interaction, botToken, `âŒ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
       } catch {
         // If deferred response wasn't sent, try immediate
       }
@@ -2988,14 +2988,14 @@ serve(async (req: Request) => {
     const userId = interaction.member?.user?.id || interaction.user?.id;
 
     try {
-      // ─── TICKET RENAME MODAL SUBMIT ──────────────────────
+      // â”€â”€â”€ TICKET RENAME MODAL SUBMIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("ticket_rename_modal_")) {
         const ticketId = customId.replace("ticket_rename_modal_", "");
         await respondDeferred(interaction, botToken);
 
         const newName = interaction.data?.components?.[0]?.components?.[0]?.value || "";
         if (!newName) {
-          await editFollowup(interaction, botToken, "❌ Nome inválido.");
+          await editFollowup(interaction, botToken, "âŒ Nome invÃ¡lido.");
           return ok();
         }
 
@@ -3006,7 +3006,7 @@ serve(async (req: Request) => {
           .single();
 
         if (!ticket?.discord_channel_id) {
-          await editFollowup(interaction, botToken, "❌ Ticket não encontrado.");
+          await editFollowup(interaction, botToken, "âŒ Ticket nÃ£o encontrado.");
           return ok();
         }
 
@@ -3018,15 +3018,15 @@ serve(async (req: Request) => {
         });
 
         if (!renameRes.ok) {
-          await editFollowup(interaction, botToken, "❌ Não foi possível renomear o ticket.");
+          await editFollowup(interaction, botToken, "âŒ NÃ£o foi possÃ­vel renomear o ticket.");
           return ok();
         }
 
-        await editFollowup(interaction, botToken, `✅ Ticket renomeado para: **${newName.substring(0, 100)}**`);
+        await editFollowup(interaction, botToken, `âœ… Ticket renomeado para: **${newName.substring(0, 100)}**`);
         return ok();
       }
 
-      // ─── COUPON MODAL SUBMIT ─────────────────────────────
+      // â”€â”€â”€ COUPON MODAL SUBMIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("coupon_modal_")) {
         const orderId = customId.replace("coupon_modal_", "");
         await respondDeferred(interaction, botToken);
@@ -3109,7 +3109,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── QUANTITY MODAL SUBMIT ────────────────────────────
+      // â”€â”€â”€ QUANTITY MODAL SUBMIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("quantity_modal_")) {
         const orderId = customId.replace("quantity_modal_", "");
         await respondDeferred(interaction, botToken);
@@ -3171,10 +3171,10 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // ─── FEEDBACK MODAL SUBMIT ────────────────────────────
+      // â”€â”€â”€ FEEDBACK MODAL SUBMIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (customId.startsWith("feedback_modal:")) {
-        // Formato novo: feedback_modal:<orderId>:<rating> (só comentário)
-        // Formato legado: feedback_modal:<orderId> (rating + comentário)
+        // Formato novo: feedback_modal:<orderId>:<rating> (sÃ³ comentÃ¡rio)
+        // Formato legado: feedback_modal:<orderId> (rating + comentÃ¡rio)
         const parts = customId.split(":");
         const orderId = parts[1];
         const presetRating = parts[2] ? parseInt(parts[2]) : null;
@@ -3217,7 +3217,7 @@ serve(async (req: Request) => {
         }
 
         // Envia para o canal de feedbacks (ou logs como fallback)
-        const stars = "⭐".repeat(rating) + "☆".repeat(5 - rating);
+        const stars = "â­".repeat(rating) + "â˜†".repeat(5 - rating);
         const embedColor = rating >= 4 ? 0x57F287 : rating === 3 ? 0xFEE75C : 0xED4245;
         const feedbackEmbed = {
           title: tr(L, "feedback_log_title"),
@@ -3259,7 +3259,7 @@ serve(async (req: Request) => {
     } catch (err) {
       console.error("Modal interaction error:", err);
       try {
-        await editFollowup(interaction, botToken, `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+        await editFollowup(interaction, botToken, `âŒ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
       } catch {}
       return ok();
     }
@@ -3270,7 +3270,7 @@ serve(async (req: Request) => {
   });
 });
 
-// ─── Process Purchase: create order + checkout thread ────────
+// â”€â”€â”€ Process Purchase: create order + checkout thread â”€â”€â”€â”€â”€â”€â”€â”€
 async function processPurchase(
   supabase: any,
   interaction: any,
@@ -3298,9 +3298,9 @@ async function processPurchase(
     dbCurrency = (freshProd as any)?.currency || null;
   } catch (e) { console.error("[CHECKOUT] failed to refetch currency:", e); }
   const orderCurrency = normalizeCurrency(dbCurrency || product.currency);
-  console.log(`[CHECKOUT][currency] product=${product.id} db=${dbCurrency} prop=${product.currency} resolved=${orderCurrency}`);
+  // console.log(`[CHECKOUT][currency] product=${product.id} db=${dbCurrency} prop=${product.currency} resolved=${orderCurrency}`);
   const Lreview = await resolveCheckoutLang(supabase, tenantId, product.id, product.language);
-  console.log(`[CHECKOUT][i18n] tenant=${tenantId} product=${product.id} resolved=${Lreview}`);
+  // console.log(`[CHECKOUT][i18n] tenant=${tenantId} product=${product.id} resolved=${Lreview}`);
 
   // Create order
   const { data: order, error: orderErr } = await supabase
@@ -3341,7 +3341,7 @@ async function processPurchase(
     });
   } catch (e) { console.error("Automation order_created failed:", e); }
 
-  // ─── FREE PRODUCT: deliver immediately without payment ────
+  // â”€â”€â”€ FREE PRODUCT: deliver immediately without payment â”€â”€â”€â”€
   if (priceCents <= 0) {
     await supabase.from("orders").update({ 
       status: "paid", 
@@ -3361,8 +3361,8 @@ async function processPurchase(
     return;
   }
 
-  // ─── Create private thread for checkout ───────────────────
-  const threadName = `🔄 • ${tr(Lreview, "cart_thread_prefix")}-${username || userId}-${order.order_number}`.substring(0, 100);
+  // â”€â”€â”€ Create private thread for checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const threadName = `ðŸ”„ â€¢ ${tr(Lreview, "cart_thread_prefix")}-${username || userId}-${order.order_number}`.substring(0, 100);
 
   const createThreadRes = await fetch(`${DISCORD_API}/channels/${channelId}/threads`, {
     method: "POST",
@@ -3412,7 +3412,7 @@ async function processPurchase(
   const reviewEmbedColor = parseInt(resolvedEmbedHex.replace("#", ""), 16);
 
   // Get stock count
-  let stockCount = "∞";
+  let stockCount = "âˆž";
   if (fieldId) {
     const { count } = await supabase
       .from("product_stock_items")
@@ -3451,7 +3451,7 @@ async function processPurchase(
     date: checkoutDate,
     time: checkoutTime,
     username,
-  }) || `${storeName} • ${checkoutDate} ${checkoutTime}`;
+  }) || `${storeName} â€¢ ${checkoutDate} ${checkoutTime}`;
 
   // Send order review embed with buttons
   const reviewEmbed: any = {
@@ -3484,16 +3484,16 @@ async function processPurchase(
         {
           type: 1,
           components: [
-            { type: 2, style: 3, label: tr(Lreview, "go_to_payment"), emoji: { name: "✅" }, custom_id: `checkout_pay:${order.id}` },
-            { type: 2, style: 2, label: tr(Lreview, "edit_quantity"), emoji: { name: "✏️" }, custom_id: `checkout_quantity:${order.id}` },
-            { type: 2, style: 1, label: tr(Lreview, "confirm_manual"), emoji: { name: "🛠️" }, custom_id: `approve_order:${order.id}` },
+            { type: 2, style: 3, label: tr(Lreview, "go_to_payment"), emoji: { name: "âœ…" }, custom_id: `checkout_pay:${order.id}` },
+            { type: 2, style: 2, label: tr(Lreview, "edit_quantity"), emoji: { name: "âœï¸" }, custom_id: `checkout_quantity:${order.id}` },
+            { type: 2, style: 1, label: tr(Lreview, "confirm_manual"), emoji: { name: "ðŸ› ï¸" }, custom_id: `approve_order:${order.id}` },
           ],
         },
         {
           type: 1,
           components: [
-            { type: 2, style: 2, label: tr(Lreview, "use_coupon"), emoji: { name: "🏷️" }, custom_id: `checkout_coupon:${order.id}` },
-            { type: 2, style: 4, label: tr(Lreview, "cancel"), emoji: { name: "🗑️" }, custom_id: `checkout_cancel:${order.id}` },
+            { type: 2, style: 2, label: tr(Lreview, "use_coupon"), emoji: { name: "ðŸ·ï¸" }, custom_id: `checkout_coupon:${order.id}` },
+            { type: 2, style: 4, label: tr(Lreview, "cancel"), emoji: { name: "ðŸ—‘ï¸" }, custom_id: `checkout_cancel:${order.id}` },
           ],
         },
       ],
@@ -3507,8 +3507,8 @@ async function processPurchase(
   const embedColorVal = await resolveProductEmbedColor(product, tenantId);
   await editFollowup(interaction, botToken, {
     embeds: [{
-      title: `🛒 ${tr(Lreview, "cart_opened_log_title") || "Carrinho Criado!"}`,
-      description: `${tr(Lreview, "cart_created") || "Seu carrinho foi criado com sucesso!"}\n\n👉 **Acesse:** <#${checkoutThread.id}>`,
+      title: `ðŸ›’ ${tr(Lreview, "cart_opened_log_title") || "Carrinho Criado!"}`,
+      description: `${tr(Lreview, "cart_created") || "Seu carrinho foi criado com sucesso!"}\n\nðŸ‘‰ **Acesse:** <#${checkoutThread.id}>`,
       color: embedColorVal,
       image: product.banner_url ? { url: product.banner_url } : undefined,
     }],
@@ -3537,7 +3537,7 @@ async function processPurchase(
   });
 }
 
-// ─── Discord response helpers ───────────────────────────────
+// â”€â”€â”€ Discord response helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ok() {
   return new Response(null, { status: 202 });
 }
@@ -3559,7 +3559,7 @@ async function respondDeferred(interaction: any, botToken: string) {
   if (!res.ok) {
     console.error("respondDeferred FAILED:", res.status, resText);
   } else {
-    console.log("respondDeferred OK:", res.status);
+    // console.log("respondDeferred OK:", res.status);
   }
 }
 
@@ -3574,11 +3574,11 @@ async function respondDeferredUpdate(interaction: any, botToken: string) {
   if (!res.ok) {
     console.error("respondDeferredUpdate FAILED:", res.status, resText);
   } else {
-    console.log("respondDeferredUpdate OK:", res.status);
+    // console.log("respondDeferredUpdate OK:", res.status);
   }
 }
 
-// ─── Generate PIX and send in checkout thread ───────────────
+// â”€â”€â”€ Generate PIX and send in checkout thread â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generatePixInThread(
   supabase: any,
   botToken: string,
@@ -3784,8 +3784,8 @@ async function generatePixInThread(
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: "❌ Gateway Central Indisponível",
-            description: "O modo Split da plataforma está ativo, mas o gateway central não pôde gerar o PIX. Contate o suporte.",
+            title: "âŒ Gateway Central IndisponÃ­vel",
+            description: "O modo Split da plataforma estÃ¡ ativo, mas o gateway central nÃ£o pÃ´de gerar o PIX. Contate o suporte.",
             color: 0xED4245,
           }],
         }),
@@ -3799,7 +3799,7 @@ async function generatePixInThread(
       await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ embeds: [{ title: "❌ Error", description: tr(L, "no_payment_method"), color: 0xED4245 }] }),
+        body: JSON.stringify({ embeds: [{ title: "âŒ Error", description: tr(L, "no_payment_method"), color: 0xED4245 }] }),
       });
       return;
     }
@@ -3823,18 +3823,18 @@ async function generatePixInThread(
             description: tr(L, "manual_confirmation_pending"),
             color: 0xFEE75C,
             fields: [
-              { name: `📦 ${tr(L, "product_label")}`, value: orderName, inline: true },
-              { name: `💰 ${tr(L, "value_label")}`, value: formatMoney(priceCents, orderCurrency), inline: true },
-              { name: `🔢 ${tr(L, "order_label")}`, value: `#${order.order_number}`, inline: true },
-              { name: `👤 ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
+              { name: `ðŸ“¦ ${tr(L, "product_label")}`, value: orderName, inline: true },
+              { name: `ðŸ’° ${tr(L, "value_label")}`, value: formatMoney(priceCents, orderCurrency), inline: true },
+              { name: `ðŸ”¢ ${tr(L, "order_label")}`, value: `#${order.order_number}`, inline: true },
+              { name: `ðŸ‘¤ ${tr(L, "buyer_label")}`, value: `<@${order.discord_user_id}> (${order.discord_username})`, inline: false },
             ],
             timestamp: new Date().toISOString(),
           }],
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 3, label: tr(L, "approve_payment"), emoji: { name: "✅" }, custom_id: `approve_order:${order.id}` },
-              { type: 2, style: 4, label: tr(L, "reject"), emoji: { name: "❌" }, custom_id: `reject_order:${order.id}` },
+              { type: 2, style: 3, label: tr(L, "approve_payment"), emoji: { name: "âœ…" }, custom_id: `approve_order:${order.id}` },
+              { type: 2, style: 4, label: tr(L, "reject"), emoji: { name: "âŒ" }, custom_id: `reject_order:${order.id}` },
             ],
           }],
         }),
@@ -3876,7 +3876,7 @@ async function generatePixInThread(
     date: paymentDate,
     time: paymentTime,
     username: order.discord_username || userId,
-  }) || `${storeName} – ${trf(L, "payment_expires_in", { minutes: timeoutMin })}.\n• ${tr(L, "today_at")} ${paymentTime}`;
+  }) || `${storeName} â€“ ${trf(L, "payment_expires_in", { minutes: timeoutMin })}.\nâ€¢ ${tr(L, "today_at")} ${paymentTime}`;
 
   // Send PIX embed in the thread
   const pixEmbed: any = {
@@ -3908,7 +3908,7 @@ async function generatePixInThread(
       components: [{
         type: 1,
         components: [
-          { type: 2, style: 2, label: tr(L, "pix_copy_code_label"), emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
+          { type: 2, style: 2, label: tr(L, "pix_copy_code_label"), emoji: { name: "ðŸ“‹" }, custom_id: `copy_pix:${order.id}` },
           { type: 2, style: 4, label: tr(L, "cancel"), custom_id: `checkout_cancel:${order.id}` },
         ],
       }],
@@ -3930,17 +3930,17 @@ async function generatePixInThread(
     await fetch(`${DISCORD_API}/channels/${channelId}`, {
       method: "PATCH",
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `🛒 • ${order.discord_username || userId} • ${order.order_number}` }),
+      body: JSON.stringify({ name: `ðŸ›’ â€¢ ${order.discord_username || userId} â€¢ ${order.order_number}` }),
     });
   } catch {}
 
-  // Log: Pedido solicitado (static pix) — only if no gateway log was sent above
+  // Log: Pedido solicitado (static pix) â€” only if no gateway log was sent above
   if (!activeProvider || amountBRL <= 0) {
     await sendPixGeneratedLog(supabase, botToken, order, "static_pix");
   }
 }
 
-// ─── Generate PIX for global marketplace orders (central gateway) ──
+// â”€â”€â”€ Generate PIX for global marketplace orders (central gateway) â”€â”€
 async function generateGlobalPixInThread(
   supabase: any,
   botToken: string,
@@ -3961,7 +3961,7 @@ async function generateGlobalPixInThread(
       await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ embeds: [{ title: "❌ Erro ao gerar PIX", description: data?.error || "Tente novamente em instantes.", color: 0xED4245 }] }),
+        body: JSON.stringify({ embeds: [{ title: "âŒ Erro ao gerar PIX", description: data?.error || "Tente novamente em instantes.", color: 0xED4245 }] }),
       });
       return;
     }
@@ -3969,16 +3969,16 @@ async function generateGlobalPixInThread(
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(brcode)}`;
     const pixEmbed: any = {
       author: { name: order.discord_username || userId },
-      title: "💸 PIX gerado — Marketplace Global",
+      title: "ðŸ’¸ PIX gerado â€” Marketplace Global",
       description: [
-        "🔒 Ambiente seguro. Pagamento confirmado automaticamente após compensação.",
+        "ðŸ”’ Ambiente seguro. Pagamento confirmado automaticamente apÃ³s compensaÃ§Ã£o.",
         "",
-        "**Código PIX (copia e cola):**",
+        "**CÃ³digo PIX (copia e cola):**",
         `\`\`\`\n${brcode}\n\`\`\``,
       ].join("\n"),
       color: 0xFF1493,
       image: { url: qrImageUrl },
-      footer: { text: `Drika Hub • Pedido #${order.order_number} • Gateway: ${data.provider}` },
+      footer: { text: `Drika Hub â€¢ Pedido #${order.order_number} â€¢ Gateway: ${data.provider}` },
     };
     const pixMsgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method: "POST",
@@ -3988,7 +3988,7 @@ async function generateGlobalPixInThread(
         components: [{
           type: 1,
           components: [
-            { type: 2, style: 2, label: "Copiar código", emoji: { name: "📋" }, custom_id: `copy_pix:${order.id}` },
+            { type: 2, style: 2, label: "Copiar cÃ³digo", emoji: { name: "ðŸ“‹" }, custom_id: `copy_pix:${order.id}` },
             { type: 2, style: 4, label: "Cancelar", custom_id: `checkout_cancel:${order.id}` },
           ],
         }],
@@ -4004,7 +4004,7 @@ async function generateGlobalPixInThread(
       await fetch(`${DISCORD_API}/channels/${channelId}`, {
         method: "PATCH",
         headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: `🌍 • ${order.discord_username || userId} • ${order.order_number}` }),
+        body: JSON.stringify({ name: `ðŸŒ â€¢ ${order.discord_username || userId} â€¢ ${order.order_number}` }),
       });
     } catch {}
   } catch (e: any) {
@@ -4012,12 +4012,12 @@ async function generateGlobalPixInThread(
     await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [{ title: "❌ Erro inesperado", description: String(e?.message || e), color: 0xED4245 }] }),
+      body: JSON.stringify({ embeds: [{ title: "âŒ Erro inesperado", description: String(e?.message || e), color: 0xED4245 }] }),
     });
   }
 }
 
-// ─── Send "Pedido solicitado" log when PIX is generated ─────
+// â”€â”€â”€ Send "Pedido solicitado" log when PIX is generated â”€â”€â”€â”€â”€
 async function sendPixGeneratedLog(
   supabase: any,
   botToken: string,
@@ -4025,12 +4025,12 @@ async function sendPixGeneratedLog(
   providerKey: string,
 ) {
   const L = await resolveOrderLang(supabase, order);
-  const provLabel = providerKey === "pushinpay" ? "Pix – PushinPay"
-    : providerKey === "efi" ? "Pix – Efi Bank"
-    : providerKey === "mercadopago" ? "Pix – Mercado Pago"
-    : providerKey === "misticpay" ? "Pix – Mistic Pay"
+  const provLabel = providerKey === "pushinpay" ? "Pix â€“ PushinPay"
+    : providerKey === "efi" ? "Pix â€“ Efi Bank"
+    : providerKey === "mercadopago" ? "Pix â€“ Mercado Pago"
+    : providerKey === "misticpay" ? "Pix â€“ Mistic Pay"
     : providerKey === "static_pix" ? tr(L, "static_pix_label")
-    : `Pix – ${providerKey}`;
+    : `Pix â€“ ${providerKey}`;
 
   await sendStoreLog(supabase, botToken, order.tenant_id, {
     title: tr(L, "order_requested_log_title"),
@@ -4038,7 +4038,7 @@ async function sendPixGeneratedLog(
     fields: [
       { name: `**${tr(L, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
       { name: `**${tr(L, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-      { name: `**${tr(L, "payment_method_label")}**`, value: `\`💎 ${provLabel}\``, inline: false },
+      { name: `**${tr(L, "payment_method_label")}**`, value: `\`ðŸ’Ž ${provLabel}\``, inline: false },
     ],
   });
 }
@@ -4055,7 +4055,7 @@ function respondImmediate(interaction: any, content: string | Record<string, any
 async function editFollowup(interaction: any, botToken: string, content: string | Record<string, any>) {
   const payload = typeof content === "string" ? { content, components: [] } : { ...content, components: content.components || [] };
   const url = `${DISCORD_API}/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
-  console.log("editFollowup URL:", url);
+  // console.log("editFollowup URL:", url);
   const res = await fetch(url, {
     method: "PATCH",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -4065,11 +4065,11 @@ async function editFollowup(interaction: any, botToken: string, content: string 
   if (!res.ok) {
     console.error("editFollowup FAILED:", res.status, resText);
   } else {
-    console.log("editFollowup OK:", res.status);
+    // console.log("editFollowup OK:", res.status);
   }
 }
 
-// ─── HTML Transcript Generator ──────────────────────────────
+// â”€â”€â”€ HTML Transcript Generator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function generateHtmlTranscript(lang: string, msgs: any[], serverName: string, ticketName: string, status: string): string {
   const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const dateLocale = lang === "pt-BR" ? "pt-BR" : (lang === "de" ? "de-DE" : "en-US");
@@ -4117,8 +4117,8 @@ function generateHtmlTranscript(lang: string, msgs: any[], serverName: string, t
 </head>
 <body>
   <div class="header">
-    <h1>${escHtml(serverName)} — Transcript</h1>
-    <p>${escHtml(ticketName)} · ${escHtml(status)} · ${tr(lang, "generated_at")} ${now}</p>
+    <h1>${escHtml(serverName)} â€” Transcript</h1>
+    <p>${escHtml(ticketName)} Â· ${escHtml(status)} Â· ${tr(lang, "generated_at")} ${now}</p>
   </div>
   <div class="messages">${rows}</div>
   <div class="footer">${tr(lang, "auto_generated_by")}</div>
@@ -4126,7 +4126,7 @@ function generateHtmlTranscript(lang: string, msgs: any[], serverName: string, t
 </html>`;
 }
 
-// ─── Send Ticket Log + Transcript ───────────────────────────
+// â”€â”€â”€ Send Ticket Log + Transcript â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendTicketLog(
   supabase: any,
   botToken: string,
@@ -4164,7 +4164,7 @@ async function sendTicketLog(
 
   // Generate HTML transcript
   const htmlTranscript = msgs.length > 0
-    ? generateHtmlTranscript(L, msgs, serverName, ticketName, `${tr(L, "support")} · ${statusLabel.toLowerCase()}...`)
+    ? generateHtmlTranscript(L, msgs, serverName, ticketName, `${tr(L, "support")} Â· ${statusLabel.toLowerCase()}...`)
     : "";
 
   if (sc?.ticket_logs_channel_id) {
@@ -4179,7 +4179,7 @@ async function sendTicketLog(
     };
 
     if (ticket.product_name) {
-      logEmbed.fields.push({ name: `📦 ${tr(L, "product_label")}`, value: ticket.product_name, inline: false });
+      logEmbed.fields.push({ name: `ðŸ“¦ ${tr(L, "product_label")}`, value: ticket.product_name, inline: false });
     }
 
     // Send embed + transcript as single message with button
@@ -4220,7 +4220,7 @@ async function sendTicketLog(
             type: 2,
             style: 5,
             label: tr(L, "view_transcript"),
-            emoji: { name: "📜" },
+            emoji: { name: "ðŸ“œ" },
             url: transcriptUrl,
           }],
         }];
@@ -4232,7 +4232,7 @@ async function sendTicketLog(
             type: 2,
             style: 2,
             label: tr(L, "view_transcript"),
-            emoji: { name: "📜" },
+            emoji: { name: "ðŸ“œ" },
             custom_id: `transcript_view_${ticket.id}`,
           }],
         }];

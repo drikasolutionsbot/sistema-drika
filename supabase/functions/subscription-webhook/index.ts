@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -16,7 +16,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log("Subscription webhook received:", JSON.stringify(body));
+    // console.log("Subscription webhook received:", JSON.stringify(body));
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -36,7 +36,7 @@ serve(async (req) => {
       });
     }
 
-    // Efí sends: { pix: [{ txid, valor, horario, endToEndId, ... }] }
+    // EfÃ­ sends: { pix: [{ txid, valor, horario, endToEndId, ... }] }
     const pixArray = body?.pix;
     if (!pixArray || !Array.isArray(pixArray) || pixArray.length === 0) {
       const paymentId = body?.id || body?.payment_id;
@@ -59,17 +59,17 @@ serve(async (req) => {
         .single();
 
       if (subErr || !subPayment) {
-        console.log("No matching subscription for txid:", txid);
+        // console.log("No matching subscription for txid:", txid);
         continue;
       }
 
       if (subPayment.status === "paid") {
-        console.log("Already processed:", txid);
+        // console.log("Already processed:", txid);
         continue;
       }
 
       await activateSubscription(supabase, subPayment);
-      console.log(`Efí PIX confirmed for subscription ${subPayment.id}, txid ${txid}`);
+      // console.log(`EfÃ­ PIX confirmed for subscription ${subPayment.id}, txid ${txid}`);
     }
 
     return new Response(JSON.stringify({ success: true }), {
@@ -215,7 +215,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
     });
 
     // 4. Generate access token
-    const planLabelCap = planKey === "master" ? "Master" : "Básico";
+    const planLabelCap = planKey === "master" ? "Master" : "BÃ¡sico";
     const tokenExpires = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: tokenData } = await supabase
       .from("access_tokens")
@@ -252,7 +252,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
       await processReferralReward(supabase, referredByTenantId, refCode, config, tenantName);
     }
 
-    console.log(`New ${planKey} subscriber registered: tenant ${tenant.id}, email ${email}`);
+    // console.log(`New ${planKey} subscriber registered: tenant ${tenant.id}, email ${email}`);
   } else {
     // Existing tenant renewal/upgrade
     const { data: currentTenant } = await supabase.from("tenants").select("plan_expires_at").eq("id", subPayment.tenant_id).single();
@@ -282,7 +282,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
         updated_at: now.toISOString(),
       }).eq("id", subPayment.tenant_id);
 
-      console.log(`Subscription (${planKey} - ${cycleToSet}) renewed for tenant ${subPayment.tenant_id} until ${renewalPeriodEnd.toISOString()}`);
+      // console.log(`Subscription (${planKey} - ${cycleToSet}) renewed for tenant ${subPayment.tenant_id} until ${renewalPeriodEnd.toISOString()}`);
     }
 
     // Check if this tenant was referred and this is their first Pro payment
@@ -335,7 +335,7 @@ async function processReferralReward(supabase: any, referrerTenantId: string, re
       .maybeSingle();
 
     if (!affiliate) {
-      console.log(`No active affiliate record found for tenant ${referrerTenantId} with code ${refCode}`);
+      // console.log(`No active affiliate record found for tenant ${referrerTenantId} with code ${refCode}`);
       return;
     }
 
@@ -348,7 +348,7 @@ async function processReferralReward(supabase: any, referrerTenantId: string, re
       affiliate_id: affiliate.id,
       amount_cents: bonusCredits,
       status: "pending",
-      notes: `Indicação Pro: ${referredName} | +${bonusDays} dias bônus | Auto-gerado`,
+      notes: `IndicaÃ§Ã£o Pro: ${referredName} | +${bonusDays} dias bÃ´nus | Auto-gerado`,
     });
 
     // Update affiliate stats
@@ -358,7 +358,7 @@ async function processReferralReward(supabase: any, referrerTenantId: string, re
       })
       .eq("id", affiliate.id);
 
-    console.log(`Referral payout created for affiliate ${affiliate.id}, referrer tenant ${referrerTenantId}`);
+    // console.log(`Referral payout created for affiliate ${affiliate.id}, referrer tenant ${referrerTenantId}`);
   } catch (err: any) {
     console.error("processReferralReward error:", err.message);
   }

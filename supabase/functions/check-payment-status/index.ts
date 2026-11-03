@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -99,14 +99,14 @@ serve(async (req) => {
 
     let isPaid = false;
 
-    // ── Efí: Check charge status via API ──
+    // â”€â”€ EfÃ­: Check charge status via API â”€â”€
     if (provider === "efi") {
       const clientId = providerConfig.api_key_encrypted;
       const clientSecret = providerConfig.secret_key_encrypted;
       const certPem = providerConfig.efi_cert_pem;
       const keyPem = providerConfig.efi_key_pem;
 
-      if (!clientId || !clientSecret) throw new Error("Efí credentials missing");
+      if (!clientId || !clientSecret) throw new Error("EfÃ­ credentials missing");
 
       const fetchOpts: any = {};
       if (certPem && keyPem) {
@@ -132,7 +132,7 @@ serve(async (req) => {
         ...fetchOpts,
       } as any);
 
-      if (!tokenRes.ok) throw new Error(`Efí OAuth error: ${tokenRes.status}`);
+      if (!tokenRes.ok) throw new Error(`EfÃ­ OAuth error: ${tokenRes.status}`);
       const tokenData = await tokenRes.json();
       const accessToken = tokenData.access_token;
 
@@ -144,8 +144,8 @@ serve(async (req) => {
 
       if (cobRes.ok) {
         const cobData = await cobRes.json();
-        console.log(`Efí cob status for ${paymentId}: ${cobData.status}`, JSON.stringify(cobData));
-        // Efí statuses: ATIVA (active), CONCLUIDA (paid), REMOVIDA_PELO_USUARIO_RECEBEDOR, REMOVIDA_PELO_PSP
+        // console.log(`EfÃ­ cob status for ${paymentId}: ${cobData.status}`, JSON.stringify(cobData));
+        // EfÃ­ statuses: ATIVA (active), CONCLUIDA (paid), REMOVIDA_PELO_USUARIO_RECEBEDOR, REMOVIDA_PELO_PSP
         if (cobData.status === "CONCLUIDA") {
           isPaid = true;
           // Get endToEndId from pix array if available
@@ -157,7 +157,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Mercado Pago: Check payment status ──
+    // â”€â”€ Mercado Pago: Check payment status â”€â”€
     if (provider === "mercadopago" && paymentId) {
       const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Bearer ${providerConfig.api_key_encrypted}` },
@@ -168,7 +168,7 @@ serve(async (req) => {
       }
     }
 
-    // ── PushinPay: Check payment status ──
+    // â”€â”€ PushinPay: Check payment status â”€â”€
     if (provider === "pushinpay" && paymentId) {
       const res = await fetch(`https://api.pushinpay.com.br/api/pix/cashIn/${paymentId}`, {
         headers: {
@@ -182,7 +182,7 @@ serve(async (req) => {
       }
     }
 
-    // ── AbacatePay: Check payment status ──
+    // â”€â”€ AbacatePay: Check payment status â”€â”€
     if (provider === "abacatepay" && paymentId) {
       try {
         // GET /v1/pixQrCode/check?id=...
@@ -197,7 +197,7 @@ serve(async (req) => {
           const json = await res.json();
           const data = json?.data || json;
           const status = (data?.status || "").toString().toUpperCase();
-          console.log(`AbacatePay check for ${paymentId}: ${status}`);
+          // console.log(`AbacatePay check for ${paymentId}: ${status}`);
           if (status === "PAID") isPaid = true;
         }
       } catch (e) {
@@ -205,7 +205,7 @@ serve(async (req) => {
       }
     }
 
-    // ── MisticPay: Check payment status via transactions/check ──
+    // â”€â”€ MisticPay: Check payment status via transactions/check â”€â”€
     if (provider === "misticpay" && paymentId) {
       try {
         const res = await fetch("https://api.misticpay.com/api/transactions/check", {
@@ -220,7 +220,7 @@ serve(async (req) => {
         if (res.ok) {
           const data = await res.json();
           const txState = data?.transaction?.transactionState;
-          console.log(`MisticPay check for ${paymentId}: ${txState}`);
+          // console.log(`MisticPay check for ${paymentId}: ${txState}`);
           if (txState === "COMPLETO") isPaid = true;
         }
       } catch (e) {
@@ -228,7 +228,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Stripe: Check Checkout Session status ──
+    // â”€â”€ Stripe: Check Checkout Session status â”€â”€
     if (provider === "stripe" && paymentId) {
       try {
         const stripeSecret = providerConfig.api_key_encrypted;
@@ -238,7 +238,7 @@ serve(async (req) => {
           });
           if (res.ok) {
             const session = await res.json();
-            console.log(`Stripe session ${paymentId}: payment_status=${session.payment_status}, status=${session.status}`);
+            // console.log(`Stripe session ${paymentId}: payment_status=${session.payment_status}, status=${session.status}`);
             if (session.payment_status === "paid" || session.status === "complete") isPaid = true;
           }
         }
@@ -247,7 +247,7 @@ serve(async (req) => {
       }
     }
 
-    // ── ColdPayments: Check payment status via polling ──
+    // â”€â”€ ColdPayments: Check payment status via polling â”€â”€
     if (provider === "coldpayments" && paymentId) {
       try {
         let coldApiKey = providerConfig?.api_key_encrypted;
@@ -274,7 +274,7 @@ serve(async (req) => {
           if (res.ok) {
             const data = await res.json();
             const status = (data?.status || "").toString().toUpperCase();
-            console.log(`ColdPayments check for ${paymentId}: status=${status}`, JSON.stringify(data).slice(0, 200));
+            // console.log(`ColdPayments check for ${paymentId}: status=${status}`, JSON.stringify(data).slice(0, 200));
             if (status === "PAID" || status === "COMPLETED" || status === "APPROVED") {
               isPaid = true;
             }
@@ -289,7 +289,7 @@ serve(async (req) => {
       }
     }
 
-    // ── LofyPay: Check payment status via polling ──
+    // â”€â”€ LofyPay: Check payment status via polling â”€â”€
     if (provider === "lofypay" && paymentId) {
       try {
         const res = await fetch("https://app.lofypay.com/api/v1/webhook/", {
@@ -300,7 +300,7 @@ serve(async (req) => {
         if (res.ok) {
           const data = await res.json();
           const status = (data?.status || "").toString().toUpperCase();
-          console.log(`LofyPay check for ${paymentId}: ${status}`);
+          // console.log(`LofyPay check for ${paymentId}: ${status}`);
           if (status === "PAID") isPaid = true;
         }
       } catch (e) {
@@ -377,7 +377,7 @@ serve(async (req) => {
         console.error("Delivery trigger failed:", e);
       }
 
-      // ── Credit tenant wallet for the sale ──
+      // â”€â”€ Credit tenant wallet for the sale â”€â”€
       try {
         const { data: orderForWallet } = await supabase
           .from("orders")
@@ -397,7 +397,7 @@ serve(async (req) => {
           const platformFeeCents = Math.round(orderForWallet.total_cents * 0.02);
           const feeCents = gatewayFeeCents + platformFeeCents;
           const netCents = Math.max(0, orderForWallet.total_cents - feeCents);
-          console.log(`[Wallet] Credited via polling: total=${orderForWallet.total_cents}¢ gateway=${gatewayFeeCents}¢ platform=${platformFeeCents}¢ net=${netCents}¢ tenant=${tenant_id} order=${order_id}`, walletResult);
+          // console.log(`[Wallet] Credited via polling: total=${orderForWallet.total_cents}Â¢ gateway=${gatewayFeeCents}Â¢ platform=${platformFeeCents}Â¢ net=${netCents}Â¢ tenant=${tenant_id} order=${order_id}`, walletResult);
 
           // Persist commission and net amount on the order row
           if (walletResult.data) {

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,7 +112,7 @@ async function checkEfiPayment(supabase: any, subPayment: any): Promise<boolean>
       .single();
 
     if (!config?.efi_client_id || !config?.efi_client_secret || !config?.efi_cert_pem || !config?.efi_key_pem) {
-      console.log("EFI config incomplete, skipping active check");
+      // console.log("EFI config incomplete, skipping active check");
       return false;
     }
 
@@ -159,9 +159,9 @@ async function checkEfiPayment(supabase: any, subPayment: any): Promise<boolean>
     }
 
     const cobData = await cobRes.json();
-    console.log(`EFI cob status for ${txid}: ${cobData.status}`);
+    // console.log(`EFI cob status for ${txid}: ${cobData.status}`);
 
-    // Efí statuses: ATIVA, CONCLUIDA, REMOVIDA_PELO_USUARIO_RECEBEDOR, REMOVIDA_PELO_PSP
+    // EfÃ­ statuses: ATIVA, CONCLUIDA, REMOVIDA_PELO_USUARIO_RECEBEDOR, REMOVIDA_PELO_PSP
     if (cobData.status === "CONCLUIDA") {
       // Payment confirmed! Activate subscription
       await activateSubscription(supabase, subPayment);
@@ -198,7 +198,7 @@ async function checkPushinPayPayment(supabase: any, subPayment: any): Promise<bo
     }
 
     const data = await res.json();
-    console.log(`PushinPay status for ${subPayment.payment_id}: ${data.status}`);
+    // console.log(`PushinPay status for ${subPayment.payment_id}: ${data.status}`);
 
     if (data.status === "paid" || data.status === "completed" || data.status === "approved") {
       await activateSubscription(supabase, subPayment);
@@ -320,7 +320,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
       .from("access_tokens")
       .insert({
         tenant_id: tenant.id,
-        label: `Token ${planToSet === "master" ? "Master" : "Básico"} - ${tenantName}`,
+        label: `Token ${planToSet === "master" ? "Master" : "BÃ¡sico"} - ${tenantName}`,
         created_by: userId,
         expires_at: tokenExpires,
       })
@@ -349,7 +349,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
       await processReferralReward(supabase, referredByTenantId, refCode, config, tenantName);
     }
 
-    console.log(`New subscriber registered: tenant ${tenant.id}, plan ${planToSet} (${cycleToSet}), email ${email}`);
+    // console.log(`New subscriber registered: tenant ${tenant.id}, plan ${planToSet} (${cycleToSet}), email ${email}`);
   } else {
     // Existing tenant renewal/upgrade
     const { data: currentTenant } = await supabase.from("tenants").select("plan_expires_at").eq("id", subPayment.tenant_id).single();
@@ -376,7 +376,7 @@ async function activateSubscription(supabase: any, subPayment: any) {
         updated_at: now.toISOString(),
       }).eq("id", subPayment.tenant_id);
 
-      console.log(`Subscription renewed for tenant ${subPayment.tenant_id} - plan ${planToSet} (${cycleToSet})`);
+      // console.log(`Subscription renewed for tenant ${subPayment.tenant_id} - plan ${planToSet} (${cycleToSet})`);
     }
 
     // Check if this tenant was referred and this is their first Pro payment
@@ -441,7 +441,7 @@ async function processReferralReward(supabase: any, referrerTenantId: string, re
       .maybeSingle();
 
     if (!affiliate) {
-      console.log(`No active affiliate found for tenant ${referrerTenantId} code ${refCode}`);
+      // console.log(`No active affiliate found for tenant ${referrerTenantId} code ${refCode}`);
       return;
     }
 
@@ -454,7 +454,7 @@ async function processReferralReward(supabase: any, referrerTenantId: string, re
       affiliate_id: affiliate.id,
       amount_cents: bonusCredits,
       status: "pending",
-      notes: `Indicação Pro: ${referredName} | +${bonusDays} dias bônus | Auto-gerado`,
+      notes: `IndicaÃ§Ã£o Pro: ${referredName} | +${bonusDays} dias bÃ´nus | Auto-gerado`,
     });
 
     // Increment affiliate sales count
@@ -462,7 +462,7 @@ async function processReferralReward(supabase: any, referrerTenantId: string, re
       .update({ total_sales: (affiliate.total_sales || 0) + 1 })
       .eq("id", affiliate.id);
 
-    console.log(`Referral payout created for affiliate ${affiliate.id}`);
+    // console.log(`Referral payout created for affiliate ${affiliate.id}`);
   } catch (err: any) {
     console.error("processReferralReward error:", err.message);
   }

@@ -1,4 +1,4 @@
-const {
+﻿const {
   Client,
   GatewayIntentBits,
   Collection,
@@ -21,7 +21,7 @@ async function resolveTenant(guildId) {
   return tenant;
 }
 
-// ── Client ──
+// â”€â”€ Client â”€â”€
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -36,7 +36,7 @@ const client = new Client({
 client.tenantCache = tenantCache;
 client.resolveTenant = resolveTenant;
 
-// ── Carregar handlers ──
+// â”€â”€ Carregar handlers â”€â”€
 const interactionHandler = require("./events/interaction");
 const memberJoinHandler = require("./events/memberJoin");
 const protectionHandler = require("./events/protection");
@@ -44,10 +44,10 @@ const verificationHandler = require("./handlers/verification");
 const inviteCreateHandler = require("./events/inviteCreate");
 const inviteDeleteHandler = require("./events/inviteDelete");
 
-// ── Cache de Convites ──
+// â”€â”€ Cache de Convites â”€â”€
 client.guildInvites = new Map();
 
-// ── Status polling ──
+// â”€â”€ Status polling â”€â”€
 let lastAppliedStatus = null;
 let lastForceReapplyAt = null;
 
@@ -88,7 +88,7 @@ async function syncBotStatus() {
         } catch (e) { 
           console.error("Banner set err:", e.message); 
           if (e.message.includes('RATE_LIMIT')) {
-            console.warn("[ALERTA] O Discord bloqueou a troca de capa do perfil por excesso de tentativas (Rate Limit). Você precisa esperar algumas horas.");
+            console.warn("[ALERTA] O Discord bloqueou a troca de capa do perfil por excesso de tentativas (Rate Limit). VocÃª precisa esperar algumas horas.");
           }
         }
       }
@@ -96,7 +96,7 @@ async function syncBotStatus() {
 
     if (config?.global_bot_banner_force_reapply_at) {
       if (lastForceReapplyAt !== null && lastForceReapplyAt !== config.global_bot_banner_force_reapply_at) {
-        console.log("[BANNER] Detectada solicitação de reaplicação global do banner. Invocando edge function...");
+        console.log("[BANNER] Detectada solicitaÃ§Ã£o de reaplicaÃ§Ã£o global do banner. Invocando edge function...");
         fetch(`${process.env.SUPABASE_URL}/functions/v1/sync-global-banner`, {
           method: "POST",
           headers: {
@@ -115,16 +115,16 @@ async function syncBotStatus() {
       status: "online",
     });
     lastAppliedStatus = status;
-    console.log(`🔄 Status atualizado: "${status}"`);
+    console.log(`ðŸ”„ Status atualizado: "${status}"`);
   } catch (err) {
     console.error("Erro ao sincronizar status do bot:", err.message);
   }
 }
 
-// ── Ready ──
+// â”€â”€ Ready â”€â”€
 client.on(Events.ClientReady, async () => {
-  console.log(`✅ Bot online como ${client.user.tag}`);
-  console.log(`📡 Conectado em ${client.guilds.cache.size} servidor(es)`);
+  console.log(`âœ… Bot online como ${client.user.tag}`);
+  console.log(`ðŸ“¡ Conectado em ${client.guilds.cache.size} servidor(es)`);
 
   // Sync status immediately
   await syncBotStatus();
@@ -190,7 +190,7 @@ client.on(Events.ClientReady, async () => {
               console.error(`[SORTEIO] Falha ao sortear ${g.id}: ${res.status} ${text}`);
             }
           } catch (e) {
-            console.error(`[SORTEIO] Erro na requisição para sortear ${g.id}:`, e.message);
+            console.error(`[SORTEIO] Erro na requisiÃ§Ã£o para sortear ${g.id}:`, e.message);
           }
         }
       }
@@ -198,7 +198,7 @@ client.on(Events.ClientReady, async () => {
       console.error("[SORTEIO] Erro ao buscar sorteios expirados:", e.message);
     }
   }, 60 * 1000);
-  // ── Auto-archive checkout threads (10s delay tracker) ──
+  // â”€â”€ Auto-archive checkout threads (10s delay tracker) â”€â”€
   setInterval(async () => {
     try {
       const { supabase } = require("./supabase");
@@ -218,7 +218,7 @@ client.on(Events.ClientReady, async () => {
                   await thread.setLocked(true).catch(() => {});
                   await thread.setArchived(true).catch(() => {});
                 } else if (thread.deletable) {
-                  await thread.delete("Arquivamento automático do checkout").catch(() => {});
+                  await thread.delete("Arquivamento automÃ¡tico do checkout").catch(() => {});
                 }
               }
             }
@@ -232,7 +232,7 @@ client.on(Events.ClientReady, async () => {
     }
   }, 5000);
 
-  // ── Verificação e envio automático de lembretes D-1 e D-0 (a cada 30 min) ──
+  // â”€â”€ VerificaÃ§Ã£o e envio automÃ¡tico de lembretes D-1 e D-0 (a cada 30 min) â”€â”€
   const checkSubscriptionReminders = async () => {
     try {
       if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
@@ -255,11 +255,11 @@ client.on(Events.ClientReady, async () => {
     }
   };
 
-  // Primeira checagem após 15 segundos do bot online, depois a cada 30 minutos
+  // Primeira checagem apÃ³s 15 segundos do bot online, depois a cada 30 minutos
   setTimeout(checkSubscriptionReminders, 15_000);
   setInterval(checkSubscriptionReminders, 30 * 60 * 1000);
 });
-// ── Sincronização automática do Dono do Discord por Guild ──
+// â”€â”€ SincronizaÃ§Ã£o automÃ¡tica do Dono do Discord por Guild â”€â”€
 async function syncGuildOwners() {
   try {
     const { supabase } = require("./supabase");
@@ -371,9 +371,9 @@ async function syncGuildProfile(guildId) {
   }
 }
 
-// ── Ao entrar em um novo servidor ──
+// â”€â”€ Ao entrar em um novo servidor â”€â”€
 client.on(Events.GuildCreate, async (guild) => {
-  console.log(`📥 Bot adicionado em: ${guild.name} (${guild.id})`);
+  console.log(`ðŸ“¥ Bot adicionado em: ${guild.name} (${guild.id})`);
   await syncBotStatus();
   await syncGuildOwners();
   await syncGuildProfile(guild.id);
@@ -386,13 +386,13 @@ client.on(Events.GuildCreate, async (guild) => {
   } catch (e) {}
 });
 
-// ── Interactions (buttons, modals, select menus) ──
+// â”€â”€ Interactions (buttons, modals, select menus) â”€â”€
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     await interactionHandler(client, interaction);
   } catch (err) {
-    console.error("Erro na interação:", err);
-    const reply = { content: "<:close:1521192513048674505> Ocorreu um erro ao processar esta ação.", ephemeral: true };
+    console.error("Erro na interaÃ§Ã£o:", err);
+    const reply = { content: "<:close:1521192513048674505> Ocorreu um erro ao processar esta aÃ§Ã£o.", ephemeral: true };
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp(reply).catch(() => {});
     } else {
@@ -401,7 +401,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-// ── Member Join (verificação, boas-vindas) ──
+// â”€â”€ Member Join (verificaÃ§Ã£o, boas-vindas) â”€â”€
 client.on(Events.GuildMemberAdd, async (member) => {
   try {
     await memberJoinHandler(client, member);
@@ -413,18 +413,18 @@ client.on(Events.GuildMemberAdd, async (member) => {
   }
 });
 
-// ── Member Leave (despedida) ──
+// â”€â”€ Member Leave (despedida) â”€â”€
 client.on(Events.GuildMemberRemove, async (member) => {
   try {
     if (memberJoinHandler.handleMemberLeave) {
       await memberJoinHandler.handleMemberLeave(client, member);
     }
   } catch (err) {
-    console.error("Erro ao processar saída de membro:", err);
+    console.error("Erro ao processar saÃ­da de membro:", err);
   }
 });
 
-// ── Invite Tracking ──
+// â”€â”€ Invite Tracking â”€â”€
 client.on(Events.InviteCreate, async (invite) => {
   try {
     await inviteCreateHandler(client, invite);
@@ -437,12 +437,12 @@ client.on(Events.InviteDelete, async (invite) => {
   } catch (err) {}
 });
 
-// ── Proteção ──
+// â”€â”€ ProteÃ§Ã£o â”€â”€
 client.on(Events.GuildMemberAdd, async (member) => {
   try {
     await protectionHandler.onMemberJoin(client, member);
   } catch (err) {
-    console.error("Erro na proteção (join):", err);
+    console.error("Erro na proteÃ§Ã£o (join):", err);
   }
 });
 
@@ -450,7 +450,7 @@ client.on(Events.MessageCreate, async (message) => {
   try {
     await protectionHandler.onMessage(client, message);
   } catch (err) {
-    console.error("Erro na proteção (message):", err);
+    console.error("Erro na proteÃ§Ã£o (message):", err);
   }
 });
 
@@ -459,7 +459,7 @@ client.on(Events.GuildBanAdd, async (ban) => {
   try {
     await protectionHandler.onGuildBanAdd(client, ban);
   } catch (err) {
-    console.error("Erro na proteção (ban):", err);
+    console.error("Erro na proteÃ§Ã£o (ban):", err);
   }
 });
 
@@ -468,16 +468,16 @@ client.on(Events.GuildMemberRemove, async (member) => {
   try {
     await protectionHandler.onGuildMemberRemove(client, member);
   } catch (err) {
-    console.error("Erro na proteção (kick):", err);
+    console.error("Erro na proteÃ§Ã£o (kick):", err);
   }
 });
 
-// ── Anti-Rogue Nuke Event Trackers ──
+// â”€â”€ Anti-Rogue Nuke Event Trackers â”€â”€
 client.on(Events.ChannelCreate, async (channel) => {
   try {
     await protectionHandler.onChannelCreate(client, channel);
   } catch (err) {
-    console.error("Erro na proteção (channel create):", err);
+    console.error("Erro na proteÃ§Ã£o (channel create):", err);
   }
 });
 
@@ -486,7 +486,7 @@ client.on(Events.ChannelDelete, async (channel) => {
   try {
     await protectionHandler.onChannelDelete(client, channel);
   } catch (err) {
-    console.error("Erro na proteção (channel delete):", err);
+    console.error("Erro na proteÃ§Ã£o (channel delete):", err);
   }
 });
 
@@ -495,11 +495,11 @@ client.on(Events.GuildRoleDelete, async (role) => {
   try {
     await protectionHandler.onRoleDelete(client, role);
   } catch (err) {
-    console.error("Erro na proteção (role delete):", err);
+    console.error("Erro na proteÃ§Ã£o (role delete):", err);
   }
 });
 
-// ── Login ──
+// â”€â”€ Login â”€â”€
 client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {
   console.error("<:close:1521192513048674505> Falha ao fazer login:", err.message);
   process.exit(1);

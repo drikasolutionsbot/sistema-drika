@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       if (idTenant) {
         tenantId = idTenant.id;
       } else {
-        return htmlResponse("❌ Erro", "Link de verificação inválido.", "#ED4245");
+        return htmlResponse("âŒ Erro", "Link de verificaÃ§Ã£o invÃ¡lido.", "#ED4245");
       }
     }
   }
@@ -57,15 +57,15 @@ Deno.serve(async (req) => {
   const redirectUri = `${supabaseUrl}/functions/v1/verify-member`;
 
   if (!clientId) {
-    return htmlResponse("❌ Erro", "Client ID do bot externo não configurado.", "#ED4245");
+    return htmlResponse("âŒ Erro", "Client ID do bot externo nÃ£o configurado.", "#ED4245");
   }
 
-  console.log("verify-member init", { tenantId, hasCode: Boolean(code), clientId, redirectUri });
+  // console.log("verify-member init", { tenantId, hasCode: Boolean(code), clientId, redirectUri });
 
-  // ─── Step 1: No code yet → redirect to Discord OAuth2 ────
+  // â”€â”€â”€ Step 1: No code yet â†’ redirect to Discord OAuth2 â”€â”€â”€â”€
   if (!code) {
     if (!tenantId) {
-      return htmlResponse("❌ Erro", "Tenant não informado.", "#ED4245");
+      return htmlResponse("âŒ Erro", "Tenant nÃ£o informado.", "#ED4245");
     }
 
     const params = new URLSearchParams({
@@ -80,10 +80,10 @@ Deno.serve(async (req) => {
     return Response.redirect(`https://discord.com/api/oauth2/authorize?${params}`, 302);
   }
 
-  // ─── Step 2: Received code → exchange for token ───────────
+  // â”€â”€â”€ Step 2: Received code â†’ exchange for token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const effectiveTenantId = state || tenantId;
   if (!effectiveTenantId) {
-    return htmlResponse("❌ Erro", "Tenant não encontrado no estado.", "#ED4245");
+    return htmlResponse("âŒ Erro", "Tenant nÃ£o encontrado no estado.", "#ED4245");
   }
 
   try {
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
       console.error("Token exchange failed:", tokenRes.status, errText);
-      return htmlResponse("❌ Erro", "Falha ao trocar o código OAuth2.", "#ED4245");
+      return htmlResponse("âŒ Erro", "Falha ao trocar o cÃ³digo OAuth2.", "#ED4245");
     }
 
     const tokenData = await tokenRes.json();
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     const expiresIn = tokenData.expires_in;
 
     if (!accessToken) {
-      return htmlResponse("❌ Erro", "Token de acesso não recebido.", "#ED4245");
+      return htmlResponse("âŒ Erro", "Token de acesso nÃ£o recebido.", "#ED4245");
     }
 
     // Fetch Discord user info
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     if (!userRes.ok) {
       const errText = await userRes.text();
       console.error("User fetch failed:", userRes.status, errText);
-      return htmlResponse("❌ Erro", "Falha ao obter informações do usuário.", "#ED4245");
+      return htmlResponse("âŒ Erro", "Falha ao obter informaÃ§Ãµes do usuÃ¡rio.", "#ED4245");
     }
 
     const userData = await userRes.json();
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (tenantError || !tenantData) {
-      return htmlResponse("❌ Erro", "Tenant não encontrado.", "#ED4245");
+      return htmlResponse("âŒ Erro", "Tenant nÃ£o encontrado.", "#ED4245");
     }
 
     const guildId = tenantData.discord_guild_id;
@@ -150,15 +150,15 @@ Deno.serve(async (req) => {
       roleId = roleId.replace(/\D/g, ""); // Remove anything that is not a number
     }
     if (!botToken) {
-      return htmlResponse("❌ Erro", "Bot externo não configurado (DISCORD_BOT_TOKEN).", "#ED4245");
+      return htmlResponse("âŒ Erro", "Bot externo nÃ£o configurado (DISCORD_BOT_TOKEN).", "#ED4245");
     }
 
     if (!guildId) {
-      return htmlResponse("❌ Erro", "Servidor Discord não configurado.", "#ED4245");
+      return htmlResponse("âŒ Erro", "Servidor Discord nÃ£o configurado.", "#ED4245");
     }
 
     // Add user to guild (if not already) using OAuth token
-    console.log("Adding user to guild:", { guildId, discordUserId, roleId });
+    // console.log("Adding user to guild:", { guildId, discordUserId, roleId });
     try {
       const addRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
         method: "PUT",
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
         }),
       });
       const addResText = await addRes.text();
-      console.log("Add to guild response:", addRes.status, addResText);
+      // console.log("Add to guild response:", addRes.status, addResText);
     } catch (e) {
       console.error("Add to guild error:", e);
     }
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
 
     // If user is already in the guild, add the role directly
     if (roleId) {
-      console.log("Adding role directly:", { guildId, discordUserId, roleId });
+      // console.log("Adding role directly:", { guildId, discordUserId, roleId });
       try {
         const roleRes = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
           method: "PUT",
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
         
         if (roleRes.ok || roleRes.status === 204) {
           roleApplied = true;
-          console.log("Add role success:", roleRes.status);
+          // console.log("Add role success:", roleRes.status);
         } else {
           const roleResText = await roleRes.text();
           console.error("Add role failed:", roleRes.status, roleResText);
@@ -199,9 +199,9 @@ Deno.serve(async (req) => {
           try {
             const errJson = JSON.parse(roleResText);
             if (errJson.code === 50013) {
-              roleError = "O cargo do bot precisa estar acima do cargo de verificação nas configurações do servidor.";
+              roleError = "O cargo do bot precisa estar acima do cargo de verificaÃ§Ã£o nas configuraÃ§Ãµes do servidor.";
             } else if (errJson.code === 10011) {
-              roleError = "Cargo não encontrado no servidor. Ele pode ter sido excluído.";
+              roleError = "Cargo nÃ£o encontrado no servidor. Ele pode ter sido excluÃ­do.";
             } else if (errJson.message) {
               roleError = errJson.message;
             }
@@ -231,9 +231,9 @@ Deno.serve(async (req) => {
       { onConflict: "tenant_id,discord_user_id" }
     );
 
-    // ─── Send verification log to Discord channel ───────────
+    // â”€â”€â”€ Send verification log to Discord channel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const logsChannelId = tenantData.verify_logs_channel_id;
-    console.log("verify-member log channel:", logsChannelId, "botToken present:", Boolean(botToken));
+    // console.log("verify-member log channel:", logsChannelId, "botToken present:", Boolean(botToken));
     if (logsChannelId && botToken) {
       try {
         // Calculate account age in days
@@ -249,17 +249,17 @@ Deno.serve(async (req) => {
 
         const logFields = [
           {
-            name: "👤 Usuário",
+            name: "ðŸ‘¤ UsuÃ¡rio",
             value: `<@${discordUserId}> (${discordUsername})`,
             inline: false,
           },
           {
-            name: "📅 Conta no Discord",
+            name: "ðŸ“… Conta no Discord",
             value: `${accountAgeDays} dias no Discord.`,
             inline: true,
           },
           {
-            name: "🔗 IP",
+            name: "ðŸ”— IP",
             value: ip,
             inline: true,
           },
@@ -267,14 +267,14 @@ Deno.serve(async (req) => {
 
         if (roleId) {
           logFields.push({
-            name: "📋 Cargo",
-            value: roleApplied ? `✅ Cargo <@&${roleId}> atribuído.` : `❌ Falha ao atribuir: ${roleError}`,
+            name: "ðŸ“‹ Cargo",
+            value: roleApplied ? `âœ… Cargo <@&${roleId}> atribuÃ­do.` : `âŒ Falha ao atribuir: ${roleError}`,
             inline: false,
           });
         }
 
         const logEmbed = {
-          title: "✅ | Membro verificado",
+          title: "âœ… | Membro verificado",
           color: 0x57F287,
           fields: logFields,
           thumbnail: tenantData.logo_url ? { url: tenantData.logo_url } : (discordAvatar ? { url: discordAvatar } : undefined),
@@ -290,16 +290,16 @@ Deno.serve(async (req) => {
                 {
                   type: 2,
                   style: 5,
-                  label: "Ver localização",
+                  label: "Ver localizaÃ§Ã£o",
                   url: ip !== "N/A" ? `https://ipinfo.io/${ip}` : "https://ipinfo.io",
-                  emoji: { name: "🌐" },
+                  emoji: { name: "ðŸŒ" },
                 },
               ],
             },
           ],
         };
 
-        console.log("Sending verification log to channel:", logsChannelId);
+        // console.log("Sending verification log to channel:", logsChannelId);
         const logRes = await fetch(`${DISCORD_API}/channels/${logsChannelId}/messages`, {
           method: "POST",
           headers: {
@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify(logPayload),
         });
         const logResText = await logRes.text();
-        console.log("Verification log response:", logRes.status, logResText);
+        // console.log("Verification log response:", logRes.status, logResText);
       } catch (logErr) {
         console.error("Failed to send verification log:", logErr);
       }
@@ -319,25 +319,25 @@ Deno.serve(async (req) => {
 
     const serverName = tenantData.name || "o servidor";
 
-    let successMessage = `Bem-vindo, <strong>${discordUsername}</strong>! Você foi verificado em <strong>${serverName}</strong>.`;
+    let successMessage = `Bem-vindo, <strong>${discordUsername}</strong>! VocÃª foi verificado em <strong>${serverName}</strong>.`;
     if (roleId) {
       if (roleApplied) {
-        successMessage += "<br>Seu cargo foi atribuído automaticamente.";
+        successMessage += "<br>Seu cargo foi atribuÃ­do automaticamente.";
       } else {
-        successMessage += "<br><br><em>Aviso: Ocorreu uma falha ao atribuir seu cargo. Um administrador já foi notificado.</em>";
+        successMessage += "<br><br><em>Aviso: Ocorreu uma falha ao atribuir seu cargo. Um administrador jÃ¡ foi notificado.</em>";
       }
     }
-    successMessage += "<br><br>Pode fechar esta página e voltar ao Discord.";
+    successMessage += "<br><br>Pode fechar esta pÃ¡gina e voltar ao Discord.";
 
     return htmlResponse(
-      "✅ Verificado com Sucesso!",
+      "âœ… Verificado com Sucesso!",
       successMessage,
       "#57F287",
       tenantData.logo_url
     );
   } catch (err) {
     console.error("Verify member error:", err);
-    return htmlResponse("❌ Erro", `Ocorreu um erro durante a verificação: ${err instanceof Error ? err.message : "Erro desconhecido"}`, "#ED4245");
+    return htmlResponse("âŒ Erro", `Ocorreu um erro durante a verificaÃ§Ã£o: ${err instanceof Error ? err.message : "Erro desconhecido"}`, "#ED4245");
   }
 });
 
@@ -346,7 +346,7 @@ function htmlResponse(title: string, message: string, color: string, logoUrl?: s
 
   const status = color === "#57F287" ? "success" : color === "#FEE75C" ? "warning" : "error";
 
-  const cleanTitle = title.replace(/[✅❌⚠️]/g, "").trim();
+  const cleanTitle = title.replace(/[âœ…âŒâš ï¸]/g, "").trim();
   const cleanMessage = toPlainText(message);
 
   const target = new URL(DEFAULT_VERIFY_REDIRECT);

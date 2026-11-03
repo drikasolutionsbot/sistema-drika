@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang } from "../_shared/i18n.ts";
 import { formatCdnUrl } from "../_shared/utils.ts";
@@ -69,7 +69,7 @@ serve(async (req) => {
     };
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
-    if (!botToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN)");
+    if (!botToken) throw new Error("Bot externo nÃ£o configurado (DISCORD_BOT_TOKEN)");
 
     const guildId = tenant?.discord_guild_id;
     if (!guildId) throw new Error("Guild ID not configured");
@@ -90,7 +90,7 @@ serve(async (req) => {
 
       product = productData;
       isAutoDelivery = !!product?.auto_delivery;
-      // Sobrescreve idioma quando o produto define um idioma específico
+      // Sobrescreve idioma quando o produto define um idioma especÃ­fico
       if (product?.language) {
         lang = normLang(product.language);
       }
@@ -185,9 +185,9 @@ serve(async (req) => {
     const embedColor = rawEmbedColor;
     const purchaseEmbedColor = rawPurchaseColor;
 
-    // ═══════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // 5. SEND "Pedido aprovado" in the CHECKOUT THREAD
-    // ═══════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     const checkoutThreadId = order.checkout_thread_id;
 
     // Delete the PIX QR Code message in the checkout thread (payment is now approved)
@@ -223,7 +223,7 @@ serve(async (req) => {
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${tenant?.name || tr(lang, "store_default")} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
+              text: `${tenant?.name || tr(lang, "store_default")} â€¢ ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
               icon_url: tenant?.logo_url || undefined,
             },
           }],
@@ -231,9 +231,9 @@ serve(async (req) => {
       });
     }
 
-    // ═══════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // 6. DELIVER VIA DM
-    // ═══════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     let dmChannelId: string | null = null;
 
     try {
@@ -273,7 +273,7 @@ serve(async (req) => {
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
             footer: {
-              text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
+              text: `${storeBrand.name} â€¢ ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
               icon_url: storeBrand.icon_url,
             },
           }],
@@ -320,7 +320,7 @@ serve(async (req) => {
           { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
         ],
         footer: {
-          text: `${storeBrand.name} • ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
+          text: `${storeBrand.name} â€¢ ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
           icon_url: storeBrand.icon_url,
         },
       };
@@ -331,7 +331,7 @@ serve(async (req) => {
         dmButtons.push({
           type: 1,
           components: [
-            { type: 2, style: 3, label: tr(lang, "copy_delivered_button"), emoji: { name: "📋" }, custom_id: `copy_delivered:${order.id}` },
+            { type: 2, style: 3, label: tr(lang, "copy_delivered_button"), emoji: { name: "ðŸ“‹" }, custom_id: `copy_delivered:${order.id}` },
           ],
         });
       }
@@ -346,7 +346,7 @@ serve(async (req) => {
         }),
       });
 
-      // ─── Segunda mensagem: pedido de avaliação (estilo referência) ───
+      // â”€â”€â”€ Segunda mensagem: pedido de avaliaÃ§Ã£o (estilo referÃªncia) â”€â”€â”€
       const buyerMention = `<@${order.discord_user_id}>`;
       await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
         method: "POST",
@@ -356,7 +356,7 @@ serve(async (req) => {
           components: [{
             type: 1,
             components: [
-              { type: 2, style: 1, label: tr(lang, "feedback_button"), emoji: { name: "⭐" }, custom_id: `feedback_open:${order.id}` },
+              { type: 2, style: 1, label: tr(lang, "feedback_button"), emoji: { name: "â­" }, custom_id: `feedback_open:${order.id}` },
             ],
           }],
           allowed_mentions: { parse: [] },
@@ -364,9 +364,9 @@ serve(async (req) => {
       });
     }
 
-    // ═══════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // 7. UPDATE CHECKOUT THREAD: completion + rename + archive
-    // ═══════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     if (checkoutThreadId && isAutoDelivery && stockItems.length > 0) {
       // Send completion message in checkout thread
       const dmLink = dmChannelId
@@ -395,9 +395,9 @@ serve(async (req) => {
         }),
       });
 
-      // Rename thread to ✅ prefix
+      // Rename thread to âœ… prefix
       try {
-        const newName = `✅ • ${order.discord_username || order.discord_user_id} • ${order.order_number}`;
+        const newName = `âœ… â€¢ ${order.discord_username || order.discord_user_id} â€¢ ${order.order_number}`;
         await fetch(`${DISCORD_API}/channels/${checkoutThreadId}`, {
           method: "PATCH",
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
@@ -426,8 +426,8 @@ serve(async (req) => {
             description: embedDesc,
             color: 0xFEE75C,
             fields: [
-              { name: `👤 ${tr(lang, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
-              { name: `📦 ${tr(lang, "product_label")}`, value: order.product_name, inline: true },
+              { name: `ðŸ‘¤ ${tr(lang, "buyer_label")}`, value: `<@${order.discord_user_id}>`, inline: true },
+              { name: `ðŸ“¦ ${tr(lang, "product_label")}`, value: order.product_name, inline: true },
             ],
           }],
           components: [{
@@ -515,7 +515,7 @@ serve(async (req) => {
           fields: [
             { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
-            { name: `**${tr(lang, "payment_method_label")}**`, value: `\`💎 Pix – ${providerLabel}\``, inline: false },
+            { name: `**${tr(lang, "payment_method_label")}**`, value: `\`ðŸ’Ž Pix â€“ ${providerLabel}\``, inline: false },
           ],
           footer: { text: `${tenant?.name || tr(lang, "store_default")} | ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}, ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`, icon_url: tenant?.logo_url || undefined },
           timestamp: new Date().toISOString(),
@@ -546,7 +546,7 @@ serve(async (req) => {
             { name: `**${tr(lang, "details_label")}**`, value: `${stockItems.length > 0 ? `${stockItems.length}x ` : ""}${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: order.id, inline: false },
           ],
-          footer: { text: `${tenant?.name || tr(lang, "store_default")} • ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` },
+          footer: { text: `${tenant?.name || tr(lang, "store_default")} â€¢ ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}` },
           timestamp: new Date().toISOString(),
         };
 
@@ -555,7 +555,7 @@ serve(async (req) => {
             : order.payment_provider === "efi" ? "Pix - Efi Bank"
             : order.payment_provider === "mercadopago" ? "Pix - Mercado Pago"
             : order.payment_provider;
-          deliveryLogEmbed.fields.push({ name: `**${tr(lang, "payment_method_label")}**`, value: `💎 ${pLabel}`, inline: false });
+          deliveryLogEmbed.fields.push({ name: `**${tr(lang, "payment_method_label")}**`, value: `ðŸ’Ž ${pLabel}`, inline: false });
         }
 
         if (tenant?.logo_url) deliveryLogEmbed.thumbnail = { url: tenant.logo_url };
@@ -567,7 +567,7 @@ serve(async (req) => {
           logFormData.append("files[0]", blob, `pedido-${order.order_number}.txt`);
           logFormData.append("payload_json", JSON.stringify({
             embeds: [deliveryLogEmbed],
-            attachments: [{ id: 0, filename: `pedido-${order.order_number}.txt`, description: "Conteúdo entregue" }],
+            attachments: [{ id: 0, filename: `pedido-${order.order_number}.txt`, description: "ConteÃºdo entregue" }],
           }));
           await fetch(`${DISCORD_API}/channels/${storeConfig.logs_channel_id}/messages`, {
             method: "POST",
@@ -581,8 +581,8 @@ serve(async (req) => {
             logPayload.components = [{
               type: 1,
               components: [
-                { type: 2, style: 3, label: tr(lang, "mark_delivered"), emoji: { name: "✅" }, custom_id: `mark_delivered_${order_id}` },
-                { type: 2, style: 4, label: tr(lang, "cancel_order"), emoji: { name: "❌" }, custom_id: `cancel_manual_${order_id}` },
+                { type: 2, style: 3, label: tr(lang, "mark_delivered"), emoji: { name: "âœ…" }, custom_id: `mark_delivered_${order_id}` },
+                { type: 2, style: 4, label: tr(lang, "cancel_order"), emoji: { name: "âŒ" }, custom_id: `cancel_manual_${order_id}` },
               ],
             }];
           }
@@ -712,10 +712,10 @@ serve(async (req) => {
 
         const buttons = [];
         if (productBuyUrl) {
-          buttons.push({ type: 2, style: 5, label: "🛒 Comprar", url: productBuyUrl });
+          buttons.push({ type: 2, style: 5, label: "ðŸ›’ Comprar", url: productBuyUrl });
         }
         if (storeConfig?.feedback_channel_id && guildId) {
-          buttons.push({ type: 2, style: 5, label: "⭐ Feedbacks", url: `https://discord.com/channels/${guildId}/${storeConfig.feedback_channel_id}` });
+          buttons.push({ type: 2, style: 5, label: "â­ Feedbacks", url: `https://discord.com/channels/${guildId}/${storeConfig.feedback_channel_id}` });
         }
 
         const buyButtonComponents = buttons.length > 0 ? [{ type: 1, components: buttons }] : [];
@@ -797,7 +797,7 @@ serve(async (req) => {
             product_id: order.product_id,
           }),
         });
-        console.log("Product embed synced after delivery");
+        // console.log("Product embed synced after delivery");
       } catch (syncErr) {
         console.error("Failed to sync product embed:", syncErr);
       }
@@ -813,7 +813,7 @@ serve(async (req) => {
       should_archive: shouldArchiveCheckoutThread,
     };
 
-    console.log("deliver-order result:", JSON.stringify(result));
+    // console.log("deliver-order result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
