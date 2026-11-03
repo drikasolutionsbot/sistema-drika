@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -31,8 +31,8 @@ serve(async (req) => {
 
     const body = await req.json();
     const { name, discord_guild_id, primary_color, secondary_color } = body;
-    console.log("create-tenant body:", JSON.stringify(body));
-    console.log("user:", user.id);
+    // console.log("create-tenant body:", JSON.stringify(body));
+    // console.log("user:", user.id);
 
     if (!name || !discord_guild_id) {
       throw new Error("name and discord_guild_id are required");
@@ -40,7 +40,7 @@ serve(async (req) => {
 
     // Validate guild ID format
     if (!/^\d{17,20}$/.test(discord_guild_id)) {
-      throw new Error("ID do servidor inválido. Deve conter 17-20 dígitos.");
+      throw new Error("ID do servidor invÃ¡lido. Deve conter 17-20 dÃ­gitos.");
     }
 
     // Note: Bot presence verification is done after tenant configures their bot token
@@ -55,7 +55,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      throw new Error("Este servidor Discord já está vinculado a uma loja.");
+      throw new Error("Este servidor Discord jÃ¡ estÃ¡ vinculado a uma loja.");
     }
 
     // Check if user already has a tenant
@@ -66,7 +66,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingRole) {
-      throw new Error("Você já possui uma loja. Acesse o dashboard.");
+      throw new Error("VocÃª jÃ¡ possui uma loja. Acesse o dashboard.");
     }
 
     // Create tenant with 4-day free trial

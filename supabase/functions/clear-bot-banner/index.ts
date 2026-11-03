@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,8 +6,8 @@ const corsHeaders = {
 };
 
 /**
- * Limpa a capa personalizada do bot no Discord para um tenant específico.
- * Usado quando o plano Master expira/é rebaixado — o banner customizado precisa
+ * Limpa a capa personalizada do bot no Discord para um tenant especÃ­fico.
+ * Usado quando o plano Master expira/Ã© rebaixado â€” o banner customizado precisa
  * ser removido tanto no DB quanto efetivamente no perfil do bot na guild.
  *
  * Body: { tenant_id: string }
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         const body = await res.text();
         if (res.ok) {
           discordCleared = true;
-          console.log(`[clear-bot-banner] tenant=${tenant_id} guild=${tenant.discord_guild_id} OK`);
+          // console.log(`[clear-bot-banner] tenant=${tenant_id} guild=${tenant.discord_guild_id} OK`);
         } else {
           discordError = `${res.status} ${body}`;
           console.error(`[clear-bot-banner] discord PATCH failed:`, discordError);

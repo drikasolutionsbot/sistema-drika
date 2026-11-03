@@ -1,4 +1,4 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
+﻿// Follow this setup guide to integrate the Deno language server with your editor:
 // https://deno.land/manual/getting_started/setup_your_environment
 // This enables autocomplete, go to definition, etc.
 
@@ -6,7 +6,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
-console.log("Hello from Functions!");
+// console.log("Hello from Functions!");
 
 // This endpoint uses 'publishable' | 'secret' access, apiKey is required.
 // Use publishable for Client-facing, key-validated endpoints
@@ -14,7 +14,7 @@ console.log("Hello from Functions!");
 export default {
   fetch: withSupabase({ auth: ["publishable", "secret"] }, async (req, ctx) => {
     // Called by another service with a secret key
-    // ctx.supabaseAdmin bypasses RLS — use for privileged operations
+    // ctx.supabaseAdmin bypasses RLS â€” use for privileged operations
     /*
     if (ctx.authMode === "secret") {
       const { user_id } = await req.json();

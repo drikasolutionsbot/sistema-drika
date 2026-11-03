@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─── EMV TLV helpers (static PIX fallback) ─────────────────────────
+// â”€â”€â”€ EMV TLV helpers (static PIX fallback) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function tlv(id: string, value: string): string {
   const len = value.length.toString().padStart(2, "0");
   return `${id}${len}${value}`;
@@ -72,7 +72,7 @@ function generateStaticBRCode(params: PixParams): string {
   return payload;
 }
 
-// ─── Gateway: Mercado Pago ─────────────────────────────────────────
+// â”€â”€â”€ Gateway: Mercado Pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateViaMercadoPago(
   apiKey: string,
   amountBRL: number,
@@ -114,7 +114,7 @@ async function generateViaMercadoPago(
   };
 }
 
-// ─── Gateway: PushinPay ────────────────────────────────────────────
+// â”€â”€â”€ Gateway: PushinPay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateViaPushinPay(
   apiKey: string,
   amountCents: number,
@@ -147,7 +147,7 @@ async function generateViaPushinPay(
   };
 }
 
-// ─── Gateway: Efí (Gerencianet) with mTLS ─────────────────────────
+// â”€â”€â”€ Gateway: EfÃ­ (Gerencianet) with mTLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateViaEfi(
   clientId: string,
   clientSecret: string,
@@ -185,7 +185,7 @@ async function generateViaEfi(
   } as any);
 
   if (!tokenRes.ok) {
-    throw new Error(`Efí OAuth error: ${tokenRes.status}`);
+    throw new Error(`EfÃ­ OAuth error: ${tokenRes.status}`);
   }
 
   const tokenData = await tokenRes.json();
@@ -216,7 +216,7 @@ async function generateViaEfi(
 
   if (!cobRes.ok) {
     const err = await cobRes.json().catch(() => ({}));
-    throw new Error(err.mensagem || `Efí cob error: ${cobRes.status}`);
+    throw new Error(err.mensagem || `EfÃ­ cob error: ${cobRes.status}`);
   }
 
   const cobData = await cobRes.json();
@@ -244,14 +244,14 @@ async function generateViaEfi(
   };
 }
 
-// ─── Gateway: AbacatePay ──────────────────────────────────────────
+// â”€â”€â”€ Gateway: AbacatePay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateViaAbacatePay(
   apiKey: string,
   amountCents: number,
   description: string,
   externalRef: string,
 ): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string }> {
-  // POST /v1/pixQrCode/create — gera QR Code PIX direto
+  // POST /v1/pixQrCode/create â€” gera QR Code PIX direto
   // Docs: https://docs.abacatepay.com/api-reference/criar-qrcode-pix
   const expiresInMinutes = 15;
   const res = await fetch("https://api.abacatepay.com/v1/pixQrCode/create", {
@@ -269,7 +269,7 @@ async function generateViaAbacatePay(
   });
 
   const rawText = await res.text();
-  console.log("[AbacatePay] status:", res.status, "body:", rawText.slice(0, 1000));
+  // console.log("[AbacatePay] status:", res.status, "body:", rawText.slice(0, 1000));
 
   if (!res.ok) {
     throw new Error(`AbacatePay error: ${res.status} ${rawText.slice(0, 200)}`);
@@ -279,7 +279,7 @@ async function generateViaAbacatePay(
   try { json = JSON.parse(rawText); } catch { /* ignore */ }
 
   // Resposta documentada: { data: { id, brCode, brCodeBase64, amount, expiresAt, status, ... } }
-  // Mas também aceita variações (brcode, qrCode, pixCopyPaste, etc) para resiliência
+  // Mas tambÃ©m aceita variaÃ§Ãµes (brcode, qrCode, pixCopyPaste, etc) para resiliÃªncia
   const data = json?.data || json;
 
   let base64 = data.brCodeBase64 || data.brcodeBase64 || data.qrCodeBase64 || data.qrcodeBase64 || undefined;
@@ -292,7 +292,7 @@ async function generateViaAbacatePay(
     data.brCode || data.brcode || data.qrCode || data.qrcode ||
     data.pixCopyPaste || data.pixCopiaECola || data.copyPaste || "";
 
-  console.log("[AbacatePay] parsed → brcode length:", brcode.length, "has base64:", !!base64, "id:", data.id);
+  // console.log("[AbacatePay] parsed â†’ brcode length:", brcode.length, "has base64:", !!base64, "id:", data.id);
 
   return {
     brcode,
@@ -302,7 +302,7 @@ async function generateViaAbacatePay(
   };
 }
 
-// ─── Gateway: ColdPayments ────────────────────────────────────────
+// â”€â”€â”€ Gateway: ColdPayments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateViaColdPayments(
   apiKey: string,
   amountCents: number,
@@ -344,7 +344,7 @@ async function generateViaColdPayments(
   };
 }
 
-// ─── Gateway: MisticPay ────────────────────────────────────────────────────
+// â”€â”€â”€ Gateway: MisticPay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateViaMisticPay(
   clientId: string,
   clientSecret: string,
@@ -469,7 +469,7 @@ serve(async (req) => {
         preferredKey = (prod as any)?.payment_provider_key || null;
       }
 
-      // 2. Load active payment providers for tenant — exclude platform-disabled gateways
+      // 2. Load active payment providers for tenant â€” exclude platform-disabled gateways
       const { data: providers } = await supabase
         .from("payment_providers")
         .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
@@ -520,7 +520,7 @@ serve(async (req) => {
           result = await generateViaColdPayments(apiKey, amount_cents, description, externalRef, webhookUrl);
           break;
         default:
-          throw new Error(`Provider ${providerKey} não suporta PIX dinâmico`);
+          throw new Error(`Provider ${providerKey} nÃ£o suporta PIX dinÃ¢mico`);
       }
 
       return new Response(
@@ -540,7 +540,7 @@ serve(async (req) => {
 
     // 3. Fallback: static PIX using tenant's pix_key (only if split mode is INACTIVE)
     if (isSplitActive) {
-      throw new Error("Modo Split ativo, mas o gateway central da plataforma não pôde gerar o PIX dinâmico. Verifique as credenciais da Landing Page.");
+      throw new Error("Modo Split ativo, mas o gateway central da plataforma nÃ£o pÃ´de gerar o PIX dinÃ¢mico. Verifique as credenciais da Landing Page.");
     }
 
     const { data: tenant, error: tenantError } = await supabase
@@ -553,8 +553,8 @@ serve(async (req) => {
     if (!tenant.pix_key) {
       throw new Error(
         activeProvider && (!amount || amount <= 0)
-          ? "Informe um valor para gerar PIX dinâmico via gateway."
-          : "Chave PIX não configurada e nenhum gateway ativo. Configure em Configurações > PIX ou Pagamentos."
+          ? "Informe um valor para gerar PIX dinÃ¢mico via gateway."
+          : "Chave PIX nÃ£o configurada e nenhum gateway ativo. Configure em ConfiguraÃ§Ãµes > PIX ou Pagamentos."
       );
     }
 

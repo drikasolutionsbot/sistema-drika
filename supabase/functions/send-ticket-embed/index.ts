@@ -179,9 +179,9 @@ Deno.serve(async (req) => {
           `https://discord.com/api/v10/channels/${existingChannelId}/messages/${existingMessageId}`,
           { method: "DELETE", headers: { Authorization: `Bot ${botToken}` } }
         );
-        console.log("Deleted old ticket embed from channel", existingChannelId);
+        // console.log("Deleted old ticket embed from channel", existingChannelId);
       } catch (err) {
-        console.log("Failed to delete old message, continuing:", err);
+        // console.log("Failed to delete old message, continuing:", err);
       }
     }
 

@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -31,10 +31,10 @@ serve(async (req) => {
     const body = await req.json();
     const { source_tenant_id, new_discord_guild_id } = body;
 
-    if (!source_tenant_id) throw new Error("source_tenant_id é obrigatório");
-    if (!new_discord_guild_id) throw new Error("new_discord_guild_id é obrigatório");
+    if (!source_tenant_id) throw new Error("source_tenant_id Ã© obrigatÃ³rio");
+    if (!new_discord_guild_id) throw new Error("new_discord_guild_id Ã© obrigatÃ³rio");
     if (!/^\d{17,20}$/.test(new_discord_guild_id)) {
-      throw new Error("ID do servidor inválido. Deve conter 17-20 dígitos.");
+      throw new Error("ID do servidor invÃ¡lido. Deve conter 17-20 dÃ­gitos.");
     }
 
     // Verify user owns the source tenant
@@ -46,7 +46,7 @@ serve(async (req) => {
       .eq("role", "owner")
       .maybeSingle();
 
-    if (!roleCheck) throw new Error("Você não é o dono deste tenant.");
+    if (!roleCheck) throw new Error("VocÃª nÃ£o Ã© o dono deste tenant.");
 
     // Check if guild is already taken
     const { data: existing } = await supabase
@@ -55,7 +55,7 @@ serve(async (req) => {
       .eq("discord_guild_id", new_discord_guild_id)
       .maybeSingle();
 
-    if (existing) throw new Error("Este servidor Discord já está vinculado a outra loja.");
+    if (existing) throw new Error("Este servidor Discord jÃ¡ estÃ¡ vinculado a outra loja.");
 
     // Get source tenant
     const { data: source, error: sourceErr } = await supabase
@@ -64,7 +64,7 @@ serve(async (req) => {
       .eq("id", source_tenant_id)
       .single();
 
-    if (sourceErr || !source) throw new Error("Tenant de origem não encontrado.");
+    if (sourceErr || !source) throw new Error("Tenant de origem nÃ£o encontrado.");
 
     // Create new tenant with cloned config
     const now = new Date();
@@ -122,7 +122,7 @@ serve(async (req) => {
       role: "owner",
     });
 
-    // ── Clone store_configs ──
+    // â”€â”€ Clone store_configs â”€â”€
     const { data: storeConfig } = await supabase
       .from("store_configs")
       .select("*")
@@ -143,7 +143,7 @@ serve(async (req) => {
       });
     }
 
-    // ── Clone categories ──
+    // â”€â”€ Clone categories â”€â”€
     const { data: categories } = await supabase
       .from("categories")
       .select("*")
@@ -161,7 +161,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone products ──
+    // â”€â”€ Clone products â”€â”€
     const { data: products } = await supabase
       .from("products")
       .select("*")
@@ -188,7 +188,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone product_fields ──
+    // â”€â”€ Clone product_fields â”€â”€
     const { data: fields } = await supabase
       .from("product_fields")
       .select("*")
@@ -209,7 +209,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone product_hooks ──
+    // â”€â”€ Clone product_hooks â”€â”€
     const { data: hooks } = await supabase
       .from("product_hooks")
       .select("*")
@@ -228,7 +228,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone product_stock_items (only undelivered) ──
+    // â”€â”€ Clone product_stock_items (only undelivered) â”€â”€
     const { data: stockItems } = await supabase
       .from("product_stock_items")
       .select("*")
@@ -251,7 +251,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone coupons (only active) ──
+    // â”€â”€ Clone coupons (only active) â”€â”€
     const { data: coupons } = await supabase
       .from("coupons")
       .select("*")
@@ -271,7 +271,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone payment_providers ──
+    // â”€â”€ Clone payment_providers â”€â”€
     const { data: providers } = await supabase
       .from("payment_providers")
       .select("*")
@@ -284,7 +284,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone bot_commands ──
+    // â”€â”€ Clone bot_commands â”€â”€
     const { data: commands } = await supabase
       .from("bot_commands")
       .select("*")
@@ -298,7 +298,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone bot_modules ──
+    // â”€â”€ Clone bot_modules â”€â”€
     const { data: modules } = await supabase
       .from("bot_modules")
       .select("*")
@@ -312,7 +312,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone saved_embeds ──
+    // â”€â”€ Clone saved_embeds â”€â”€
     const { data: embeds } = await supabase
       .from("saved_embeds")
       .select("*")
@@ -325,7 +325,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone saved_ticket_presets ──
+    // â”€â”€ Clone saved_ticket_presets â”€â”€
     const { data: ticketPresets } = await supabase
       .from("saved_ticket_presets")
       .select("*")
@@ -338,7 +338,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone protection_settings ──
+    // â”€â”€ Clone protection_settings â”€â”€
     const { data: protSettings } = await supabase
       .from("protection_settings")
       .select("*")
@@ -351,7 +351,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone protection_whitelist ──
+    // â”€â”€ Clone protection_whitelist â”€â”€
     const { data: whitelist } = await supabase
       .from("protection_whitelist")
       .select("*")
@@ -364,7 +364,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone automations ──
+    // â”€â”€ Clone automations â”€â”€
     const { data: automations } = await supabase
       .from("automations")
       .select("*")
@@ -378,7 +378,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone affiliates ──
+    // â”€â”€ Clone affiliates â”€â”€
     const { data: affiliates } = await supabase
       .from("affiliates")
       .select("*")
@@ -397,7 +397,7 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone channel_configs (structure only, reset channel IDs) ──
+    // â”€â”€ Clone channel_configs (structure only, reset channel IDs) â”€â”€
     const { data: channelConfigs } = await supabase
       .from("channel_configs")
       .select("*")
@@ -413,14 +413,14 @@ serve(async (req) => {
       }
     }
 
-    // ── Clone tenant_credits ──
+    // â”€â”€ Clone tenant_credits â”€â”€
     await supabase.from("tenant_credits").insert({
       tenant_id: newTenantId,
       daily_limit: 100,
       credits_remaining: 100,
     });
 
-    // ── Generate access token for the new tenant ──
+    // â”€â”€ Generate access token for the new tenant â”€â”€
     const { data: tokenData } = await supabase
       .from("access_tokens")
       .insert({
@@ -431,8 +431,8 @@ serve(async (req) => {
       .select("token")
       .single();
 
-    console.log(`Tenant cloned: ${source_tenant_id} → ${newTenantId} (guild: ${new_discord_guild_id})`);
-    console.log(`Stats:`, JSON.stringify(stats));
+    // console.log(`Tenant cloned: ${source_tenant_id} â†’ ${newTenantId} (guild: ${new_discord_guild_id})`);
+    // console.log(`Stats:`, JSON.stringify(stats));
 
     return new Response(JSON.stringify({
       tenant: newTenant,

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { bgBase64 } from "./bg.ts";
 
 const corsHeaders = {
@@ -48,7 +48,7 @@ async function syncStockAndEmbed(supabase: any, productId: string, tenantId: str
 }
 
 
-// ── Restock image generation (inline WASM) ──
+// â”€â”€ Restock image generation (inline WASM) â”€â”€
 import { initWasm, Resvg } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
 let _wasmReady = false;
 let _fontR: Uint8Array | null = null;
@@ -129,7 +129,7 @@ async function sendRestockAnnouncement(
 ) {
   try {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN")!;
-    if (!botToken) { console.error("[RESTOCK] DISCORD_BOT_TOKEN não configurado"); return; }
+    if (!botToken) { console.error("[RESTOCK] DISCORD_BOT_TOKEN nÃ£o configurado"); return; }
 
     const { data: channelConfig } = await supabase
       .from("channel_configs")
@@ -149,7 +149,7 @@ async function sendRestockAnnouncement(
 
     const { data: product } = await supabase
       .from("products").select("id, name").eq("id", productId).eq("tenant_id", tenantId).maybeSingle();
-    if (!product) { console.log(`[RESTOCK] Produto não encontrado: ${productId}`); return; }
+    if (!product) { console.log(`[RESTOCK] Produto nÃ£o encontrado: ${productId}`); return; }
 
     let fieldName: string | null = null;
     if (fieldId) {
@@ -174,7 +174,7 @@ async function sendRestockAnnouncement(
             style: 2, // Secondary/Gray button
             label: "Comprar Agora",
             custom_id: `buy_product:${productId}`,
-            emoji: { name: "🛒" }
+            emoji: { name: "ðŸ›’" }
           }
         ]
       }
@@ -192,7 +192,7 @@ async function sendRestockAnnouncement(
       displayName,
       String(addedCount),
       totalStock !== null ? String(totalStock) : "?",
-      `${dateStr} · ${timeStr}`,
+      `${dateStr} Â· ${timeStr}`,
       rawColor
     );
 
@@ -222,16 +222,16 @@ async function sendRestockAnnouncement(
       const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
       const title = storeConfig?.restock_embed_title
         ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
-        : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
+        : `ðŸ”„ RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
       const description = storeConfig?.restock_embed_description
         ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", String(addedCount)).replace("{total_stock}", String(totalStock ?? "?"))
         : null;
       const descLines: string[] = [];
       if (description) { descLines.push(description); descLines.push(""); }
-      if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
-      descLines.push(`➥ 📦 • **Adicionados:** \`${addedCount}x\``);
-      if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
-      descLines.push(`🕒 **Data:** <t:${Math.floor(now.getTime()/1000)}:F> (<t:${Math.floor(now.getTime()/1000)}:R>)`);
+      if (fieldName) descLines.push(`âž¥ ðŸ·ï¸ â€¢ **Campo:** \`${fieldName}\``);
+      descLines.push(`âž¥ ðŸ“¦ â€¢ **Adicionados:** \`${addedCount}x\``);
+      if (totalStock !== null) descLines.push(`âž¥ ðŸ“ˆ â€¢ **Estoque total:** \`${totalStock}x\``);
+      descLines.push(`ðŸ•’ **Data:** <t:${Math.floor(now.getTime()/1000)}:F> (<t:${Math.floor(now.getTime()/1000)}:R>)`);
       const embed: Record<string, unknown> = { title, color: embedColor, description: descLines.join("\n"), timestamp: now.toISOString() };
       if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
       if (storeConfig?.restock_embed_thumbnail_url) embed.thumbnail = { url: storeConfig.restock_embed_thumbnail_url };
@@ -247,9 +247,9 @@ async function sendRestockAnnouncement(
     }
 
     if (res.ok) {
-      console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${addedCount} | Imagem: ${!!imageBuffer}`);
+      // console.log(`[RESTOCK] âœ… AnÃºncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${addedCount} | Imagem: ${!!imageBuffer}`);
     } else {
-      console.error(`[RESTOCK] ❌ Discord ${res.status}:`, await res.text());
+      console.error(`[RESTOCK] âŒ Discord ${res.status}:`, await res.text());
     }
   } catch (err) {
     console.error("[RESTOCK] Erro:", (err as Error).message);
@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
     const { action, tenant_id, product_id, field_id, field, items, stock_item_id } = await req.json();
 
     if (!tenant_id) {
-      return new Response(JSON.stringify({ error: "tenant_id obrigatório" }), {
+      return new Response(JSON.stringify({ error: "tenant_id obrigatÃ³rio" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -357,13 +357,13 @@ Deno.serve(async (req) => {
     // ADD STOCK items (now supports product-level stock)
     if (action === "add_stock") {
       if (!items || !Array.isArray(items) || items.length === 0) {
-        return new Response(JSON.stringify({ error: "items obrigatório" }), {
+        return new Response(JSON.stringify({ error: "items obrigatÃ³rio" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (!product_id) {
-        return new Response(JSON.stringify({ error: "product_id obrigatório" }), {
+        return new Response(JSON.stringify({ error: "product_id obrigatÃ³rio" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
       await syncStockAndEmbed(supabase, product_id, tenant_id);
       // Trigger restock announcement to Discord channel directly (no external function needed)
       sendRestockAnnouncement(supabase, tenant_id, product_id, resolvedFieldId, data?.length || items.length)
-        .catch((e: Error) => console.error("[RESTOCK] Erro no anúncio:", e.message));
+        .catch((e: Error) => console.error("[RESTOCK] Erro no anÃºncio:", e.message));
       return new Response(JSON.stringify({ count: data?.length || 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -393,7 +393,7 @@ Deno.serve(async (req) => {
     // GET STOCK COUNT + items (filters by field_id when provided)
     if (action === "get_stock") {
       if (!product_id) {
-        return new Response(JSON.stringify({ error: "product_id obrigatório" }), {
+        return new Response(JSON.stringify({ error: "product_id obrigatÃ³rio" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -423,7 +423,7 @@ Deno.serve(async (req) => {
     // DELETE a single stock item
     if (action === "delete_stock_item") {
       if (!stock_item_id) {
-        return new Response(JSON.stringify({ error: "stock_item_id obrigatório" }), {
+        return new Response(JSON.stringify({ error: "stock_item_id obrigatÃ³rio" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -455,7 +455,7 @@ Deno.serve(async (req) => {
     // CLEAR STOCK (by field_id when provided, otherwise all unassigned items for product)
     if (action === "clear_stock") {
       if (!product_id) {
-        return new Response(JSON.stringify({ error: "product_id obrigatório" }), {
+        return new Response(JSON.stringify({ error: "product_id obrigatÃ³rio" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -480,7 +480,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Ação inválida" }), {
+    return new Response(JSON.stringify({ error: "AÃ§Ã£o invÃ¡lida" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

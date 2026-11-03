@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { initWasm, Resvg } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
 
@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Cache WASM e fontes entre invocações (warm starts)
+// Cache WASM e fontes entre invocaÃ§Ãµes (warm starts)
 let wasmInitialized = false;
 let fontRegular: Uint8Array | null = null;
 let fontBold: Uint8Array | null = null;
@@ -133,7 +133,7 @@ serve(async (req) => {
     const { tenant_id, product_id, field_id, added_count } = await req.json();
 
     if (!tenant_id || !product_id) {
-      return new Response(JSON.stringify({ error: "tenant_id e product_id obrigatórios" }), {
+      return new Response(JSON.stringify({ error: "tenant_id e product_id obrigatÃ³rios" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -156,7 +156,7 @@ serve(async (req) => {
 
     const restockChannelId = channelConfig?.discord_channel_id || storeConfig?.restock_channel_id;
     if (!restockChannelId) {
-      console.log(`[RESTOCK] Nenhum canal configurado para tenant ${tenant_id}`);
+      // console.log(`[RESTOCK] Nenhum canal configurado para tenant ${tenant_id}`);
       return new Response(JSON.stringify({ skipped: true, reason: "no_channel" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -171,7 +171,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!product) {
-      console.log(`[RESTOCK] Produto não encontrado: ${product_id}`);
+      // console.log(`[RESTOCK] Produto nÃ£o encontrado: ${product_id}`);
       return new Response(JSON.stringify({ skipped: true, reason: "no_product" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -193,21 +193,21 @@ serve(async (req) => {
     else stockQuery = stockQuery.eq("product_id", product_id);
     const { count: totalStock } = await stockQuery;
 
-    // 6. Configurações de aparência
+    // 6. ConfiguraÃ§Ãµes de aparÃªncia
     const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
 
-    // 7. Botão Comprar Agora
+    // 7. BotÃ£o Comprar Agora
     const components: unknown[] = [];
     const storeUrl = storeConfig?.store_url;
     if (storeUrl) {
       const productUrl = storeUrl.includes("?") ? `${storeUrl}&product=${product_id}` : `${storeUrl}?product=${product_id}`;
       components.push({
         type: 1,
-        components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "🛒" } }],
+        components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "ðŸ›’" } }],
       });
     }
 
-    // 8. Menção
+    // 8. MenÃ§Ã£o
     const mentionRoleId = storeConfig?.restock_mention_role_id;
     const content = mentionRoleId
       ? (mentionRoleId === "everyone" ? "@everyone" : `<@&${mentionRoleId}>`)
@@ -218,16 +218,16 @@ serve(async (req) => {
     const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
     const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
-    // 10. Gerar imagem (embutido nesta função)
+    // 10. Gerar imagem (embutido nesta funÃ§Ã£o)
     const displayName = fieldName ? `${product.name} - ${fieldName}` : product.name;
     const imageBuffer = await generateRestockImage(
       displayName,
       String(added_count),
       totalStock !== null ? String(totalStock) : "?",
-      `${dateStr} · ${timeStr}`,
+      `${dateStr} Â· ${timeStr}`,
       rawColor
     );
-    console.log(imageBuffer ? `[RESTOCK] Imagem gerada: ${imageBuffer.length} bytes` : "[RESTOCK] Fallback para embed");
+    // console.log(imageBuffer ? `[RESTOCK] Imagem gerada: ${imageBuffer.length} bytes` : "[RESTOCK] Fallback para embed");
 
     let res: Response;
 
@@ -262,18 +262,18 @@ serve(async (req) => {
       const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
       const title = storeConfig?.restock_embed_title
         ? storeConfig.restock_embed_title.replace("{product}", product.name).replace("{qty}", String(added_count)).replace("{total_stock}", String(totalStock ?? "?"))
-        : `🔄 RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
+        : `ðŸ”„ RESTOCK! O produto ${product.name} acabou de receber novos itens!`;
       const description = storeConfig?.restock_embed_description
         ? storeConfig.restock_embed_description.replace("{product}", product.name).replace("{qty}", String(added_count)).replace("{total_stock}", String(totalStock ?? "?"))
         : null;
 
       const descLines: string[] = [];
       if (description) { descLines.push(description); descLines.push(""); }
-      if (fieldName) descLines.push(`➥ 🏷️ • **Campo:** \`${fieldName}\``);
-      descLines.push(`➥ 📦 • **Adicionados:** \`${added_count}x\``);
-      if (totalStock !== null) descLines.push(`➥ 📈 • **Estoque total:** \`${totalStock}x\``);
+      if (fieldName) descLines.push(`âž¥ ðŸ·ï¸ â€¢ **Campo:** \`${fieldName}\``);
+      descLines.push(`âž¥ ðŸ“¦ â€¢ **Adicionados:** \`${added_count}x\``);
+      if (totalStock !== null) descLines.push(`âž¥ ðŸ“ˆ â€¢ **Estoque total:** \`${totalStock}x\``);
       const unixTimestamp = Math.floor(now.getTime() / 1000);
-      descLines.push(`🕒 **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
+      descLines.push(`ðŸ•’ **Data:** <t:${unixTimestamp}:F> (<t:${unixTimestamp}:R>)`);
 
       const embed: Record<string, unknown> = { title, color: embedColor, description: descLines.join("\n"), timestamp: now.toISOString() };
       if (storeConfig?.restock_embed_footer) embed.footer = { text: storeConfig.restock_embed_footer };
@@ -292,11 +292,11 @@ serve(async (req) => {
     }
 
     if (res.ok) {
-      console.log(`[RESTOCK] ✅ Anúncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${added_count} itens`);
+      // console.log(`[RESTOCK] âœ… AnÃºncio enviado | Canal: ${restockChannelId} | Produto: ${product.name} | +${added_count} itens`);
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       const errText = await res.text();
-      console.error(`[RESTOCK] ❌ Discord ${res.status}:`, errText);
+      console.error(`[RESTOCK] âŒ Discord ${res.status}:`, errText);
       return new Response(JSON.stringify({ error: `Discord error ${res.status}`, details: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

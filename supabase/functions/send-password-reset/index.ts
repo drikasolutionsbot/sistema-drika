@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   try {
     const { email } = await req.json();
     if (!email || typeof email !== "string") {
-      return new Response(JSON.stringify({ error: "Email é obrigatório" }), {
+      return new Response(JSON.stringify({ error: "Email Ã© obrigatÃ³rio" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY")!;
     const resetRedirectUrl = "https://www.drikahub.com/reset-password";
     if (!resendKey) {
-      return new Response(JSON.stringify({ error: "RESEND_API_KEY não configurada" }), {
+      return new Response(JSON.stringify({ error: "RESEND_API_KEY nÃ£o configurada" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -31,10 +31,10 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Não revelar se o email existe ou não - sempre responde sucesso
+    // NÃ£o revelar se o email existe ou nÃ£o - sempre responde sucesso
     const cleanEmail = email.trim().toLowerCase();
 
-    // Gera link de recuperação via Supabase Admin API sempre com domínio oficial
+    // Gera link de recuperaÃ§Ã£o via Supabase Admin API sempre com domÃ­nio oficial
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: cleanEmail,
@@ -43,9 +43,9 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Se o usuário não existe, retorna sucesso silenciosamente (segurança)
+    // Se o usuÃ¡rio nÃ£o existe, retorna sucesso silenciosamente (seguranÃ§a)
     if (linkErr || !linkData?.properties?.action_link) {
-      console.log("[send-password-reset] Email não encontrado ou erro:", linkErr?.message);
+      // console.log("[send-password-reset] Email nÃ£o encontrado ou erro:", linkErr?.message);
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     const hashedToken = linkData.properties.hashed_token;
     if (!hashedToken) {
-      return new Response(JSON.stringify({ error: "Token de recuperação não gerado" }), {
+      return new Response(JSON.stringify({ error: "Token de recuperaÃ§Ã£o nÃ£o gerado" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Recuperação de senha — DRIKA HUB</title>
+<title>RecuperaÃ§Ã£o de senha â€” DRIKA HUB</title>
 </head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#ffffff;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0a0a0a;padding:40px 16px;">
@@ -76,17 +76,17 @@ Deno.serve(async (req) => {
           <tr>
             <td style="padding:40px 40px 24px 40px;text-align:center;background:linear-gradient(135deg,#1a0a14 0%,#0a0a0a 100%);">
               <h1 style="margin:0;font-size:28px;font-weight:800;letter-spacing:2px;color:#FF2d72;">DRIKA HUB</h1>
-              <p style="margin:8px 0 0 0;font-size:13px;color:#888;letter-spacing:1px;text-transform:uppercase;">Recuperação de senha</p>
+              <p style="margin:8px 0 0 0;font-size:13px;color:#888;letter-spacing:1px;text-transform:uppercase;">RecuperaÃ§Ã£o de senha</p>
             </td>
           </tr>
           <tr>
             <td style="padding:32px 40px 16px 40px;">
-              <h2 style="margin:0 0 16px 0;font-size:20px;font-weight:700;color:#fff;">Olá! 👋</h2>
+              <h2 style="margin:0 0 16px 0;font-size:20px;font-weight:700;color:#fff;">OlÃ¡! ðŸ‘‹</h2>
               <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#cfcfcf;">
-                Recebemos uma solicitação para redefinir a senha da sua conta no <strong style="color:#fff;">DRIKA HUB</strong>.
+                Recebemos uma solicitaÃ§Ã£o para redefinir a senha da sua conta no <strong style="color:#fff;">DRIKA HUB</strong>.
               </p>
               <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#cfcfcf;">
-                Clique no botão abaixo para criar uma nova senha. Este link expira em <strong>1 hora</strong>.
+                Clique no botÃ£o abaixo para criar uma nova senha. Este link expira em <strong>1 hora</strong>.
               </p>
             </td>
           </tr>
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
           <tr>
             <td style="padding:0 40px 24px 40px;">
               <p style="margin:0 0 8px 0;font-size:13px;color:#888;line-height:1.6;">
-                Se o botão não funcionar, copie e cole o link no seu navegador:
+                Se o botÃ£o nÃ£o funcionar, copie e cole o link no seu navegador:
               </p>
               <p style="margin:0;font-size:12px;color:#FF2d72;word-break:break-all;background:#0a0a0a;padding:12px;border-radius:8px;border:1px solid #2a2a2a;">
                 ${actionLink}
@@ -110,10 +110,10 @@ Deno.serve(async (req) => {
           <tr>
             <td style="padding:24px 40px;border-top:1px solid #2a2a2a;background:#0f0f0f;">
               <p style="margin:0 0 8px 0;font-size:12px;color:#666;line-height:1.6;">
-                ⚠️ Se você <strong style="color:#aaa;">não solicitou</strong> esta alteração, ignore este email — sua senha continua segura.
+                âš ï¸ Se vocÃª <strong style="color:#aaa;">nÃ£o solicitou</strong> esta alteraÃ§Ã£o, ignore este email â€” sua senha continua segura.
               </p>
               <p style="margin:12px 0 0 0;font-size:11px;color:#555;text-align:center;">
-                © ${new Date().getFullYear()} DRIKA HUB · Todos os direitos reservados
+                Â© ${new Date().getFullYear()} DRIKA HUB Â· Todos os direitos reservados
               </p>
             </td>
           </tr>
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "DRIKA HUB <noreply@drikahub.com>",
         to: [cleanEmail],
-        subject: "🔐 Recuperação de senha — DRIKA HUB",
+        subject: "ðŸ” RecuperaÃ§Ã£o de senha â€” DRIKA HUB",
         html,
       }),
     });
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     const resendData = await resendRes.json();
     if (!resendRes.ok) {
       console.error("[send-password-reset] Resend error:", resendData);
-      // Tentativa fallback com domínio Resend padrão se o domínio personalizado falhar
+      // Tentativa fallback com domÃ­nio Resend padrÃ£o se o domÃ­nio personalizado falhar
       if (resendData?.message?.includes("domain") || resendData?.statusCode === 403) {
         const fallback = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: "DRIKA HUB <onboarding@resend.dev>",
             to: [cleanEmail],
-            subject: "🔐 Recuperação de senha — DRIKA HUB",
+            subject: "ðŸ” RecuperaÃ§Ã£o de senha â€” DRIKA HUB",
             html,
           }),
         });

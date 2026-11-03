@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang } from "../_shared/i18n.ts";
 
@@ -9,7 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── Check payment with provider API before expiring ──
+// â”€â”€ Check payment with provider API before expiring â”€â”€
 async function checkPaymentWithProvider(
   order: any,
   supabase: any,
@@ -108,11 +108,11 @@ serve(async (req) => {
     const elapsed = (now - createdAt) / 1000 / 60; // minutes
 
     if (elapsed >= timeoutMinutes) {
-      // ── SAFETY NET: Check if payment was actually made before expiring ──
+      // â”€â”€ SAFETY NET: Check if payment was actually made before expiring â”€â”€
       if (order.payment_id && order.payment_provider) {
         const wasPaid = await checkPaymentWithProvider(order, supabase, supabaseUrl, serviceRoleKey);
         if (wasPaid) {
-          console.log(`[EXPIRE] Order ${order.id} was actually PAID! Skipping expiration.`);
+          // console.log(`[EXPIRE] Order ${order.id} was actually PAID! Skipping expiration.`);
           paidCount++;
           continue; // Don't expire - it was paid and delivery was triggered by check-payment-status
         }
@@ -123,7 +123,7 @@ serve(async (req) => {
       expiredCount++;
 
       if (botToken) {
-        // ── Send "Pagamento expirado" log to logs channel ──
+        // â”€â”€ Send "Pagamento expirado" log to logs channel â”€â”€
         const sc = configMap[order.tenant_id];
         const tenant = tenantMap[order.tenant_id];
         if (sc?.logs_channel_id) {
@@ -188,7 +188,7 @@ serve(async (req) => {
   }
 
   if (expiredCount > 0 || paidCount > 0) {
-    console.log(`Expired ${expiredCount} orders, ${paidCount} were actually paid`);
+    // console.log(`Expired ${expiredCount} orders, ${paidCount} were actually paid`);
   }
   return new Response(JSON.stringify({ expired: expiredCount, paid: paidCount }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },

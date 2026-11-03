@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -26,14 +26,14 @@ serve(async (req) => {
 
     const isNewSubscriber = !tenant_id || tenant_id === "new_subscriber";
     if (isNewSubscriber) {
-      if (!email || !password) throw new Error("Email e senha são obrigatórios");
-      if (password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres");
+      if (!email || !password) throw new Error("Email e senha sÃ£o obrigatÃ³rios");
+      if (password.length < 6) throw new Error("Senha deve ter no mÃ­nimo 6 caracteres");
 
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
       const emailExists = existingUsers?.users?.some(
         (u: any) => u.email?.toLowerCase() === email.toLowerCase()
       );
-      if (emailExists) throw new Error("Este email já está cadastrado");
+      if (emailExists) throw new Error("Este email jÃ¡ estÃ¡ cadastrado");
     }
 
     const { data: config, error: configErr } = await supabase
@@ -43,7 +43,7 @@ serve(async (req) => {
       .single();
 
     if (configErr || !config) {
-      throw new Error("Configuração de pagamento não encontrada");
+      throw new Error("ConfiguraÃ§Ã£o de pagamento nÃ£o encontrada");
     }
 
     let amountCents: number;
@@ -67,7 +67,7 @@ serve(async (req) => {
 
     const basePlanLabel = planKey === "master"
       ? (config.master_plan_name || "Master")
-      : (config.pro_plan_name || "Básico");
+      : (config.pro_plan_name || "BÃ¡sico");
     const cycleLabel = cycleKey === "semiannual" ? "Semestral" : cycleKey === "quarterly" ? "Trimestral" : "Mensal";
     const planLabel = `${basePlanLabel} (${cycleLabel})`;
 
@@ -84,7 +84,7 @@ serve(async (req) => {
     } else if ((config as any).abacatepay_active && (config as any).abacatepay_api_key) {
       return await generateViaAbacatePay(config, effectiveTenantId, email, amountCents, supabase, metadata, planKey, planLabel);
     } else {
-      throw new Error("Nenhum provedor de pagamento ativo. Ative Efí, PushinPay ou AbacatePay no painel admin.");
+      throw new Error("Nenhum provedor de pagamento ativo. Ative EfÃ­, PushinPay ou AbacatePay no painel admin.");
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -122,8 +122,8 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
 
   if (!tokenRes.ok) {
     const tokenErr = await tokenRes.text();
-    console.error("Efí OAuth error:", tokenErr);
-    throw new Error(`Erro de autenticação Efí: ${tokenRes.status}`);
+    console.error("EfÃ­ OAuth error:", tokenErr);
+    throw new Error(`Erro de autenticaÃ§Ã£o EfÃ­: ${tokenRes.status}`);
   }
 
   const tokenData = await tokenRes.json();
@@ -146,8 +146,8 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
 
   if (!cobRes.ok) {
     const cobErr = await cobRes.json().catch(() => ({}));
-    console.error("Efí cob error:", JSON.stringify(cobErr));
-    throw new Error(cobErr.mensagem || `Erro ao criar cobrança: ${cobRes.status}`);
+    console.error("EfÃ­ cob error:", JSON.stringify(cobErr));
+    throw new Error(cobErr.mensagem || `Erro ao criar cobranÃ§a: ${cobRes.status}`);
   }
 
   const cobData = await cobRes.json();
@@ -180,7 +180,7 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
     metadata,
   }).select("id").single();
 
-  console.log(`Subscription PIX (${plan}) generated via Efí, txid ${paymentId}`);
+  // console.log(`Subscription PIX (${plan}) generated via EfÃ­, txid ${paymentId}`);
 
   return new Response(
     JSON.stringify({
@@ -236,7 +236,7 @@ async function generateViaPushinPay(config: any, tenant_id: string, email: strin
     metadata,
   }).select("id").single();
 
-  console.log(`Subscription PIX (${plan}) generated via PushinPay, id ${paymentId}`);
+  // console.log(`Subscription PIX (${plan}) generated via PushinPay, id ${paymentId}`);
 
   return new Response(
     JSON.stringify({
@@ -273,7 +273,7 @@ async function generateViaAbacatePay(config: any, tenant_id: string, email: stri
   });
 
   const rawText = await res.text();
-  console.log("[AbacatePay-Sub] status:", res.status, "body:", rawText.slice(0, 1000));
+  // console.log("[AbacatePay-Sub] status:", res.status, "body:", rawText.slice(0, 1000));
 
   if (!res.ok) {
     throw new Error(`Erro AbacatePay: ${res.status} ${rawText.slice(0, 200)}`);
@@ -305,7 +305,7 @@ async function generateViaAbacatePay(config: any, tenant_id: string, email: stri
     metadata,
   }).select("id").single();
 
-  console.log(`Subscription PIX (${plan}) generated via AbacatePay, id ${paymentId}`);
+  // console.log(`Subscription PIX (${plan}) generated via AbacatePay, id ${paymentId}`);
 
   return new Response(
     JSON.stringify({

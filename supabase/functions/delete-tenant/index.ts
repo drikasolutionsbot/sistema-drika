@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const { tenant_id } = await req.json();
 
     if (!tenant_id) {
-      return new Response(JSON.stringify({ error: "tenant_id é obrigatório" }), {
+      return new Response(JSON.stringify({ error: "tenant_id Ã© obrigatÃ³rio" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     for (const table of tables) {
       const { error } = await supabase.from(table).delete().eq("tenant_id", tenant_id);
       if (error) {
-        console.log(`Warning deleting from ${table}:`, error.message);
+        // console.log(`Warning deleting from ${table}:`, error.message);
       }
     }
 

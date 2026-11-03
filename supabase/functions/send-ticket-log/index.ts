@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
-// ── Helpers ──
+// â”€â”€ Helpers â”€â”€
 function esc(s: string): string {
   return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -35,7 +35,7 @@ function formatDuration(diffMs: number): string {
   return `${d} dia${d > 1 ? "s" : ""}`;
 }
 
-// ── HTML Transcript Generator (matches bot-externo) ──
+// â”€â”€ HTML Transcript Generator (matches bot-externo) â”€â”€
 function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: string, status: string): string {
   const now = new Date().toLocaleString("pt-BR");
 
@@ -61,7 +61,7 @@ function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: str
   // Duration
   const firstMsg = msgs[0];
   const lastMsg = msgs[msgs.length - 1];
-  let durationStr = "—";
+  let durationStr = "â€”";
   if (firstMsg && lastMsg) {
     const diffMs = new Date(lastMsg.timestamp).getTime() - new Date(firstMsg.timestamp).getTime();
     durationStr = formatDuration(diffMs);
@@ -141,12 +141,12 @@ function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: str
           attachHtml += `<a href="${esc(a.url)}" target="_blank" class="attach-link"><img src="${esc(a.url)}" class="attach-img" /></a>`;
         } else {
           const sizeKb = ((a.size || 0) / 1024).toFixed(1);
-          attachHtml += `<div class="attach-file"><span class="attach-icon">📎</span><a href="${esc(a.url)}" target="_blank">${esc(a.filename || "arquivo")}</a><span class="file-size">${sizeKb} KB</span></div>`;
+          attachHtml += `<div class="attach-file"><span class="attach-icon">ðŸ“Ž</span><a href="${esc(a.url)}" target="_blank">${esc(a.filename || "arquivo")}</a><span class="file-size">${sizeKb} KB</span></div>`;
         }
       }
     }
 
-    if (!content && !embedHtml && !attachHtml) content = '<span class="empty">[sem conteúdo]</span>';
+    if (!content && !embedHtml && !attachHtml) content = '<span class="empty">[sem conteÃºdo]</span>';
 
     if (isGrouped) {
       rows += `<div class="msg grouped">
@@ -177,7 +177,7 @@ function generateHtmlTranscript(msgs: any[], serverName: string, ticketName: str
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(ticketName)} — Transcript</title>
+<title>${esc(ticketName)} â€” Transcript</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -264,30 +264,30 @@ a:hover{text-decoration:underline}
 <body>
 <div class="header">
   <div class="header-top">
-    <div class="header-icon">🎫</div>
+    <div class="header-icon">ðŸŽ«</div>
     <div>
       <h1>${esc(serverName)}</h1>
-      <div class="header-sub">${esc(ticketName)} · ${esc(status)}</div>
+      <div class="header-sub">${esc(ticketName)} Â· ${esc(status)}</div>
     </div>
   </div>
   <div class="header-stats">
-    <div class="stat-card"><span class="stat-icon">💬</span><div><div class="stat-value">${msgs.length}</div><div class="stat-label">Mensagens</div></div></div>
-    <div class="stat-card"><span class="stat-icon">👥</span><div><div class="stat-value">${participantsList.length}</div><div class="stat-label">Participantes</div></div></div>
-    <div class="stat-card"><span class="stat-icon">⏱️</span><div><div class="stat-value">${durationStr}</div><div class="stat-label">Duração</div></div></div>
-    <div class="stat-card"><span class="stat-icon">📅</span><div><div class="stat-value">${now}</div><div class="stat-label">Gerado em</div></div></div>
+    <div class="stat-card"><span class="stat-icon">ðŸ’¬</span><div><div class="stat-value">${msgs.length}</div><div class="stat-label">Mensagens</div></div></div>
+    <div class="stat-card"><span class="stat-icon">ðŸ‘¥</span><div><div class="stat-value">${participantsList.length}</div><div class="stat-label">Participantes</div></div></div>
+    <div class="stat-card"><span class="stat-icon">â±ï¸</span><div><div class="stat-value">${durationStr}</div><div class="stat-label">DuraÃ§Ã£o</div></div></div>
+    <div class="stat-card"><span class="stat-icon">ðŸ“…</span><div><div class="stat-value">${now}</div><div class="stat-label">Gerado em</div></div></div>
   </div>
 </div>
 <div class="summary">
-  <div class="summary-title">👥 Participantes</div>
+  <div class="summary-title">ðŸ‘¥ Participantes</div>
   <div class="participants-grid">${participantsHtml}</div>
 </div>
 <div class="messages">${rows}</div>
-<div class="footer">Transcript gerado automaticamente · ${esc(serverName)} · Powered by Drika Hub</div>
+<div class="footer">Transcript gerado automaticamente Â· ${esc(serverName)} Â· Powered by Drika Hub</div>
 </body>
 </html>`;
 }
 
-// ── Main Handler ──
+// â”€â”€ Main Handler â”€â”€
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -316,13 +316,13 @@ Deno.serve(async (req) => {
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
     if (!botToken) {
-      return new Response(JSON.stringify({ error: "Bot externo não configurado (DISCORD_BOT_TOKEN)" }), {
+      return new Response(JSON.stringify({ error: "Bot externo nÃ£o configurado (DISCORD_BOT_TOKEN)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ─── RENAME ACTION ──────────────────────────────────────
+    // â”€â”€â”€ RENAME ACTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (action === "rename" && discord_channel_id && new_name) {
       const renameRes = await fetch(`${DISCORD_API}/channels/${discord_channel_id}`, {
         method: "PATCH",
@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─── CLOSE/DELETE ACTION ────────────────────────────────
+    // â”€â”€â”€ CLOSE/DELETE ACTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (!ticket_id) {
       return new Response(JSON.stringify({ error: "ticket_id required" }), {
         status: 400,
@@ -397,15 +397,15 @@ Deno.serve(async (req) => {
         title: `Ticket - ${statusLabel}`,
         color: action === "deleted" ? 0xED4245 : 0x2B2D31,
         fields: [
-          { name: "👤 Moderador", value: `${closed_by || "Painel"}`, inline: true },
-          { name: "🎫 Ticket", value: ticketName, inline: true },
+          { name: "ðŸ‘¤ Moderador", value: `${closed_by || "Painel"}`, inline: true },
+          { name: "ðŸŽ« Ticket", value: ticketName, inline: true },
         ],
         timestamp: closedAt.toISOString(),
-        footer: { text: "Drika Hub • Transcript" },
+        footer: { text: "Drika Hub â€¢ Transcript" },
       };
 
       if (ticket.product_name) {
-        logEmbed.fields.push({ name: "📦 Produto", value: ticket.product_name, inline: true });
+        logEmbed.fields.push({ name: "ðŸ“¦ Produto", value: ticket.product_name, inline: true });
       }
 
       // Generate HTML transcript, upload to storage, and send with button
@@ -414,7 +414,7 @@ Deno.serve(async (req) => {
 
       if (msgs.length > 0) {
         try {
-          const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, `Suporte · ${statusLabel.toLowerCase()}`);
+          const htmlTranscript = generateHtmlTranscript(msgs, serverName, ticketName, `Suporte Â· ${statusLabel.toLowerCase()}`);
           const encoder = new TextEncoder();
           htmlBuffer = encoder.encode(htmlTranscript);
 
@@ -430,7 +430,7 @@ Deno.serve(async (req) => {
           if (uploadErr) {
             console.error(`Storage upload error: ${uploadErr.message}`);
           } else {
-            console.log(`Transcript uploaded: ${fileName}`);
+            // console.log(`Transcript uploaded: ${fileName}`);
             const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(fileName);
             if (urlData?.publicUrl) {
               transcriptUrl = `${urlData.publicUrl}?t=${Date.now()}`;
@@ -453,7 +453,7 @@ Deno.serve(async (req) => {
             type: 2, // Button
             style: 5, // Link
             label: "Ver Transcript",
-            emoji: { name: "🔄" },
+            emoji: { name: "ðŸ”„" },
             url: transcriptUrl,
           }],
         }];
@@ -494,8 +494,8 @@ Deno.serve(async (req) => {
 
             const dmEmbed: any = {
               author: storeAvatar ? { name: storeName, icon_url: storeAvatar } : { name: storeName },
-              title: `📜 Transcript do Ticket • ${storeName}`,
-              description: `Seu ticket em **${storeName}** foi **${statusLabel.toLowerCase()}** por **${closed_by || "Painel"}**.\nClique no botão abaixo para visualizar o histórico completo.`,
+              title: `ðŸ“œ Transcript do Ticket â€¢ ${storeName}`,
+              description: `Seu ticket em **${storeName}** foi **${statusLabel.toLowerCase()}** por **${closed_by || "Painel"}**.\nClique no botÃ£o abaixo para visualizar o histÃ³rico completo.`,
               color: 0x2B2D31,
               timestamp: closedAt.toISOString(),
               footer: { text: storeName, icon_url: storeAvatar || undefined },
@@ -505,7 +505,7 @@ Deno.serve(async (req) => {
               method: "POST",
               headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
               body: JSON.stringify({
-                content: `📜 **${storeName}** — Seu atendimento foi finalizado:`,
+                content: `ðŸ“œ **${storeName}** â€” Seu atendimento foi finalizado:`,
                 embeds: [dmEmbed],
                 components: [{
                   type: 1,
@@ -513,7 +513,7 @@ Deno.serve(async (req) => {
                     type: 2,
                     style: 5,
                     label: "Ver Transcript",
-                    emoji: { name: "🔄" },
+                    emoji: { name: "ðŸ”„" },
                     url: transcriptUrl,
                   }],
                 }],
@@ -534,8 +534,8 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             embeds: [{
-              title: "🔒 Ticket Fechado",
-              description: `Este ticket foi fechado pelo painel.\nO tópico será arquivado.`,
+              title: "ðŸ”’ Ticket Fechado",
+              description: `Este ticket foi fechado pelo painel.\nO tÃ³pico serÃ¡ arquivado.`,
               color: 0xED4245,
             }],
           }),

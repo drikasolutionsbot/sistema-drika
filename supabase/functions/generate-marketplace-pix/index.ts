@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -28,7 +28,7 @@ serve(async (req) => {
         .eq("id", item_id)
         .single();
 
-      if (!item) throw new Error("Item não encontrado");
+      if (!item) throw new Error("Item nÃ£o encontrado");
 
       // Already sold to this tenant
       if (item.status === "sold") {
@@ -71,10 +71,10 @@ serve(async (req) => {
       .eq("status", "available")
       .single();
 
-    if (itemErr || !item) throw new Error("Item não disponível");
+    if (itemErr || !item) throw new Error("Item nÃ£o disponÃ­vel");
 
     const amountCents = item.resale_price_cents;
-    if (!amountCents || amountCents <= 0) throw new Error("Item é gratuito, use a ação de resgate");
+    if (!amountCents || amountCents <= 0) throw new Error("Item Ã© gratuito, use a aÃ§Ã£o de resgate");
 
     const { data: config, error: configErr } = await supabase
       .from("landing_config")
@@ -82,7 +82,7 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    if (configErr || !config) throw new Error("Configuração de pagamento não encontrada");
+    if (configErr || !config) throw new Error("ConfiguraÃ§Ã£o de pagamento nÃ£o encontrada");
 
     if (config.efi_active && config.efi_client_id && config.efi_client_secret && config.efi_cert_pem && config.efi_key_pem) {
       return await generateViaEfi(config, supabase, item, tenant_id, amountCents);
@@ -141,7 +141,7 @@ async function generateViaEfi(config: any, supabase: any, item: any, tenantId: s
     client: httpClient,
   } as any);
 
-  if (!tokenRes.ok) throw new Error(`Erro autenticação Efí: ${tokenRes.status}`);
+  if (!tokenRes.ok) throw new Error(`Erro autenticaÃ§Ã£o EfÃ­: ${tokenRes.status}`);
   const { access_token } = await tokenRes.json();
 
   const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${txId}`, {
@@ -158,7 +158,7 @@ async function generateViaEfi(config: any, supabase: any, item: any, tenantId: s
 
   if (!cobRes.ok) {
     const cobErr = await cobRes.json().catch(() => ({}));
-    throw new Error(cobErr.mensagem || `Erro cobrança Efí: ${cobRes.status}`);
+    throw new Error(cobErr.mensagem || `Erro cobranÃ§a EfÃ­: ${cobRes.status}`);
   }
 
   const cobData = await cobRes.json();
@@ -186,7 +186,7 @@ async function generateViaEfi(config: any, supabase: any, item: any, tenantId: s
     .update({ payment_id: paymentId, updated_at: new Date().toISOString() })
     .eq("id", item.id);
 
-  console.log(`Marketplace PIX generated via Efí for item ${item.id}, txid ${paymentId}`);
+  // console.log(`Marketplace PIX generated via EfÃ­ for item ${item.id}, txid ${paymentId}`);
 
   return respond({
     success: true,
@@ -229,7 +229,7 @@ async function generateViaPushinPay(config: any, supabase: any, item: any, tenan
     .update({ payment_id: paymentId, updated_at: new Date().toISOString() })
     .eq("id", item.id);
 
-  console.log(`Marketplace PIX generated via PushinPay for item ${item.id}, id ${paymentId}`);
+  // console.log(`Marketplace PIX generated via PushinPay for item ${item.id}, id ${paymentId}`);
 
   return respond({
     success: true,

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -83,7 +83,7 @@ async function hydrateWinner(botToken: string, winner: any) {
 }
 
 async function finishGiveaway(supabase: any, botToken: string | null, giveaway: any) {
-  console.log(`[finish-expired-giveaways] Processing giveaway ${giveaway.id} - "${giveaway.title}"`);
+  // console.log(`[finish-expired-giveaways] Processing giveaway ${giveaway.id} - "${giveaway.title}"`);
 
   // 1. Sync reactions from Discord before drawing
   if (botToken && giveaway.message_id) {
@@ -100,7 +100,7 @@ async function finishGiveaway(supabase: any, botToken: string | null, giveaway: 
   const winnersCount = giveaway.winners_count || 1;
 
   if (!entries || entries.length === 0) {
-    // No participants — end with no winners
+    // No participants â€” end with no winners
     await supabase
       .from("giveaways")
       .update({ status: "ended", winners: [], updated_at: new Date().toISOString() })
@@ -113,15 +113,15 @@ async function finishGiveaway(supabase: any, botToken: string | null, giveaway: 
         body: JSON.stringify({
           embeds: [{
             color: 0xED4245,
-            title: `❌ Sorteio Encerrado: ${giveaway.title}`,
-            description: `**Prêmio:** ${giveaway.prize}\n\nNenhum participante válido encontrado.`,
+            title: `âŒ Sorteio Encerrado: ${giveaway.title}`,
+            description: `**PrÃªmio:** ${giveaway.prize}\n\nNenhum participante vÃ¡lido encontrado.`,
             footer: { text: "0 participantes" },
             timestamp: new Date().toISOString(),
           }],
         }),
       });
     }
-    console.log(`[finish-expired-giveaways] Giveaway ${giveaway.id} ended with no participants`);
+    // console.log(`[finish-expired-giveaways] Giveaway ${giveaway.id} ended with no participants`);
     return;
   }
 
@@ -151,8 +151,8 @@ async function finishGiveaway(supabase: any, botToken: string | null, giveaway: 
     const winnerMentions = winners.map((w: any) => `<@${w.discord_user_id}>`).join(", ");
     const embed: any = {
       color: 0x57F287,
-      title: `🎉 Sorteio Encerrado: ${giveaway.title}`,
-      description: `**Prêmio:** ${giveaway.prize}\n\n🏆 **Vencedor${winnerCount > 1 ? "es" : ""}:** ${winnerMentions}\n\nParabéns! 🥳`,
+      title: `ðŸŽ‰ Sorteio Encerrado: ${giveaway.title}`,
+      description: `**PrÃªmio:** ${giveaway.prize}\n\nðŸ† **Vencedor${winnerCount > 1 ? "es" : ""}:** ${winnerMentions}\n\nParabÃ©ns! ðŸ¥³`,
       footer: { text: `${entries.length} participantes` },
       timestamp: new Date().toISOString(),
     };
@@ -165,16 +165,16 @@ async function finishGiveaway(supabase: any, botToken: string | null, giveaway: 
     await fetch(`https://discord.com/api/v10/channels/${giveaway.channel_id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: `🎉 ${winnerMentions}`, embeds: [embed] }),
+      body: JSON.stringify({ content: `ðŸŽ‰ ${winnerMentions}`, embeds: [embed] }),
     });
 
     // 7. Update original giveaway message to show it ended
     if (giveaway.message_id) {
       const endedEmbed: any = {
         color: parseInt((cfg?.color || "#FEE75C").replace("#", ""), 16),
-        title: `🎉 SORTEIO ENCERRADO: ${giveaway.title}`,
-        description: `**Prêmio:** ${giveaway.prize}\n\n🏆 **Vencedor${winnerCount > 1 ? "es" : ""}:** ${winnerMentions}\n\nParabéns! 🥳`,
-        footer: { text: `${entries.length} participantes • Sorteio encerrado` },
+        title: `ðŸŽ‰ SORTEIO ENCERRADO: ${giveaway.title}`,
+        description: `**PrÃªmio:** ${giveaway.prize}\n\nðŸ† **Vencedor${winnerCount > 1 ? "es" : ""}:** ${winnerMentions}\n\nParabÃ©ns! ðŸ¥³`,
+        footer: { text: `${entries.length} participantes â€¢ Sorteio encerrado` },
         timestamp: new Date().toISOString(),
       };
       if (cfg?.image_url) endedEmbed.image = { url: cfg.image_url };
@@ -188,7 +188,7 @@ async function finishGiveaway(supabase: any, botToken: string | null, giveaway: 
     }
   }
 
-  console.log(`[finish-expired-giveaways] Giveaway ${giveaway.id} ended. Winners: ${winners.map((w: any) => w.discord_username).join(", ")}`);
+  // console.log(`[finish-expired-giveaways] Giveaway ${giveaway.id} ended. Winners: ${winners.map((w: any) => w.discord_username).join(", ")}`);
 }
 
 Deno.serve(async (req) => {

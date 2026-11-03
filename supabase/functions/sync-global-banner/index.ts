@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Helper: download URL → data URI base64
+// Helper: download URL â†’ data URI base64
 const urlToDataUri = async (url: string): Promise<string | null> => {
   try {
     const r = await fetch(url);
@@ -107,7 +107,7 @@ serve(async (req) => {
         }
       }
 
-      console.log(`Syncing banner for tenant ${tenant.name} (${tenant.id}), guild: ${tenant.discord_guild_id}`);
+      // console.log(`Syncing banner for tenant ${tenant.name} (${tenant.id}), guild: ${tenant.discord_guild_id}`);
       
       const memberPatch = { banner: bannerToApply };
 
@@ -137,7 +137,7 @@ serve(async (req) => {
             try {
               retryAfter = JSON.parse(patchBody).retry_after || 1;
             } catch (_) {}
-            console.log(`Rate limited, waiting ${retryAfter}s...`);
+            // console.log(`Rate limited, waiting ${retryAfter}s...`);
             await new Promise(r => setTimeout(r, retryAfter * 1000));
           }
         }
