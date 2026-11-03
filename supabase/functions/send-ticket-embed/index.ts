@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, getTenantLang } from "../_shared/i18n.ts";
 import { formatCdnUrl } from "../_shared/utils.ts";
 
@@ -80,23 +80,7 @@ Deno.serve(async (req) => {
     let safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
     const safeThumbnailUrl = typeof thumbnail_url === "string" && thumbnail_url.trim() ? formatCdnUrl(thumbnail_url.trim()) : null;
 
-    if (!safeImageUrl) {
-      const { data: tenant } = await supabase
-        .from("tenants")
-        .select("plan, bot_banner_url")
-        .eq("id", tenant_id)
-        .maybeSingle();
-
-      const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
-      if (isMaster && tenant.bot_banner_url) {
-        safeImageUrl = formatCdnUrl(tenant.bot_banner_url);
-      } else {
-        const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
-        if (globalConfig?.global_bot_banner_url) {
-          safeImageUrl = formatCdnUrl(globalConfig.global_bot_banner_url);
-        }
-      }
-    }
+    // Banner só aparece se foi explicitamente configurado pelo usuário nas configs do ticket
 
     const lang = await getTenantLang(supabase, tenant_id);
 
@@ -165,7 +149,7 @@ Deno.serve(async (req) => {
         },
       ];
     } else {
-      // No categories — button (original behavior)
+      // No categories â€” button (original behavior)
       const styleMap: Record<string, number> = {
         primary: 1, secondary: 2, success: 3, danger: 4, glass: 2, link: 2,
       };
