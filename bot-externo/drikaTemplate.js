@@ -1,9 +1,7 @@
-/**
- * Template oficial Drika — capa, título e descrição fixos para TODOS os embeds do bot.
- * Os clientes podem editar cor lateral, footer, thumbnail, botões, nome e avatar do bot.
- * Mas a "capa" (image grande), título e descrição são SEMPRE estes valores.
- *
- * Para trocar a imagem oficial, edite apenas a constante DRIKA_COVER_URL abaixo.
+﻿/**
+ * Template oficial Drika - capa e configuracoes dos embeds do bot.
+ * O banner so aparece se o cliente (plano Master) configurou explicitamente
+ * o bot_banner_url no painel. Sem configuracao = sem banner.
  */
 
 const { applyCdn } = require("./supabase");
@@ -34,40 +32,32 @@ const DRIKA_TEMPLATES = {
 };
 
 /**
- * Aplica capa fixa Drika em um EmbedBuilder (discord.js).
- * Chamar SEMPRE depois das outras configurações para garantir override.
- *
- * Prioridade:
- *  1. Plano Master com bot_banner_url → banner personalizado do cliente
- *  2. Qualquer outro plano (free, pro) → capa global do bot (DRIKA_COVER_URL)
+ * Aplica capa em um EmbedBuilder (discord.js).
+ * So aplica banner se o cliente (Master) configurou explicitamente
+ * o bot_banner_url no painel. Sem configuracao = sem banner.
  */
 function applyDrikaCover(embed, tenant = null) {
   if (!embed || typeof embed.setImage !== "function") return embed;
 
   const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
 
+  // So aplica se o cliente configurou um banner proprio no painel
   if (isMaster && tenant.bot_banner_url) {
-    // Master com banner próprio → usa o banner do cliente
     embed.setImage(applyCdn(tenant.bot_banner_url));
-  } else if (DRIKA_COVER_URL) {
-    // Free / Pro (ou master sem banner) → aplica a capa global do bot
-    embed.setImage(applyCdn(DRIKA_COVER_URL));
   }
+  // Sem banner configurado = sem imagem automatica
 
   return embed;
 }
 
 /**
- * Aplica template Drika completo (título + descrição + capa) em um EmbedBuilder.
+ * Aplica template Drika completo (titulo + descricao + capa) em um EmbedBuilder.
  */
 function applyDrikaTemplate(embed, type) {
   const tpl = DRIKA_TEMPLATES[type];
   if (!tpl || !embed) return embed;
   if (typeof embed.setTitle === "function") embed.setTitle(tpl.title);
   if (typeof embed.setDescription === "function") embed.setDescription(tpl.description);
-  
-  // Here we don't have tenant, but this function is actually unused right now.
-  if (DRIKA_COVER_URL && typeof embed.setImage === "function") embed.setImage(applyCdn(DRIKA_COVER_URL));
   return embed;
 }
 
