@@ -203,7 +203,7 @@ async function openTicket(interaction, tenant, targetChannelId = null) {
 
   if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
   if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(applyCdn(storeConfig.ticket_embed_thumbnail_url));
-  applyDrikaCover(welcomeEmbed, tenant);
+  if (storeConfig?.ticket_embed_image_url) welcomeEmbed.setImage(applyCdn(storeConfig.ticket_embed_image_url));
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel("Lembrar").setStyle(btnStyle).setEmoji("1521188814498959481"),
@@ -328,7 +328,9 @@ async function openTicketCategory(interaction, tenant, categoryId) {
       .setColor(embedColor)
       .setTimestamp();
 
-    applyDrikaCover(welcomeEmbed, tenant);
+    if (storeConfig?.ticket_embed_footer) welcomeEmbed.setFooter({ text: storeConfig.ticket_embed_footer });
+    if (storeConfig?.ticket_embed_thumbnail_url) welcomeEmbed.setThumbnail(applyCdn(storeConfig.ticket_embed_thumbnail_url));
+    if (storeConfig?.ticket_embed_image_url) welcomeEmbed.setImage(applyCdn(storeConfig.ticket_embed_image_url));
 
     const row1 = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`ticket_remind_${ticket.id}`).setLabel('Lembrar').setStyle(btnStyle).setEmoji('1521188814498959481'),

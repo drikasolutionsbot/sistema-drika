@@ -1,7 +1,8 @@
 ﻿/**
- * Template oficial Drika - capa e configuracoes dos embeds do bot.
- * O banner so aparece se o cliente (plano Master) configurou explicitamente
- * o bot_banner_url no painel. Sem configuracao = sem banner.
+ * Template oficial Drika - configuracoes dos embeds do bot.
+ * Banners so aparecem onde o cliente configurar explicitamente
+ * no painel (ex: banner de produto, banner de ticket, banner de boas-vindas).
+ * Nenhum banner e aplicado automaticamente por padrao.
  */
 
 const { applyCdn } = require("./supabase");
@@ -33,25 +34,16 @@ const DRIKA_TEMPLATES = {
 
 /**
  * Aplica capa em um EmbedBuilder (discord.js).
- * So aplica banner se o cliente (Master) configurou explicitamente
- * o bot_banner_url no painel. Sem configuracao = sem banner.
+ * Banners so aparecem onde o cliente configurou explicitamente na respectiva tela/funcionalidade.
+ * Nao aplica nenhum banner global ou de perfil automaticamente.
  */
 function applyDrikaCover(embed, tenant = null) {
-  if (!embed || typeof embed.setImage !== "function") return embed;
-
-  const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
-
-  // So aplica se o cliente configurou um banner proprio no painel
-  if (isMaster && tenant.bot_banner_url) {
-    embed.setImage(applyCdn(tenant.bot_banner_url));
-  }
-  // Sem banner configurado = sem imagem automatica
-
+  // Retorna o embed sem injetar nenhum banner automatico
   return embed;
 }
 
 /**
- * Aplica template Drika completo (titulo + descricao + capa) em um EmbedBuilder.
+ * Aplica template Drika completo (titulo + descricao) em um EmbedBuilder.
  */
 function applyDrikaTemplate(embed, type) {
   const tpl = DRIKA_TEMPLATES[type];
