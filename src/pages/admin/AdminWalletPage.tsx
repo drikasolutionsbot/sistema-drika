@@ -72,7 +72,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import misticPayIcon from "@/assets/misticpay-icon.png";
+import drikaBannerLogo from "@/assets/logo.png";
 
 interface PlatformMetrics {
   total_balance_cents: number;
@@ -275,6 +277,7 @@ export default function AdminWalletPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<WithdrawalItem | null>(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [copiedReceiptText, setCopiedReceiptText] = useState(false);
+  const [withdrawalModalTab, setWithdrawalModalTab] = useState<"info" | "receipt">("info");
 
   const handleRefreshMisticBalance = async () => {
     setLoadingMisticBalance(true);
@@ -759,9 +762,34 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     }
   };
 
-  const handleOpenReceiptModal = (w: WithdrawalItem) => {
+  const formatPixDisplay = (key: string | null | undefined, type: string | null | undefined) => {
+    if (!key) return "Não informada";
+    const clean = key.trim();
+    const raw = clean.replace(/\D/g, "");
+    const t = (type || "").toLowerCase();
+    if ((t === "cpf" || raw.length === 11) && raw.length === 11 && !clean.includes("@")) {
+      return `${raw.slice(0, 3)}.${raw.slice(3, 6)}.${raw.slice(6, 9)}-${raw.slice(9, 11)}`;
+    }
+    if ((t === "cnpj" || raw.length === 14) && raw.length === 14) {
+      return `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8, 12)}-${raw.slice(12, 14)}`;
+    }
+    if ((t === "phone" || t === "telefone") && (raw.length === 10 || raw.length === 11)) {
+      return raw.length === 11 ? `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7, 11)}` : `(${raw.slice(0, 2)}) ${raw.slice(2, 6)}-${raw.slice(6, 10)}`;
+    }
+    return clean;
+  };
+
+  const handleOpenWithdrawalDetails = (w: WithdrawalItem, initialTab: "info" | "receipt" = "info") => {
+    setSelectedTx(w);
     setSelectedReceipt(w);
-    setReceiptModalOpen(true);
+    setWithdrawalModalTab(initialTab);
+    setGatewayErrorAlert(null);
+    setAdminNotes(w.admin_notes || "");
+    setApproveModalOpen(true);
+  };
+
+  const handleOpenReceiptModal = (w: WithdrawalItem) => {
+    handleOpenWithdrawalDetails(w, "receipt");
     setCopiedReceiptText(false);
   };
 
@@ -1148,8 +1176,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                   setWithdrawalStatusFilter("pending");
                   const firstPending = withdrawals.find((w) => w.status === "pending");
                   if (firstPending) {
-                    setSelectedTx(firstPending);
-                    setApproveModalOpen(true);
+                    handleOpenWithdrawalDetails(firstPending, "info");
                   }
                 }}
                 className="mt-3 w-full bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
@@ -1546,10 +1573,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                                 <div className="flex items-center justify-end gap-1.5">
                                   <Button
                                     size="sm"
-                                    onClick={() => {
-                                      setSelectedTx(w);
-                                      setApproveModalOpen(true);
-                                    }}
+                                    onClick={() => handleOpenWithdrawalDetails(w, "info")}
                                     className="h-8 gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-semibold px-3 shadow-md shadow-emerald-950/40"
                                   >
                                     <Eye className="h-3.5 w-3.5" />
@@ -1596,10 +1620,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => {
-                                      setSelectedTx(w);
-                                      setApproveModalOpen(true);
-                                    }}
+                                    onClick={() => handleOpenWithdrawalDetails(w, "info")}
                                     className="h-7 text-[11px] gap-1 text-slate-300 hover:text-white hover:bg-slate-800/60 px-2"
                                   >
                                     <FileText className="h-3 w-3 text-blue-400" />
@@ -1890,15 +1911,25 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                                 </Badge>
                               </td>
 
-                              {/* Ações / Comprovante */}
+                              {/* Ações / Informações & Comprovante */}
                               <td className="py-3.5 px-4 text-right whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    onClick={() => handleOpenWithdrawalDetails(w, "info")}
+                                    className="h-7 text-xs border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-300 gap-1 px-2.5 shadow-sm"
+                                    title="Ver Informações e Auditoria"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-blue-400" />
+                                    Informações
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
                                     onClick={() => handleOpenReceiptModal(w)}
-                                    className="h-7 text-xs border-slate-700 bg-slate-800/60 text-slate-200 hover:bg-slate-700 hover:text-white gap-1"
-                                    title="Visualizar Comprovante"
+                                    className="h-7 text-xs border-slate-700 bg-slate-800/80 text-emerald-300 hover:bg-slate-700 hover:text-white gap-1 px-2.5"
+                                    title="Visualizar Comprovante Oficial"
                                   >
                                     <Receipt className="h-3.5 w-3.5 text-emerald-400" />
                                     Comprovante
@@ -2387,372 +2418,713 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
         </TabsContent>
       </Tabs>
 
-      {/* ─── 5. Modal: Revisão & Auditoria Completa de Saque ─── */}
+      {/* ─── 5. Modal: Gestão Completa, Auditoria & Comprovante de Saque (Tela Inteira) ─── */}
       <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
-        <DialogContent className="sm:max-w-2xl border-slate-800 bg-[#0a0f1d] text-white max-h-[92vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
-              <Receipt className="h-5 w-5 text-amber-400" />
-              Revisão & Auditoria de Saque
-            </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Conferência contábil da venda do produto, dados bancários do lojista e autorização de pagamento PIX.
-            </DialogDescription>
-          </DialogHeader>
-
+        <DialogContent className="max-w-[96vw] xl:max-w-7xl w-full border-slate-800 bg-[#070b14] text-white max-h-[94vh] p-0 overflow-hidden flex flex-col shadow-2xl">
           {selectedTx && (
-            <div className="space-y-4 py-2 text-xs">
-              {/* Status Header */}
-              <div className={`rounded-xl border p-3.5 flex items-center justify-between ${
-                selectedTx.status === "pending"
-                  ? "border-amber-500/30 bg-amber-950/20"
-                  : selectedTx.status === "completed"
-                  ? "border-emerald-500/30 bg-emerald-950/20"
-                  : "border-rose-500/30 bg-rose-950/20"
-              }`}>
-                <div className="flex items-center gap-2">
-                  {selectedTx.status === "pending" ? (
-                    <Clock className="h-4 w-4 text-amber-400" />
-                  ) : selectedTx.status === "completed" ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-rose-400" />
-                  )}
-                  <span className="font-semibold text-white">
-                    {selectedTx.status === "pending"
-                      ? "Saque Aguardando Aprovação (A Pagar)"
-                      : selectedTx.status === "completed"
-                      ? "Saque Aprovado & Transferido via PIX"
-                      : "Saque Rejeitado"}
-                  </span>
-                </div>
-                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-mono tracking-wider">
-                  {selectedTx.source_order?.payment_provider || selectedTx.provider || "SPLIT"}
-                </Badge>
-              </div>
+            <div className="flex flex-col h-full max-h-[94vh]">
+              {/* Header Fixo com Status e Alternador de Abas */}
+              <div className="p-4 sm:px-6 border-b border-slate-800/80 bg-[#0a0f1d] flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border",
+                    selectedTx.status === "completed"
+                      ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-400"
+                      : selectedTx.status === "pending"
+                      ? "border-amber-500/40 bg-amber-950/40 text-amber-400"
+                      : "border-rose-500/40 bg-rose-950/40 text-rose-400"
+                  )}>
+                    {selectedTx.status === "completed" ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : selectedTx.status === "pending" ? (
+                      <Clock className="h-5 w-5" />
+                    ) : (
+                      <XCircle className="h-5 w-5" />
+                    )}
+                  </div>
 
-              {/* Informações da Loja & Comprador (2 colunas) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1">
-                  <span className="text-[10px] uppercase text-slate-500 font-semibold block">Loja Solicitante</span>
-                  <p className="font-bold text-white text-xs truncate">
-                    {selectedTx.tenants?.name || "Loja"}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-mono truncate">
-                    ID: {selectedTx.tenant_id}
-                  </p>
-                  {typeof selectedTx.wallet_balance_cents === "number" && (
-                    <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80">
-                      Saldo Atual em Carteira: <span className="font-bold text-emerald-400">{formatBRL(selectedTx.wallet_balance_cents)}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1">
-                  <span className="text-[10px] uppercase text-slate-500 font-semibold block">Comprador Discord (Origem)</span>
-                  <p className="font-bold text-blue-300 text-xs truncate font-mono">
-                    {selectedTx.source_order?.discord_username ? `@${selectedTx.source_order.discord_username}` : "Usuário Discord"}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-mono truncate">
-                    ID: {selectedTx.source_order?.discord_user_id || "—"}
-                  </p>
-                  <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80">
-                    Origem: <span className="text-slate-300 font-medium">Discord Bot / Checkout</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Origem dos Fundos: Auditoria da Venda do Produto */}
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-3">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Produto Vendido:</span>
-                    <span className="font-bold text-white text-sm flex items-center gap-1.5">
-                      <ShoppingBag className="h-4 w-4 text-emerald-400" />
-                      {selectedTx.source_order?.product_name || "Venda do Lojista"}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-slate-400 block text-[11px]">Número do Pedido:</span>
-                    <span className="font-mono font-bold text-amber-400 text-xs">
-                      {selectedTx.source_order?.order_number ? `#${selectedTx.source_order.order_number}` : (selectedTx.source_order?.id ? `#${selectedTx.source_order.id.slice(0, 8)}` : "—")}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Split Contábil da Venda */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Entrada Bruta no Caixa Gateway:</span>
-                    <span className="font-mono font-extrabold text-emerald-400 text-sm">
-                      +{formatBRL(selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Taxa Intermediação Plataforma (1%):</span>
-                    <span className="font-mono font-bold text-purple-400">
-                      +{formatBRL(Math.round(((selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents) * 0.01)))}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs border-t border-slate-800/80 pt-1.5">
-                    <span className="font-semibold text-slate-200">Crédito Líquido que entrou na Carteira:</span>
-                    <span className="font-mono font-bold text-white">
-                      {formatBRL(selectedTx.source_deposit?.net_amount_cents || (selectedTx.source_order?.total_cents ? selectedTx.source_order.total_cents - Math.round(selectedTx.source_order.total_cents * 0.01) : selectedTx.amount_cents))}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Detalhes do Saque a Pagar via PIX */}
-              <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 space-y-3">
-                <span className="text-[10px] uppercase text-amber-400 font-bold tracking-wider block">
-                  Conferência do Saque a Pagar
-                </span>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Valor Bruto Solicitado:</span>
-                    <span className="font-medium text-slate-300">{formatBRL(selectedTx.amount_cents)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Taxa de Saque Plataforma (2%):</span>
-                    <span className="font-bold text-emerald-400">+{formatBRL(selectedTx.fee_cents)}</span>
-                  </div>
-                  <div className="border-t border-slate-800/80 pt-2 flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-white block text-sm">Líquido a Transferir:</span>
-                      <span className="text-[10px] text-slate-400">Valor exato enviado via PIX</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                        Gestão de Saque #{selectedTx.id.slice(0, 8)}
+                      </DialogTitle>
+                      <Badge className={cn(
+                        "text-[10px] font-semibold uppercase tracking-wider",
+                        selectedTx.status === "completed"
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          : selectedTx.status === "pending"
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                          : "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                      )}>
+                        {selectedTx.status === "completed" ? "Transferência PIX Concluída" : selectedTx.status === "pending" ? "Aguardando Aprovação" : "Rejeitado"}
+                      </Badge>
+                      {selectedTx.payment_id && (
+                        <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-mono">
+                          MisticPay
+                        </Badge>
+                      )}
                     </div>
-                    <span className="text-xl font-black text-amber-400 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-lg">
-                      {formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}
-                    </span>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Loja: <strong className="text-white">{selectedTx.tenants?.name || "Lojista Drika Hub"}</strong> • Solicitado em {format(new Date(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                    </p>
                   </div>
                 </div>
 
-                {/* Chave PIX Destino em destaque */}
-                <div className="pt-2 border-t border-slate-800/60">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-xs font-semibold">Chave PIX de Destino:</span>
-                    <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                      Tipo: {selectedTx.pix_key_type || "CPF"}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between bg-[#070b14] border border-slate-800 rounded-lg p-2.5">
-                    <span className="font-mono font-bold text-sm text-white select-all">
-                      {selectedTx.pix_key}
-                    </span>
+                {/* Alternador de Abas & Ações do Topo */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-1 bg-[#050811] border border-slate-800 p-1 rounded-xl">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleCopyPixKey(selectedTx.pix_key || "", `modal-${selectedTx.id}`)}
-                      className="h-7 text-xs text-slate-300 hover:text-white hover:bg-slate-800"
-                    >
-                      {copiedKeyId === `modal-${selectedTx.id}` ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-emerald-400 mr-1" />
-                          <span className="text-emerald-400">Copiado</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5 mr-1" />
-                          Copiar Chave
-                        </>
+                      onClick={() => setWithdrawalModalTab("info")}
+                      className={cn(
+                        "h-8 text-xs font-semibold gap-1.5 px-3 rounded-lg transition-all",
+                        withdrawalModalTab === "info"
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-900/30 font-bold"
+                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
                       )}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Informações & Auditoria
                     </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Identificadores Técnicos da Transação */}
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2">
-                <span className="text-[10px] uppercase text-slate-500 font-semibold block">
-                  Identificadores Técnicos & Rastreabilidade
-                </span>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">ID da Solicitação de Saque:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-slate-200 max-w-[200px] truncate">{selectedTx.id}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleCopyAuditText(selectedTx.id, "tx-id")}
-                        className="h-6 w-6 text-slate-400 hover:text-white"
-                        title="Copiar ID do Saque"
-                      >
-                        {copiedAuditId === "tx-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {selectedTx.source_order?.id && (
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400">ID do Pedido de Origem:</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-slate-200 max-w-[200px] truncate">{selectedTx.source_order.id}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleCopyAuditText(selectedTx.source_order!.id, "order-id")}
-                          className="h-6 w-6 text-slate-400 hover:text-white"
-                          title="Copiar ID do Pedido"
-                        >
-                          {copiedAuditId === "order-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {(selectedTx.source_order?.payment_id || selectedTx.payment_id) && (
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400">ID Gateway / Transação:</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-slate-200 max-w-[200px] truncate">
-                          {selectedTx.source_order?.payment_id || selectedTx.payment_id}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleCopyAuditText(selectedTx.source_order?.payment_id || selectedTx.payment_id!, "pay-id")}
-                          className="h-6 w-6 text-slate-400 hover:text-white"
-                          title="Copiar ID do Pagamento"
-                        >
-                          {copiedAuditId === "pay-id" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">Data e Hora do Saque:</span>
-                    <span className="font-mono text-slate-300">
-                      {format(parseISO(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Alerta de Erro na Gateway (se houver tentativa com erro) */}
-              {gatewayErrorAlert && (
-                <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-3.5 space-y-2.5">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold text-rose-300 text-xs">Falha no Disparo Automático via Gateway</p>
-                      <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">{gatewayErrorAlert}</p>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#070b14]/70 p-2.5 rounded-lg">
-                    <span className="text-[11px] text-slate-300">
-                      Caso já tenha realizado o PIX pelo seu banco, aprove manualmente:
-                    </span>
                     <Button
-                      type="button"
                       size="sm"
-                      onClick={() => handleApproveSubmit(true)}
-                      disabled={processingAction}
-                      className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0 shadow-sm"
-                    >
-                      {processingAction ? (
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" />
-                      ) : (
-                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      variant="ghost"
+                      onClick={() => setWithdrawalModalTab("receipt")}
+                      className={cn(
+                        "h-8 text-xs font-semibold gap-1.5 px-3 rounded-lg transition-all",
+                        withdrawalModalTab === "receipt"
+                          ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-900/30 font-bold"
+                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
                       )}
-                      Aprovar Manualmente Agora
+                    >
+                      <Receipt className="h-3.5 w-3.5" />
+                      Comprovante Oficial PIX
                     </Button>
                   </div>
+
+                  <Button
+                    size="sm"
+                    onClick={() => handleDownloadReceiptPDF(selectedTx)}
+                    className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 px-3 shadow-md shrink-0"
+                    title="Baixar Comprovante em PDF"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Baixar PDF
+                  </Button>
                 </div>
-              )}
+              </div>
 
-              {/* Informação sobre transferência automática */}
-              {selectedTx.status === "pending" && !gatewayErrorAlert && (
-                <div className="rounded-lg border border-purple-500/20 bg-purple-950/10 p-3 flex items-start gap-2.5">
-                  <Zap className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-purple-300 leading-relaxed">
-                    <strong>Transferência Automática PIX:</strong> Ao confirmar a aprovação, a gateway <strong>MisticPay</strong> enviará exatamente <strong>{formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}</strong> de forma instantânea para a chave PIX informada.
-                  </p>
-                </div>
-              )}
+              {/* Corpo com Scroll */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#070b14]">
+                {withdrawalModalTab === "info" ? (
+                  /* ─── ABA 1: INFORMAÇÕES & AUDITORIA (GRID LARGO 2 COLUNAS) ─── */
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Coluna da Esquerda (7 colunas) */}
+                    <div className="lg:col-span-7 space-y-4">
+                      {/* Card Loja & Comprador */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase text-slate-500 font-semibold block">Loja Solicitante</span>
+                            <Badge className="bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] uppercase font-mono">
+                              {selectedTx.tenants?.plan || "Plano Pro"}
+                            </Badge>
+                          </div>
+                          <p className="font-bold text-white text-sm truncate">
+                            {selectedTx.tenants?.name || "Lojista"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono truncate">
+                            ID: {selectedTx.tenant_id}
+                          </p>
+                          {typeof selectedTx.wallet_balance_cents === "number" && (
+                            <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                              <span className="text-slate-400">Saldo Atual em Carteira:</span>
+                              <span className="font-bold text-emerald-400 font-mono">{formatBRL(selectedTx.wallet_balance_cents)}</span>
+                            </div>
+                          )}
+                        </div>
 
-              {/* Observações / Notas do Admin (se pendente) */}
-              {selectedTx.status === "pending" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="adminNotes" className="text-xs font-semibold text-slate-200">
-                    Observações Administrativas (Opcional)
-                  </Label>
-                  <Input
-                    id="adminNotes"
-                    placeholder="Ex: Pagamento autorizado após auditoria do pedido #3464"
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    className="text-xs border-slate-800 bg-[#070b14] text-white"
-                  />
-                </div>
-              )}
+                        <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-2">
+                          <span className="text-[10px] uppercase text-slate-500 font-semibold block">Comprador Discord (Origem)</span>
+                          <p className="font-bold text-blue-300 text-sm truncate font-mono">
+                            {selectedTx.source_order?.discord_username ? `@${selectedTx.source_order.discord_username}` : "Usuário Discord"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono truncate">
+                            Discord ID: {selectedTx.source_order?.discord_user_id || "—"}
+                          </p>
+                          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                            <span className="text-slate-400">Canal de Origem:</span>
+                            <span className="text-slate-300 font-medium">Checkout / Bot Discord</span>
+                          </div>
+                        </div>
+                      </div>
 
-              <DialogFooter className="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-between items-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleCopyWithdrawalReport(selectedTx)}
-                  className="w-full sm:w-auto text-xs border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 gap-1.5"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  Copiar Relatório Completo
-                </Button>
+                      {/* Card Origem dos Recursos: Auditoria da Venda do Produto */}
+                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                          <div>
+                            <span className="text-slate-400 block text-[11px]">Produto Vendido que Gerou o Saldo:</span>
+                            <span className="font-bold text-white text-base flex items-center gap-2 mt-0.5">
+                              <ShoppingBag className="h-4 w-4 text-emerald-400 shrink-0" />
+                              {selectedTx.source_order?.product_name || "Venda Registrada do Lojista"}
+                            </span>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <span className="text-slate-400 block text-[11px]">Pedido Vinculado:</span>
+                            <span className="font-mono font-bold text-amber-400 text-sm">
+                              {selectedTx.source_order?.order_number ? `#${selectedTx.source_order.order_number}` : (selectedTx.source_order?.id ? `#${selectedTx.source_order.id.slice(0, 8)}` : "—")}
+                            </span>
+                          </div>
+                        </div>
 
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                  {selectedTx.status === "pending" ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setApproveModalOpen(false);
-                          setRejectModalOpen(true);
-                        }}
-                        disabled={processingAction}
-                        className="text-xs border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
-                      >
-                        Rejeitar Saque
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleApproveSubmit(true)}
-                        disabled={processingAction}
-                        title="Marca como aprovado e debita a carteira sem acionar a gateway (use se o PIX foi feito pelo banco)"
-                        className="text-xs border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
-                      >
-                        Aprovar Manualmente
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleApproveSubmit(false)}
-                        disabled={processingAction}
-                        className="text-xs gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-md shadow-emerald-950/40"
-                      >
-                        {processingAction ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        {/* Split Contábil da Venda */}
+                        <div className="space-y-2.5">
+                          <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">
+                            Detalhamento do Split da Venda
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
+                              <span className="text-[11px] text-slate-400 block">Entrada no Gateway:</span>
+                              <span className="text-base font-extrabold text-emerald-400 font-mono mt-0.5 block">
+                                +{formatBRL(selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents)}
+                              </span>
+                            </div>
+                            <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
+                              <span className="text-[11px] text-slate-400 block">Taxa Drika Hub (1%):</span>
+                              <span className="text-base font-extrabold text-purple-400 font-mono mt-0.5 block">
+                                +{formatBRL(Math.round(((selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents) * 0.01)))}
+                              </span>
+                            </div>
+                            <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
+                              <span className="text-[11px] text-slate-400 block">Creditado na Carteira:</span>
+                              <span className="text-base font-extrabold text-white font-mono mt-0.5 block">
+                                {formatBRL(selectedTx.source_deposit?.net_amount_cents || (selectedTx.source_order?.total_cents ? selectedTx.source_order.total_cents - Math.round(selectedTx.source_order.total_cents * 0.01) : selectedTx.amount_cents))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Identificadores Técnicos da Transação */}
+                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-3">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">
+                          Identificadores Técnicos & Rastreabilidade Bancária
+                        </span>
+
+                        <div className="space-y-2.5 text-xs">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-[#070b14] border border-slate-800/80">
+                            <span className="text-slate-400">ID da Solicitação de Saque:</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-200 text-xs font-semibold">{selectedTx.id}</span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedTx.id);
+                                  toast({ title: "ID copiado!", description: selectedTx.id });
+                                }}
+                                className="h-6 w-6 text-slate-400 hover:text-white"
+                                title="Copiar ID"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {(selectedTx.payment_id || selectedTx.source_order?.payment_id) && (
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-[#070b14] border border-slate-800/80">
+                              <span className="text-slate-400">ID Gateway / Liquidação MisticPay:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-purple-300 text-xs font-bold">
+                                  {selectedTx.payment_id || selectedTx.source_order?.payment_id}
+                                </span>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    const id = selectedTx.payment_id || selectedTx.source_order?.payment_id!;
+                                    navigator.clipboard.writeText(id);
+                                    toast({ title: "ID Gateway copiado!", description: id });
+                                  }}
+                                  className="h-6 w-6 text-slate-400 hover:text-white"
+                                  title="Copiar ID Gateway"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedTx.source_order?.id && (
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-[#070b14] border border-slate-800/80">
+                              <span className="text-slate-400">ID do Pedido de Origem:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-slate-200 text-xs">{selectedTx.source_order.id}</span>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(selectedTx.source_order!.id);
+                                    toast({ title: "ID do Pedido copiado!", description: selectedTx.source_order!.id });
+                                  }}
+                                  className="h-6 w-6 text-slate-400 hover:text-white"
+                                  title="Copiar ID do Pedido"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                            <div className="p-2 rounded-lg bg-[#070b14] border border-slate-800/80 flex justify-between">
+                              <span className="text-slate-400">Data Solicitação:</span>
+                              <span className="text-slate-200 font-mono">
+                                {format(parseISO(selectedTx.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                              </span>
+                            </div>
+                            <div className="p-2 rounded-lg bg-[#070b14] border border-slate-800/80 flex justify-between">
+                              <span className="text-slate-400">Data Efetivação:</span>
+                              <span className="text-emerald-400 font-mono">
+                                {selectedTx.completed_at
+                                  ? format(new Date(selectedTx.completed_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })
+                                  : "Aguardando aprovação"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Coluna da Direita (5 colunas) */}
+                    <div className="lg:col-span-5 space-y-4">
+                      {/* Card de Conferência Financeira do Saque */}
+                      <div className={cn(
+                        "rounded-xl border p-5 space-y-3.5 shadow-lg",
+                        selectedTx.status === "completed"
+                          ? "border-emerald-500/30 bg-emerald-950/20"
+                          : "border-amber-500/30 bg-amber-950/20"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <span className={cn(
+                            "text-[10px] uppercase font-bold tracking-wider",
+                            selectedTx.status === "completed" ? "text-emerald-400" : "text-amber-400"
+                          )}>
+                            Conferência Financeira de Liquidação
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            PIX Cash-Out
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-400">Valor Bruto Solicitado:</span>
+                            <span className="font-semibold text-slate-200">{formatBRL(selectedTx.amount_cents)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-400">Taxa de Saque Plataforma (2%):</span>
+                            <span className="font-bold text-emerald-400">+{formatBRL(selectedTx.fee_cents)}</span>
+                          </div>
+
+                          <div className="border-t border-slate-800/80 pt-3 flex flex-col gap-1">
+                            <span className="text-xs font-semibold text-slate-400">
+                              Líquido a Transferir via PIX:
+                            </span>
+                            <p className={cn(
+                              "text-3xl font-black font-mono",
+                              selectedTx.status === "completed" ? "text-emerald-400" : "text-amber-400"
+                            )}>
+                              {formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}
+                            </p>
+                            <span className="text-[11px] text-slate-400">
+                              Valor exato debitado do Caixa Central e enviado ao favorecido
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Chave PIX Destino em Destaque */}
+                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-300">Chave PIX de Destino:</span>
+                          <Badge className="bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] uppercase font-mono">
+                            Tipo: {selectedTx.pix_key_type || "CPF"}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center justify-between bg-[#070b14] border border-slate-800 rounded-xl p-3 gap-2">
+                          <span className="font-mono font-black text-base text-white tracking-wider truncate select-all">
+                            {formatPixDisplay(selectedTx.pix_key, selectedTx.pix_key_type)}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleCopyPixKey(selectedTx.pix_key || "", `modal-${selectedTx.id}`)}
+                            className="h-8 text-xs text-slate-300 hover:text-white hover:bg-slate-800 shrink-0 font-medium"
+                          >
+                            {copiedKeyId === `modal-${selectedTx.id}` ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 text-emerald-400 mr-1" />
+                                <span className="text-emerald-400">Copiado</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5 mr-1" />
+                                Copiar
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Informações da Gateway MisticPay */}
+                      <div className="rounded-xl border border-purple-500/20 bg-purple-950/10 p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold text-purple-300 tracking-wider flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-purple-400" />
+                            Caixa Central MisticPay
+                          </span>
+                          {typeof misticBalanceCents === "number" && (
+                            <span className="text-xs font-mono font-bold text-emerald-400">
+                              Disponível: {formatBRL(misticBalanceCents)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                          Os saques aprovados são debitados do saldo central e enviados instantaneamente via PIX SPI direto para a conta do lojista.
+                        </p>
+                      </div>
+
+                      {/* Alerta de Erro na Gateway (se houver) */}
+                      {gatewayErrorAlert && (
+                        <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 space-y-3">
+                          <div className="flex items-start gap-2.5">
+                            <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-bold text-rose-300 text-xs">Falha no Disparo Automático via Gateway</p>
+                              <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">{gatewayErrorAlert}</p>
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t border-rose-500/20 flex flex-col gap-2">
+                            <span className="text-[11px] text-slate-300">
+                              Caso o PIX já tenha saído pelo seu banco, aprove manualmente:
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleApproveSubmit(true)}
+                              disabled={processingAction}
+                              className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-sm"
+                            >
+                              {processingAction ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                              )}
+                              Aprovar Manualmente Agora
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Observações Administrativas (se pendente) */}
+                      {selectedTx.status === "pending" && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor="adminNotesModal" className="text-xs font-semibold text-slate-300">
+                            Observações Administrativas (Opcional)
+                          </Label>
+                          <Input
+                            id="adminNotesModal"
+                            placeholder="Ex: Pagamento autorizado após auditoria do pedido #3464"
+                            value={adminNotes}
+                            onChange={(e) => setAdminNotes(e.target.value)}
+                            className="text-xs border-slate-800 bg-[#0a0f1d] text-white"
+                          />
+                        </div>
+                      )}
+
+                      {/* Painel de Ações */}
+                      <div className="pt-2 space-y-2">
+                        {selectedTx.status === "pending" ? (
+                          <>
+                            <Button
+                              type="button"
+                              onClick={() => handleApproveSubmit(false)}
+                              disabled={processingAction}
+                              className="w-full h-10 text-xs gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-lg shadow-emerald-950/40"
+                            >
+                              {processingAction ? (
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                              Enviar PIX Automático ({formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)})
+                            </Button>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleApproveSubmit(true)}
+                                disabled={processingAction}
+                                className="h-8 text-xs border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-medium"
+                              >
+                                Aprovar Manual
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  setApproveModalOpen(false);
+                                  setRejectModalOpen(true);
+                                }}
+                                disabled={processingAction}
+                                className="h-8 text-xs border-rose-500/30 text-rose-400 hover:bg-rose-500/10 font-medium"
+                              >
+                                Rejeitar Saque
+                              </Button>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleCopyWithdrawalReport(selectedTx)}
+                              className="w-full h-8 text-xs border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 gap-1.5"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              Copiar Relatório Completo
+                            </Button>
+                          </>
                         ) : (
-                          <CheckCircle2 className="h-4 w-4" />
+                          <div className="space-y-2">
+                            <Button
+                              type="button"
+                              onClick={() => handleDownloadReceiptPDF(selectedTx)}
+                              className="w-full h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-md"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              Baixar Comprovante Oficial em PDF
+                            </Button>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setWithdrawalModalTab("receipt")}
+                                className="h-8 text-xs border-slate-700 bg-slate-900 text-emerald-300 hover:bg-slate-800 gap-1.5"
+                              >
+                                <Receipt className="h-3.5 w-3.5" />
+                                Ver Comprovante
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleCopyReceiptText(selectedTx)}
+                                className="h-8 text-xs border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 gap-1.5"
+                              >
+                                {copiedReceiptText ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                                {copiedReceiptText ? "Copiado!" : "Copiar Texto"}
+                              </Button>
+                            </div>
+                          </div>
                         )}
-                        Enviar PIX Automático ({formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)})
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setApproveModalOpen(false)}
-                      className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs"
-                    >
-                      Concluir / Fechar
-                    </Button>
-                  )}
-                </div>
-              </DialogFooter>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ─── ABA 2: COMPROVANTE OFICIAL PIX (DESIGN BANCÁRIO AMPLO) ─── */
+                  <div className="max-w-4xl mx-auto space-y-5 py-2">
+                    {/* Header Institucional do Comprovante com Logo */}
+                    <div className="rounded-2xl border border-slate-800 bg-[#0a0f1d] p-6 shadow-xl space-y-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={drikaBannerLogo}
+                            alt="Drika Hub"
+                            className="h-9 sm:h-11 w-auto object-contain"
+                          />
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <span className="text-xs uppercase font-bold text-slate-300 block tracking-wider">
+                            Comprovante Oficial de Transferência PIX
+                          </span>
+                          <span className="text-[11px] text-slate-400 block mt-0.5">
+                            Emissão: {format(new Date(), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })} • Via Oficial
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card de Liquidação com Destaque */}
+                      <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-5 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold gap-1.5 py-1 px-3">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            Transferência PIX Concluída com Sucesso
+                          </Badge>
+                          <span className="text-xs text-emerald-400/90 font-mono font-semibold">
+                            {selectedTx.completed_at
+                              ? format(new Date(selectedTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })
+                              : "Liquidado via Gateway"}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold block">
+                            Valor Líquido Transferido:
+                          </span>
+                          <p className="text-4xl font-black text-emerald-400 font-mono mt-1">
+                            {formatBRL(selectedTx.net_amount_cents && selectedTx.net_amount_cents > 0 ? selectedTx.net_amount_cents : selectedTx.amount_cents)}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1.5">
+                            Valor Solicitado: {formatBRL(selectedTx.amount_cents)} | Taxa Retida: {formatBRL(selectedTx.fee_cents || 0)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Informações Bancárias (Favorecido & Origem) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        {/* Favorecido */}
+                        <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                            Dados do Favorecido (Destino)
+                          </span>
+                          <p className="font-bold text-white text-base">
+                            {selectedTx.tenants?.name || "Lojista Drika Hub"}
+                          </p>
+                          <div className="text-slate-300 space-y-1 pt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400">Chave PIX:</span>
+                              <span className="font-mono text-emerald-400 font-bold text-sm">
+                                {formatPixDisplay(selectedTx.pix_key, selectedTx.pix_key_type)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-400">
+                              <span>Tipo de Chave:</span>
+                              <span className="uppercase text-slate-200 font-semibold">{selectedTx.pix_key_type || "PIX"}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Origem */}
+                        <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                            Origem dos Recursos (Pagador)
+                          </span>
+                          <p className="font-bold text-white text-base">
+                            Drika Hub Soluções Digitais
+                          </p>
+                          <div className="text-slate-300 space-y-1 pt-1">
+                            <div className="flex items-center justify-between text-slate-400">
+                              <span>Conta / Origem:</span>
+                              <span className="text-slate-200 font-medium">Caixa Central Drika Hub</span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-400">
+                              <span>Gateway Liquidante:</span>
+                              <span className="text-purple-400 font-semibold">MisticPay / SPI Banco Central</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Identificadores e Auditoria */}
+                      <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2.5">
+                        <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">
+                          Identificadores Técnicos de Auditoria
+                        </span>
+
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-[#0a0f1d] border border-slate-800/80">
+                            <span className="text-slate-400">ID da Transação no Sistema:</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-200 text-xs font-semibold">{selectedTx.id}</span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedTx.id);
+                                  toast({ title: "ID copiado!", description: selectedTx.id });
+                                }}
+                                className="h-6 w-6 text-slate-400 hover:text-white"
+                                title="Copiar ID"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-[#0a0f1d] border border-slate-800/80">
+                            <span className="text-slate-400">ID do PIX / Gateway (MisticPay):</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-purple-300 text-xs font-bold">
+                                {selectedTx.payment_id || "Liquidado via Sistema Interno"}
+                              </span>
+                              {selectedTx.payment_id && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(selectedTx.payment_id!);
+                                    toast({ title: "ID do PIX copiado!", description: selectedTx.payment_id! });
+                                  }}
+                                  className="h-6 w-6 text-slate-400 hover:text-white"
+                                  title="Copiar ID PIX"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs px-2 pt-1">
+                            <span className="text-slate-400">Data e Hora da Solicitação:</span>
+                            <span className="text-slate-300 font-mono">
+                              {format(parseISO(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Selo de Autenticação Digital */}
+                      <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between text-slate-400 font-semibold text-[11px]">
+                          <span>AUTENTICAÇÃO DIGITAL & AUDITORIA</span>
+                          <span className="text-emerald-400 font-mono">CONFORME BACEN / SPI</span>
+                        </div>
+                        <p className="font-mono text-[11px] text-slate-300 pt-1">
+                          Código: {selectedTx.id.replace(/-/g, "").toUpperCase()}#{(selectedTx.payment_id || "SYS-OK").replace(/-/g, "").slice(0, 16).toUpperCase()}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          Este documento possui eficácia probatória plena da liquidação da ordem de pagamento via PIX.
+                        </p>
+                      </div>
+
+                      {/* Ações do Comprovante */}
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleCopyReceiptText(selectedTx)}
+                          className="border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs gap-2 flex-1 h-10"
+                        >
+                          {copiedReceiptText ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                          {copiedReceiptText ? "Copiado para a Área de Transferência!" : "Copiar Texto do Comprovante"}
+                        </Button>
+
+                        <Button
+                          type="button"
+                          onClick={() => handleDownloadReceiptPDF(selectedTx)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 flex-1 h-10 shadow-lg shadow-emerald-950/40"
+                        >
+                          <Download className="h-4 w-4" />
+                          Baixar Comprovante Oficial em PDF
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
@@ -3087,180 +3459,6 @@ Data: ${selectedAuditSale.created_at}`;
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs"
                 >
                   Concluir
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── Modal de Comprovante Oficial de Saque PIX ─── */}
-      <Dialog open={receiptModalOpen} onOpenChange={setReceiptModalOpen}>
-        <DialogContent className="sm:max-w-xl border-slate-800 bg-[#0a0f1d] text-white">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
-              <Receipt className="h-5 w-5 text-emerald-400" />
-              Comprovante Oficial de Transferência PIX
-            </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Registro de liquidação financeira e auditoria do saque aprovado.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedReceipt && (
-            <div className="space-y-4 pt-1">
-              {/* Card Destaque de Pagamento Concluído */}
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    Transferência PIX Concluída
-                  </Badge>
-                  <span className="text-[11px] text-emerald-400/80 font-mono">
-                    {selectedReceipt.completed_at
-                      ? format(new Date(selectedReceipt.completed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                      : "Efetivado"}
-                  </span>
-                </div>
-
-                <div className="pt-1">
-                  <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-medium">
-                    Valor Líquido Transferido:
-                  </span>
-                  <p className="text-3xl font-black text-emerald-400 font-mono mt-0.5">
-                    {formatBRL(selectedReceipt.net_amount_cents && selectedReceipt.net_amount_cents > 0 ? selectedReceipt.net_amount_cents : selectedReceipt.amount_cents)}
-                  </p>
-                  {selectedReceipt.fee_cents > 0 && (
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Valor solicitado: {formatBRL(selectedReceipt.amount_cents)} | Taxa retida: {formatBRL(selectedReceipt.fee_cents)}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Informações do Favorecido & Origem */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {/* Favorecido */}
-                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">
-                    Favorecido (Destino)
-                  </span>
-                  <p className="font-bold text-white text-sm">
-                    {selectedReceipt.tenants?.name || "Lojista Drika Hub"}
-                  </p>
-                  <div className="text-slate-300 space-y-0.5 pt-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-500">Chave PIX:</span>
-                      <span className="font-mono text-emerald-400 font-bold">{selectedReceipt.pix_key || "Não informada"}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Tipo: <span className="uppercase text-slate-300 font-semibold">{selectedReceipt.pix_key_type || "PIX"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Origem */}
-                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">
-                    Origem dos Recursos
-                  </span>
-                  <p className="font-bold text-white text-sm">
-                    Drika Hub
-                  </p>
-                  <div className="text-slate-300 space-y-0.5 pt-1">
-                    <div className="text-[11px] text-slate-400">
-                      Conta: <span className="text-slate-300">Caixa Central Drika Hub</span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Gateway: <span className="text-purple-400 font-semibold">MisticPay / PIX Automático</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Identificadores e Rastreabilidade */}
-              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2">
-                <span className="text-[10px] uppercase text-slate-500 font-semibold block">
-                  Identificadores Técnicos & Auditoria
-                </span>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">ID da Transação:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-slate-200 text-[11px] max-w-[200px] truncate">{selectedReceipt.id}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          navigator.clipboard.writeText(selectedReceipt.id);
-                          toast({ title: "ID copiado!", description: selectedReceipt.id });
-                        }}
-                        className="h-6 w-6 text-slate-400 hover:text-white"
-                        title="Copiar ID"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">ID do PIX / Gateway:</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-purple-300 text-[11px] max-w-[200px] truncate font-semibold">
-                        {selectedReceipt.payment_id || "Liquidado via Sistema"}
-                      </span>
-                      {selectedReceipt.payment_id && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            navigator.clipboard.writeText(selectedReceipt.payment_id!);
-                            toast({ title: "ID do PIX copiado!", description: selectedReceipt.payment_id! });
-                          }}
-                          className="h-6 w-6 text-slate-400 hover:text-white"
-                          title="Copiar ID PIX"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Data da Solicitação:</span>
-                    <span className="text-slate-300 font-mono text-[11px]">
-                      {format(new Date(selectedReceipt.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
-                    </span>
-                  </div>
-
-                  {selectedReceipt.admin_notes && (
-                    <div className="flex items-center justify-between border-t border-slate-800/80 pt-1.5">
-                      <span className="text-slate-400">Observações:</span>
-                      <span className="text-slate-300 text-[11px] italic">{selectedReceipt.admin_notes}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <DialogFooter className="pt-2 gap-2 flex flex-col sm:flex-row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleCopyReceiptText(selectedReceipt)}
-                  className="border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs gap-1.5 flex-1"
-                >
-                  {copiedReceiptText ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copiedReceiptText ? "Copiado!" : "Copiar Texto"}
-                </Button>
-
-                <Button
-                  type="button"
-                  onClick={() => handleDownloadReceiptPDF(selectedReceipt)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 flex-1 shadow-md"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Baixar Comprovante em PDF
                 </Button>
               </DialogFooter>
             </div>
