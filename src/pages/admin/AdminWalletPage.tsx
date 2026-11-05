@@ -82,6 +82,9 @@ interface PlatformMetrics {
   total_earned_cents: number;
   total_withdrawn_cents: number;
   total_fees_collected_cents: number;
+  completed_withdrawals_count?: number;
+  gateway_withdrawal_cost_cents?: number;
+  net_profit_cents?: number;
   pending_count: number;
   pending_amount_cents: number;
   pending_net_cents: number;
@@ -639,8 +642,29 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     }
   };
 
-  // ── Meu Lucro: taxas configuradas da plataforma retidas na venda (pode sacar)
-  const platformProfitCents = useMemo(() => metrics?.total_fees_collected_cents || 0, [metrics]);
+  // ── Saques concluídos e custos de gateway (R$ 0,50 por saque aprovado pela MisticPay)
+  const completedWithdrawalsCount = useMemo(() => {
+    if (typeof metrics?.completed_withdrawals_count === "number") {
+      return metrics.completed_withdrawals_count;
+    }
+    return withdrawals.filter((w) => w.status === "completed" && w.type === "withdrawal").length;
+  }, [metrics, withdrawals]);
+
+  const gatewayWithdrawalCostCents = useMemo(() => {
+    if (typeof metrics?.gateway_withdrawal_cost_cents === "number") {
+      return metrics.gateway_withdrawal_cost_cents;
+    }
+    return completedWithdrawalsCount * 50; // R$ 0,50 por saque aprovado
+  }, [metrics, completedWithdrawalsCount]);
+
+  // ── Meu Lucro Líquido Real: taxas brutas arrecadadas MENOS o custo de gateway dos saques aprovados (R$ 0,50/saque)
+  const platformProfitCents = useMemo(() => {
+    if (typeof metrics?.net_profit_cents === "number") {
+      return metrics.net_profit_cents;
+    }
+    const gross = metrics?.total_fees_collected_cents || 0;
+    return Math.max(0, gross - gatewayWithdrawalCostCents);
+  }, [metrics, gatewayWithdrawalCostCents]);
 
   // ── Saldo comprometido: dinheiro dos clientes que ainda está na plataforma
   // (saldo livre nas carteiras + em saque bloqueado aguardando PIX)
@@ -1031,20 +1055,26 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
           </div>
         </div>
 
-        {/* Card: Meu Lucro (Plataforma pode sacar) */}
+        {/* Card: Meu Lucro Líquido Real (Plataforma pode sacar) */}
         <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/60 via-[#0b1324] to-[#070b14] p-5 shadow-lg">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-start justify-between relative z-10">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400/80 flex items-center gap-1.5">
                 <Coins className="h-3.5 w-3.5" />
-                Meu Lucro (Taxas)
+                Meu Lucro Líquido Real
               </p>
               <p className="mt-2 text-3xl font-black text-emerald-400 font-mono tracking-tight">
                 {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
               </p>
-              <p className="mt-1.5 text-[10px] text-slate-400">
-                {formatBRL(splitFixedFeeCents)} fixo + {splitPercentFee}% da plataforma retidos a cada venda
+              <p className="mt-1.5 text-[10px] text-slate-300">
+                {gatewayWithdrawalCostCents > 0 ? (
+                  <span>
+                    Bruto: <strong className="text-white">{formatBRL(metrics?.total_fees_collected_cents || 0)}</strong> • Custo PIX: <strong className="text-rose-400">-{formatBRL(gatewayWithdrawalCostCents)}</strong> ({completedWithdrawalsCount} saque{completedWithdrawalsCount !== 1 ? "s" : ""})
+                  </span>
+                ) : (
+                  <span>{formatBRL(splitFixedFeeCents)} fixo + {splitPercentFee}% da plataforma retidos a cada venda</span>
+                )}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/20">
@@ -1052,8 +1082,8 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-emerald-500/10 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Projeção próximas taxas:</span>
-            <span className="font-semibold text-emerald-400">{formatBRL(projectedFutureFeesCents)}</span>
+            <span>Custo Gateway Saques (-R$ 0,50/saque):</span>
+            <span className="font-semibold text-rose-400">-{formatBRL(gatewayWithdrawalCostCents)}</span>
           </div>
         </div>
 
@@ -1297,12 +1327,12 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] uppercase text-emerald-400/70 font-semibold tracking-wider">Lucro Confirmado (Já Ganho)</p>
+                  <p className="text-[10px] uppercase text-emerald-400/70 font-semibold tracking-wider">Lucro Líquido Real (Já Ganho)</p>
                   <p className="text-2xl font-black text-emerald-400 font-mono mt-1">
                     {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
                   </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {formatBRL(splitFixedFeeCents)} fixo + {splitPercentFee}% plataforma retidos a cada venda
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Taxas brutas: {formatBRL(metrics?.total_fees_collected_cents || 0)} • Custo Gateway: -{formatBRL(gatewayWithdrawalCostCents)}
                   </p>
                 </div>
                 <Coins className="h-8 w-8 text-emerald-400/40" />
@@ -1327,15 +1357,19 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
               </div>
             </div>
 
-            {/* Resumo de saques */}
-            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 flex items-center justify-between text-xs">
-              <div className="space-y-0.5">
+            {/* Resumo de saques & Custo de Gateway */}
+            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
                 <p className="text-slate-400">Saques já liquidados (PIX enviados):</p>
-                <p className="font-extrabold text-purple-300">{showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"}</p>
+                <p className="font-extrabold text-purple-300">{showBalance ? formatBRL(metrics?.total_withdrawn_cents || 0) : "••••"} ({completedWithdrawalsCount} PIX)</p>
               </div>
-              <div className="text-right space-y-0.5">
-                <p className="text-slate-400">Taxa acumulada nesses saques:</p>
-                <p className="font-extrabold text-emerald-400">{showBalance ? formatBRL(platformProfitCents) : "••••"}</p>
+              <div className="flex items-center justify-between border-t border-slate-800/80 pt-1.5">
+                <p className="text-slate-400">Custo Gateway MisticPay (-R$ 0,50/saque):</p>
+                <p className="font-extrabold text-rose-400">{showBalance ? `-${formatBRL(gatewayWithdrawalCostCents)}` : "••••"}</p>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-800/80 pt-1.5">
+                <p className="font-bold text-slate-200">Lucro Líquido Real (Pode Sacar):</p>
+                <p className="font-black text-emerald-400 text-sm">{showBalance ? formatBRL(platformProfitCents) : "••••"}</p>
               </div>
             </div>
           </CardContent>
@@ -1728,15 +1762,15 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
             <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
               <div className="space-y-1">
                 <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">
-                  Taxas Retidas nos Saques
+                  Custo Gateway MisticPay
                 </span>
-                <span className="text-2xl font-black text-amber-400 font-mono">
-                  {showBalance ? formatBRL(approvedSummaryMetrics.totalFeesCents) : "R$ ••••"}
+                <span className="text-2xl font-black text-rose-400 font-mono">
+                  {showBalance ? `-${formatBRL(gatewayWithdrawalCostCents)}` : "R$ ••••"}
                 </span>
-                <span className="text-[10px] text-slate-500 block">Lucro retido pela plataforma</span>
+                <span className="text-[10px] text-slate-500 block">R$ 0,50 cobrado por saque pago</span>
               </div>
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <Coins className="h-6 w-6" />
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                <Zap className="h-6 w-6" />
               </div>
             </Card>
           </div>

@@ -165,16 +165,25 @@ Deno.serve(async (req) => {
         totalWithdrawnCents += w.total_withdrawn_cents || 0;
       }
 
-      // Sum collected fees from completed transactions
+      // Sum collected fees from completed transactions & count completed withdrawals
       const { data: completedTxs } = await supabase
         .from("wallet_transactions")
-        .select("fee_cents")
+        .select("fee_cents, type")
         .eq("status", "completed");
 
       let totalFeesCollectedCents = 0;
+      let completedWithdrawalsCount = 0;
       for (const t of completedTxs || []) {
         totalFeesCollectedCents += t.fee_cents || 0;
+        if (t.type === "withdrawal") {
+          completedWithdrawalsCount += 1;
+        }
       }
+
+      // Custo operacional cobrado pela Gateway em cada saque aprovado/liquidado (R$ 0,50 por saque)
+      const gatewayWithdrawalCostCents = completedWithdrawalsCount * 50;
+      // Lucro Líquido Real da plataforma após deduzir os custos de gateway de cada saque aprovado
+      const netProfitCents = Math.max(0, totalFeesCollectedCents - gatewayWithdrawalCostCents);
 
       // Pending withdrawals count & sum
       const { data: pendingTxs } = await supabase
@@ -199,6 +208,9 @@ Deno.serve(async (req) => {
             total_earned_cents: totalEarnedCents,
             total_withdrawn_cents: totalWithdrawnCents,
             total_fees_collected_cents: totalFeesCollectedCents,
+            completed_withdrawals_count: completedWithdrawalsCount,
+            gateway_withdrawal_cost_cents: gatewayWithdrawalCostCents,
+            net_profit_cents: netProfitCents,
             pending_count: (pendingTxs || []).length,
             pending_amount_cents: pendingAmountCents,
             pending_net_cents: pendingNetCents,
