@@ -373,7 +373,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, tx_id: tx.id, payment_id: result.payment_id, status: result.status }), {
+    return new Response(JSON.stringify({ ok: true, tx_id: txId, payment_id: result.payment_id, status: result.status }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
