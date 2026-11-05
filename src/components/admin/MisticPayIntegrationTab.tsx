@@ -354,3 +354,4 @@ const MisticPayIntegrationTab = () => {
 };
 
 export default MisticPayIntegrationTab;
+

@@ -615,6 +615,8 @@ Deno.serve(async (req) => {
             plan
           )
         `)
+        .eq("payment_provider", "misticpay")
+        .gte("created_at", "2026-11-01T00:00:00.000Z")
         .in("status", ["paid", "delivering", "delivered", "pending_payment"])
         .order("created_at", { ascending: false })
         .limit(limit);

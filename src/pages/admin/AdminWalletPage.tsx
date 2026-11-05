@@ -70,6 +70,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import misticPayIcon from "@/assets/misticpay-icon.png";
 
 interface PlatformMetrics {
   total_balance_cents: number;
@@ -226,8 +227,8 @@ export default function AdminWalletPage() {
   const [auditSummary, setAuditSummary] = useState<AuditSummary | null>(null);
   const [searchAudit, setSearchAudit] = useState("");
   const [auditStoreFilter, setAuditStoreFilter] = useState("all");
-  // Audit provider filter (all split orders)
-  const auditProviderFilter = "all";
+  // Audit provider filter (MisticPay split gateway)
+  const auditProviderFilter = "misticpay";
   const [selectedAuditSale, setSelectedAuditSale] = useState<SalesAuditItem | null>(null);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
@@ -256,6 +257,36 @@ export default function AdminWalletPage() {
 
   // Copied PIX Key indicator
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+
+  // MisticPay Real Live Balance (API)
+  const [misticBalanceCents, setMisticBalanceCents] = useState<number | null>(null);
+  const [loadingMisticBalance, setLoadingMisticBalance] = useState(false);
+
+  const handleRefreshMisticBalance = async () => {
+    setLoadingMisticBalance(true);
+    try {
+      const balRes = await supabase.functions.invoke("wallet-gateway-balance", {
+        body: { tenant_id: "central", provider_key: "misticpay" },
+      });
+      if (typeof balRes.data?.balance_cents === "number") {
+        setMisticBalanceCents(balRes.data.balance_cents);
+        toast({
+          title: "Saldo MisticPay atualizado!",
+          description: `Saldo disponível na conta: ${formatBRL(balRes.data.balance_cents)}`,
+        });
+      } else if (balRes.data?.error) {
+        throw new Error(balRes.data.error);
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao consultar MisticPay",
+        description: err.message || "Não foi possível obter o saldo da API",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMisticBalance(false);
+    }
+  };
 
   // Load all admin data
   const loadData = useCallback(async (isRefresh = false) => {
@@ -297,6 +328,18 @@ export default function AdminWalletPage() {
       });
       if (sRes.data && typeof sRes.data.enabled === "boolean") {
         setSplitWalletEnabled(sRes.data.enabled);
+      }
+
+      // 6. MisticPay Live Central Balance (API)
+      try {
+        const balRes = await supabase.functions.invoke("wallet-gateway-balance", {
+          body: { tenant_id: "central", provider_key: "misticpay" },
+        });
+        if (typeof balRes.data?.balance_cents === "number") {
+          setMisticBalanceCents(balRes.data.balance_cents);
+        }
+      } catch (balErr) {
+        console.warn("Could not load MisticPay live balance:", balErr);
       }
     } catch (err: any) {
       console.error("Error loading admin wallet data:", err);
@@ -732,6 +775,20 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* MisticPay Live Central Pill */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-950/30 text-purple-300 shadow-sm">
+            <img src={misticPayIcon} alt="MisticPay" className="h-4 w-4 object-contain" />
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] text-purple-300/80 font-bold uppercase tracking-wider flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Saldo MisticPay (API)
+              </span>
+              <span className="text-xs font-mono font-black text-white">
+                {misticBalanceCents !== null ? formatBRL(misticBalanceCents) : "R$ 0,00"}
+              </span>
+            </div>
+          </div>
+
           {/* Master Switch Split & Carteira */}
           <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all ${
             splitWalletEnabled
@@ -769,8 +826,48 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
 
       {/* ─── 2. CARDS FINANCEIROS: Lucro Admin + Comprometido Clientes + KPIs ─── */}
 
-      {/* Linha 1: Os 3 cards principais de caixa */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Linha 1: Cards principais de caixa com Saldo Real da MisticPay */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Saldo Real em Caixa (MisticPay) */}
+        <div className="relative overflow-hidden rounded-2xl border border-purple-500/40 bg-gradient-to-br from-purple-950/60 via-[#0b1324] to-[#070b14] p-5 shadow-lg">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-start justify-between relative z-10">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                <img src={misticPayIcon} alt="MisticPay" className="h-3.5 w-3.5 object-contain" />
+                Saldo Real MisticPay
+              </p>
+              <p className="mt-2 text-3xl font-black text-purple-300 font-mono tracking-tight">
+                {showBalance
+                  ? misticBalanceCents !== null
+                    ? formatBRL(misticBalanceCents)
+                    : "Carregando..."
+                  : "R$ ••••"}
+              </p>
+              <p className="mt-1.5 text-[10px] text-slate-400">Saldo real disponível na API para saques PIX</p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30">
+              <Zap className="h-5 w-5 text-purple-400" />
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-purple-500/20 text-[11px] text-slate-400 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              API Conectada
+            </span>
+            <button
+              type="button"
+              onClick={handleRefreshMisticBalance}
+              disabled={loadingMisticBalance}
+              className="text-[11px] text-purple-300 hover:text-white flex items-center gap-1 font-semibold transition-colors disabled:opacity-50"
+              title="Consultar saldo ao vivo na MisticPay"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingMisticBalance ? "animate-spin text-purple-400" : ""}`} />
+              Atualizar
+            </button>
+          </div>
+        </div>
+
         {/* Card: Meu Lucro (Plataforma pode sacar) */}
         <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/60 via-[#0b1324] to-[#070b14] p-5 shadow-lg">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -778,7 +875,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400/80 flex items-center gap-1.5">
                 <Coins className="h-3.5 w-3.5" />
-                Meu Lucro (Sacar para mim)
+                Meu Lucro (Taxas)
               </p>
               <p className="mt-2 text-3xl font-black text-emerald-400 font-mono tracking-tight">
                 {showBalance ? formatBRL(platformProfitCents) : "R$ ••••"}
