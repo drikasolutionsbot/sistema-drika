@@ -22,7 +22,7 @@ export interface WithdrawalReceiptData {
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 
-function formatPixKeyDisplay(key: string | null, type: string | null): string {
+export function formatPixKeyDisplay(key: string | null, type: string | null): string {
   if (!key) return "Não informada";
   const clean = key.trim();
   const rawDigits = clean.replace(/\D/g, "");

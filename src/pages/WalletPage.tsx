@@ -33,6 +33,9 @@ import {
   KeyRound,
   Save,
   CheckCheck,
+  Receipt,
+  FileText,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +72,9 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { generateWithdrawalReceiptPDF, formatPixKeyDisplay } from "@/lib/withdrawalReceiptPdf";
+import drikaBannerLogo from "@/assets/logo.png";
 
 interface WalletData {
   id?: string;
@@ -91,8 +97,12 @@ interface WalletTx {
   pix_key: string | null;
   pix_key_type: string | null;
   rejection_reason: string | null;
+  payment_id?: string | null;
+  admin_notes?: string | null;
+  reference_id?: string | null;
   created_at: string;
   completed_at: string | null;
+  is_pending_order?: boolean;
 }
 
 const formatBRL = (cents: number) =>
@@ -156,6 +166,12 @@ export default function WalletPage() {
   const [modalPixKey, setModalPixKey] = useState(tenant?.pix_key || "");
   const [saveAsDefault, setSaveAsDefault] = useState(true);
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
+
+  // Transaction Detail & Receipt modal state
+  const [selectedDetailTx, setSelectedDetailTx] = useState<WalletTx | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailModalTab, setDetailModalTab] = useState<"info" | "receipt">("info");
+  const [copiedDetailText, setCopiedDetailText] = useState(false);
 
   // Copied state
   const [copiedKey, setCopiedKey] = useState(false);
@@ -447,8 +463,54 @@ export default function WalletPage() {
     return digits.length >= 4 ? digits.slice(-4) : "7720";
   }, [tenantId]);
 
+  const handleDownloadReceipt = (tx: WalletTx) => {
+    generateWithdrawalReceiptPDF({
+      id: tx.id,
+      tenant_id: tx.tenant_id,
+      store_name: accountHolderName,
+      amount_cents: tx.amount_cents,
+      net_amount_cents: tx.net_amount_cents || tx.amount_cents,
+      fee_cents: tx.fee_cents || 0,
+      pix_key: tx.pix_key,
+      pix_key_type: tx.pix_key_type,
+      payment_id: tx.payment_id || null,
+      admin_notes: tx.admin_notes || null,
+      created_at: tx.created_at,
+      completed_at: tx.completed_at || tx.created_at,
+    });
+    toast({
+      title: "Comprovante baixado!",
+      description: "O PDF oficial com a logo da Drika Hub foi gerado com sucesso.",
+    });
+  };
+
+  const handleCopyReceiptText = (tx: WalletTx) => {
+    const text = [
+      `📄 COMPROVANTE OFICIAL DE TRANSFERÊNCIA PIX — DRIKA HUB`,
+      `Status: CONCLUÍDO / LIQUIDADO`,
+      `Valor Líquido Transferido: ${formatBRL(tx.net_amount_cents || tx.amount_cents)}`,
+      `Favorecido / Loja: ${accountHolderName}`,
+      `Chave PIX de Destino: ${formatPixKeyDisplay(tx.pix_key, tx.pix_key_type)} (${(tx.pix_key_type || "PIX").toUpperCase()})`,
+      `Origem dos Recursos: Drika Hub (Caixa Central)`,
+      `Gateway Processador: MisticPay / PIX Automático`,
+      `ID da Transação: ${tx.id}`,
+      tx.payment_id ? `ID de Liquidação PIX: ${tx.payment_id}` : null,
+      `Data da Solicitação: ${format(new Date(tx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}`,
+      tx.completed_at ? `Data da Efetivação: ${format(new Date(tx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}` : null,
+      `Autenticação Digital: ${tx.id.replace(/-/g, "").toUpperCase()}`,
+    ].filter(Boolean).join("\n");
+
+    navigator.clipboard.writeText(text);
+    setCopiedDetailText(true);
+    setTimeout(() => setCopiedDetailText(false), 2000);
+    toast({
+      title: "Texto copiado!",
+      description: "Comprovante copiado para a área de transferência.",
+    });
+  };
+
   return (
-    <div className="space-y-6 p-1 sm:p-4 md:p-6 w-full max-w-7xl mx-auto text-slate-100">
+    <div className="space-y-6 w-full text-slate-100">
       {/* ─── 1. Header estilo Fintech ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -900,6 +962,7 @@ export default function WalletPage() {
                         <th className="py-3 px-4 text-right">Taxas Retidas</th>
                         <th className="py-3 px-4 text-right">Valor Líquido</th>
                         <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-right">Ações & Detalhes</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40">
@@ -938,7 +1001,7 @@ export default function WalletPage() {
                               </div>
                               {tx.pix_key && (
                                 <div className="text-[11px] text-slate-400 mt-0.5">
-                                  Chave PIX: <span className="font-mono text-slate-300">{tx.pix_key}</span>
+                                  Chave PIX: <span className="font-mono text-slate-300">{formatPixKeyDisplay(tx.pix_key, tx.pix_key_type)}</span>
                                   {tx.pix_key_type && (
                                     <span className="ml-1 text-[10px] uppercase text-slate-500">
                                       ({tx.pix_key_type})
@@ -991,6 +1054,54 @@ export default function WalletPage() {
                                   Rejeitado
                                 </Badge>
                               )}
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {isWithdrawal && tx.status === "completed" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedDetailTx(tx);
+                                        setDetailModalTab("receipt");
+                                        setDetailModalOpen(true);
+                                      }}
+                                      className="h-7 text-xs px-2.5 gap-1 border-pink-500/30 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:text-white"
+                                      title="Ver Comprovante Oficial PIX"
+                                    >
+                                      <Receipt className="h-3.5 w-3.5 text-pink-400" />
+                                      <span className="hidden sm:inline">Comprovante</span>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDownloadReceipt(tx)}
+                                      className="h-7 text-xs px-2 gap-1 border-slate-700 bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white"
+                                      title="Baixar Comprovante em PDF"
+                                    >
+                                      <Download className="h-3.5 w-3.5 text-slate-400" />
+                                      <span className="hidden md:inline">PDF</span>
+                                    </Button>
+                                  </>
+                                )}
+
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedDetailTx(tx);
+                                    setDetailModalTab("info");
+                                    setDetailModalOpen(true);
+                                  }}
+                                  className="h-7 text-xs px-2.5 gap-1 border-slate-800 bg-[#070b14] text-slate-300 hover:bg-slate-800 hover:text-white"
+                                  title="Ver Informações e Auditoria"
+                                >
+                                  <FileText className="h-3.5 w-3.5 text-slate-400" />
+                                  <span>Detalhes</span>
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1214,7 +1325,7 @@ export default function WalletPage() {
 
       {/* ─── 5. Modal: Solicitar Saque ─── */}
       <Dialog open={withdrawModalOpen} onOpenChange={setWithdrawModalOpen}>
-        <DialogContent className="sm:max-w-md border-slate-800 bg-[#0a0f1d] text-white">
+        <DialogContent className="sm:max-w-lg border-slate-800 bg-[#0a0f1d] text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-bold text-white">
               <Wallet className="h-5 w-5 text-pink-500" />
@@ -1290,7 +1401,7 @@ export default function WalletPage() {
                 </div>
                 <div className="flex items-baseline justify-between pt-1">
                   <p className="font-mono text-sm font-bold text-white">
-                    {tenant.pix_key}
+                    {formatPixKeyDisplay(tenant.pix_key, tenant.pix_key_type)}
                   </p>
                   <span className="text-[10px] uppercase font-mono text-slate-400">
                     ({tenant.pix_key_type || "CPF"})
@@ -1429,6 +1540,383 @@ export default function WalletPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 6. Modal: Informações da Transação & Comprovante Oficial PIX ─── */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-[95vw] lg:max-w-4xl w-full border-slate-800 bg-[#070b14] text-white max-h-[92vh] p-0 overflow-hidden flex flex-col shadow-2xl">
+          <DialogHeader className="p-5 border-b border-slate-800/80 bg-[#0a0f1d] shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                  <SlidersHorizontal className="h-5 w-5 text-pink-500" />
+                  {selectedDetailTx?.type === "withdrawal"
+                    ? "Detalhamento de Saque PIX & Comprovante"
+                    : selectedDetailTx?.type === "deposit"
+                    ? "Detalhamento de Recebimento de Venda"
+                    : "Detalhamento da Transação"}
+                </DialogTitle>
+                <DialogDescription className="text-slate-400 text-xs mt-1">
+                  Auditoria completa da transação com identificadores do sistema e liquidação bancária.
+                </DialogDescription>
+              </div>
+
+              {selectedDetailTx && (
+                <div className="flex items-center gap-2">
+                  {selectedDetailTx.type === "withdrawal" ? (
+                    <Badge className="bg-pink-500/10 text-pink-400 border-pink-500/30 text-xs">
+                      Saque PIX
+                    </Badge>
+                  ) : selectedDetailTx.type === "deposit" ? (
+                    <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs">
+                      Venda de Produto
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-xs">
+                      Ajuste
+                    </Badge>
+                  )}
+
+                  {selectedDetailTx.status === "completed" && (
+                    <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs">
+                      Concluído
+                    </Badge>
+                  )}
+                  {selectedDetailTx.status === "pending" && (
+                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs">
+                      Em Análise
+                    </Badge>
+                  )}
+                  {selectedDetailTx.status === "processing" && (
+                    <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
+                      Processando
+                    </Badge>
+                  )}
+                  {selectedDetailTx.status === "rejected" && (
+                    <Badge className="bg-rose-500/20 text-rose-300 border-rose-500/30 text-xs">
+                      Rejeitado
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Tab Switcher */}
+            {selectedDetailTx?.type === "withdrawal" && selectedDetailTx.status === "completed" && (
+              <div className="flex gap-2 pt-3 border-t border-slate-800/60 mt-3">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDetailModalTab("info")}
+                  className={cn(
+                    "h-8 text-xs font-semibold gap-1.5",
+                    detailModalTab === "info"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                  )}
+                >
+                  <FileText className="h-3.5 w-3.5 text-blue-400" />
+                  Informações & Detalhes
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDetailModalTab("receipt")}
+                  className={cn(
+                    "h-8 text-xs font-semibold gap-1.5",
+                    detailModalTab === "receipt"
+                      ? "bg-pink-600/20 text-pink-300 border border-pink-500/30"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                  )}
+                >
+                  <Receipt className="h-3.5 w-3.5 text-pink-400" />
+                  Comprovante Oficial PIX
+                </Button>
+              </div>
+            )}
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {selectedDetailTx && detailModalTab === "receipt" && selectedDetailTx.type === "withdrawal" && selectedDetailTx.status === "completed" ? (
+              <div className="space-y-4">
+                {/* Voucher Card Container */}
+                <div className="rounded-2xl border border-slate-700 bg-white text-slate-900 p-6 md:p-8 shadow-xl space-y-6">
+                  {/* Header with Drika Hub Logo */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 gap-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={drikaBannerLogo}
+                        alt="Drika Hub"
+                        className="h-10 w-auto object-contain"
+                      />
+                    </div>
+                    <div className="text-left sm:text-right text-xs text-slate-500 space-y-0.5">
+                      <p className="font-semibold text-slate-700">Comprovante de Transferência PIX</p>
+                      <p className="text-[11px]">Saque Aprovado & Liquidado</p>
+                      <p className="text-[10px] text-slate-400">
+                        Emitido em: {format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Sucesso Banner */}
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3 text-emerald-900">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">TRANSFERÊNCIA PIX CONCLUÍDA COM SUCESSO</p>
+                      <p className="text-xs text-emerald-700 mt-0.5">
+                        Efetivado em:{" "}
+                        {selectedDetailTx.completed_at
+                          ? format(new Date(selectedDetailTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })
+                          : format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Valor Líquido Card */}
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-5">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
+                      Valor Líquido Transferido via PIX
+                    </span>
+                    <p className="text-3xl sm:text-4xl font-black text-slate-900 mt-1 font-sans">
+                      {formatBRL(selectedDetailTx.net_amount_cents || selectedDetailTx.amount_cents)}
+                    </p>
+                  </div>
+
+                  {/* Detalhes da Transferência */}
+                  <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
+                    <div className="bg-slate-100 px-4 py-2.5 font-bold text-slate-800 border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                      Dados da Transferência PIX
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">Favorecido / Loja:</span>
+                        <span className="font-bold text-slate-900">{accountHolderName}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">Chave PIX de Destino:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {formatPixKeyDisplay(selectedDetailTx.pix_key, selectedDetailTx.pix_key_type)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">Tipo de Chave:</span>
+                        <span className="uppercase font-semibold text-slate-800">
+                          {selectedDetailTx.pix_key_type || "CPF"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">Origem dos Recursos:</span>
+                        <span className="font-semibold text-slate-800">Drika Hub (Caixa Central)</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">Gateway Processador:</span>
+                        <span className="font-semibold text-slate-800">MisticPay / PIX Automático</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">ID da Transação:</span>
+                        <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.id}</span>
+                      </div>
+                      {selectedDetailTx.payment_id && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                          <span className="font-semibold text-slate-600">ID Liquidação PIX (Gateway):</span>
+                          <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.payment_id}</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                        <span className="font-semibold text-slate-600">Data e Hora da Solicitação:</span>
+                        <span className="text-slate-800">
+                          {format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rodapé de autenticação */}
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center space-y-1">
+                    <p className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">
+                      Autenticação Digital: {selectedDetailTx.id.replace(/-/g, "").toUpperCase()}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Documento emitido eletronicamente pela plataforma Drika Hub com validade jurídica.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* 3 Metric Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-1">
+                    <span className="text-[11px] text-slate-400 font-medium">Valor Bruto</span>
+                    <p className="text-xl font-bold text-white">
+                      {formatBRL(selectedDetailTx?.amount_cents || 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-1">
+                    <span className="text-[11px] text-slate-400 font-medium">Taxas Retidas (Split)</span>
+                    <p className="text-xl font-bold text-amber-400">
+                      {selectedDetailTx?.fee_cents ? `-${formatBRL(selectedDetailTx.fee_cents)}` : "R$ 0,00"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-1">
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      {selectedDetailTx?.type === "withdrawal" ? "Líquido Transferido" : "Líquido Creditado"}
+                    </span>
+                    <p className="text-xl font-black text-emerald-400">
+                      {formatBRL(selectedDetailTx?.net_amount_cents || selectedDetailTx?.amount_cents || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Audit Details Grid */}
+                <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Identificadores Técnicos & Rastreabilidade
+                  </h4>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-[#070b14] border border-slate-800/80 gap-2">
+                      <span className="text-slate-400">ID da Transação:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-slate-200 text-[11px] break-all">{selectedDetailTx?.id}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            if (selectedDetailTx?.id) {
+                              navigator.clipboard.writeText(selectedDetailTx.id);
+                              toast({ title: "ID copiado!" });
+                            }
+                          }}
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {selectedDetailTx?.payment_id && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-[#070b14] border border-slate-800/80 gap-2">
+                        <span className="text-slate-400">ID Liquidação Gateway:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-slate-200 text-[11px] break-all">{selectedDetailTx.payment_id}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedDetailTx.payment_id!);
+                              toast({ title: "ID Gateway copiado!" });
+                            }}
+                            className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedDetailTx?.pix_key && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-[#070b14] border border-slate-800/80 gap-2">
+                        <span className="text-slate-400">Chave PIX de Destino:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-semibold text-emerald-300">
+                            {formatPixKeyDisplay(selectedDetailTx.pix_key, selectedDetailTx.pix_key_type)}
+                          </span>
+                          {selectedDetailTx.pix_key_type && (
+                            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              {selectedDetailTx.pix_key_type}
+                            </span>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedDetailTx.pix_key!);
+                              toast({ title: "Chave copiada!" });
+                            }}
+                            className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-[#070b14] border border-slate-800/80 gap-2">
+                      <span className="text-slate-400">Data e Hora de Criação:</span>
+                      <span className="text-slate-200">
+                        {selectedDetailTx?.created_at
+                          ? format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })
+                          : "-"}
+                      </span>
+                    </div>
+
+                    {selectedDetailTx?.completed_at && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-[#070b14] border border-slate-800/80 gap-2">
+                        <span className="text-slate-400">Data e Hora de Efetivação:</span>
+                        <span className="text-emerald-300 font-semibold">
+                          {format(new Date(selectedDetailTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedDetailTx?.rejection_reason && (
+                      <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-300 space-y-1">
+                        <span className="font-bold flex items-center gap-1.5 text-xs text-rose-400">
+                          <AlertCircle className="h-4 w-4" /> Motivo da Rejeição:
+                        </span>
+                        <p className="text-xs">{selectedDetailTx.rejection_reason}</p>
+                      </div>
+                    )}
+
+                    {selectedDetailTx?.admin_notes && (
+                      <div className="p-3 rounded-lg bg-blue-950/20 border border-blue-500/20 text-blue-200 space-y-1">
+                        <span className="font-semibold text-xs text-blue-300">Observações Administrativas:</span>
+                        <p className="text-xs text-slate-300">{selectedDetailTx.admin_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="p-4 border-t border-slate-800/80 bg-[#0a0f1d] shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {selectedDetailTx?.type === "withdrawal" && selectedDetailTx.status === "completed" && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => handleDownloadReceipt(selectedDetailTx)}
+                    className="gap-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold text-xs"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Baixar Comprovante (PDF)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCopyReceiptText(selectedDetailTx)}
+                    className="gap-1.5 border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs"
+                  >
+                    {copiedDetailText ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    Copiar Texto
+                  </Button>
+                </>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDetailModalOpen(false)}
+              className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs"
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
