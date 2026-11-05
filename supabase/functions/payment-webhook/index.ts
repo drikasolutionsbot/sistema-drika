@@ -553,14 +553,9 @@ serve(async (req) => {
           // console.log("Auto-delivery result:", JSON.stringify(deliverResult));
 
           if (paidOrder && effectiveTenantId) {
-            // Credit tenant wallet for the sale
-            // Taxa Gateway: R$0,60 fixo + Taxa Plataforma: 2% (lucro plataforma)
+            // Credit tenant wallet for the sale using dynamic split fee (fixed R$ + % configured by owner)
             try {
               if (paidOrder.total_cents && paidOrder.total_cents > 0) {
-                const gatewayFeeCents = 60; // R$0,60 fixo
-                const platformFeeCents = Math.round(paidOrder.total_cents * 0.02); // 2%
-                const feeCents = gatewayFeeCents + platformFeeCents;
-                const netCents = Math.max(0, paidOrder.total_cents - feeCents);
                 const desc = `Venda Pedido #${paidOrder.order_number || String(orderId).slice(0, 8)} - ${paidOrder.product_name || "Produto"}`;
 
                 const walletResult = await supabase.rpc("credit_order_to_wallet", {
@@ -569,16 +564,18 @@ serve(async (req) => {
                   _amount_cents: paidOrder.total_cents,
                   _description: desc,
                 });
-                // console.log(`[Wallet] Credited: total=${paidOrder.total_cents}Â¢ gateway=${gatewayFeeCents}Â¢ platform=${platformFeeCents}Â¢ net=${netCents}Â¢ to tenant=${effectiveTenantId} order=${orderId}`, walletResult);
 
-                // Persist commission and net amount on the order row for reporting
-                await supabase
-                  .from("orders")
-                  .update({
-                    commission_cents: feeCents,
-                    seller_received_cents: netCents,
-                  })
-                  .eq("id", orderId);
+                if (walletResult?.data) {
+                  const feeCents = walletResult.data.fee_cents ?? 0;
+                  const netCents = walletResult.data.net_amount_cents ?? Math.max(0, paidOrder.total_cents - feeCents);
+                  await supabase
+                    .from("orders")
+                    .update({
+                      commission_cents: feeCents,
+                      seller_received_cents: netCents,
+                    })
+                    .eq("id", orderId);
+                }
               }
             } catch (walletErr) {
               console.error("[Wallet] Failed to credit wallet for order:", walletErr);

@@ -897,7 +897,7 @@ export default function WalletPage() {
                         <th className="py-3 px-4">Tipo</th>
                         <th className="py-3 px-4">Descrição / Detalhes</th>
                         <th className="py-3 px-4 text-right">Valor Bruto</th>
-                        <th className="py-3 px-4 text-right">Taxas (R$0,60 + 2%)</th>
+                        <th className="py-3 px-4 text-right">Taxas Retidas</th>
                         <th className="py-3 px-4 text-right">Valor Líquido</th>
                         <th className="py-3 px-4 text-center">Status</th>
                       </tr>
@@ -1376,7 +1376,7 @@ export default function WalletPage() {
                           <Info className="h-3 w-3 text-slate-500 cursor-pointer" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs">Isento de taxa no saque — a taxa fixa de gateway (R$ 0,60) e a taxa da plataforma (2%) já foram deduzidas na venda.</p>
+                          <p className="text-xs">Isento de taxa no saque — a taxa da plataforma e gateway já foram deduzidas na confirmação da venda.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

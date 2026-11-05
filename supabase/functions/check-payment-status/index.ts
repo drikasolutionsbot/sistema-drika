@@ -366,19 +366,16 @@ serve(async (req) => {
             _amount_cents: orderForWallet.total_cents,
             _description: desc,
           });
-          const gatewayFeeCents = 60;
-          const platformFeeCents = Math.round(orderForWallet.total_cents * 0.02);
-          const feeCents = gatewayFeeCents + platformFeeCents;
-          const netCents = Math.max(0, orderForWallet.total_cents - feeCents);
-          // console.log(`[Wallet] Credited via polling: total=${orderForWallet.total_cents}Â¢ gateway=${gatewayFeeCents}Â¢ platform=${platformFeeCents}Â¢ net=${netCents}Â¢ tenant=${tenant_id} order=${order_id}`, walletResult);
 
           // Persist commission and net amount on the order row
-          if (walletResult.data) {
+          if (walletResult?.data) {
+            const feeCents = walletResult.data.fee_cents ?? 0;
+            const netCents = walletResult.data.net_amount_cents ?? Math.max(0, orderForWallet.total_cents - feeCents);
             await supabase
               .from("orders")
               .update({
-                commission_cents: walletResult.data.fee_cents ?? feeCents,
-                seller_received_cents: walletResult.data.net_amount_cents ?? netCents,
+                commission_cents: feeCents,
+                seller_received_cents: netCents,
               })
               .eq("id", order_id);
           }
