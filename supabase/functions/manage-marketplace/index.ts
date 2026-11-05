@@ -7,6 +7,61 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function verifySuperAdminOrServiceRole(
+  req: Request,
+  supabase: any
+): Promise<{ authorized: boolean; error?: string; user?: any; isServiceRole?: boolean }> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token de autenticação ausente" };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  // 1. Direct Service Role Key match
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return { authorized: true, isServiceRole: true };
+  }
+
+  // 2. JWT with service_role payload
+  if (rawToken.includes(".")) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.role === "service_role") {
+          return { authorized: true, isServiceRole: true };
+        }
+      }
+    } catch {
+      // Ignore parse failure, proceed to getUser
+    }
+  }
+
+  // 3. User JWT verification
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Acesso não autorizado: sessão de usuário inválida ou expirada" };
+  }
+
+  // 4. Check super_admin in user_roles
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (roleError || !roleRow) {
+    return { authorized: false, error: "Acesso negado: permissão de super_admin necessária" };
+  }
+
+  return { authorized: true, user, isServiceRole: false };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +73,17 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { action, item, item_id, tenant_id } = await req.json();
+
+    const ADMIN_ACTIONS = ["import", "update", "deliver", "delete", "cancel_purchase"];
+    if (typeof action === "string" && ADMIN_ACTIONS.includes(action)) {
+      const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+      if (!authRes.authorized) {
+        return new Response(JSON.stringify({ error: authRes.error || "Acesso negado: apenas super admins podem gerenciar o marketplace" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // Admin: import item from LZT to marketplace
     if (action === "import") {

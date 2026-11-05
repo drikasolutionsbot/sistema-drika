@@ -1,4 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,17 +12,80 @@ const corsHeaders = {
  *
  * Body: { tenant_id: string }
  */
+async function verifySuperAdminOrServiceRole(
+  req: Request,
+  supabase: any
+): Promise<{ authorized: boolean; error?: string; user?: any; isServiceRole?: boolean }> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token de autenticação ausente" };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  // 1. Direct Service Role Key match
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return { authorized: true, isServiceRole: true };
+  }
+
+  // 2. JWT with service_role payload
+  if (rawToken.includes(".")) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.role === "service_role") {
+          return { authorized: true, isServiceRole: true };
+        }
+      }
+    } catch {
+      // Ignore parse failure, proceed to getUser
+    }
+  }
+
+  // 3. User JWT verification
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Acesso não autorizado: sessão de usuário inválida ou expirada" };
+  }
+
+  // 4. Check super_admin in user_roles
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (roleError || !roleRow) {
+    return { authorized: false, error: "Acesso negado: permissão de super_admin necessária" };
+  }
+
+  return { authorized: true, user, isServiceRole: false };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { tenant_id } = await req.json();
-    if (!tenant_id) throw new Error("Missing tenant_id");
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+    if (!authRes.authorized) {
+      return new Response(JSON.stringify({ error: authRes.error || "Acesso negado: apenas super admins podem executar esta ação" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { tenant_id } = await req.json();
+    if (!tenant_id) throw new Error("Missing tenant_id");
 
     // 1) Limpa no banco
     const { data: tenant, error } = await supabase

@@ -42,6 +42,61 @@ async function logAudit(
   }
 }
 
+async function verifySuperAdminOrServiceRole(
+  req: Request,
+  supabase: any
+): Promise<{ authorized: boolean; error?: string; user?: any; isServiceRole?: boolean }> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token de autenticação ausente" };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  // 1. Direct Service Role Key match
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return { authorized: true, isServiceRole: true };
+  }
+
+  // 2. JWT with service_role payload
+  if (rawToken.includes(".")) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.role === "service_role") {
+          return { authorized: true, isServiceRole: true };
+        }
+      }
+    } catch {
+      // Ignore parse failure, proceed to getUser
+    }
+  }
+
+  // 3. User JWT verification
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Acesso não autorizado: sessão de usuário inválida ou expirada" };
+  }
+
+  // 4. Check super_admin in user_roles
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (roleError || !roleRow) {
+    return { authorized: false, error: "Acesso negado: permissão de super_admin necessária" };
+  }
+
+  return { authorized: true, user, isServiceRole: false };
+}
+
 async function postListingToDiscord(supabase: any, listing_id: string, listing: any, category_global: string): Promise<{ ok: boolean; error?: string; channel_id?: string; message_id?: string }> {
   try {
     const { data: cfg } = await supabase
@@ -124,6 +179,14 @@ serve(async (req) => {
 
     const body = await req.json();
     const { action } = body;
+
+    const ADMIN_ACTIONS = ["list_all", "list_orders", "approve", "repost", "reject", "remove", "update_config"];
+    if (typeof action === "string" && ADMIN_ACTIONS.includes(action)) {
+      const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+      if (!authRes.authorized) {
+        return json({ error: authRes.error || "Acesso negado: apenas super admins possuem permissão" }, 403);
+      }
+    }
 
     // ── Submit produto pra aprovação ──
     if (action === "submit") {

@@ -194,10 +194,76 @@ async function withdrawViaMisticPay(opts: {
   };
 }
 
+async function verifySuperAdminOrServiceRole(
+  req: Request,
+  supabase: any
+): Promise<{ authorized: boolean; error?: string; user?: any; isServiceRole?: boolean }> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token de autenticação ausente" };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  // 1. Direct Service Role Key match (backend service-to-service call)
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return { authorized: true, isServiceRole: true };
+  }
+
+  // 2. JWT with service_role payload
+  if (rawToken.includes(".")) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.role === "service_role") {
+          return { authorized: true, isServiceRole: true };
+        }
+      }
+    } catch {
+      // Ignore parse failure, proceed to getUser
+    }
+  }
+
+  // 3. User JWT verification
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Acesso não autorizado: sessão de usuário inválida ou expirada" };
+  }
+
+  // 4. Check super_admin in user_roles
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (roleError || !roleRow) {
+    return { authorized: false, error: "Acesso negado: permissão de super_admin necessária para executar PIX OUT" };
+  }
+
+  return { authorized: true, user, isServiceRole: false };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    // CRITICAL SECURITY: Verify caller is super_admin or internal service_role
+    const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+    if (!authRes.authorized) {
+      return new Response(JSON.stringify({ error: authRes.error || "Acesso negado: apenas administradores autorizados ou chamadas internas podem realizar PIX OUT" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body: WithdrawBody = await req.json();
     const { tenant_id, amount_cents, pix_key, provider_key, description } = body;
 
@@ -206,8 +272,6 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     // Load gateway config
     let { data: provider, error: provErr } = await supabase

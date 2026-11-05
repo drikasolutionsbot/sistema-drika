@@ -11,6 +11,61 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+async function verifySuperAdminOrServiceRole(
+  req: Request,
+  supabase: any
+): Promise<{ authorized: boolean; error?: string; user?: any; isServiceRole?: boolean }> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token de autenticação ausente" };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  // 1. Direct Service Role Key match
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return { authorized: true, isServiceRole: true };
+  }
+
+  // 2. JWT with service_role payload
+  if (rawToken.includes(".")) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.role === "service_role") {
+          return { authorized: true, isServiceRole: true };
+        }
+      }
+    } catch {
+      // Ignore parse failure, proceed to getUser
+    }
+  }
+
+  // 3. User JWT verification
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Acesso não autorizado: sessão de usuário inválida ou expirada" };
+  }
+
+  // 4. Check super_admin in user_roles
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (roleError || !roleRow) {
+    return { authorized: false, error: "Acesso negado: permissão de super_admin necessária" };
+  }
+
+  return { authorized: true, user, isServiceRole: false };
+}
+
 // All known gateways with their display metadata
 const ALL_GATEWAYS = [
   { key: "mercadopago",  label: "Mercado Pago",        color: "#3b82f6" },
@@ -81,6 +136,14 @@ Deno.serve(async (req) => {
 
     // ── SET SPLIT MODE ───────────────────────────────────────────────────
     if (action === "set_split_mode") {
+      const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+      if (!authRes.authorized) {
+        return new Response(JSON.stringify({ error: authRes.error || "Acesso negado: apenas super admins podem alterar o split" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { enabled } = body;
       const { error } = await supabase
         .from("platform_gateway_settings")
@@ -100,6 +163,14 @@ Deno.serve(async (req) => {
 
     // ── UPDATE — upsert a gateway setting ────────────────────────────────
     if (action === "update") {
+      const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+      if (!authRes.authorized) {
+        return new Response(JSON.stringify({ error: authRes.error || "Acesso negado: apenas super admins podem alterar gateways" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       if (!gateway_key) {
         return new Response(JSON.stringify({ error: "missing gateway_key" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

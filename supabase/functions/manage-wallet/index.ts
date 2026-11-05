@@ -11,6 +11,99 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+async function verifySuperAdminOrServiceRole(
+  req: Request,
+  supabase: any
+): Promise<{ authorized: boolean; error?: string; user?: any; isServiceRole?: boolean }> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token de autenticação ausente" };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+  // 1. Direct Service Role Key match
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return { authorized: true, isServiceRole: true };
+  }
+
+  // 2. JWT with service_role payload
+  if (rawToken.includes(".")) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.role === "service_role") {
+          return { authorized: true, isServiceRole: true };
+        }
+      }
+    } catch {
+      // Ignore parse failure, proceed to getUser
+    }
+  }
+
+  // 3. User JWT verification
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Acesso não autorizado: sessão de usuário inválida ou expirada" };
+  }
+
+  // 4. Check super_admin in user_roles
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "super_admin")
+    .maybeSingle();
+
+  if (roleError || !roleRow) {
+    return { authorized: false, error: "Acesso negado: permissão de super_admin necessária" };
+  }
+
+  return { authorized: true, user, isServiceRole: false };
+}
+
+async function verifyTenantAccessOrSuperAdmin(
+  req: Request,
+  supabase: any,
+  tenantId: string
+): Promise<{ authorized: boolean; error?: string }> {
+  // 1. Admin or service_role can access any tenant wallet
+  const adminCheck = await verifySuperAdminOrServiceRole(req, supabase);
+  if (adminCheck.authorized) {
+    return { authorized: true };
+  }
+
+  // 2. Otherwise user must own this tenant in user_roles
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  const apiKeyHeader = req.headers.get("apikey");
+  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
+  if (!rawToken) {
+    return { authorized: false, error: "Acesso não autorizado: token ausente" };
+  }
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
+  if (authError || !user) {
+    return { authorized: false, error: "Sessão inválida ou expirada" };
+  }
+
+  const { data: tenantRole } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (!tenantRole) {
+    return { authorized: false, error: "Acesso negado: você não tem permissão para esta loja/carteira" };
+  }
+
+  return { authorized: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,12 +114,34 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { action } = body;
 
+    // ─── CRITICAL SECURITY GATE: Lock down all admin_* actions ───
+    if (typeof action === "string" && action.startsWith("admin_")) {
+      const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+      if (!authRes.authorized) {
+        return new Response(
+          JSON.stringify({ error: authRes.error || "Acesso negado: permissão de super_admin necessária" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
     // ─── 1. Get Wallet (Client or Admin) ───
     if (action === "get_wallet") {
       const { tenant_id } = body;
       if (!tenant_id) {
         return new Response(JSON.stringify({ error: "tenant_id obrigatório" }), {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id);
+      if (!accessCheck.authorized) {
+        return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado à carteira" }), {
+          status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -151,6 +266,14 @@ Deno.serve(async (req) => {
       if (!tenant_id || !amount_cents || !pix_key) {
         return new Response(JSON.stringify({ error: "Dados incompletos para solicitação de saque" }), {
           status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id);
+      if (!accessCheck.authorized) {
+        return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado para solicitar saque nesta loja" }), {
+          status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
