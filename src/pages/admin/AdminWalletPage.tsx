@@ -39,7 +39,9 @@ import {
   FileText,
   ExternalLink,
   Zap,
+  Download,
 } from "lucide-react";
+import { generateWithdrawalReceiptPDF } from "@/lib/withdrawalReceiptPdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,6 +96,7 @@ interface WithdrawalItem {
   status: "pending" | "completed" | "rejected";
   pix_key: string | null;
   pix_key_type: string | null;
+  payment_id?: string | null;
   rejection_reason: string | null;
   admin_notes: string | null;
   created_at: string;
@@ -265,6 +268,13 @@ export default function AdminWalletPage() {
   // Dynamic Split Fees configured by owner
   const [splitFixedFeeCents, setSplitFixedFeeCents] = useState<number>(100);
   const [splitPercentFee, setSplitPercentFee] = useState<number>(2.0);
+
+  // Approved Withdrawals & Receipt Modal State
+  const [searchApprovedWithdrawals, setSearchApprovedWithdrawals] = useState("");
+  const [approvedVisibleCount, setApprovedVisibleCount] = useState(20);
+  const [selectedReceipt, setSelectedReceipt] = useState<WithdrawalItem | null>(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [copiedReceiptText, setCopiedReceiptText] = useState(false);
 
   const handleRefreshMisticBalance = async () => {
     setLoadingMisticBalance(true);
@@ -677,6 +687,109 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     }
     return filteredWithdrawals.slice(0, withdrawalsVisibleCount);
   }, [filteredWithdrawals, searchWithdrawals, withdrawalsVisibleCount]);
+
+  // ── Approved (Completed) Withdrawals & Receipts
+  const approvedWithdrawals = useMemo(() => {
+    return withdrawals.filter((w) => w.status === "completed");
+  }, [withdrawals]);
+
+  const filteredApprovedWithdrawals = useMemo(() => {
+    return approvedWithdrawals.filter((w) => {
+      if (!searchApprovedWithdrawals.trim()) return true;
+      const q = searchApprovedWithdrawals.toLowerCase();
+      const tenantName = w.tenants?.name?.toLowerCase() || "";
+      const pixKey = w.pix_key?.toLowerCase() || "";
+      const desc = w.description?.toLowerCase() || "";
+      const paymentId = (w.payment_id || "").toLowerCase();
+      const id = w.id.toLowerCase();
+      return tenantName.includes(q) || pixKey.includes(q) || desc.includes(q) || paymentId.includes(q) || id.includes(q);
+    });
+  }, [approvedWithdrawals, searchApprovedWithdrawals]);
+
+  const displayedApprovedWithdrawals = useMemo(() => {
+    if (searchApprovedWithdrawals.trim()) {
+      return filteredApprovedWithdrawals;
+    }
+    return filteredApprovedWithdrawals.slice(0, approvedVisibleCount);
+  }, [filteredApprovedWithdrawals, searchApprovedWithdrawals, approvedVisibleCount]);
+
+  const approvedSummaryMetrics = useMemo(() => {
+    let totalGrossCents = 0;
+    let totalNetCents = 0;
+    let totalFeesCents = 0;
+    for (const w of approvedWithdrawals) {
+      totalGrossCents += w.amount_cents || 0;
+      totalNetCents += (w.net_amount_cents && w.net_amount_cents > 0 ? w.net_amount_cents : w.amount_cents) || 0;
+      totalFeesCents += w.fee_cents || 0;
+    }
+    return {
+      count: approvedWithdrawals.length,
+      totalGrossCents,
+      totalNetCents,
+      totalFeesCents,
+    };
+  }, [approvedWithdrawals]);
+
+  const handleDownloadReceiptPDF = (w: WithdrawalItem) => {
+    try {
+      generateWithdrawalReceiptPDF({
+        id: w.id,
+        tenant_id: w.tenant_id,
+        store_name: w.tenants?.name || "Lojista Drika Hub",
+        amount_cents: w.amount_cents,
+        net_amount_cents: w.net_amount_cents,
+        fee_cents: w.fee_cents,
+        pix_key: w.pix_key,
+        pix_key_type: w.pix_key_type,
+        payment_id: w.payment_id || null,
+        admin_notes: w.admin_notes,
+        created_at: w.created_at,
+        completed_at: w.completed_at,
+      });
+      toast({
+        title: "Comprovante gerado com sucesso!",
+        description: `Download do PDF do saque #${w.id.slice(0, 8)} iniciado.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Erro ao gerar PDF",
+        description: err.message || "Falha ao compilar comprovante",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenReceiptModal = (w: WithdrawalItem) => {
+    setSelectedReceipt(w);
+    setReceiptModalOpen(true);
+    setCopiedReceiptText(false);
+  };
+
+  const handleCopyReceiptText = (w: WithdrawalItem) => {
+    const net = w.net_amount_cents && w.net_amount_cents > 0 ? w.net_amount_cents : w.amount_cents;
+    const text = `
+=== COMPROVANTE DE TRANSFERÊNCIA PIX ===
+Plataforma: Drika Hub
+Status: CONCLUÍDO / PAGO
+Valor Transferido: ${formatBRL(net)}
+Favorecido: ${w.tenants?.name || "Lojista"}
+Chave PIX: ${w.pix_key || "N/A"} (${(w.pix_key_type || "PIX").toUpperCase()})
+ID da Transação: ${w.id}
+ID do PIX / Gateway: ${w.payment_id || "Liquidado via Sistema"}
+Data de Solicitação: ${format(new Date(w.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+Data de Efetivação: ${w.completed_at ? format(new Date(w.completed_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : "N/A"}
+Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
+========================================
+`.trim();
+
+    navigator.clipboard.writeText(text);
+    setCopiedReceiptText(true);
+    toast({
+      title: "Comprovante copiado!",
+      description: "Texto do comprovante copiado para a área de transferência.",
+    });
+    setTimeout(() => setCopiedReceiptText(false), 2500);
+  };
 
   // Filtered Wallets
   const filteredWallets = useMemo(() => {
@@ -1206,11 +1319,20 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-slate-900/60 p-1 border border-slate-800/80 flex flex-wrap h-auto gap-1 w-full justify-start">
           <TabsTrigger value="withdrawals" className="gap-2 relative data-[state=active]:bg-[#0a0f1d] text-xs">
-            <Clock className="h-4 w-4" />
-            Solicitações de Saque (A Pagar)
+            <Clock className="h-4 w-4 text-amber-400" />
+            Solicitações Pendentes (A Pagar)
             {pendingCount > 0 && (
               <Badge className="ml-1 px-1.5 py-0 text-[10px] bg-amber-500 text-black font-bold animate-pulse">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="approved_withdrawals" className="gap-2 relative data-[state=active]:bg-[#0a0f1d] text-xs">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            Saques Aprovados (Comprovantes)
+            {approvedWithdrawals.length > 0 && (
+              <Badge className="ml-1 px-1.5 py-0 text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                {approvedWithdrawals.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -1447,7 +1569,30 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                                   </Button>
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {w.status === "completed" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleOpenReceiptModal(w)}
+                                        className="h-7 text-[11px] gap-1 border-slate-700 bg-slate-800/60 text-slate-200 hover:bg-slate-700 hover:text-white px-2"
+                                        title="Ver Comprovante Oficial"
+                                      >
+                                        <Receipt className="h-3 w-3 text-emerald-400" />
+                                        Comprovante
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleDownloadReceiptPDF(w)}
+                                        className="h-7 text-[11px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2 shadow-sm"
+                                        title="Baixar Comprovante em PDF"
+                                      >
+                                        <Download className="h-3 w-3" />
+                                        PDF
+                                      </Button>
+                                    </>
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -1458,13 +1603,8 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                                     className="h-7 text-[11px] gap-1 text-slate-300 hover:text-white hover:bg-slate-800/60 px-2"
                                   >
                                     <FileText className="h-3 w-3 text-blue-400" />
-                                    Ver Revisão
+                                    Detalhes
                                   </Button>
-                                  <span className="text-[10px] text-slate-500">
-                                    {w.completed_at
-                                      ? format(new Date(w.completed_at), "dd/MM HH:mm")
-                                      : "Finalizado"}
-                                  </span>
                                 </div>
                               )}
                             </td>
@@ -1530,7 +1670,285 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
           </Card>
         </TabsContent>
 
-        {/* Tab 2: Todas as Carteiras das Lojas */}
+        {/* Tab 2: Saques Aprovados (Comprovantes & Auditoria) */}
+        <TabsContent value="approved_withdrawals" className="space-y-4">
+          {/* Métricas Rápidas dos Saques Aprovados */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">
+                  Total de Saques Pagos
+                </span>
+                <span className="text-2xl font-black text-white font-mono">
+                  {approvedSummaryMetrics.count}
+                </span>
+                <span className="text-[10px] text-emerald-400 block">Comprovantes disponíveis</span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+            </Card>
+
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">
+                  Total Transferido via PIX
+                </span>
+                <span className="text-2xl font-black text-emerald-400 font-mono">
+                  {showBalance ? formatBRL(approvedSummaryMetrics.totalNetCents) : "R$ ••••"}
+                </span>
+                <span className="text-[10px] text-slate-500 block">Líquido recebido pelos clientes</span>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                <ArrowUpRight className="h-6 w-6" />
+              </div>
+            </Card>
+
+            <Card className="border-slate-800/80 bg-[#0a0f1d] p-4 flex items-center justify-between shadow-md">
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider block">
+                  Taxas Retidas nos Saques
+                </span>
+                <span className="text-2xl font-black text-amber-400 font-mono">
+                  {showBalance ? formatBRL(approvedSummaryMetrics.totalFeesCents) : "R$ ••••"}
+                </span>
+                <span className="text-[10px] text-slate-500 block">Lucro retido pela plataforma</span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <Coins className="h-6 w-6" />
+              </div>
+            </Card>
+          </div>
+
+          <Card className="border-slate-800/80 bg-[#0a0f1d] shadow-lg">
+            <CardHeader className="border-b border-slate-800/60 pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                    Histórico de Saques Aprovados & Comprovantes
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-xs">
+                    Consulte todos os saques pagos via PIX, visualize os identificadores de rastreamento bancário e gere o comprovante oficial em PDF.
+                  </CardDescription>
+                </div>
+
+                <div className="relative min-w-[260px]">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                  <Input
+                    placeholder="Buscar por loja, chave PIX ou ID..."
+                    value={searchApprovedWithdrawals}
+                    onChange={(e) => setSearchApprovedWithdrawals(e.target.value)}
+                    className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-12 text-center text-slate-400">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-emerald-500 opacity-60" />
+                  <p className="text-sm">Carregando saques aprovados...</p>
+                </div>
+              ) : filteredApprovedWithdrawals.length === 0 ? (
+                <div className="p-12 text-center text-slate-400">
+                  <Receipt className="h-12 w-12 mx-auto mb-3 opacity-20 text-emerald-400" />
+                  <p className="text-base font-semibold text-white">Nenhum saque aprovado encontrado</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {searchApprovedWithdrawals.trim()
+                      ? "Nenhum saque corresponde ao termo buscado."
+                      : "Assim que um saque for aprovado e pago via PIX, o comprovante oficial aparecerá aqui."}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
+                        <tr>
+                          <th className="py-3 px-4">Data Efetivação</th>
+                          <th className="py-3 px-4">Loja / Favorecido</th>
+                          <th className="py-3 px-4">Chave PIX</th>
+                          <th className="py-3 px-4 text-right">Bruto Solicitado</th>
+                          <th className="py-3 px-4 text-right">Taxa Retida</th>
+                          <th className="py-3 px-4 text-right">Líquido Pago (PIX)</th>
+                          <th className="py-3 px-4">ID PIX (Gateway)</th>
+                          <th className="py-3 px-4 text-center">Status</th>
+                          <th className="py-3 px-4 text-right">Comprovante</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/40">
+                        {displayedApprovedWithdrawals.map((w) => {
+                          const netCents = w.net_amount_cents && w.net_amount_cents > 0 ? w.net_amount_cents : w.amount_cents;
+
+                          return (
+                            <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
+                              {/* Data Efetivação */}
+                              <td className="py-3.5 px-4 text-xs text-slate-300 whitespace-nowrap">
+                                <div className="font-semibold text-slate-200">
+                                  {w.completed_at
+                                    ? format(new Date(w.completed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                                    : format(new Date(w.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  ID: {w.id.slice(0, 8)}...
+                                </div>
+                              </td>
+
+                              {/* Loja / Favorecido */}
+                              <td className="py-3.5 px-4">
+                                <div className="font-semibold text-xs text-white">
+                                  {w.tenants?.name || "Loja"}
+                                </div>
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  ID: {w.tenant_id.slice(0, 8)}...
+                                </div>
+                              </td>
+
+                              {/* Chave PIX */}
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-xs font-semibold text-white bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+                                    {w.pix_key || "Não informada"}
+                                  </span>
+                                  {w.pix_key && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleCopyPixKey(w.pix_key || "", w.id)}
+                                      className="h-7 w-7 text-slate-400 hover:text-white"
+                                      title="Copiar Chave PIX"
+                                    >
+                                      {copiedKeyId === w.id ? (
+                                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                      ) : (
+                                        <Copy className="h-3.5 w-3.5" />
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
+                                {w.pix_key_type && (
+                                  <div className="text-[10px] uppercase text-slate-500 mt-0.5">
+                                    Tipo: {w.pix_key_type}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Bruto */}
+                              <td className="py-3.5 px-4 text-right text-xs font-medium text-slate-300 whitespace-nowrap">
+                                {formatBRL(w.amount_cents)}
+                              </td>
+
+                              {/* Taxa */}
+                              <td className="py-3.5 px-4 text-right text-xs text-slate-400 whitespace-nowrap">
+                                {w.fee_cents > 0 ? (
+                                  <span className="text-amber-400 font-semibold">+{formatBRL(w.fee_cents)}</span>
+                                ) : (
+                                  <span className="text-slate-500">Isento</span>
+                                )}
+                              </td>
+
+                              {/* Líquido Pago */}
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                <span className="text-sm font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1 justify-end font-mono">
+                                  <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                                  {formatBRL(netCents)}
+                                </span>
+                              </td>
+
+                              {/* ID PIX / Gateway */}
+                              <td className="py-3.5 px-4">
+                                {w.payment_id ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-[11px] text-purple-300 max-w-[150px] truncate" title={w.payment_id}>
+                                      {w.payment_id}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(w.payment_id!);
+                                        toast({ title: "ID do PIX copiado!", description: w.payment_id! });
+                                      }}
+                                      className="h-6 w-6 text-slate-400 hover:text-white"
+                                      title="Copiar ID PIX"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[11px] text-slate-500 italic">Liquidado</span>
+                                )}
+                              </td>
+
+                              {/* Status */}
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] gap-1">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  Liquidado
+                                </Badge>
+                              </td>
+
+                              {/* Ações / Comprovante */}
+                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOpenReceiptModal(w)}
+                                    className="h-7 text-xs border-slate-700 bg-slate-800/60 text-slate-200 hover:bg-slate-700 hover:text-white gap-1"
+                                    title="Visualizar Comprovante"
+                                  >
+                                    <Receipt className="h-3.5 w-3.5 text-emerald-400" />
+                                    Comprovante
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleDownloadReceiptPDF(w)}
+                                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2.5 shadow-sm"
+                                    title="Baixar Comprovante em PDF"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    PDF
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Paginação */}
+                  {filteredApprovedWithdrawals.length > 20 && (
+                    <div className="p-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                      <span>
+                        Exibindo <strong>{displayedApprovedWithdrawals.length}</strong> de{" "}
+                        <strong>{filteredApprovedWithdrawals.length}</strong> saques aprovados
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {displayedApprovedWithdrawals.length < filteredApprovedWithdrawals.length && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setApprovedVisibleCount((prev) => prev + 20)}
+                            className="h-7 text-xs border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                          >
+                            Carregar mais 20
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 3: Todas as Carteiras das Lojas */}
         <TabsContent value="wallets" className="space-y-4">
           <Card className="border-slate-800/80 bg-[#0a0f1d] shadow-lg">
             <CardHeader className="border-b border-slate-800/60 pb-4">
@@ -2669,6 +3087,180 @@ Data: ${selectedAuditSale.created_at}`;
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs"
                 >
                   Concluir
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal de Comprovante Oficial de Saque PIX ─── */}
+      <Dialog open={receiptModalOpen} onOpenChange={setReceiptModalOpen}>
+        <DialogContent className="sm:max-w-xl border-slate-800 bg-[#0a0f1d] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
+              <Receipt className="h-5 w-5 text-emerald-400" />
+              Comprovante Oficial de Transferência PIX
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Registro de liquidação financeira e auditoria do saque aprovado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedReceipt && (
+            <div className="space-y-4 pt-1">
+              {/* Card Destaque de Pagamento Concluído */}
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                    Transferência PIX Concluída
+                  </Badge>
+                  <span className="text-[11px] text-emerald-400/80 font-mono">
+                    {selectedReceipt.completed_at
+                      ? format(new Date(selectedReceipt.completed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                      : "Efetivado"}
+                  </span>
+                </div>
+
+                <div className="pt-1">
+                  <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-medium">
+                    Valor Líquido Transferido:
+                  </span>
+                  <p className="text-3xl font-black text-emerald-400 font-mono mt-0.5">
+                    {formatBRL(selectedReceipt.net_amount_cents && selectedReceipt.net_amount_cents > 0 ? selectedReceipt.net_amount_cents : selectedReceipt.amount_cents)}
+                  </p>
+                  {selectedReceipt.fee_cents > 0 && (
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Valor solicitado: {formatBRL(selectedReceipt.amount_cents)} | Taxa retida: {formatBRL(selectedReceipt.fee_cents)}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Informações do Favorecido & Origem */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* Favorecido */}
+                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
+                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">
+                    Favorecido (Destino)
+                  </span>
+                  <p className="font-bold text-white text-sm">
+                    {selectedReceipt.tenants?.name || "Lojista Drika Hub"}
+                  </p>
+                  <div className="text-slate-300 space-y-0.5 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-500">Chave PIX:</span>
+                      <span className="font-mono text-emerald-400 font-bold">{selectedReceipt.pix_key || "Não informada"}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Tipo: <span className="uppercase text-slate-300 font-semibold">{selectedReceipt.pix_key_type || "PIX"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Origem */}
+                <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
+                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">
+                    Origem dos Recursos
+                  </span>
+                  <p className="font-bold text-white text-sm">
+                    Drika Hub
+                  </p>
+                  <div className="text-slate-300 space-y-0.5 pt-1">
+                    <div className="text-[11px] text-slate-400">
+                      Conta: <span className="text-slate-300">Caixa Central Drika Hub</span>
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Gateway: <span className="text-purple-400 font-semibold">MisticPay / PIX Automático</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Identificadores e Rastreabilidade */}
+              <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-2">
+                <span className="text-[10px] uppercase text-slate-500 font-semibold block">
+                  Identificadores Técnicos & Auditoria
+                </span>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">ID da Transação:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-slate-200 text-[11px] max-w-[200px] truncate">{selectedReceipt.id}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedReceipt.id);
+                          toast({ title: "ID copiado!", description: selectedReceipt.id });
+                        }}
+                        className="h-6 w-6 text-slate-400 hover:text-white"
+                        title="Copiar ID"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">ID do PIX / Gateway:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-purple-300 text-[11px] max-w-[200px] truncate font-semibold">
+                        {selectedReceipt.payment_id || "Liquidado via Sistema"}
+                      </span>
+                      {selectedReceipt.payment_id && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedReceipt.payment_id!);
+                            toast({ title: "ID do PIX copiado!", description: selectedReceipt.payment_id! });
+                          }}
+                          className="h-6 w-6 text-slate-400 hover:text-white"
+                          title="Copiar ID PIX"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Data da Solicitação:</span>
+                    <span className="text-slate-300 font-mono text-[11px]">
+                      {format(new Date(selectedReceipt.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                    </span>
+                  </div>
+
+                  {selectedReceipt.admin_notes && (
+                    <div className="flex items-center justify-between border-t border-slate-800/80 pt-1.5">
+                      <span className="text-slate-400">Observações:</span>
+                      <span className="text-slate-300 text-[11px] italic">{selectedReceipt.admin_notes}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2 gap-2 flex flex-col sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleCopyReceiptText(selectedReceipt)}
+                  className="border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs gap-1.5 flex-1"
+                >
+                  {copiedReceiptText ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedReceiptText ? "Copiado!" : "Copiar Texto"}
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => handleDownloadReceiptPDF(selectedReceipt)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 flex-1 shadow-md"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Baixar Comprovante em PDF
                 </Button>
               </DialogFooter>
             </div>
