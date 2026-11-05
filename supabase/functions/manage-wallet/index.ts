@@ -104,6 +104,113 @@ async function verifyTenantAccessOrSuperAdmin(
   return { authorized: true };
 }
 
+// ─── Envia notificação rica no Discord (DM direta) para as donas/admins (@drikastore e @saradinha_) ───
+async function notifyAdminsDiscordWithdrawal(opts: {
+  tenantName: string;
+  amountCents: number;
+  feeCents: number;
+  netCents: number;
+  pixKey: string;
+  pixKeyType: string;
+  txId: string;
+  isFree: boolean;
+  systemUrl?: string;
+}) {
+  const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+  if (!botToken) {
+    console.warn("[notifyAdminsDiscordWithdrawal] DISCORD_BOT_TOKEN ausente");
+    return;
+  }
+
+  // IDs dos perfis das donas/administradoras (@drikastore e @saradinha_)
+  const adminDiscordIds = ["821558032554917928", "340146018689482762"];
+  const formattedGross = (opts.amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const formattedFee = (opts.feeCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const formattedNet = (opts.netCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const panelUrl = opts.systemUrl
+    ? `${opts.systemUrl.replace(/\/$/, "")}/admin/carteira`
+    : "https://drikahub.com/admin/carteira";
+
+  const embed = {
+    title: "💸 NOVA SOLICITAÇÃO DE SAQUE PENDENTE",
+    description: `A loja **${opts.tenantName}** solicitou um saque PIX na plataforma e aguarda sua aprovação no painel.`,
+    color: 0xf59e0b, // Amber Gold alert
+    fields: [
+      { name: "🏪 Loja / Lojista", value: opts.tenantName, inline: true },
+      { name: "💰 Valor Solicitado", value: formattedGross, inline: true },
+      { name: "🏷️ Taxa da Plataforma", value: opts.isFree ? "R$ 0,00 (1º Saque Grátis)" : formattedFee, inline: true },
+      { name: "💵 Líquido a Transferir", value: `**${formattedNet}**`, inline: true },
+      { name: "🔑 Chave PIX", value: `\`${opts.pixKey}\` (${opts.pixKeyType.toUpperCase()})`, inline: true },
+      { name: "🆔 ID da Transação", value: `\`${opts.txId}\``, inline: false },
+    ],
+    footer: {
+      text: "DRIKA HUB • Gestão Financeira & Saques",
+      icon_url: "https://drikahub.com/favicon.png",
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  const components = [
+    {
+      type: 1, // ActionRow
+      components: [
+        {
+          type: 2, // Button
+          style: 5, // Link
+          label: "Aprovar Saque no Painel",
+          url: panelUrl,
+          emoji: { name: "⚡" },
+        },
+      ],
+    },
+  ];
+
+  for (const recipientId of adminDiscordIds) {
+    try {
+      // 1. Criar ou obter canal de DM com a usuária
+      const dmChanRes = await fetch("https://discord.com/api/v10/users/@me/channels", {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ recipient_id: recipientId }),
+      });
+
+      if (!dmChanRes.ok) {
+        const txt = await dmChanRes.text().catch(() => "");
+        console.warn(`[notifyAdminsDiscordWithdrawal] Não foi possível abrir DM com ${recipientId}: ${dmChanRes.status} ${txt}`);
+        continue;
+      }
+
+      const dmChan = await dmChanRes.json();
+      if (!dmChan?.id) continue;
+
+      // 2. Enviar mensagem na DM
+      const sendRes = await fetch(`https://discord.com/api/v10/channels/${dmChan.id}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          embeds: [embed],
+          components,
+        }),
+      });
+
+      if (!sendRes.ok) {
+        const txt = await sendRes.text().catch(() => "");
+        console.warn(`[notifyAdminsDiscordWithdrawal] Falha ao enviar DM para ${recipientId}: ${sendRes.status} ${txt}`);
+      } else {
+        console.log(`[notifyAdminsDiscordWithdrawal] Notificação de saque enviada com sucesso para ${recipientId}`);
+      }
+    } catch (dmErr) {
+      console.error(`[notifyAdminsDiscordWithdrawal] Erro ao enviar DM para ${recipientId}:`, dmErr);
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -298,6 +405,35 @@ Deno.serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // ─── Disparar notificação Discord para os dois perfis de donas/administradoras (@drikastore e @saradinha_) ───
+      try {
+        const { data: tenantRow } = await supabase
+          .from("tenants")
+          .select("name")
+          .eq("id", tenant_id)
+          .maybeSingle();
+
+        const { data: lCfg } = await supabase
+          .from("landing_config")
+          .select("system_url")
+          .limit(1)
+          .maybeSingle();
+
+        await notifyAdminsDiscordWithdrawal({
+          tenantName: tenantRow?.name || "Loja Lojista",
+          amountCents: rpcRes.amount_cents || amount_cents,
+          feeCents: rpcRes.fee_cents || 0,
+          netCents: rpcRes.net_amount_cents || (amount_cents - (rpcRes.fee_cents || 0)),
+          pixKey: pix_key.trim(),
+          pixKeyType: pix_key_type || "aleatoria",
+          txId: rpcRes.tx_id || "tx-" + Date.now(),
+          isFree: Boolean(rpcRes.is_free),
+          systemUrl: lCfg?.system_url || "https://drikahub.com",
+        });
+      } catch (notifErr) {
+        console.error("[manage-wallet] Erro ao enviar notificação Discord:", notifErr);
       }
 
       return new Response(JSON.stringify(rpcRes), {

@@ -75,6 +75,7 @@ const SidebarContent = ({
   onToggleEdit,
   onReorder,
   onReset,
+  pendingWithdrawalsCount = 0,
 }: {
   location: ReturnType<typeof useLocation>;
   onNavigate?: () => void;
@@ -83,6 +84,7 @@ const SidebarContent = ({
   onToggleEdit: () => void;
   onReorder: (from: number, to: number) => void;
   onReset: () => void;
+  pendingWithdrawalsCount?: number;
 }) => {
   const { signOut } = useAuth();
   const dragItem = useRef<number | null>(null);
@@ -175,11 +177,23 @@ const SidebarContent = ({
                       )}
                       <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
                       <span className="flex-1">{item.label}</span>
-                      {item.badge && (
-                        <span className="inline-flex h-4 items-center rounded-full bg-primary/20 px-1.5 text-[10px] font-bold text-primary">
-                          {item.badge}
-                        </span>
-                      )}
+                      {(() => {
+                        const isWithdrawalBadge = item.path === "/admin/carteira" && pendingWithdrawalsCount > 0;
+                        const displayBadge = isWithdrawalBadge ? String(pendingWithdrawalsCount) : item.badge;
+                        if (!displayBadge) return null;
+                        return (
+                          <span
+                            className={cn(
+                              "inline-flex h-4 items-center rounded-full px-1.5 text-[10px] font-bold",
+                              isWithdrawalBadge
+                                ? "bg-rose-500 text-white animate-pulse shadow-sm shadow-rose-500/50"
+                                : "bg-primary/20 text-primary"
+                            )}
+                          >
+                            {displayBadge}
+                          </span>
+                        );
+                      })()}
                     </Link>
                   </div>
                 );
@@ -236,7 +250,32 @@ interface AdminNotif {
   desc: string;
   time: string;
   read: boolean;
-  type: "pro_activated" | "new_tenant" | "payment" | "sale";
+  type: "pro_activated" | "new_tenant" | "payment" | "sale" | "withdrawal_pending";
+}
+
+// ── Sound: plays a distinctive chime when a withdrawal is pending via Web Audio API ──
+function playWithdrawalSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const now = ctx.currentTime;
+    [
+      { freq: 587.33, time: now, dur: 0.12 },        // D5
+      { freq: 880.00, time: now + 0.10, dur: 0.14 }, // A5
+      { freq: 1174.66, time: now + 0.22, dur: 0.28 }, // D6
+    ].forEach(({ freq, time, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, time);
+      gain.gain.setValueAtTime(0.35, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + dur);
+    });
+    setTimeout(() => ctx.close(), 700);
+  } catch {}
 }
 
 // ── Sound: plays a premium electronic blip via Web Audio API (no file needed) ──
@@ -356,20 +395,64 @@ export const AdminLayout = () => {
     setEditMode(prev => !prev);
   }, []);
 
-  const fetchNotifications = useCallback(async () => {
-    const { data: payments } = await (supabase as any)
-      .from("subscription_payments")
-      .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
-      .order("created_at", { ascending: false })
-      .limit(20);
+  // ── Contador de Saques Pendentes ──
+  const [pendingWithdrawalsCount, setPendingWithdrawalsCount] = useState<number>(0);
 
-    const { data: tenants } = await (supabase as any)
-      .from("tenants")
-      .select("id, name, plan, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10);
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const { count } = await (supabase as any)
+        .from("wallet_transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("type", "withdrawal")
+        .eq("status", "pending");
+      setPendingWithdrawalsCount(count || 0);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (isSuperAdmin) fetchPendingCount();
+  }, [isSuperAdmin, fetchPendingCount]);
+
+  const fetchNotifications = useCallback(async () => {
+    const [paymentsRes, tenantsRes, withdrawalsRes] = await Promise.all([
+      (supabase as any)
+        .from("subscription_payments")
+        .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
+        .order("created_at", { ascending: false })
+        .limit(20),
+      (supabase as any)
+        .from("tenants")
+        .select("id, name, plan, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10),
+      (supabase as any)
+        .from("wallet_transactions")
+        .select("id, tenant_id, amount_cents, net_amount_cents, pix_key, created_at, tenants:tenant_id(name)")
+        .eq("type", "withdrawal")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(15),
+    ]);
+
+    const payments = paymentsRes.data || [];
+    const tenants = tenantsRes.data || [];
+    const withdrawals = withdrawalsRes.data || [];
 
     const notifs: AdminNotif[] = [];
+
+    // Saques pendentes (Prioridade alta no topo)
+    for (const w of withdrawals || []) {
+      const tenantName = w.tenants?.name || "Loja";
+      const valor = ((w.amount_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      notifs.push({
+        id: `withdraw-${w.id}`,
+        title: `💸 Saque pendente: ${valor}`,
+        desc: `${tenantName} — PIX: ${w.pix_key || "Chave pendente"}`,
+        time: timeAgo(w.created_at),
+        read: readIds.has(`withdraw-${w.id}`),
+        type: "withdrawal_pending",
+      });
+    }
 
     for (const p of payments || []) {
       const tenantName = p.tenants?.name || "Tenant";
@@ -419,6 +502,46 @@ export const AdminLayout = () => {
       .channel("admin-notifications")
       .on(
         "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "wallet_transactions" },
+        async (payload: any) => {
+          const row = payload.new;
+          if (row?.type === "withdrawal" && row?.status === "pending") {
+            if (soundEnabledRef.current) playWithdrawalSound();
+            const valor = ((row.amount_cents || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+            let tenantName = "Loja";
+            try {
+              const { data: t } = await (supabase as any).from("tenants").select("name").eq("id", row.tenant_id).maybeSingle();
+              if (t?.name) tenantName = t.name;
+            } catch {}
+
+            toast.warning(`💸 Novo Saque Pendente: ${valor}`, {
+              description: `${tenantName} solicitou saque PIX. Clique para revisar e aprovar.`,
+              duration: 12000,
+              action: {
+                label: "Ver Carteira",
+                onClick: () => { window.location.href = "/admin/carteira"; },
+              },
+            });
+
+            fetchPendingCount();
+            fetchNotifications();
+          }
+        }
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "UPDATE", schema: "public", table: "wallet_transactions" },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type === "withdrawal") {
+            fetchPendingCount();
+            fetchNotifications();
+          }
+        }
+      )
+      .on(
+        "postgres_changes" as any,
         { event: "*", schema: "public", table: "subscription_payments" },
         (payload: any) => {
           const row = payload.new;
@@ -440,7 +563,7 @@ export const AdminLayout = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [isSuperAdmin, fetchNotifications]);
+  }, [isSuperAdmin, fetchNotifications, fetchPendingCount]);
 
   // ── Realtime: listen for new PAID orders (all tenants via service-level subscription) ──
   useEffect(() => {
@@ -521,6 +644,11 @@ export const AdminLayout = () => {
   if (!isSuperAdmin) return <Navigate to="/admin/login" replace />;
 
   const notifIcon = (type: AdminNotif["type"]) => {
+    if (type === "withdrawal_pending") return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-500/15">
+        <Wallet className="h-4 w-4 text-rose-500" />
+      </div>
+    );
     if (type === "pro_activated") return (
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15">
         <Crown className="h-4 w-4 text-amber-500" />
@@ -551,6 +679,7 @@ export const AdminLayout = () => {
     onToggleEdit: toggleEdit,
     onReorder: handleReorder,
     onReset: handleReset,
+    pendingWithdrawalsCount,
   };
 
   return (
@@ -653,7 +782,7 @@ export const AdminLayout = () => {
                     notifications.map(n => (
                       <Link
                         key={n.id}
-                        to={n.type === "new_tenant" ? "/admin/clientes" : "/admin/pagamentos"}
+                        to={n.type === "new_tenant" ? "/admin/clientes" : (n.type === "withdrawal_pending" ? "/admin/carteira" : "/admin/pagamentos")}
                         onClick={() => setNotifOpen(false)}
                         className={cn(
                           "flex items-start gap-3 px-4 py-3 border-b border-border last:border-0 hover:bg-accent/40 transition-colors",
