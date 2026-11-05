@@ -336,24 +336,23 @@ Deno.serve(async (req) => {
 
       // 2. Manual Approval Flow (PIX done manually outside or override)
       if (manual_approval) {
+        const { error: approveErr } = await supabase.rpc("approve_wallet_withdrawal", {
+          _tx_id: tx_id,
+          _admin_notes: admin_notes
+            ? `Aprovado manualmente: ${admin_notes}`.slice(0, 250)
+            : (tx.description ? `${tx.description} (Manual)` : "Saque PIX aprovado manualmente"),
+        });
+
+        if (approveErr) {
+          throw new Error(approveErr.message);
+        }
+
         await supabase
           .from("wallet_transactions")
           .update({
-            status: "completed",
             payment_id: "MANUAL-" + Date.now(),
-            completed_at: new Date().toISOString(),
-            description: admin_notes
-              ? `Aprovado manualmente: ${admin_notes}`.slice(0, 250)
-              : (tx.description ? `${tx.description} (Manual)` : "Saque PIX aprovado manualmente"),
           })
           .eq("id", tx_id);
-
-        try {
-          await supabase.rpc("debit_wallet_withdrawal", {
-            _tenant_id: tx.tenant_id,
-            _amount_cents: tx.amount_cents,
-          });
-        } catch { /* non-blocking */ }
 
         return new Response(
           JSON.stringify({
@@ -423,25 +422,22 @@ Deno.serve(async (req) => {
         );
       }
 
-      // 4. Update status completed if not already done
-      await supabase
-        .from("wallet_transactions")
-        .update({
-          status: "completed",
-          payment_id: pixResult?.payment_id || null,
-          completed_at: new Date().toISOString(),
-          description: admin_notes
-            ? `Aprovado: ${admin_notes}`.slice(0, 250)
-            : (tx.description || "Saque PIX aprovado"),
-        })
-        .eq("id", tx_id);
+      // 4. Atomically release locked balance and complete transaction
+      await supabase.rpc("approve_wallet_withdrawal", {
+        _tx_id: tx_id,
+        _admin_notes: admin_notes
+          ? `Aprovado: ${admin_notes}`.slice(0, 250)
+          : (tx.description || "Saque PIX aprovado"),
+      });
 
-      try {
-        await supabase.rpc("debit_wallet_withdrawal", {
-          _tenant_id: tx.tenant_id,
-          _amount_cents: tx.amount_cents,
-        });
-      } catch { /* non-blocking */ }
+      if (pixResult?.payment_id) {
+        await supabase
+          .from("wallet_transactions")
+          .update({
+            payment_id: pixResult.payment_id,
+          })
+          .eq("id", tx_id);
+      }
 
       return new Response(
         JSON.stringify({

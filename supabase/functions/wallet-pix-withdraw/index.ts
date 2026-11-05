@@ -354,26 +354,23 @@ Deno.serve(async (req) => {
 
     // Save payment_id and mark transaction completed.
     if (txId) {
+      await supabase.rpc("approve_wallet_withdrawal", {
+        _tx_id: txId,
+        _admin_notes: "Saque PIX processado via gateway",
+      });
       await supabase
         .from("wallet_transactions")
-        .update({ payment_id: result.payment_id, status: "completed", completed_at: new Date().toISOString() })
+        .update({ payment_id: result.payment_id })
         .eq("id", txId);
-    }
-
-    await supabase
-      .from("wallets")
-      .upsert(
-        { tenant_id, total_withdrawn_cents: amount_cents } as any,
-        { onConflict: "tenant_id", ignoreDuplicates: false } as any,
-      );
-    // upsert won't increment; do an explicit increment via raw update if row exists
-    const { data: w } = await supabase
-      .from("wallets").select("total_withdrawn_cents").eq("tenant_id", tenant_id).maybeSingle();
-    if (w) {
-      await supabase
-        .from("wallets")
-        .update({ total_withdrawn_cents: ((w as any).total_withdrawn_cents || 0) + amount_cents, updated_at: new Date().toISOString() } as any)
-        .eq("tenant_id", tenant_id);
+    } else {
+      const { data: w } = await supabase
+        .from("wallets").select("total_withdrawn_cents").eq("tenant_id", tenant_id).maybeSingle();
+      if (w) {
+        await supabase
+          .from("wallets")
+          .update({ total_withdrawn_cents: ((w as any).total_withdrawn_cents || 0) + amount_cents, updated_at: new Date().toISOString() } as any)
+          .eq("tenant_id", tenant_id);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, tx_id: tx.id, payment_id: result.payment_id, status: result.status }), {
