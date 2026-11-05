@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -50,7 +50,7 @@ serve(async (req) => {
     if (order.is_global) {
       const { data: lc } = await supabase
         .from("landing_config")
-        .select("efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key, coldpayments_api_key, coldpayments_active")
+        .select("efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key")
         .limit(1)
         .maybeSingle();
       if (lc) {
@@ -60,7 +60,6 @@ serve(async (req) => {
             provider === "efi" ? lc.efi_client_id :
             provider === "pushinpay" ? lc.pushinpay_api_key :
             provider === "abacatepay" ? lc.abacatepay_api_key :
-            provider === "coldpayments" ? (lc as any).coldpayments_api_key :
             null,
           secret_key_encrypted: provider === "efi" ? lc.efi_client_secret : null,
           efi_cert_pem: lc.efi_cert_pem,
@@ -76,19 +75,7 @@ serve(async (req) => {
         .eq("provider_key", provider)
         .eq("active", true)
         .maybeSingle();
-      if (!pc && provider === "coldpayments") {
-        // ColdPayments in split/central mode: config comes from landing_config, loaded during polling
-        const { data: lc } = await supabase
-          .from("landing_config")
-          .select("coldpayments_api_key, coldpayments_active")
-          .limit(1)
-          .maybeSingle();
-        providerConfig = lc?.coldpayments_active && lc?.coldpayments_api_key
-          ? { api_key_encrypted: lc.coldpayments_api_key }
-          : {}; // empty obj so we don't return 'not configured'
-      } else {
-        providerConfig = pc;
-      }
+      providerConfig = pc;
     }
 
     if (!providerConfig) {
@@ -244,48 +231,6 @@ serve(async (req) => {
         }
       } catch (e) {
         console.error("Stripe polling error:", e);
-      }
-    }
-
-    // â”€â”€ ColdPayments: Check payment status via polling â”€â”€
-    if (provider === "coldpayments" && paymentId) {
-      try {
-        let coldApiKey = providerConfig?.api_key_encrypted;
-
-        // If not found in providerConfig, try landing_config (central/split mode)
-        if (!coldApiKey) {
-          const { data: lc } = await supabase
-            .from("landing_config")
-            .select("coldpayments_api_key, coldpayments_active")
-            .limit(1)
-            .maybeSingle();
-          if (lc?.coldpayments_active && lc?.coldpayments_api_key) {
-            coldApiKey = lc.coldpayments_api_key;
-          }
-        }
-
-        if (coldApiKey) {
-          const res = await fetch(`https://coldpayments.com/api/v1/payments/${encodeURIComponent(paymentId)}`, {
-            headers: {
-              "X-API-Key": coldApiKey,
-              "Accept": "application/json",
-            },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const status = (data?.status || "").toString().toUpperCase();
-            // console.log(`ColdPayments check for ${paymentId}: status=${status}`, JSON.stringify(data).slice(0, 200));
-            if (status === "PAID" || status === "COMPLETED" || status === "APPROVED") {
-              isPaid = true;
-            }
-          } else {
-            console.error(`ColdPayments polling HTTP error: ${res.status}`);
-          }
-        } else {
-          console.error("ColdPayments polling: no API key found");
-        }
-      } catch (e) {
-        console.error("ColdPayments polling error:", e);
       }
     }
 

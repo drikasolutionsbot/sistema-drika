@@ -16,7 +16,7 @@ interface WithdrawBody {
   amount_cents: number;
   pix_key: string;
   pix_key_type?: "cpf" | "cnpj" | "email" | "telefone" | "aleatoria";
-  provider_key: string; // efi | misticpay | coldpayments
+  provider_key: string; // efi | misticpay
   description?: string;
   existing_tx_id?: string;
 }
@@ -192,48 +192,6 @@ async function withdrawViaMisticPay(opts: {
   };
 }
 
-// ─── ColdPayments — POST /withdrawals ──────────────────────────────
-async function withdrawViaColdPayments(opts: {
-  apiKey: string;
-  destinationKey: string;
-  destinationKeyType: string;
-  amountCents: number;
-  description?: string;
-}): Promise<{ payment_id: string; status: string }> {
-  if (opts.amountCents < 100) {
-    throw new Error(
-      `O gateway ColdPayments exige valor mínimo de R$ 1,00 para transferência PIX automática (valor atual: R$ ${(opts.amountCents / 100).toFixed(2)}). Aprove manualmente caso já tenha realizado o PIX pelo seu banco.`
-    );
-  }
-
-  // ColdPayments accepts amountCents, pixKey and description. pixKeyType should NOT be sent.
-  const res = await fetch("https://coldpayments.com/api/v1/withdrawals", {
-    method: "POST",
-    headers: {
-      "X-API-Key": opts.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      amountCents: opts.amountCents,
-      pixKey: opts.destinationKey,
-      description: (opts.description || "Saque carteira").substring(0, 140),
-    }),
-  });
-  const text = await res.text();
-  let data: any = {};
-  try { data = JSON.parse(text); } catch { /* keep raw */ }
-  if (!res.ok) {
-    if (res.status === 403 && (data?.message?.includes("withdrawals:write") || text?.includes("withdrawals:write") || data?.title?.includes("withdrawals:write"))) {
-      throw new Error("A chave de API da ColdPayments não possui a permissão de saque (escopo 'withdrawals:write'). Habilite essa permissão no painel da ColdPayments.");
-    }
-    throw new Error(data?.message || data?.error || `ColdPayments ${res.status}: ${text.slice(0, 200)}`);
-  }
-  return {
-    payment_id: String(data.id || data.withdrawalId || crypto.randomUUID()),
-    status: data.status || "processing",
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -259,22 +217,7 @@ Deno.serve(async (req) => {
 
     // Fallback: if provider not configured per-tenant, check central platform gateway in landing_config
     if (!provider) {
-      if (provider_key === "coldpayments") {
-        const { data: lc } = await supabase
-          .from("landing_config")
-          .select("coldpayments_active, coldpayments_api_key")
-          .limit(1)
-          .maybeSingle();
-        if (lc?.coldpayments_active && lc?.coldpayments_api_key) {
-          provider = {
-            provider_key: "coldpayments",
-            api_key_encrypted: lc.coldpayments_api_key,
-            active: true,
-            pix_out_enabled: true,
-            is_central: true,
-          } as any;
-        }
-      } else if (provider_key === "efi") {
+      if (provider_key === "efi") {
         const { data: lc } = await supabase
           .from("landing_config")
           .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key")
@@ -371,17 +314,6 @@ Deno.serve(async (req) => {
         result = await withdrawViaMisticPay({
           clientId: provider.api_key_encrypted,
           clientSecret: provider.secret_key_encrypted,
-          destinationKey: pix_key,
-          destinationKeyType: keyType,
-          amountCents: amount_cents,
-          description,
-        });
-      } else if (provider_key === "coldpayments") {
-        if (!provider.api_key_encrypted) {
-          throw new Error("ColdPayments API Key não configurada");
-        }
-        result = await withdrawViaColdPayments({
-          apiKey: provider.api_key_encrypted,
           destinationKey: pix_key,
           destinationKeyType: keyType,
           amountCents: amount_cents,

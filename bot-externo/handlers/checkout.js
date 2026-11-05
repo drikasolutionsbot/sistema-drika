@@ -300,35 +300,6 @@ async function generatePushinPayPix(apiKey, amountCents, webhook) {
   return { brcode: data.qr_code || "", payment_id: data.id };
 }
 
-// ── ColdPayments PIX ──
-async function generateColdPaymentsPix(apiKey, amountCents, desc, externalRef) {
-  const safeAmount = Math.max(amountCents, 200);
-  const res = await fetch("https://coldpayments.com/api/v1/payments", {
-    method: "POST",
-    headers: {
-      "X-API-Key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      amountCents: safeAmount,
-      description: (desc || "Pagamento PIX").substring(0, 140),
-      metadata: {
-        order_id: externalRef,
-        external_id: externalRef,
-      },
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || err.title || `ColdPayments error: ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    brcode: data.copyPaste || data.brcode || data.pixCode || data.qrCode || "",
-    payment_id: String(data.id || externalRef),
-  };
-}
-
 // ── Start Checkout (from buy_product button) ──
 async function startCheckout(interaction, tenant, productId) {
   await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, criando carrinho...", ephemeral: true });
@@ -765,9 +736,6 @@ async function goToPayment(interaction, tenant, orderId) {
     } else if (providerKey === "pushinpay") {
       const r = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
       brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "coldpayments") {
-      const r = await generateColdPaymentsPix(apiKey, priceCents, order.product_name, externalRef);
-      brcode = r.brcode; paymentId = r.payment_id;
     } else if (providerKey === "efi" || providerKey === "misticpay" || providerKey === "abacatepay") {
       const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
         method: "POST",
@@ -785,13 +753,11 @@ async function goToPayment(interaction, tenant, orderId) {
       ? (providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
         : providerKey === "efi" ? "Pix – Efi Bank (Split)"
         : providerKey === "abacatepay" ? "Pix – AbacatePay (Split)"
-        : providerKey === "coldpayments" ? "Pix – ColdPayments (Split)"
         : `Pix – ${providerKey} (Split)`)
       : (providerKey === "pushinpay" ? "Pix – PushinPay"
         : providerKey === "efi" ? "Pix – Efi Bank"
         : providerKey === "mercadopago" ? "Pix – Mercado Pago"
         : providerKey === "misticpay" ? "Pix – Mistic Pay"
-        : providerKey === "coldpayments" ? "Pix – ColdPayments"
         : providerKey === "abacatepay" ? "Pix – AbacatePay"
         : `Pix – ${providerKey}`);
 

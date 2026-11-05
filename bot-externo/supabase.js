@@ -331,19 +331,11 @@ async function getActivePaymentProvider(tenantId) {
       // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
       const { data: lc } = await supabase
         .from("landing_config")
-        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key, coldpayments_active, coldpayments_api_key")
+        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
         .limit(1)
         .maybeSingle();
 
       if (lc) {
-        if (lc.coldpayments_active && lc.coldpayments_api_key) {
-          return {
-            provider_key: "coldpayments",
-            api_key_encrypted: lc.coldpayments_api_key,
-            is_central: true,
-            is_split: true,
-          };
-        }
         if (lc.efi_active && lc.efi_client_id) {
           return {
             provider_key: "efi",

@@ -1,4 +1,4 @@
-﻿/// <reference lib="deno.ns" />
+/// <reference lib="deno.ns" />
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang, optionalLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
@@ -3620,19 +3620,12 @@ async function generatePixInThread(
     // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
     const { data: lc } = await supabase
       .from("landing_config")
-      .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key, coldpayments_active, coldpayments_api_key")
+      .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
       .limit(1)
       .maybeSingle();
 
     if (lc) {
-      if ((lc as any).coldpayments_active && (lc as any).coldpayments_api_key) {
-        activeProvider = {
-          provider_key: "coldpayments",
-          api_key_encrypted: (lc as any).coldpayments_api_key,
-          is_central: true,
-          is_split: true,
-        };
-      } else if (lc.efi_active && lc.efi_client_id) {
+      if (lc.efi_active && lc.efi_client_id) {
         activeProvider = {
           provider_key: "efi",
           api_key_encrypted: lc.efi_client_id,

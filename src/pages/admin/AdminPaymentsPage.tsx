@@ -6,7 +6,6 @@ import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
 import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
 import AbacatePayIntegrationTab from "@/components/admin/AbacatePayIntegrationTab";
 import GatewaySettingsTab from "@/components/admin/GatewaySettingsTab";
-import ColdPaymentsIntegrationTab from "@/components/admin/ColdPaymentsIntegrationTab";
 
 const AdminPaymentsPage = () => {
   return (
@@ -39,10 +38,6 @@ const AdminPaymentsPage = () => {
               <img src={abacatePayIcon} alt="AbacatePay" className="h-4 w-4 object-contain" />
               AbacatePay
             </TabsTrigger>
-            <TabsTrigger value="coldpayments" className="gap-2">
-              <Zap className="h-4 w-4 text-sky-400" />
-              ColdPayments
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -72,10 +67,6 @@ const AdminPaymentsPage = () => {
 
         <TabsContent value="abacatepay">
           <AbacatePayIntegrationTab />
-        </TabsContent>
-
-        <TabsContent value="coldpayments">
-          <ColdPaymentsIntegrationTab />
         </TabsContent>
       </Tabs>
     </div>

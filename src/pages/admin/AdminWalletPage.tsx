@@ -226,8 +226,8 @@ export default function AdminWalletPage() {
   const [auditSummary, setAuditSummary] = useState<AuditSummary | null>(null);
   const [searchAudit, setSearchAudit] = useState("");
   const [auditStoreFilter, setAuditStoreFilter] = useState("all");
-  // Audit provider is always coldpayments (the only split gateway on the platform)
-  const auditProviderFilter = "coldpayments";
+  // Audit provider filter (all split orders)
+  const auditProviderFilter = "all";
   const [selectedAuditSale, setSelectedAuditSale] = useState<SalesAuditItem | null>(null);
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [copiedAuditId, setCopiedAuditId] = useState<string | null>(null);
@@ -442,7 +442,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
         title: manual ? "Saque aprovado manualmente!" : "Saque aprovado e PIX enviado!",
         description: manual
           ? `O saque de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi registrado como concluído.`
-          : `O PIX de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi transferido com sucesso pela ColdPayments.`,
+          : `O PIX de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi transferido com sucesso pela Gateway Central.`,
       });
 
       setApproveModalOpen(false);
@@ -683,7 +683,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
   }, [filteredAuditSales, searchAudit, auditVisibleCount]);
 
 
-  // Dynamic metrics for the ColdPayments audit view
+  // Dynamic metrics for the Split audit view
   const auditMetrics = useMemo(() => {
     const paidSales = filteredAuditSales.filter(
       (s) => s.status === "paid" || s.status === "delivered" || s.status === "delivering"
@@ -1656,10 +1656,10 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                     </SelectContent>
                   </Select>
 
-                  {/* Gateway fixo: ColdPayments (Split) */}
+                  {/* Gateway Central (Split) */}
                   <div className="flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-800 bg-[#070b14] text-xs text-emerald-400 font-semibold whitespace-nowrap">
                     <Zap className="h-3.5 w-3.5" />
-                    ColdPayments (Split)
+                    Gateway Central (Split)
                   </div>
                 </div>
               </div>
@@ -1884,7 +1884,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                   </span>
                 </div>
                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] uppercase font-mono tracking-wider">
-                  {selectedTx.source_order?.payment_provider || selectedTx.provider || "COLDPAYMENTS"}
+                  {selectedTx.source_order?.payment_provider || selectedTx.provider || "SPLIT"}
                 </Badge>
               </div>
 
@@ -2127,7 +2127,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                 <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-3 flex items-start gap-2.5">
                   <Zap className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-emerald-300 leading-relaxed">
-                    <strong>Transferência Automática PIX:</strong> Ao confirmar a aprovação, a gateway <strong>ColdPayments</strong> enviará exatamente <strong>{formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}</strong> de forma instantânea para a chave PIX informada.
+                    <strong>Transferência Automática PIX:</strong> Ao confirmar a aprovação, a <strong>Gateway Central</strong> enviará exatamente <strong>{formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}</strong> de forma instantânea para a chave PIX informada.
                   </p>
                 </div>
               )}

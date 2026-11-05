@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -333,102 +333,6 @@ async function handleLofyPay(body: any, tenantId: string, supabase: any) {
   return { handled: false, reason: "Order not found" };
 }
 
-// â”€â”€â”€ Gateway: ColdPayments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-async function handleColdPayments(body: any, rawBody: string, headers: Headers, tenantId: string, supabase: any) {
-  // Validate HMAC-SHA256 signature if webhook secret is configured
-  const sig = headers.get("x-coldpayments-signature");
-  const timestamp = headers.get("x-coldpayments-timestamp");
-
-  if (sig && timestamp) {
-    try {
-      const { data: lc } = await supabase
-        .from("landing_config")
-        .select("coldpayments_webhook_secret")
-        .limit(1)
-        .maybeSingle();
-      const secret = (lc as any)?.coldpayments_webhook_secret;
-      if (secret) {
-        const msgToSign = `${timestamp}.${rawBody}`;
-        const enc = new TextEncoder();
-        const key = await crypto.subtle.importKey(
-          "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-        );
-        const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(msgToSign));
-        const expected = Array.from(new Uint8Array(signatureBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
-        // Reject if timestamps differ by more than 5 minutes
-        const tsNum = parseInt(timestamp, 10);
-        if (!isNaN(tsNum) && Math.abs(Date.now() / 1000 - tsNum) > 300) {
-          return { handled: false, reason: "Webhook timestamp too old" };
-        }
-        if (expected !== sig) {
-          console.error(`ColdPayments HMAC mismatch: expected=${expected} got=${sig}`);
-          return { handled: false, reason: "Invalid webhook signature" };
-        }
-      }
-    } catch (hmacErr) {
-      console.error("ColdPayments HMAC validation error:", hmacErr);
-    }
-  }
-
-  const event = headers.get("x-coldpayments-event") || body?.event || "";
-  const eventId = headers.get("x-coldpayments-event-id") || body?.id || "";
-
-  // console.log(`ColdPayments webhook: event=${event}, eventId=${eventId}, body=${JSON.stringify(body).slice(0, 300)}`);
-
-  // Only process payment.paid events
-  if (event !== "payment.paid" && body?.status !== "PAID") {
-    return { handled: false, reason: `Event not payment.paid: ${event}` };
-  }
-
-  const paymentId = String(body?.id || eventId || "");
-  const externalId =
-    body?.metadata?.order_id ||
-    body?.metadata?.external_id ||
-    body?.externalId ||
-    body?.external_id ||
-    body?.externalReference ||
-    null;
-  const amountCents = body?.amountCents || body?.amount_cents || null;
-
-  if (!paymentId) return { handled: false, reason: "No payment ID" };
-
-  // Try to find order by payment_id
-  let order: any = null;
-  const { data: orderByPid } = await supabase
-    .from("orders")
-    .select("id, status, tenant_id")
-    .eq("payment_id", paymentId)
-    .maybeSingle();
-  order = orderByPid;
-
-  // Fallback: find by externalId (order_id or tx_id)
-  if (!order && externalId) {
-    const orderId = String(externalId).replace(/^order_/, "");
-    const { data: orderByExt } = await supabase
-      .from("orders")
-      .select("id, status, tenant_id")
-      .eq("id", orderId)
-      .maybeSingle();
-    order = orderByExt;
-  }
-
-  if (!order) {
-    console.error(`ColdPayments: No order found for payment_id=${paymentId} externalId=${externalId}`);
-    return { handled: false, reason: "Order not found" };
-  }
-
-  if (order.status === "paid" || order.status === "delivered") {
-    return { handled: false, reason: "Order already processed" };
-  }
-
-  await supabase
-    .from("orders")
-    .update({ status: "paid", payment_id: paymentId, payment_provider: "coldpayments" })
-    .eq("id", order.id);
-
-  return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
-}
-
 // â”€â”€â”€ Main handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -541,9 +445,6 @@ serve(async (req) => {
       case "lofypay":
         result = await handleLofyPay(body, tenantId, supabase);
         break;
-      case "coldpayments":
-        result = await handleColdPayments(body, rawBody, req.headers, tenantId, supabase);
-        break;
       default:
         result = { handled: false, reason: `Unknown provider: ${provider}` };
     }
@@ -596,7 +497,7 @@ serve(async (req) => {
       if (orderId) {
         try {
           // --- Resolve the REAL tenant_id from the order ---
-          // When the webhook arrives at /coldpayments/central, tenantId is "central" (not a UUID).
+          // When the webhook arrives at /<provider>/central, tenantId is "central" (not a UUID).
           // We must always use the tenant_id stored in the order row.
           const { data: paidOrder } = await supabase
             .from("orders")
