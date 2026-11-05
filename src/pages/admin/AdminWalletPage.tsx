@@ -1657,9 +1657,9 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
                   </Select>
 
                   {/* Gateway Central (Split) */}
-                  <div className="flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-800 bg-[#070b14] text-xs text-emerald-400 font-semibold whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-800 bg-[#070b14] text-xs text-purple-400 font-semibold whitespace-nowrap">
                     <Zap className="h-3.5 w-3.5" />
-                    Gateway Central (Split)
+                    MisticPay (Split)
                   </div>
                 </div>
               </div>
@@ -2124,10 +2124,10 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
 
               {/* Informação sobre transferência automática */}
               {selectedTx.status === "pending" && !gatewayErrorAlert && (
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-3 flex items-start gap-2.5">
-                  <Zap className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-emerald-300 leading-relaxed">
-                    <strong>Transferência Automática PIX:</strong> Ao confirmar a aprovação, a <strong>Gateway Central</strong> enviará exatamente <strong>{formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}</strong> de forma instantânea para a chave PIX informada.
+                <div className="rounded-lg border border-purple-500/20 bg-purple-950/10 p-3 flex items-start gap-2.5">
+                  <Zap className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-purple-300 leading-relaxed">
+                    <strong>Transferência Automática PIX:</strong> Ao confirmar a aprovação, a gateway <strong>MisticPay</strong> enviará exatamente <strong>{formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)}</strong> de forma instantânea para a chave PIX informada.
                   </p>
                 </div>
               )}

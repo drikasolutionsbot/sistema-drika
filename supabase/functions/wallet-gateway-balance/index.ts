@@ -85,11 +85,13 @@ async function lofyBalance(p: any): Promise<{ balance_cents: number; currency: s
 
 async function misticBalance(p: any): Promise<{ balance_cents: number; currency: string; raw?: any }> {
   if (!p.api_key_encrypted || !p.secret_key_encrypted) {
-    throw new Error("MisticPay precisa de Client ID (ci) e Client Secret (cs)");
+    throw new Error("MisticPay precisa de Client ID (pk_...) e Client Secret (sk_...)");
   }
+  const basicAuth = btoa(`${p.api_key_encrypted}:${p.secret_key_encrypted}`);
   const res = await fetch("https://api.misticpay.com/api/users/balance", {
     method: "GET",
     headers: {
+      "Authorization": `Basic ${basicAuth}`,
       ci: p.api_key_encrypted,
       cs: p.secret_key_encrypted,
     },
@@ -100,8 +102,8 @@ async function misticBalance(p: any): Promise<{ balance_cents: number; currency:
   if (!res.ok) {
     throw new Error(body?.message || `MisticPay saldo ${res.status}: ${text.slice(0, 200)}`);
   }
-  const reais = Number(body?.data?.balance ?? 0);
-  return { balance_cents: Math.round(reais * 100), currency: "BRL", raw: body?.data };
+  const reais = Number(body?.data?.availableBalance ?? body?.data?.balance ?? body?.balance ?? 0);
+  return { balance_cents: Math.round(reais * 100), currency: "BRL", raw: body?.data || body };
 }
 
 Deno.serve(async (req) => {
@@ -116,14 +118,36 @@ Deno.serve(async (req) => {
     }
 
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data: provider, error } = await sb
-      .from("payment_providers")
-      .select("*")
-      .eq("tenant_id", body.tenant_id)
-      .eq("provider_key", body.provider_key)
-      .maybeSingle();
+    let provider: any = null;
 
-    if (error || !provider) {
+    if (body.tenant_id !== "central") {
+      const { data } = await sb
+        .from("payment_providers")
+        .select("*")
+        .eq("tenant_id", body.tenant_id)
+        .eq("provider_key", body.provider_key)
+        .maybeSingle();
+      provider = data;
+    }
+
+    // Fallback to central platform gateway in landing_config
+    if (!provider && (body.provider_key === "misticpay" || body.provider_key === "mistic_pay")) {
+      const { data: lc } = await sb
+        .from("landing_config")
+        .select("misticpay_active, misticpay_client_id, misticpay_client_secret")
+        .limit(1)
+        .maybeSingle();
+      if ((lc as any)?.misticpay_client_id && (lc as any)?.misticpay_client_secret) {
+        provider = {
+          provider_key: "misticpay",
+          api_key_encrypted: (lc as any).misticpay_client_id,
+          secret_key_encrypted: (lc as any).misticpay_client_secret,
+          active: true,
+        };
+      }
+    }
+
+    if (!provider) {
       return new Response(JSON.stringify({ error: "Gateway não encontrado" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

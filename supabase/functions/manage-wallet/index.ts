@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      let providerKey = tx.provider || "efi";
+      let providerKey = tx.provider || "misticpay";
       let pixResult: any = null;
       try {
         const withdrawRes = await fetch(`${SUPABASE_URL}/functions/v1/wallet-pix-withdraw`, {

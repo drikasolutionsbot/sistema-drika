@@ -50,18 +50,22 @@ serve(async (req) => {
     if (order.is_global) {
       const { data: lc } = await supabase
         .from("landing_config")
-        .select("efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key")
+        .select("misticpay_client_id, misticpay_client_secret, misticpay_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key")
         .limit(1)
         .maybeSingle();
       if (lc) {
         providerConfig = {
           // map landing_config columns to the same shape used below
           api_key_encrypted:
+            provider === "misticpay" ? (lc as any).misticpay_client_id :
             provider === "efi" ? lc.efi_client_id :
             provider === "pushinpay" ? lc.pushinpay_api_key :
             provider === "abacatepay" ? lc.abacatepay_api_key :
             null,
-          secret_key_encrypted: provider === "efi" ? lc.efi_client_secret : null,
+          secret_key_encrypted:
+            provider === "misticpay" ? (lc as any).misticpay_client_secret :
+            provider === "efi" ? lc.efi_client_secret :
+            null,
           efi_cert_pem: lc.efi_cert_pem,
           efi_key_pem: lc.efi_key_pem,
           efi_pix_key: lc.efi_pix_key,
@@ -75,7 +79,22 @@ serve(async (req) => {
         .eq("provider_key", provider)
         .eq("active", true)
         .maybeSingle();
-      providerConfig = pc;
+      if (!pc && provider === "misticpay") {
+        // MisticPay in split/central mode: config comes from landing_config
+        const { data: lc } = await supabase
+          .from("landing_config")
+          .select("misticpay_client_id, misticpay_client_secret, misticpay_active")
+          .limit(1)
+          .maybeSingle();
+        providerConfig = (lc as any)?.misticpay_active && (lc as any)?.misticpay_client_id
+          ? {
+              api_key_encrypted: (lc as any).misticpay_client_id,
+              secret_key_encrypted: (lc as any).misticpay_client_secret,
+            }
+          : {};
+      } else {
+        providerConfig = pc;
+      }
     }
 
     if (!providerConfig) {
@@ -195,20 +214,29 @@ serve(async (req) => {
     // â”€â”€ MisticPay: Check payment status via transactions/check â”€â”€
     if (provider === "misticpay" && paymentId) {
       try {
+        const ci = providerConfig?.api_key_encrypted || "";
+        const cs = providerConfig?.secret_key_encrypted || "";
+        const basicAuth = btoa(`${ci}:${cs}`);
         const res = await fetch("https://api.misticpay.com/api/transactions/check", {
           method: "POST",
           headers: {
-            "ci": providerConfig.api_key_encrypted || "",
-            "cs": providerConfig.secret_key_encrypted || "",
+            "Authorization": `Basic ${basicAuth}`,
+            "ci": ci,
+            "cs": cs,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ transactionId: paymentId }),
         });
         if (res.ok) {
           const data = await res.json();
-          const txState = data?.transaction?.transactionState;
-          // console.log(`MisticPay check for ${paymentId}: ${txState}`);
-          if (txState === "COMPLETO") isPaid = true;
+          const txState = String(
+            data?.transaction?.transactionState ||
+            data?.data?.transactionState ||
+            data?.transactionState ||
+            data?.status ||
+            ""
+          ).toUpperCase();
+          if (txState === "COMPLETO" || txState === "PAID" || txState === "COMPLETED") isPaid = true;
         }
       } catch (e) {
         console.error("MisticPay polling error:", e);

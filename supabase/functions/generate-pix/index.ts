@@ -310,17 +310,19 @@ async function generateViaMisticPay(
   externalRef: string,
   webhookUrl: string
 ): Promise<{ brcode: string; qr_code_base64?: string; payment_id: string }> {
+  const basicAuth = btoa(`${clientId}:${clientSecret}`);
   const res = await fetch("https://api.misticpay.com/api/transactions/create", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Authorization": `Basic ${basicAuth}`,
       "ci": clientId,
       "cs": clientSecret,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: amountBRL,
+      amount: Number(amountBRL.toFixed(2)),
       payerName: "Cliente",
-      payerDocument: "00000000000",
+      payerDocument: "12345678909",
       transactionId: externalRef,
       description: "Pagamento PIX",
       projectWebhook: webhookUrl,
@@ -374,12 +376,19 @@ serve(async (req) => {
     if (isSplitActive) {
       const { data: lc } = await supabase
         .from("landing_config")
-        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
+        .select("misticpay_active, misticpay_client_id, misticpay_client_secret, efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
         .limit(1)
         .maybeSingle();
 
       if (lc) {
-        if (lc.efi_active && lc.efi_client_id) {
+        if ((lc as any).misticpay_active && (lc as any).misticpay_client_id && (lc as any).misticpay_client_secret) {
+          activeProvider = {
+            provider_key: "misticpay",
+            api_key_encrypted: (lc as any).misticpay_client_id,
+            secret_key_encrypted: (lc as any).misticpay_client_secret,
+            is_central: true,
+          };
+        } else if (lc.efi_active && lc.efi_client_id) {
           activeProvider = {
             provider_key: "efi",
             api_key_encrypted: lc.efi_client_id,
@@ -447,7 +456,9 @@ serve(async (req) => {
       const apiKey = activeProvider.api_key_encrypted;
       const secretKey = activeProvider.secret_key_encrypted || "";
       const externalRef = tx_id || `PIX${Date.now()}`;
-      const webhookUrl = `${webhookBaseUrl}/${providerKey}/${tenant_id}`;
+      const webhookUrl = activeProvider.is_central
+        ? `${webhookBaseUrl}/${providerKey}/central`
+        : `${webhookBaseUrl}/${providerKey}/${tenant_id}`;
       const description = product_name || "Pagamento PIX";
 
       let result: { brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string };

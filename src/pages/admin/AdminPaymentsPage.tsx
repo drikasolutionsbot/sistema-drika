@@ -1,10 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, Plug, Zap, Settings2 } from "lucide-react";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
+import misticPayIcon from "@/assets/misticpay-icon.png";
 import SubscriptionPaymentsTab from "@/components/admin/SubscriptionPaymentsTab";
 import EfiIntegrationTab from "@/components/admin/EfiIntegrationTab";
 import PushinPayIntegrationTab from "@/components/admin/PushinPayIntegrationTab";
 import AbacatePayIntegrationTab from "@/components/admin/AbacatePayIntegrationTab";
+import MisticPayIntegrationTab from "@/components/admin/MisticPayIntegrationTab";
 import GatewaySettingsTab from "@/components/admin/GatewaySettingsTab";
 
 const AdminPaymentsPage = () => {
@@ -38,6 +40,10 @@ const AdminPaymentsPage = () => {
               <img src={abacatePayIcon} alt="AbacatePay" className="h-4 w-4 object-contain" />
               AbacatePay
             </TabsTrigger>
+            <TabsTrigger value="misticpay" className="gap-2 text-purple-400">
+              <img src={misticPayIcon} alt="MisticPay" className="h-4 w-4 object-contain" />
+              MisticPay (Split)
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -67,6 +73,10 @@ const AdminPaymentsPage = () => {
 
         <TabsContent value="abacatepay">
           <AbacatePayIntegrationTab />
+        </TabsContent>
+
+        <TabsContent value="misticpay">
+          <MisticPayIntegrationTab />
         </TabsContent>
       </Tabs>
     </div>

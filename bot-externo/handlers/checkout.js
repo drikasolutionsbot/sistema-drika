@@ -750,7 +750,8 @@ async function goToPayment(interaction, tenant, orderId) {
     await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, pix_brcode: brcode });
 
     const provLabel = provider.is_central
-      ? (providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
+      ? (providerKey === "misticpay" ? "Pix – MisticPay (Split)"
+        : providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
         : providerKey === "efi" ? "Pix – Efi Bank (Split)"
         : providerKey === "abacatepay" ? "Pix – AbacatePay (Split)"
         : `Pix – ${providerKey} (Split)`)

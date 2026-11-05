@@ -3620,12 +3620,20 @@ async function generatePixInThread(
     // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
     const { data: lc } = await supabase
       .from("landing_config")
-      .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
+      .select("misticpay_active, misticpay_client_id, misticpay_client_secret, efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
       .limit(1)
       .maybeSingle();
 
     if (lc) {
-      if (lc.efi_active && lc.efi_client_id) {
+      if ((lc as any).misticpay_active && (lc as any).misticpay_client_id && (lc as any).misticpay_client_secret) {
+        activeProvider = {
+          provider_key: "misticpay",
+          api_key_encrypted: (lc as any).misticpay_client_id,
+          secret_key_encrypted: (lc as any).misticpay_client_secret,
+          is_central: true,
+          is_split: true,
+        };
+      } else if (lc.efi_active && lc.efi_client_id) {
         activeProvider = {
           provider_key: "efi",
           api_key_encrypted: lc.efi_client_id,

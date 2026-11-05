@@ -106,16 +106,23 @@ async function testAbacatePay(apiKey: string): Promise<{ success: boolean; messa
 
 async function testMisticPay(clientId: string, clientSecret: string): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch("https://api.misticpay.com/api/users/info", {
+    const basicAuth = btoa(`${clientId}:${clientSecret}`);
+    const res = await fetch("https://api.misticpay.com/api/users/balance", {
       headers: {
+        "Authorization": `Basic ${basicAuth}`,
         "ci": clientId,
         "cs": clientSecret,
         "Content-Type": "application/json",
       },
     });
-    if (res.ok) return { success: true, message: "Credenciais MisticPay validadas!" };
-    if (res.status === 401 || res.status === 400) {
-      return { success: false, message: "Client ID ou Client Secret MisticPay inválido" };
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const bal = data?.data?.availableBalance ?? data?.data?.balance;
+      const balStr = typeof bal === "number" ? ` (Saldo: R$ ${bal.toFixed(2).replace(".", ",")})` : "";
+      return { success: true, message: `Credenciais MisticPay validadas com sucesso!${balStr}` };
+    }
+    if (res.status === 401 || res.status === 403 || res.status === 400) {
+      return { success: false, message: "Client ID ou Client Secret MisticPay inválido ou sem permissão" };
     }
     return { success: true, message: "Credenciais registradas (API indisponível para validação)" };
   } catch (err) {

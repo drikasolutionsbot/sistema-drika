@@ -171,32 +171,50 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
 }
 
 async function handleMisticPay(body: any, tenantId: string, supabase: any) {
-  // MisticPay webhook: { transactionId, status, value, transactionType, ... }
-  const transactionId = body?.transactionId;
-  const status = body?.status;
-  const transactionType = body?.transactionType;
+  // MisticPay webhook: { transactionId, status, value, transactionType, ... } or nested in body.data
+  const data = body?.data || body;
+  const transactionId = data?.transactionId || body?.transactionId || data?.id || body?.id;
+  const status = String(data?.status || data?.transactionState || body?.status || body?.transactionState || "").toUpperCase();
+  const transactionType = String(data?.transactionType || body?.transactionType || "").toUpperCase();
 
   // console.log(`MisticPay webhook: txId=${transactionId}, status=${status}, type=${transactionType}, body=${JSON.stringify(body)}`);
 
   if (!transactionId) return { handled: false, reason: "No transactionId in webhook" };
   
   // Only process deposit (cashin) webhooks
-  if (transactionType && transactionType !== "DEPOSITO") {
+  if (transactionType && transactionType !== "DEPOSITO" && transactionType !== "CASHIN" && transactionType !== "PIX_IN") {
     return { handled: false, reason: `Not a deposit: ${transactionType}` };
   }
 
   // Only process completed payments
-  if (status !== "COMPLETO") return { handled: false, reason: `Status not COMPLETO: ${status}` };
+  if (status !== "COMPLETO" && status !== "PAID" && status !== "COMPLETED" && status !== "APROVADO") {
+    return { handled: false, reason: `Status not COMPLETO: ${status}` };
+  }
 
-  // Look up order by payment_id (transactionId stored during PIX generation)
-  const { data: order, error: orderErr } = await supabase
+  // Look up order by payment_id (supports both central split mode and per-tenant mode)
+  const isCentral = tenantId === "central" || tenantId === "platform";
+  let orderQuery = supabase
     .from("orders")
-    .select("id, status")
-    .eq("payment_id", String(transactionId))
-    .eq("tenant_id", tenantId)
-    .single();
+    .select("id, status, tenant_id")
+    .eq("payment_id", String(transactionId));
 
-  if (orderErr || !order) {
+  if (!isCentral) {
+    orderQuery = orderQuery.eq("tenant_id", tenantId);
+  }
+
+  let { data: order } = await orderQuery.maybeSingle();
+
+  // Fallback: if not found with tenant filter, try by payment_id globally
+  if (!order && !isCentral) {
+    const { data: globalOrder } = await supabase
+      .from("orders")
+      .select("id, status, tenant_id")
+      .eq("payment_id", String(transactionId))
+      .maybeSingle();
+    order = globalOrder;
+  }
+
+  if (!order) {
     console.error(`MisticPay: No order found for transactionId=${transactionId} in tenant=${tenantId}`);
     return { handled: false, reason: "Order not found by payment_id" };
   }
@@ -208,10 +226,9 @@ async function handleMisticPay(body: any, tenantId: string, supabase: any) {
   await supabase
     .from("orders")
     .update({ status: "paid", payment_provider: "misticpay" })
-    .eq("id", order.id)
-    .eq("tenant_id", tenantId);
+    .eq("id", order.id);
 
-  return { handled: true, order_status: "paid", payment_id: transactionId, order_id: order.id };
+  return { handled: true, order_status: "paid", payment_id: String(transactionId), order_id: order.id };
 }
 
 async function handleAbacatePay(body: any, tenantId: string, supabase: any) {
