@@ -40,6 +40,8 @@ import {
   ExternalLink,
   Zap,
   Download,
+  Settings2,
+  Info,
 } from "lucide-react";
 import { generateWithdrawalReceiptPDF } from "@/lib/withdrawalReceiptPdf";
 import { Button } from "@/components/ui/button";
@@ -270,9 +272,70 @@ export default function AdminWalletPage() {
   const [misticBalanceCents, setMisticBalanceCents] = useState<number | null>(null);
   const [loadingMisticBalance, setLoadingMisticBalance] = useState(false);
 
-  // Dynamic Split Fees configured by owner
+  // Dynamic Split Fees & Withdrawal Rules configured by owner
   const [splitFixedFeeCents, setSplitFixedFeeCents] = useState<number>(100);
   const [splitPercentFee, setSplitPercentFee] = useState<number>(2.0);
+  const [minWithdrawalCents, setMinWithdrawalCents] = useState<number>(1000);
+  const [withdrawalFeeCents, setWithdrawalFeeCents] = useState<number>(100);
+  const [weeklyFreeWithdrawals, setWeeklyFreeWithdrawals] = useState<number>(1);
+
+  // Settings modal for withdrawal rules
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
+  const [editMinWithdrawalInput, setEditMinWithdrawalInput] = useState("10,00");
+  const [editWithdrawalFeeInput, setEditWithdrawalFeeInput] = useState("1,00");
+  const [editWeeklyFreeInput, setEditWeeklyFreeInput] = useState("1");
+  const [savingRules, setSavingRules] = useState(false);
+
+  const handleSaveWithdrawalRules = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingRules(true);
+    try {
+      const parsedMin = Math.round(parseFloat(editMinWithdrawalInput.replace(",", ".")) * 100);
+      const parsedFee = Math.round(parseFloat(editWithdrawalFeeInput.replace(",", ".")) * 100);
+      const parsedWeekly = parseInt(editWeeklyFreeInput, 10);
+
+      if (isNaN(parsedMin) || parsedMin < 100) {
+        throw new Error("O valor mínimo de saque deve ser de no mínimo R$ 1,00.");
+      }
+      if (isNaN(parsedFee) || parsedFee < 0) {
+        throw new Error("A taxa de saque deve ser de no mínimo R$ 0,00.");
+      }
+      if (isNaN(parsedWeekly) || parsedWeekly < 0) {
+        throw new Error("Quantidade de saques semanais gratuitos inválida.");
+      }
+
+      const res = await supabase.functions.invoke("manage-wallet", {
+        body: {
+          action: "admin_update_withdrawal_rules",
+          min_withdrawal_cents: parsedMin,
+          withdrawal_fee_cents: parsedFee,
+          weekly_free_withdrawals: parsedWeekly,
+        },
+      });
+
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+
+      setMinWithdrawalCents(parsedMin);
+      setWithdrawalFeeCents(parsedFee);
+      setWeeklyFreeWithdrawals(parsedWeekly);
+      setRulesModalOpen(false);
+
+      toast({
+        title: "Regras de Saque Atualizadas!",
+        description: `Saque mínimo definido para ${formatBRL(parsedMin)}. 1º saque semanal grátis e ${formatBRL(parsedFee)} por saque extra.`,
+      });
+      loadData(true);
+    } catch (err: any) {
+      toast({
+        title: "Erro ao salvar regras",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingRules(false);
+    }
+  };
 
   // Approved Withdrawals & Receipt Modal State
   const [searchApprovedWithdrawals, setSearchApprovedWithdrawals] = useState("");
@@ -362,11 +425,11 @@ export default function AdminWalletPage() {
         console.warn("Could not load MisticPay live balance:", balErr);
       }
 
-      // 7. Dynamic Split Fees from landing_config
+      // 7. Dynamic Split Fees & Withdrawal Rules from landing_config
       try {
         const { data: landingCfg } = await supabase
           .from("landing_config")
-          .select("split_fixed_fee_cents, split_percent_fee")
+          .select("split_fixed_fee_cents, split_percent_fee, min_withdrawal_cents, withdrawal_fee_cents, weekly_free_withdrawals")
           .limit(1)
           .maybeSingle();
         if (landingCfg) {
@@ -376,9 +439,21 @@ export default function AdminWalletPage() {
           if (landingCfg.split_percent_fee !== null && landingCfg.split_percent_fee !== undefined) {
             setSplitPercentFee(Number(landingCfg.split_percent_fee));
           }
+          if (typeof landingCfg.min_withdrawal_cents === "number") {
+            setMinWithdrawalCents(landingCfg.min_withdrawal_cents);
+            setEditMinWithdrawalInput((landingCfg.min_withdrawal_cents / 100).toFixed(2).replace(".", ","));
+          }
+          if (typeof landingCfg.withdrawal_fee_cents === "number") {
+            setWithdrawalFeeCents(landingCfg.withdrawal_fee_cents);
+            setEditWithdrawalFeeInput((landingCfg.withdrawal_fee_cents / 100).toFixed(2).replace(".", ","));
+          }
+          if (typeof landingCfg.weekly_free_withdrawals === "number") {
+            setWeeklyFreeWithdrawals(landingCfg.weekly_free_withdrawals);
+            setEditWeeklyFreeInput(String(landingCfg.weekly_free_withdrawals));
+          }
         }
       } catch (cfgErr) {
-        console.warn("Could not load dynamic split fees:", cfgErr);
+        console.warn("Could not load dynamic split fees & withdrawal rules:", cfgErr);
       }
     } catch (err: any) {
       console.error("Error loading admin wallet data:", err);
@@ -1001,6 +1076,16 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setRulesModalOpen(true)}
+            className="gap-2 border-pink-500/30 bg-pink-950/20 text-pink-300 hover:bg-pink-900/40 hover:text-white"
+          >
+            <Settings2 className="h-3.5 w-3.5 text-pink-400" />
+            Regras de Saque
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => loadData(true)}
             disabled={refreshing || loading}
             className="gap-2 border-slate-800 bg-[#0d1321] text-slate-300 hover:bg-slate-800 hover:text-white"
@@ -1155,7 +1240,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
       {/* Linha 2: KPIs + Alertas de Saques */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* KPIs de Faturamento */}
-        <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-0.5">
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Faturamento Total</p>
             <p className="text-sm font-extrabold text-blue-400">{showBalance ? formatBRL(metrics?.total_earned_cents || 0) : "••••"}</p>
@@ -1175,6 +1260,18 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Taxa da Plataforma</p>
             <p className="text-sm font-extrabold text-emerald-400">{formatBRL(splitFixedFeeCents)} + {splitPercentFee}%</p>
             <p className="text-[10px] text-slate-600">Retida por venda (Split)</p>
+          </div>
+          <div
+            onClick={() => setRulesModalOpen(true)}
+            className="rounded-xl border border-pink-500/30 bg-pink-950/20 p-3.5 space-y-0.5 cursor-pointer hover:border-pink-500/60 hover:bg-pink-950/30 transition-all group"
+            title="Clique para editar as regras de saque"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wider text-pink-300 font-semibold">Regras de Saque</p>
+              <Settings2 className="h-3 w-3 text-pink-400 group-hover:rotate-45 transition-transform" />
+            </div>
+            <p className="text-sm font-extrabold text-white">Mín: {formatBRL(minWithdrawalCents)}</p>
+            <p className="text-[10px] text-pink-200/80">1 Free/sem • Extra {formatBRL(withdrawalFeeCents)}</p>
           </div>
         </div>
 
@@ -3497,6 +3594,118 @@ Data: ${selectedAuditSale.created_at}`;
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Modal de Configuração de Regras de Saque ─── */}
+      <Dialog open={rulesModalOpen} onOpenChange={setRulesModalOpen}>
+        <DialogContent className="sm:max-w-md border-slate-800 bg-[#0a0f1d] text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-white">
+              <Settings2 className="h-5 w-5 text-pink-500" />
+              Configurar Regras de Saque da Plataforma
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Defina o valor mínimo de saque dos clientes e a política de cobrança semanal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveWithdrawalRules} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="minWithdrawal" className="text-xs font-semibold text-slate-200">
+                Valor Mínimo de Saque (R$)
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-sm text-slate-400 font-semibold">R$</span>
+                <Input
+                  id="minWithdrawal"
+                  placeholder="10,00"
+                  value={editMinWithdrawalInput}
+                  onChange={(e) => setEditMinWithdrawalInput(e.target.value)}
+                  className="pl-9 font-semibold text-sm border-slate-800 bg-[#070b14] text-white"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Lojistas só poderão solicitar saques a partir desta quantia acumulada na carteira.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="weeklyFree" className="text-xs font-semibold text-slate-200">
+                Saques Gratuitos por Semana
+              </Label>
+              <Input
+                id="weeklyFree"
+                type="number"
+                min="0"
+                max="10"
+                value={editWeeklyFreeInput}
+                onChange={(e) => setEditWeeklyFreeInput(e.target.value)}
+                className="font-semibold text-sm border-slate-800 bg-[#070b14] text-white"
+                required
+              />
+              <p className="text-[11px] text-slate-400">
+                Quantidade de saques semanais 100% isentos de taxa para o cliente (padrão: 1).
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="withdrawalFee" className="text-xs font-semibold text-slate-200">
+                Taxa para Saque Adicional na Semana (R$)
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-sm text-slate-400 font-semibold">R$</span>
+                <Input
+                  id="withdrawalFee"
+                  placeholder="1,00"
+                  value={editWithdrawalFeeInput}
+                  onChange={(e) => setEditWithdrawalFeeInput(e.target.value)}
+                  className="pl-9 font-semibold text-sm border-slate-800 bg-[#070b14] text-white"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Cobrada e descontada diretamente do PIX a partir do 2º saque solicitado na mesma semana.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-blue-500/20 bg-blue-950/20 p-3 flex items-start gap-2.5 text-xs text-blue-200">
+              <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+              <span>
+                As novas regras são aplicadas imediatamente para todos os lojistas do sistema na próxima solicitação de saque.
+              </span>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRulesModalOpen(false)}
+                disabled={savingRules}
+                className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingRules}
+                className="gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold text-xs"
+              >
+                {savingRules ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Salvar Regras de Saque
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

@@ -173,6 +173,21 @@ export default function WalletPage() {
   const [detailModalTab, setDetailModalTab] = useState<"info" | "receipt">("info");
   const [copiedDetailText, setCopiedDetailText] = useState(false);
 
+  // Dynamic Withdrawal Rules (Saque Mínimo + 1 Free/sem + R$ 1,00 extra)
+  const [withdrawalRules, setWithdrawalRules] = useState<{
+    min_withdrawal_cents: number;
+    withdrawal_fee_cents: number;
+    weekly_free_withdrawals: number;
+    withdrawals_this_week: number;
+    is_free_withdrawal: boolean;
+  }>({
+    min_withdrawal_cents: 1000,
+    withdrawal_fee_cents: 100,
+    weekly_free_withdrawals: 1,
+    withdrawals_this_week: 0,
+    is_free_withdrawal: true,
+  });
+
   // Copied state
   const [copiedKey, setCopiedKey] = useState(false);
 
@@ -191,6 +206,9 @@ export default function WalletPage() {
       if (data) {
         setWallet(data.wallet || null);
         setTransactions(data.transactions || []);
+        if (data.rules) {
+          setWithdrawalRules(data.rules);
+        }
       }
     } catch (err: any) {
       console.error("Error loading wallet:", err);
@@ -319,25 +337,28 @@ export default function WalletPage() {
     return isNaN(val) ? 0 : Math.round(val * 100);
   }, [withdrawAmount]);
 
-  // Taxa de saque é 0 (isenta), pois a taxa de 1% da plataforma já é descontada diretamente em cada venda
-  const platformFeeCents = 0;
+  // Regra de Saque: 1º saque da semana é gratuito (0%). Passou de 1, taxa fixa de R$ 1,00
+  const minWithdrawalCents = withdrawalRules.min_withdrawal_cents || 1000;
+  const currentWithdrawalFeeCents = withdrawalRules.is_free_withdrawal
+    ? 0
+    : (withdrawalRules.withdrawal_fee_cents || 100);
 
-  const netWithdrawCents = parsedAmountCents;
+  const netWithdrawCents = Math.max(0, parsedAmountCents - currentWithdrawalFeeCents);
 
   const availableBalanceCents = wallet?.balance_cents || 0;
   const effectivePixKey = useCustomKey || !tenant?.pix_key ? modalPixKey : tenant.pix_key;
   const effectivePixKeyType = useCustomKey || !tenant?.pix_key ? modalPixKeyType : (tenant.pix_key_type || "cpf");
 
-  const isAmountValid = parsedAmountCents >= 100 && parsedAmountCents <= availableBalanceCents;
+  const isAmountValid = parsedAmountCents >= minWithdrawalCents && parsedAmountCents <= availableBalanceCents;
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId) return;
 
-    if (parsedAmountCents < 100) {
+    if (parsedAmountCents < minWithdrawalCents) {
       toast({
         title: "Valor mínimo de saque",
-        description: "O valor mínimo para solicitar saque é de R$ 1,00 (100 centavos).",
+        description: `O valor mínimo para solicitar saque é de ${formatBRL(minWithdrawalCents)}.`,
         variant: "destructive",
       });
       return;
@@ -787,9 +808,15 @@ export default function WalletPage() {
                 <Percent className="h-4 w-4 text-pink-500" />
                 Chave PIX de Saque & Regras
               </CardTitle>
-              <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-400">
-                Saque: Isento (0%)
-              </Badge>
+              {withdrawalRules.is_free_withdrawal ? (
+                <Badge variant="outline" className="text-[11px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                  1º Saque Semanal: Grátis (0%)
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[11px] border-amber-500/30 text-amber-400 bg-amber-500/10">
+                  Saque Adicional: Taxa {formatBRL(withdrawalRules.withdrawal_fee_cents)}
+                </Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent className="pt-5 space-y-4">
@@ -847,7 +874,18 @@ export default function WalletPage() {
               </div>
               <div className="rounded-lg bg-slate-900/60 border border-slate-800/60 p-3">
                 <span className="text-slate-400 block">Saque Mínimo:</span>
-                <span className="text-sm font-bold text-emerald-400 mt-0.5 block">Sem valor mínimo</span>
+                <span className="text-sm font-bold text-emerald-400 mt-0.5 block">
+                  {formatBRL(withdrawalRules.min_withdrawal_cents)}
+                </span>
+              </div>
+            </div>
+
+            {/* Mensagem de Transparência de Saques */}
+            <div className="rounded-xl border border-blue-500/25 bg-blue-950/20 p-3 flex items-start gap-2.5 text-xs text-blue-200">
+              <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <strong className="text-white font-semibold">Política de Transparência nos Saques:</strong>{" "}
+                Você tem direito a <strong>1 saque gratuito por semana</strong>. Caso solicite saques adicionais na mesma semana ({withdrawalRules.withdrawals_this_week} já solicitado(s)), é cobrada uma taxa fixa de apenas <strong>{formatBRL(withdrawalRules.withdrawal_fee_cents)}</strong> por transferência para cobrir tarifas bancárias do PIX. O valor mínimo para saque é de <strong>{formatBRL(withdrawalRules.min_withdrawal_cents)}</strong>.
               </div>
             </div>
 
@@ -1345,7 +1383,31 @@ export default function WalletPage() {
               </div>
               <div className="text-right">
                 <span className="text-[11px] text-slate-400 block font-medium">Saque Mínimo:</span>
-                <span className="text-xs font-bold text-emerald-400">Sem valor mínimo</span>
+                <span className="text-xs font-bold text-emerald-400">{formatBRL(withdrawalRules.min_withdrawal_cents)}</span>
+              </div>
+            </div>
+
+            {/* Status da Cota Semanal de Saques */}
+            <div className={`rounded-xl border p-3 flex items-start gap-2.5 text-xs ${
+              withdrawalRules.is_free_withdrawal 
+                ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-200" 
+                : "border-amber-500/30 bg-amber-950/20 text-amber-200"
+            }`}>
+              {withdrawalRules.is_free_withdrawal ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              ) : (
+                <Clock className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              )}
+              <div className="leading-relaxed">
+                {withdrawalRules.is_free_withdrawal ? (
+                  <span>
+                    <strong className="text-white">1º Saque Semanal Gratuito:</strong> Você tem direito a 1 saque por semana 100% isento de taxa PIX!
+                  </span>
+                ) : (
+                  <span>
+                    <strong className="text-white">Saque Adicional na Semana:</strong> Você já realizou seu saque gratuito desta semana ({withdrawalRules.withdrawals_this_week} realizado(s)). Para cobrir o custo bancário do PIX, será descontada a taxa fixa de <strong>{formatBRL(withdrawalRules.withdrawal_fee_cents)}</strong> diretamente do envio.
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1380,7 +1442,12 @@ export default function WalletPage() {
                 />
               </div>
               <p className="text-[11px] text-slate-400">
-                Valor mínimo para saque: <span className="text-slate-200 font-semibold">R$ 1,00</span>
+                Valor mínimo para saque: <span className="text-slate-200 font-semibold">{formatBRL(withdrawalRules.min_withdrawal_cents)}</span>
+                {parsedAmountCents > 0 && parsedAmountCents < withdrawalRules.min_withdrawal_cents && (
+                  <span className="text-rose-400 block font-medium mt-0.5">
+                    O valor digitado está abaixo do mínimo exigido ({formatBRL(withdrawalRules.min_withdrawal_cents)}).
+                  </span>
+                )}
               </p>
             </div>
 
@@ -1480,22 +1547,30 @@ export default function WalletPage() {
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span className="flex items-center gap-1">
-                    Taxa de Saque:
+                    Taxa de Transferência PIX:
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3 w-3 text-slate-500 cursor-pointer" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs">Isento de taxa no saque — a taxa da plataforma e gateway já foram deduzidas na confirmação da venda.</p>
+                          <p className="text-xs">
+                            {withdrawalRules.is_free_withdrawal
+                              ? "1º saque semanal gratuito. A plataforma absorve 100% dos custos bancários."
+                              : `A partir do 2º saque na mesma semana, é retida a taxa fixa de ${formatBRL(withdrawalRules.withdrawal_fee_cents)} para cobrir o custo bancário do PIX.`}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </span>
-                  <span className="font-semibold text-emerald-400">R$ 0,00 (Isento)</span>
+                  {withdrawalRules.is_free_withdrawal ? (
+                    <span className="font-semibold text-emerald-400">R$ 0,00 (1º da Semana Grátis)</span>
+                  ) : (
+                    <span className="font-semibold text-amber-400">-{formatBRL(withdrawalRules.withdrawal_fee_cents)}</span>
+                  )}
                 </div>
                 <div className="border-t border-slate-800 pt-2 flex justify-between items-center">
-                  <span className="font-bold text-white">Valor Líquido a Receber:</span>
+                  <span className="font-bold text-white">Valor Líquido a Receber no PIX:</span>
                   <span className="text-lg font-black text-emerald-400">
                     {formatBRL(netWithdrawCents)}
                   </span>

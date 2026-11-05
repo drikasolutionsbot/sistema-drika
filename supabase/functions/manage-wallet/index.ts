@@ -97,7 +97,50 @@ Deno.serve(async (req) => {
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      return new Response(JSON.stringify({ success: true, wallet, transactions: combinedTxs }), {
+      // Fetch platform withdrawal rules from landing_config
+      const { data: landingCfg } = await supabase
+        .from("landing_config")
+        .select("min_withdrawal_cents, withdrawal_fee_cents, weekly_free_withdrawals")
+        .limit(1)
+        .maybeSingle();
+
+      const minWithdrawalCents = landingCfg?.min_withdrawal_cents ?? 1000;
+      const withdrawalFeeCents = landingCfg?.withdrawal_fee_cents ?? 100;
+      const weeklyFreeWithdrawals = landingCfg?.weekly_free_withdrawals ?? 1;
+
+      // Start of current week (Monday 00:00:00 Brazil Time UTC-3)
+      const now = new Date();
+      const brTime = new Date(now.getTime() - 3 * 3600 * 1000);
+      const day = brTime.getUTCDay();
+      const diffToMonday = (day === 0 ? -6 : 1) - day;
+      const monday = new Date(brTime);
+      monday.setUTCDate(brTime.getUTCDate() + diffToMonday);
+      monday.setUTCHours(0, 0, 0, 0);
+      const startOfWeekISO = new Date(monday.getTime() + 3 * 3600 * 1000).toISOString();
+
+      const { count: withdrawalsThisWeek } = await supabase
+        .from("wallet_transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id)
+        .eq("type", "withdrawal")
+        .in("status", ["pending", "completed", "processing"])
+        .gte("created_at", startOfWeekISO);
+
+      const countWeek = withdrawalsThisWeek || 0;
+      const isFreeWithdrawal = countWeek < weeklyFreeWithdrawals;
+
+      return new Response(JSON.stringify({
+        success: true,
+        wallet,
+        transactions: combinedTxs,
+        rules: {
+          min_withdrawal_cents: minWithdrawalCents,
+          withdrawal_fee_cents: withdrawalFeeCents,
+          weekly_free_withdrawals: weeklyFreeWithdrawals,
+          withdrawals_this_week: countWeek,
+          is_free_withdrawal: isFreeWithdrawal,
+        },
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -107,13 +150,6 @@ Deno.serve(async (req) => {
       const { tenant_id, amount_cents, pix_key, pix_key_type, description } = body;
       if (!tenant_id || !amount_cents || !pix_key) {
         return new Response(JSON.stringify({ error: "Dados incompletos para solicitação de saque" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (amount_cents < 100) {
-        return new Response(JSON.stringify({ error: "O valor mínimo para solicitação de saque é de R$ 1,00 (100 centavos)" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -711,6 +747,48 @@ Deno.serve(async (req) => {
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ─── 8. Admin: Update Withdrawal Rules ───
+    if (action === "admin_update_withdrawal_rules") {
+      const { min_withdrawal_cents, withdrawal_fee_cents, weekly_free_withdrawals } = body;
+
+      const updateData: any = {};
+      if (typeof min_withdrawal_cents === "number" && min_withdrawal_cents >= 100) {
+        updateData.min_withdrawal_cents = min_withdrawal_cents;
+      }
+      if (typeof withdrawal_fee_cents === "number" && withdrawal_fee_cents >= 0) {
+        updateData.withdrawal_fee_cents = withdrawal_fee_cents;
+      }
+      if (typeof weekly_free_withdrawals === "number" && weekly_free_withdrawals >= 0) {
+        updateData.weekly_free_withdrawals = weekly_free_withdrawals;
+      }
+
+      const { data: lcRow } = await supabase.from("landing_config").select("id").limit(1).single();
+      if (!lcRow) {
+        return new Response(JSON.stringify({ error: "landing_config não encontrada" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: updated, error: updateErr } = await supabase
+        .from("landing_config")
+        .update(updateData)
+        .eq("id", lcRow.id)
+        .select()
+        .single();
+
+      if (updateErr) {
+        return new Response(JSON.stringify({ error: updateErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, updated }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(JSON.stringify({ error: "Ação não reconhecida" }), {
