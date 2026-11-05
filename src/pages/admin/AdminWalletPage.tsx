@@ -626,7 +626,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     }
   };
 
-  // ── Meu Lucro: R$0,60 gateway fixo + 2% plataforma retidos na venda (pode sacar)
+  // ── Meu Lucro: taxas configuradas da plataforma retidas na venda (pode sacar)
   const platformProfitCents = useMemo(() => metrics?.total_fees_collected_cents || 0, [metrics]);
 
   // ── Saldo comprometido: dinheiro dos clientes que ainda está na plataforma

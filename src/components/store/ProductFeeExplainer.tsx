@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Info, TrendingUp, AlertTriangle, ShieldCheck, Receipt, Coins } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProductFeeExplainerProps {
   priceCents: number;
@@ -17,6 +18,37 @@ export const ProductFeeExplainer: React.FC<ProductFeeExplainerProps> = ({
 }) => {
   const isBRL = !currency || currency.toUpperCase() === "BRL";
 
+  // Dynamic split fees from landing_config (default R$ 1,00 + 2%)
+  const [fixedFeeCents, setFixedFeeCents] = useState<number>(100);
+  const [percentFee, setPercentFee] = useState<number>(2.0);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("landing_config")
+          .select("split_fixed_fee_cents, split_percent_fee")
+          .limit(1)
+          .maybeSingle();
+
+        if (isMounted && data) {
+          if (typeof data.split_fixed_fee_cents === "number") {
+            setFixedFeeCents(data.split_fixed_fee_cents);
+          }
+          if (data.split_percent_fee !== null && data.split_percent_fee !== undefined) {
+            setPercentFee(Number(data.split_percent_fee));
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load split fees in ProductFeeExplainer:", err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const {
     price,
     gatewayFeeCents,
@@ -27,10 +59,10 @@ export const ProductFeeExplainer: React.FC<ProductFeeExplainerProps> = ({
     isLowPrice,
   } = useMemo(() => {
     const price = Math.max(0, priceCents || 0);
-    // Taxa Gateway fixa: R$ 0,60 (60 centavos)
-    const gateway = price > 0 ? 60 : 0;
-    // Taxa da plataforma: 2%
-    const platform = Math.round(price * 0.02);
+    // Taxa Gateway fixa configurada no sistema (ex: R$ 1,00)
+    const gateway = price > 0 ? fixedFeeCents : 0;
+    // Taxa percentual da plataforma configurada no sistema (ex: 2%)
+    const platform = Math.round(price * (percentFee / 100.0));
     const total = gateway + platform;
     const net = Math.max(0, price - total);
     const pct = price > 0 ? Math.round((net / price) * 100) : 0;
@@ -42,13 +74,18 @@ export const ProductFeeExplainer: React.FC<ProductFeeExplainerProps> = ({
       totalFeeCents: total,
       netCents: net,
       netPercent: pct,
-      isLowPrice: price > 0 && price < 100, // Menos de R$ 1,00
+      isLowPrice: price > 0 && price <= fixedFeeCents,
     };
-  }, [priceCents]);
+  }, [priceCents, fixedFeeCents, percentFee]);
 
   if (!isBRL) {
     return null;
   }
+
+  const percentLabel = percentFee.toLocaleString("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  });
 
   return (
     <div
@@ -101,7 +138,7 @@ export const ProductFeeExplainer: React.FC<ProductFeeExplainerProps> = ({
         <div className="rounded-lg border border-slate-800/70 bg-slate-900/50 p-2.5">
           <div className="flex items-center justify-between">
             <p className="text-[10px] text-slate-400 font-medium">Taxa Plataforma</p>
-            <span className="text-[9px] text-purple-400/90 font-semibold">2,0%</span>
+            <span className="text-[9px] text-purple-400/90 font-semibold">{percentLabel}%</span>
           </div>
           <p className="text-sm font-bold text-purple-400 font-mono mt-0.5">
             - {formatBRL(platformFeeCents)}
@@ -131,7 +168,7 @@ export const ProductFeeExplainer: React.FC<ProductFeeExplainerProps> = ({
         <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px]">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
           <span>
-            <strong>Recomendação:</strong> Como a taxa fixa de gateway é de <strong>R$ 0,60</strong>, sugerimos precificar seus produtos a partir de <strong>R$ 1,00</strong> para obter uma margem saudável de lucro.
+            <strong>Recomendação:</strong> Como a taxa fixa é de <strong>{formatBRL(fixedFeeCents)}</strong>, sugerimos precificar seus produtos acima de <strong>{formatBRL(fixedFeeCents)}</strong> para obter uma margem saudável de lucro.
           </span>
         </div>
       )}
