@@ -730,9 +730,9 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     };
   }, [approvedWithdrawals]);
 
-  const handleDownloadReceiptPDF = (w: WithdrawalItem) => {
+  const handleDownloadReceiptPDF = async (w: WithdrawalItem) => {
     try {
-      generateWithdrawalReceiptPDF({
+      await generateWithdrawalReceiptPDF({
         id: w.id,
         tenant_id: w.tenant_id,
         store_name: w.tenants?.name || "Lojista Drika Hub",
@@ -748,7 +748,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
       });
       toast({
         title: "Comprovante gerado com sucesso!",
-        description: `Download do PDF do saque #${w.id.slice(0, 8)} iniciado.`,
+        description: `Download do PDF do saque #${w.id.slice(0, 8)} concluído.`,
       });
     } catch (err: any) {
       toast({
