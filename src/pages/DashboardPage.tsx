@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ExternalLink, Users, UserCheck, Settings2, Plus, UserPlus, Loader2, Shield,
-  BarChart3, Eye, Unplug, Server
+  BarChart3, Eye, Unplug, Server, CheckCircle2, Copy, RefreshCw, Activity
 } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -47,6 +47,7 @@ const DashboardPage = () => {
 
   // Server switch modal
   const [serverModalOpen, setServerModalOpen] = useState(false);
+  const [connectionModalOpen, setConnectionModalOpen] = useState(false);
   const [guilds, setGuilds] = useState<{ id: string; name: string; icon: string | null }[]>([]);
   const [loadingGuilds, setLoadingGuilds] = useState(false);
   const [switchingGuild, setSwitchingGuild] = useState<string | null>(null);
@@ -651,6 +652,15 @@ const DashboardPage = () => {
               </div>
               <h2 className="font-display text-lg font-bold tracking-wide text-white/95">{t.dashboard.mainServer}</h2>
             </div>
+            {tenant.discord_guild_id && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                </span>
+                Conectado
+              </span>
+            )}
           </div>
           
           {tenant.discord_guild_id ? (
@@ -709,14 +719,15 @@ const DashboardPage = () => {
               
               <div className="flex flex-wrap gap-3 pt-2">
                 <Button 
-                  className="flex-1 gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-[0_0_20px_rgba(88,101,242,0.3)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] transition-all duration-300 rounded-xl" 
-                  onClick={handleAddBot}
+                  className="flex-1 gap-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 hover:border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:shadow-[0_0_28px_rgba(16,185,129,0.3)] transition-all duration-300 rounded-xl" 
+                  onClick={() => setConnectionModalOpen(true)}
                 >
-                  <ExternalLink className="h-4 w-4" /> 
-                  <span className="font-semibold">{t.dashboard.addDrikaBot}</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 
+                  <span className="font-semibold">Servidor Conectado • Ver Status</span>
                 </Button>
                 <Button 
                   variant="outline" 
+                  title="Desconectar servidor"
                   className="gap-2 rounded-xl text-muted-foreground border-white/10 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors duration-300" 
                   onClick={() => setDisconnectModalOpen(true)}
                 >
@@ -1031,6 +1042,156 @@ const DashboardPage = () => {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Connected Server Status Modal */}
+      <Dialog open={connectionModalOpen} onOpenChange={setConnectionModalOpen}>
+        <DialogContent className="sm:max-w-md border-emerald-500/20 bg-[#111214]/95 backdrop-blur-xl overflow-hidden">
+          <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-emerald-500/10 blur-[60px] pointer-events-none" />
+          <DialogHeader className="relative z-10">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2.5 text-lg font-bold text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+                Status da Conexão
+              </DialogTitle>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 mr-6">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Online 24/7
+              </span>
+            </div>
+            <DialogDescription className="text-muted-foreground">
+              Detalhes da operação ativa do Drika Bot neste servidor.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative z-10 space-y-4 py-2">
+            {/* Server Identity Card */}
+            <div className="flex items-center gap-3.5 rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
+              <div className="relative shrink-0">
+                {guildInfo?.icon ? (
+                  <img
+                    src={guildInfo.icon}
+                    alt="Server icon"
+                    className="h-12 w-12 rounded-full border border-white/15 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 border border-primary/30 text-primary font-bold text-lg">
+                    {(guildInfo?.name || tenant.name)[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-[#111214]" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-bold text-white truncate">
+                  {guildInfo?.name || tenant.name}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <code className="text-[11px] font-mono text-muted-foreground bg-black/40 px-2 py-0.5 rounded border border-white/5">
+                    ID: {tenant.discord_guild_id}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (tenant.discord_guild_id) {
+                        navigator.clipboard.writeText(tenant.discord_guild_id);
+                        toast.success("ID do servidor copiado!");
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+                    title="Copiar ID"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Metrics */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Users className="h-3 w-3 text-primary" /> Membros Totais
+                </span>
+                <p className="text-lg font-bold text-white mt-0.5">
+                  {guildInfo?.member_count ? new Intl.NumberFormat("pt-BR").format(guildInfo.member_count) : 0}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <UserCheck className="h-3 w-3 text-emerald-400" /> Online Agora
+                </span>
+                <p className="text-lg font-bold text-emerald-400 mt-0.5">
+                  {guildInfo?.presence_count ? new Intl.NumberFormat("pt-BR").format(guildInfo.presence_count) : 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Operational Modules Checklist */}
+            <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2 text-white/90 font-medium">
+                  <Activity className="h-3.5 w-3.5 text-emerald-400" />
+                  Gateway Discord & Comandos Slash
+                </span>
+                <span className="text-emerald-400 font-semibold">Sincronizado</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2 text-white/90 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                   Checkout PIX & Entregas Automáticas
+                </span>
+                <span className="text-emerald-400 font-semibold">Ativo</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2 text-white/90 font-medium">
+                  <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                  Proteção Anti-Raid & Verificação
+                </span>
+                <span className="text-emerald-400 font-semibold">Operando</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="relative z-10 flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-white/10 hover:bg-white/5 text-xs flex-1"
+              onClick={() => {
+                setConnectionModalOpen(false);
+                handleAddBot();
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Reautorizar Permissões
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10 text-xs"
+              onClick={() => {
+                setConnectionModalOpen(false);
+                setDisconnectModalOpen(true);
+              }}
+            >
+              <Unplug className="h-3.5 w-3.5" />
+              Desconectar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs"
+              onClick={() => setConnectionModalOpen(false)}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
