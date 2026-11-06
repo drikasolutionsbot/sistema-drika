@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, XCircle, AlertTriangle, ExternalLink, X } from "lucide-react";
 
@@ -19,15 +19,40 @@ const VerifyResultPage = () => {
   const [params] = useSearchParams();
 
   const status = safeStatus(params.get("status"));
+  const isBotConnected = params.get("bot_connected") === "1";
+  const guildId = params.get("guild_id");
+  const guildName = params.get("guild_name");
   const title = params.get("title") || (status === "success" ? "Verificado com sucesso" : "Não foi possível verificar");
   const message = params.get("message") || "Você pode fechar esta aba e voltar ao Discord.";
   const logoUrl = params.get("logo") || drikaLogo;
+
+  useEffect(() => {
+    if (!isBotConnected || status !== "success") return;
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(
+          {
+            type: "DRIKA_BOT_GUILD_LINKED",
+            guild_id: guildId,
+            guild_name: guildName,
+          },
+          "*"
+        );
+        const timer = setTimeout(() => {
+          window.close();
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // ignore cross-origin or window.opener restrictions
+    }
+  }, [isBotConnected, status, guildId, guildName]);
 
   const ui = useMemo(() => {
     if (status === "success") {
       return {
         icon: <CheckCircle2 className="h-8 w-8 text-primary" />,
-        badge: <Badge className="bg-primary text-primary-foreground">Verificado</Badge>,
+        badge: <Badge className="bg-primary text-primary-foreground">{isBotConnected ? "Conectado" : "Verificado"}</Badge>,
       };
     }
 

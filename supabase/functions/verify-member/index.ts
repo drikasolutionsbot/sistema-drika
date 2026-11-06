@@ -1,4 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -25,6 +25,128 @@ Deno.serve(async (req) => {
   const slug = url.searchParams.get("slug");
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+
+  // ─── Bot Invite OAuth2 Callback Flow (state = "bot_invite:<tenantId>:<sig>") ───
+  if (state && state.startsWith("bot_invite:")) {
+    const oauthError = url.searchParams.get("error");
+    if (oauthError) {
+      return htmlResponse(
+        "⚠️ Conexão Cancelada",
+        "A adição do bot ao servidor foi cancelada no Discord. Você pode fechar esta aba.",
+        "#FEE75C"
+      );
+    }
+
+    const parts = state.split(":");
+    const inviteTenantId = parts[1] || "";
+    const providedSig = parts[2] || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    if (!inviteTenantId || !providedSig) {
+      return htmlResponse("❌ Erro", "Parâmetros de convite inválidos.", "#ED4245");
+    }
+
+    const encoder = new TextEncoder();
+    const hmacKey = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(serviceRoleKey),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const sigBuf = await crypto.subtle.sign(
+      "HMAC",
+      hmacKey,
+      encoder.encode(`bot_invite:${inviteTenantId}`)
+    );
+    const expectedSig = Array.from(new Uint8Array(sigBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .slice(0, 24);
+
+    if (providedSig !== expectedSig) {
+      return htmlResponse("❌ Erro", "Assinatura de segurança do convite inválida.", "#ED4245");
+    }
+
+    const selectedGuildId = url.searchParams.get("guild_id") || "";
+    if (!/^\d{17,20}$/.test(selectedGuildId)) {
+      return htmlResponse("❌ Erro", "O Discord não informou o servidor selecionado.", "#ED4245");
+    }
+
+    const botTokenForInvite = Deno.env.get("DISCORD_BOT_TOKEN") || null;
+    if (!botTokenForInvite) {
+      return htmlResponse("❌ Erro", "Bot externo não configurado.", "#ED4245");
+    }
+
+    const guildRes = await fetch(`${DISCORD_API}/guilds/${selectedGuildId}`, {
+      headers: { Authorization: `Bot ${botTokenForInvite}` },
+    });
+
+    if (!guildRes.ok) {
+      return htmlResponse(
+        "❌ Bot não encontrado no servidor",
+        "Não foi possível confirmar a presença do bot no servidor selecionado. Tente novamente.",
+        "#ED4245"
+      );
+    }
+
+    const guildData = await guildRes.json();
+    const guildName = guildData?.name || selectedGuildId;
+    const guildIcon = guildData?.icon
+      ? `https://cdn.discordapp.com/icons/${selectedGuildId}/${guildData.icon}.png`
+      : null;
+
+    // Check if another tenant already claimed this guild
+    const { data: existingClaim } = await supabase
+      .from("tenants")
+      .select("id, name")
+      .eq("discord_guild_id", selectedGuildId)
+      .neq("id", inviteTenantId)
+      .maybeSingle();
+
+    if (existingClaim) {
+      return htmlResponse(
+        "❌ Servidor já vinculado",
+        `O servidor <strong>${guildName}</strong> já está vinculado a outra loja (${existingClaim.name}). Desconecte-o lá primeiro.`,
+        "#ED4245",
+        guildIcon
+      );
+    }
+
+    const { error: linkErr } = await supabase
+      .from("tenants")
+      .update({
+        discord_guild_id: selectedGuildId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", inviteTenantId);
+
+    if (linkErr) {
+      return htmlResponse("❌ Erro", "Não foi possível vincular o servidor ao painel.", "#ED4245");
+    }
+
+    await supabase
+      .from("tenant_audit_logs")
+      .insert({
+        tenant_id: inviteTenantId,
+        action: "auto_link_server",
+        entity_type: "servidor",
+        entity_id: selectedGuildId,
+        entity_name: guildName,
+        actor_discord_id: guildData?.owner_id || null,
+        actor_name: "Discord OAuth",
+        details: { source: "discord_oauth_callback", guild_id: selectedGuildId },
+      })
+      .then(() => undefined, () => undefined);
+
+    return htmlResponse(
+      "✅ Servidor Conectado!",
+      `O servidor <strong>${guildName}</strong> foi conectado ao seu painel com sucesso! Pode fechar esta aba e voltar ao Drika Hub.`,
+      "#57F287",
+      guildIcon,
+      { bot_connected: "1", guild_id: selectedGuildId, guild_name: guildName }
+    );
+  }
 
   // Resolve slug to tenant_id
   if (!tenantId && slug && !code) {
@@ -341,7 +463,13 @@ Deno.serve(async (req) => {
   }
 });
 
-function htmlResponse(title: string, message: string, color: string, logoUrl?: string | null): Response {
+function htmlResponse(
+  title: string,
+  message: string,
+  color: string,
+  logoUrl?: string | null,
+  extraParams?: Record<string, string>
+): Response {
   const DEFAULT_VERIFY_REDIRECT = "https://www.drikahub.com/verify/result";
 
   const status = color === "#57F287" ? "success" : color === "#FEE75C" ? "warning" : "error";
@@ -354,6 +482,11 @@ function htmlResponse(title: string, message: string, color: string, logoUrl?: s
   if (cleanTitle) target.searchParams.set("title", cleanTitle);
   if (cleanMessage) target.searchParams.set("message", cleanMessage);
   if (logoUrl) target.searchParams.set("logo", logoUrl);
+  if (extraParams) {
+    for (const [k, v] of Object.entries(extraParams)) {
+      if (v) target.searchParams.set(k, v);
+    }
+  }
 
   return new Response(null, {
     status: 302,

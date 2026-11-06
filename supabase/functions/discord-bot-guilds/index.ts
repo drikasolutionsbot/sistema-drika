@@ -371,7 +371,38 @@ serve(async (req) => {
       const botIdentity = await fetchBotIdentity();
       const configuredClientId = (Deno.env.get("DISCORD_BOT_CLIENT_ID") || fallbackClientId).trim();
       const clientId = botIdentity?.id || (/^\d{17,20}$/.test(configuredClientId) ? configuredClientId : fallbackClientId);
-      const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&permissions=${invitePermissions}&scope=bot%20applications.commands`;
+
+      const inviteParams = new URLSearchParams({
+        client_id: clientId,
+        permissions: invitePermissions,
+        scope: "bot applications.commands",
+      });
+
+      if (resolvedTenantId) {
+        const encoder = new TextEncoder();
+        const hmacKey = await crypto.subtle.importKey(
+          "raw",
+          encoder.encode(serviceRoleKey),
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+        const sigBuf = await crypto.subtle.sign(
+          "HMAC",
+          hmacKey,
+          encoder.encode(`bot_invite:${resolvedTenantId}`)
+        );
+        const sigHex = Array.from(new Uint8Array(sigBuf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("")
+          .slice(0, 24);
+
+        inviteParams.set("response_type", "code");
+        inviteParams.set("redirect_uri", `${supabaseUrl}/functions/v1/verify-member`);
+        inviteParams.set("state", `bot_invite:${resolvedTenantId}:${sigHex}`);
+      }
+
+      const inviteUrl = `https://discord.com/oauth2/authorize?${inviteParams.toString()}`;
 
       if (resolvedTenantId) {
         let auditDiscordUserId = resolvedDiscordUserId;
@@ -445,7 +476,7 @@ serve(async (req) => {
 
       if (currentTenant.discord_guild_id) {
         const result = mapped.filter((g: any) => g.id === currentTenant.discord_guild_id);
-        return new Response(JSON.stringify({ guilds: result, auto_linked: baselineGuildIds.length > 0 }), {
+        return new Response(JSON.stringify({ guilds: result, auto_linked: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -476,8 +507,8 @@ serve(async (req) => {
       );
 
       // Auto-link via diff seguro: o painel registra um pending_bot_invite antes de abrir
-      // o convite. Durante o polling, qualquer servidor que apareceu depois desse snapshot
-      // pode ser vinculado ao tenant atual, mesmo para clientes por e-mail/token sem Discord OAuth.
+      // o convite. Durante o polling, somente servidores que apareceram DEPOIS desse snapshot
+      // podem ser considerados. Nunca fazer fallback para servidores antigos do baseline!
 
       if (allowStoredReconnect) {
         // Aggressive reconnect based on audit logs is disabled
@@ -487,18 +518,13 @@ serve(async (req) => {
 
       const available = mapped.filter((g: any) => !claimedByOthers.has(g.id));
 
-      // Privacy: servers already claimed by other tenants are excluded above.
-      // Prefer newly detected guilds (diff do snapshot do front) when available.
-      let finalGuilds = available;
+      // Privacy & safety: when a baseline snapshot exists (polling mode), ONLY return genuinely new guilds
+      // that were not in the baseline snapshot. Never fall back to pre-existing guilds.
+      let finalGuilds = baselineSet.size > 0
+        ? available.filter((g: any) => !baselineSet.has(g.id))
+        : available;
 
-      if (baselineSet.size > 0) {
-        const newGuilds = available.filter((g: any) => !baselineSet.has(g.id));
-        if (newGuilds.length > 0) {
-          finalGuilds = newGuilds;
-        }
-      }
-
-      // Prefer servers owned by linked Discord users (auth atual + membros do tenant).
+      // Prefer servers owned by linked Discord users (auth atual + membros do tenant) when multiple new guilds exist.
       const discordOwnerCandidates = new Set<string>();
 
       if (resolvedDiscordUserId) {
@@ -526,19 +552,10 @@ serve(async (req) => {
         });
       }
 
-      if (discordOwnerCandidates.size > 0) {
+      if (discordOwnerCandidates.size > 0 && finalGuilds.length > 0) {
         const ownedAvailable = await getOwnedGuilds(finalGuilds, Array.from(discordOwnerCandidates));
         if (ownedAvailable.length > 0) {
           finalGuilds = ownedAvailable;
-        }
-      }
-
-      // Fallback: when owner mapping isn't available, try exact tenant-name match.
-      if (finalGuilds.length > 1 && currentTenant?.name) {
-        const normalizedTenantName = String(currentTenant.name).trim().toLowerCase();
-        const nameMatched = finalGuilds.filter((guild: any) => guild.name?.trim().toLowerCase() === normalizedTenantName);
-        if (nameMatched.length === 1) {
-          finalGuilds = nameMatched;
         }
       }
 

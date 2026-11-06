@@ -346,29 +346,15 @@ const DashboardPage = () => {
       stopPolling();
       setWaitingForBot(false);
       clearPreferredReconnectGuildId();
+      loadAuditLogs();
       return true;
-    }
-
-    const preferredGuildId = getPreferredReconnectGuildId();
-    if (preferredGuildId) {
-      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("discord-bot-guilds", {
-        body: { ...getDiscordRequestBody(), action: "verify_guild", guild_id: preferredGuildId },
-      });
-
-      if (!verifyError && verifyData?.guild) {
-        return await autoLinkGuild(verifyData.guild);
-      }
-
-      if (verifyData?.error) {
-        clearPreferredReconnectGuildId();
-      }
     }
 
     const { data: autoData, error: autoError } = await supabase.functions.invoke("discord-bot-guilds", {
       body: {
         ...getDiscordRequestBody(),
         baseline_guild_ids: Array.from(guildsBeforeInviteRef.current),
-        allow_stored_reconnect: true,
+        allow_stored_reconnect: false,
       },
     });
 
@@ -379,24 +365,29 @@ const DashboardPage = () => {
       linkingInProgressRef.current = true;
       stopPolling();
       setWaitingForBot(false);
-      const freshTenant = await refetch();
-      if (!freshTenant?.discord_guild_id) {
+      const updatedTenant = await refetch();
+      if (!updatedTenant?.discord_guild_id) {
         linkingInProgressRef.current = false;
         setWaitingForBot(true);
         return false;
       }
       clearPreferredReconnectGuildId();
+      loadAuditLogs();
       toast.success("Servidor conectado automaticamente! 🎉");
       return true;
     }
 
+    // Never auto-link a guild that was already present before the invite button was clicked
     const autoGuilds = Array.isArray(autoData.guilds) ? autoData.guilds : [];
-    if (autoGuilds.length === 1) {
-      return await autoLinkGuild(autoGuilds[0]);
+    const genuinelyNewGuilds = autoGuilds.filter(
+      (g: { id: string }) => guildsBeforeInviteRef.current.size > 0 && !guildsBeforeInviteRef.current.has(g.id)
+    );
+    if (genuinelyNewGuilds.length === 1) {
+      return await autoLinkGuild(genuinelyNewGuilds[0]);
     }
 
     return false;
-  }, [getPreferredReconnectGuildId, getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch]);
+  }, [getDiscordRequestBody, autoLinkGuild, clearPreferredReconnectGuildId, stopPolling, refetch]);
 
   const startPollingForGuildConnection = useCallback(() => {
     if (!tenantId) return;
@@ -423,15 +414,17 @@ const DashboardPage = () => {
           stopPolling();
           setWaitingForBot(false);
           clearPreferredReconnectGuildId();
+          loadAuditLogs();
+          toast.success("Servidor conectado com sucesso! 🎉");
           return;
         }
 
         const currentGuilds = await fetchAllBotGuilds();
 
-        if (currentGuilds) {
+        if (currentGuilds && guildsBeforeInviteRef.current.size > 0) {
           const newGuilds = currentGuilds.filter((guild: { id: string }) => !guildsBeforeInviteRef.current.has(guild.id));
 
-          if (newGuilds.length > 0) {
+          if (newGuilds.length === 1) {
             const guild = newGuilds[0];
             const { data: verifyData } = await supabase.functions.invoke("discord-bot-guilds", {
               body: { ...getDiscordRequestBody(), action: "verify_guild", guild_id: guild.id },
@@ -455,16 +448,29 @@ const DashboardPage = () => {
         // keep polling
       }
     }, 5000);
-
-    void tryBackendAutoLink();
   }, [tenantId, stopPolling, fetchAllBotGuilds, getDiscordRequestBody, autoLinkGuild, tryBackendAutoLink, refetch, clearPreferredReconnectGuildId]);
+
+  useEffect(() => {
+    const handleOAuthMessage = async (event: MessageEvent) => {
+      if (event.data?.type !== "DRIKA_BOT_GUILD_LINKED") return;
+      stopPolling();
+      setWaitingForBot(false);
+      clearPreferredReconnectGuildId();
+      await refetch();
+      loadAuditLogs();
+      const gName = event.data?.guild_name ? ` (${event.data.guild_name})` : "";
+      toast.success(`Servidor${gName} conectado com sucesso! 🎉`);
+    };
+
+    window.addEventListener("message", handleOAuthMessage);
+    return () => window.removeEventListener("message", handleOAuthMessage);
+  }, [stopPolling, clearPreferredReconnectGuildId, refetch]);
 
   useEffect(() => {
     if (!waitingForBot) return;
 
     const triggerBackgroundCheck = () => {
       if (document.visibilityState === "hidden") return;
-      void refetch();
       void tryBackendAutoLink();
     };
 
@@ -475,7 +481,7 @@ const DashboardPage = () => {
       window.removeEventListener("focus", triggerBackgroundCheck);
       document.removeEventListener("visibilitychange", triggerBackgroundCheck);
     };
-  }, [waitingForBot, tryBackendAutoLink, refetch]);
+  }, [waitingForBot, tryBackendAutoLink]);
 
   useEffect(() => {
     if (!waitingForBot || !tenant?.discord_guild_id) return;
@@ -495,6 +501,9 @@ const DashboardPage = () => {
 
   const handleAddBot = async () => {
     try {
+      const currentGuilds = await fetchAllBotGuilds();
+      guildsBeforeInviteRef.current = new Set((currentGuilds || []).map((guild: { id: string }) => guild.id));
+
       const { data, error } = await supabase.functions.invoke("discord-bot-guilds", {
         body: { ...getDiscordRequestBody(), action: "invite_url", permissions: BOT_PERMISSIONS },
       });
@@ -503,10 +512,7 @@ const DashboardPage = () => {
         throw new Error(data?.error || error?.message || "Não foi possível gerar o convite do bot externo.");
       }
 
-      const currentGuilds = await fetchAllBotGuilds();
-      guildsBeforeInviteRef.current = new Set((currentGuilds || []).map((guild: { id: string }) => guild.id));
-
-      window.open(appendGuildToInvite(data.invite_url), "_blank", "noopener,noreferrer");
+      window.open(data.invite_url, "_blank");
       startPollingForGuildConnection();
     } catch (err: any) {
       toast.error(err?.message || "Não foi possível abrir o convite do bot externo.");
