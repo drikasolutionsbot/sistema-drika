@@ -468,8 +468,9 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { signInWithDiscord } = useAuth();
+  const { user, signInWithDiscord } = useAuth();
   const [discordLoading, setDiscordLoading] = useState(false);
+  const hasSavedSession = Boolean(user || localStorage.getItem("token_session"));
   const [videoOpen, setVideoOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -550,6 +551,10 @@ const LandingPage = () => {
   };
 
   const handleDiscordLogin = async () => {
+    if (localStorage.getItem("token_session") || user) {
+      navigate("/dashboard");
+      return;
+    }
     setDiscordLoading(true);
     try {
       await signInWithDiscord();
@@ -606,7 +611,7 @@ const LandingPage = () => {
               ) : (
                 <DiscordIcon className="h-3.5 w-3.5 shrink-0" />
               )}
-              <span>{discordLoading ? "Conectando..." : "Entrar com Discord"}</span>
+              <span>{discordLoading ? "Conectando..." : hasSavedSession ? "Acessar Painel" : "Entrar com Discord"}</span>
             </button>
           </div>
         </div>
@@ -646,7 +651,7 @@ const LandingPage = () => {
                   ) : (
                     <DiscordIcon className="h-4 w-4 shrink-0" />
                   )}
-                  <span>{discordLoading ? "Conectando..." : "Entrar com Discord"}</span>
+                  <span>{discordLoading ? "Conectando..." : hasSavedSession ? "Acessar Meu Painel" : "Entrar com Discord"}</span>
                 </button>
 
                 {landingConfig.is_free_system ? (
@@ -686,8 +691,8 @@ const LandingPage = () => {
 
           {/* Login link */}
           <div className="mt-6 animate-fade-in" style={{ animationDelay: "0.25s" }}>
-            <button onClick={() => navigate("/login")} className="text-sm text-white/60 hover:text-white transition-colors bg-transparent border-none cursor-pointer font-medium underline underline-offset-4 decoration-white/30 hover:decoration-white/60">
-              Já tenho um token ou email — Entrar
+            <button onClick={() => navigate(hasSavedSession ? "/dashboard" : "/login")} className="text-sm text-white/60 hover:text-white transition-colors bg-transparent border-none cursor-pointer font-medium underline underline-offset-4 decoration-white/30 hover:decoration-white/60">
+              {hasSavedSession ? "Sessão ativa — Ir direto para o Painel" : "Já tenho um token ou email — Entrar"}
             </button>
           </div>
 

@@ -70,11 +70,20 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
 
           let result: Tenant;
           if (!error && data && !data.error) {
+            const activeToken = data.access_token || tokenSession.token || null;
             result = {
               ...data,
-              token: tokenSession.token || data.access_token || null,
-              access_token: data.access_token || tokenSession.token || null,
+              token: activeToken,
+              access_token: activeToken,
             } as Tenant;
+            // Mantém o token_session sempre sincronizado e persistido no localStorage
+            if (activeToken) {
+              localStorage.setItem("token_session", JSON.stringify({
+                tenant_id: data.id || tokenSession.tenant_id,
+                tenant_name: data.name || tokenSession.tenant_name || "Loja",
+                token: activeToken,
+              }));
+            }
           } else {
             result = {
               id: tokenSession.tenant_id,
@@ -126,12 +135,34 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       .single();
 
     if (roleData?.tenant_id) {
-      const { data } = await supabase
-        .from("tenants")
-        .select("*")
-        .eq("id", roleData.tenant_id)
-        .single();
-      const result = (data as Tenant | null);
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke("get-tenant", {
+        body: { tenant_id: roleData.tenant_id },
+      });
+
+      let result: Tenant | null = null;
+      if (!fnErr && fnData && !fnData.error) {
+        result = {
+          ...fnData,
+          token: fnData.access_token || null,
+          access_token: fnData.access_token || null,
+        } as Tenant;
+        // Persiste token_session automaticamente para usuários logados via Discord/Auth
+        // para que nunca percam a sessão após inatividade mesmo se o JWT expirar
+        if (fnData.access_token) {
+          localStorage.setItem("token_session", JSON.stringify({
+            tenant_id: fnData.id,
+            tenant_name: fnData.name || "Loja",
+            token: fnData.access_token,
+          }));
+        }
+      } else {
+        const { data } = await supabase
+          .from("tenants")
+          .select("*")
+          .eq("id", roleData.tenant_id)
+          .single();
+        result = (data as Tenant | null);
+      }
       setTenant(result);
       setLoading(false);
       return result;

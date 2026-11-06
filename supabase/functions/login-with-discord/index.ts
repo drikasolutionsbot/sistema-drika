@@ -199,10 +199,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Get or create access token ---
+    // --- Get or create access token (mantém o mesmo token ativo e renova validade por 365 dias) ---
     const { data: existingToken } = await admin
       .from("access_tokens")
-      .select("token, expires_at, revoked")
+      .select("id, token, expires_at, revoked")
       .eq("tenant_id", tenantId)
       .eq("revoked", false)
       .order("created_at", { ascending: false })
@@ -210,12 +210,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     let token = existingToken?.token as string | undefined;
-    const stillValid =
-      existingToken &&
-      (!existingToken.expires_at || new Date(existingToken.expires_at) > new Date());
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
-    if (!token || !stillValid) {
-      const expiresAt = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString();
+    if (existingToken && token) {
+      await admin
+        .from("access_tokens")
+        .update({ expires_at: expiresAt, last_used_at: new Date().toISOString() })
+        .eq("id", existingToken.id);
+    } else {
       const { data: newToken, error: tokenErr } = await admin
         .from("access_tokens")
         .insert({

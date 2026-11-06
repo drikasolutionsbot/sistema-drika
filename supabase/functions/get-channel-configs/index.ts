@@ -38,10 +38,11 @@ serve(async (req) => {
       }
 
       if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date()) {
-        return new Response(JSON.stringify({ error: "Token expirado" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        const newExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        await supabase
+          .from("access_tokens")
+          .update({ expires_at: newExpiry })
+          .eq("token", token);
       }
 
       resolvedTenantId = tokenRecord.tenant_id;

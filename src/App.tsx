@@ -81,18 +81,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const tokenSession = localStorage.getItem("token_session");
+  const forceSwitch = new URLSearchParams(window.location.search).get("switch") === "1";
   if (loading) return null;
-  // If user has a token session, redirect to dashboard
-  if (tokenSession) return <Navigate to="/dashboard" replace />;
-  // If user is logged in via Supabase Auth BUT on the client login page, allow access
-  // (admin might want to test token login)
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (!forceSwitch && (tokenSession || user)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/login" element={<LoginPage />} />
+    <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/signup" element={<SignupPage />} />
     <Route path="/termos" element={<TermsPage />} />

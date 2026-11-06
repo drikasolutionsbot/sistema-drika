@@ -17,25 +17,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [providerToken, setProviderToken] = useState<string | null>(() => {
-    return sessionStorage.getItem("discord_provider_token");
+    return localStorage.getItem("discord_provider_token") || sessionStorage.getItem("discord_provider_token");
   });
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      // Capture provider token on sign in
-      if (event === "SIGNED_IN" && session?.provider_token) {
-        setProviderToken(session.provider_token);
-        sessionStorage.setItem("discord_provider_token", session.provider_token);
+    let initialResolved = false;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      setSession(currentSession);
+      if (currentSession?.provider_token) {
+        setProviderToken(currentSession.provider_token);
+        localStorage.setItem("discord_provider_token", currentSession.provider_token);
+        sessionStorage.setItem("discord_provider_token", currentSession.provider_token);
       }
-      setLoading(false);
+      if (initialResolved || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        setLoading(false);
+      }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.provider_token) {
-        setProviderToken(session.provider_token);
-        sessionStorage.setItem("discord_provider_token", session.provider_token);
+    supabase.auth.getSession().then(async ({ data: { session: restoredSession }, error }) => {
+      initialResolved = true;
+      if (error) {
+        // Se o refresh_token do Supabase expirou/falhou mas o cliente tem token_session,
+        // limpamos apenas a sessão Auth quebrada para não enviar JWT expirado nas Edge Functions
+        const hasTokenSession = !!localStorage.getItem("token_session");
+        if (hasTokenSession) {
+          try {
+            await supabase.auth.signOut({ scope: "local" });
+          } catch {}
+        }
+        setSession(null);
+      } else {
+        setSession(restoredSession);
+        if (restoredSession?.provider_token) {
+          setProviderToken(restoredSession.provider_token);
+          localStorage.setItem("discord_provider_token", restoredSession.provider_token);
+          sessionStorage.setItem("discord_provider_token", restoredSession.provider_token);
+        }
       }
       const hasAuthParams = window.location.hash?.includes("access_token") || window.location.hash?.includes("refresh_token");
       if (!hasAuthParams) {
@@ -43,7 +61,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Quando o cliente volta para a aba/janela após tempo inativo, renova a sessão proativamente
+    const handleVisibilityOrFocus = async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error && localStorage.getItem("token_session")) {
+            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+            setSession(null);
+          } else if (data?.session) {
+            setSession(data.session);
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+    };
   }, []);
 
   const signInWithDiscord = async () => {
@@ -68,6 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    localStorage.removeItem("discord_provider_token");
     sessionStorage.removeItem("discord_provider_token");
     setProviderToken(null);
     await supabase.auth.signOut();

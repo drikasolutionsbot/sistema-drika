@@ -232,6 +232,32 @@ verify_jwt = false
 [functions.generate-sale-image]
 verify_jwt = false
 
+[functions.login-with-discord]
+verify_jwt = false
+
+[functions.login-with-email]
+verify_jwt = false
+
+[functions.manage-wallet]
+verify_jwt = false
+
+[functions.manage-welcome]
+verify_jwt = false
+
+[functions.manage-gateway-settings]
+verify_jwt = false
+
+[functions.manage-global-marketplace]
+verify_jwt = false
+
+[functions.update-bot-description]
+verify_jwt = false
+
+[functions.manage-tickets]
+verify_jwt = false
+
+[functions.wallet-pix-deposit]
+verify_jwt = false
 
 [functions.create-tables]
 enabled = true

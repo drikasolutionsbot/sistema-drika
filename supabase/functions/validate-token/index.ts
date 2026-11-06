@@ -47,8 +47,8 @@ serve(async (req) => {
     // Check expiration — se o token expirou mas o tenant ainda existe,
     // estendemos automaticamente para que o cliente possa entrar e ver o
     // overlay de plano expirado (e renovar via PIX). NUNCA bloqueamos por aqui.
-    if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date()) {
-      const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    if (tokenRecord.expires_at && new Date(tokenRecord.expires_at) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
+      const newExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       await supabase
         .from("access_tokens")
         .update({ expires_at: newExpiry })

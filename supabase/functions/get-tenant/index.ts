@@ -28,20 +28,43 @@ serve(async (req) => {
 
     if (error) throw error;
 
-    // Fetch active access token for this tenant
+    // Fetch active access token for this tenant (auto-renew or create if missing)
     const { data: tokenData } = await supabase
       .from("access_tokens")
-      .select("token")
+      .select("id, token, expires_at")
       .eq("tenant_id", tenant_id)
       .eq("revoked", false)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    let activeToken = tokenData?.token || null;
+    const newExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+    if (tokenData?.id) {
+      if (!tokenData.expires_at || new Date(tokenData.expires_at) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
+        await supabase
+          .from("access_tokens")
+          .update({ expires_at: newExpiry, last_used_at: new Date().toISOString() })
+          .eq("id", tokenData.id);
+      }
+    } else {
+      const { data: createdToken } = await supabase
+        .from("access_tokens")
+        .insert({
+          tenant_id,
+          label: `Sessão Painel - ${data.name || "Loja"}`,
+          expires_at: newExpiry,
+        })
+        .select("token")
+        .maybeSingle();
+      activeToken = createdToken?.token || null;
+    }
+
     return new Response(
       JSON.stringify({
         ...data,
-        access_token: tokenData?.token || null,
+        access_token: activeToken,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
