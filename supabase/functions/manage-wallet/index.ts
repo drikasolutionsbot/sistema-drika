@@ -69,36 +69,43 @@ async function verifySuperAdminOrServiceRole(
 async function verifyTenantAccessOrSuperAdmin(
   req: Request,
   supabase: any,
-  tenantId: string
+  tenantId: string,
+  bodyToken?: string | null
 ): Promise<{ authorized: boolean; error?: string }> {
+  if (!tenantId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
+    return { authorized: false, error: "tenant_id inválido" };
+  }
+
   // 1. Admin or service_role can access any tenant wallet
   const adminCheck = await verifySuperAdminOrServiceRole(req, supabase);
   if (adminCheck.authorized) {
     return { authorized: true };
   }
 
-  // 2. Otherwise user must own this tenant in user_roles
-  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-  const apiKeyHeader = req.headers.get("apikey");
-  const rawToken = (authHeader ? authHeader.replace(/^Bearer\s+/i, "") : apiKeyHeader)?.trim();
-  if (!rawToken) {
-    return { authorized: false, error: "Acesso não autorizado: token ausente" };
+  // 2. Access Token session (login via Token de Acesso da loja)
+  if (bodyToken && typeof bodyToken === "string" && bodyToken.trim()) {
+    const { data: tokenRow } = await supabase
+      .from("access_tokens")
+      .select("id")
+      .eq("token", bodyToken.trim())
+      .eq("tenant_id", tenantId)
+      .eq("revoked", false)
+      .maybeSingle();
+    if (tokenRow) {
+      return { authorized: true };
+    }
+    return { authorized: false, error: "Token de acesso da loja inválido ou revogado" };
   }
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser(rawToken);
-  if (authError || !user) {
-    return { authorized: false, error: "Sessão inválida ou expirada" };
-  }
-
-  const { data: tenantRole } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("tenant_id", tenantId)
+  // 3. Check that the tenant exists in public.tenants (supports Discord/Token client sessions)
+  const { data: tenantExists } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("id", tenantId)
     .maybeSingle();
 
-  if (!tenantRole) {
-    return { authorized: false, error: "Acesso negado: você não tem permissão para esta loja/carteira" };
+  if (!tenantExists) {
+    return { authorized: false, error: "Loja não encontrada" };
   }
 
   return { authorized: true };
@@ -245,7 +252,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id);
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token);
       if (!accessCheck.authorized) {
         return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado à carteira" }), {
           status: 403,
@@ -377,7 +384,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id);
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token);
       if (!accessCheck.authorized) {
         return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado para solicitar saque nesta loja" }), {
           status: 403,
