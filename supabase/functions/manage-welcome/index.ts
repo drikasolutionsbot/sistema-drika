@@ -22,19 +22,9 @@ function buildEmbed(embedData: any, vars: Record<string, string>, tenant?: any, 
   if (embedData.title) embed.title = resolveVars(embedData.title, vars);
   if (embedData.description) embed.description = resolveVars(embedData.description, vars);
   
-  const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
-  let coverUrl: string | null = null;
-  if (isMaster && tenant.bot_banner_url) {
-    coverUrl = tenant.bot_banner_url; // We don't have formatCdnUrl here, but it's fine for testing
-  } else if (globalBannerUrl) {
-    coverUrl = globalBannerUrl;
-  }
-
-  if (embedData.image_url) {
-    const url = resolveVars(embedData.image_url, vars);
+  if (embedData.image_url && String(embedData.image_url).trim()) {
+    const url = resolveVars(String(embedData.image_url).trim(), vars);
     if (url && url.startsWith("http")) embed.image = { url };
-  } else if (coverUrl && coverUrl.startsWith("http")) {
-    embed.image = { url: coverUrl };
   }
 
   if (embedData.thumbnail_url) {

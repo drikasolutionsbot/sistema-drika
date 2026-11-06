@@ -599,18 +599,6 @@ serve(async (req) => {
       return newUrl;
     };
 
-    // Lógica Drika Cover
-    const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
-    const globalBannerUrl = globalConfig?.global_bot_banner_url;
-    
-    const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
-    let coverUrl: string | null = null;
-    if (isMaster && tenant.bot_banner_url) {
-      coverUrl = applyCdnInline(tenant.bot_banner_url);
-    } else if (globalBannerUrl) {
-      coverUrl = applyCdnInline(globalBannerUrl);
-    }
-
     // Build payload
     const payload: Record<string, any> = {};
     if (content) payload.content = content;
@@ -618,10 +606,6 @@ serve(async (req) => {
       for (const embed of embeds) {
         if (embed.color === 0x2B2D31 || embed.color === 2829105) {
           delete embed.color;
-        }
-        // Aplica a capa apenas se o embed não tiver imagem customizada definida pelo usuário
-        if (coverUrl && !embed.image?.url) {
-          embed.image = { url: coverUrl };
         }
 
         // Garante que o CDN seja aplicado em todas as URLs de imagem enviadas para o Discord

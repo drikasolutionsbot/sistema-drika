@@ -140,6 +140,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
     if (!tenantId) return;
     setSaving(true);
     try {
+      const cleanImageUrl = config.verify_image_url?.trim() || null;
       const { error } = await supabase.functions.invoke("update-tenant", {
         body: {
           tenant_id: tenantId,
@@ -152,12 +153,13 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
             verify_description: config.verify_description,
             verify_button_label: config.verify_button_label,
             verify_embed_color: config.verify_embed_color,
-            verify_image_url: config.verify_image_url || null,
+            verify_image_url: cleanImageUrl,
             verify_button_style: config.verify_button_style,
           },
         },
       });
       if (error) throw error;
+      setServerConfig({ ...config, verify_image_url: cleanImageUrl || "" });
       clearDraft();
       toast({ title: "Verificação salva! ✅" });
     } catch (e: any) {
@@ -174,6 +176,28 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
     }
     setPosting(true);
     try {
+      const cleanImageUrl = config.verify_image_url?.trim() || null;
+      // Salva as configurações no banco antes de enviar para garantir que cargo/logs/capa estejam sincronizados
+      await supabase.functions.invoke("update-tenant", {
+        body: {
+          tenant_id: tenantId,
+          updates: {
+            verify_enabled: config.verify_enabled,
+            verify_role_id: config.verify_role_id || null,
+            verify_channel_id: config.verify_channel_id || null,
+            verify_logs_channel_id: config.verify_logs_channel_id || null,
+            verify_title: config.verify_title,
+            verify_description: config.verify_description,
+            verify_button_label: config.verify_button_label,
+            verify_embed_color: config.verify_embed_color,
+            verify_image_url: cleanImageUrl,
+            verify_button_style: config.verify_button_style,
+          },
+        },
+      });
+      setServerConfig({ ...config, verify_image_url: cleanImageUrl || "" });
+      clearDraft();
+
       const { error } = await supabase.functions.invoke("send-verification-embed", {
         body: {
           tenant_id: tenantId,
@@ -183,7 +207,7 @@ const VerificationPage = ({ embedded }: { embedded?: boolean }) => {
           button_label: config.verify_button_label,
           button_style: config.verify_button_style,
           embed_color: config.verify_embed_color,
-          image_url: config.verify_image_url || null,
+          image_url: cleanImageUrl,
         },
       });
       if (error) throw error;

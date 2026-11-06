@@ -55,19 +55,9 @@ Deno.serve(async (req) => {
     }
 
     const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    let safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
-
-    if (!safeImageUrl) {
-      const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
-      if (isMaster && tenant.bot_banner_url) {
-        safeImageUrl = formatCdnUrl(tenant.bot_banner_url);
-      } else {
-        const { data: globalConfig } = await supabase.from("landing_config").select("global_bot_banner_url").single();
-        if (globalConfig?.global_bot_banner_url) {
-          safeImageUrl = formatCdnUrl(globalConfig.global_bot_banner_url);
-        }
-      }
-    }
+    // Banner/capa só é enviado quando preenchido explicitamente pelo usuário na Verificação
+    const rawImg = typeof image_url === "string" ? image_url.trim() : "";
+    const safeImageUrl = rawImg && rawImg.startsWith("http") ? formatCdnUrl(rawImg) : null;
 
     const embed: any = {
       title: title || "👑 Verificação",

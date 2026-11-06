@@ -200,18 +200,8 @@ function buildEmbed(embedData: any, replaceVars: (t: string) => string, tenant: 
     description: embedData.description ? replaceVars(embedData.description) : replaceVars(tr(lang, "welcome_desc")),
   };
 
-  const isMaster = tenant && typeof tenant.plan === "string" && tenant.plan.toLowerCase() === "master";
-  let coverUrl: string | null = null;
-  if (isMaster && tenant.bot_banner_url) {
-    coverUrl = formatCdnUrl(tenant.bot_banner_url);
-  } else if (globalBannerUrl) {
-    coverUrl = formatCdnUrl(globalBannerUrl);
-  }
-
-  if (embedData.image_url) {
-    embed.image = { url: formatCdnUrl(replaceVars(embedData.image_url)) };
-  } else if (coverUrl) {
-    embed.image = { url: coverUrl };
+  if (embedData.image_url && String(embedData.image_url).trim()) {
+    embed.image = { url: formatCdnUrl(replaceVars(String(embedData.image_url).trim())) };
   }
 
   if (embedData.thumbnail_url) embed.thumbnail = { url: formatCdnUrl(replaceVars(embedData.thumbnail_url)) };
