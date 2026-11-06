@@ -35,6 +35,9 @@ const LoginPage = () => {
   const handleDiscordLogin = async () => {
     setDiscordLoading(true);
     try {
+      Object.keys(sessionStorage).forEach((k) => {
+        if (k.startsWith("drika_wallet_split_popup_v1")) sessionStorage.removeItem(k);
+      });
       await signInWithDiscord();
     } catch (e: any) {
       toast({ title: "Erro ao conectar com Discord", description: e.message, variant: "destructive" });
@@ -48,6 +51,9 @@ const LoginPage = () => {
     try {
       if (user) await signOut();
       localStorage.removeItem("token_session");
+      Object.keys(sessionStorage).forEach((k) => {
+        if (k.startsWith("drika_wallet_split_popup_v1")) sessionStorage.removeItem(k);
+      });
 
       const { data, error } = await supabase.functions.invoke("validate-token", {
         body: { token: token.trim() },

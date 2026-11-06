@@ -6,6 +6,7 @@ import { TopBar } from "./TopBar";
 import { useTenant } from "@/contexts/TenantContext";
 import PlanExpiredPage from "@/pages/PlanExpiredPage";
 import ProUpgradeModal from "@/components/ProUpgradeModal";
+import WalletAnnouncementModal from "@/components/WalletAnnouncementModal";
 import FreePlanLock from "@/components/FreePlanLock";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -21,6 +22,7 @@ const FREE_ALLOWED_ROUTES = new Set<string>([
   "/dashboard",
   "/settings",
   "/finance",
+  "/wallet",
   "/support",
   "/tutorials",
   "/onboarding",
@@ -104,6 +106,7 @@ export const DashboardLayout = () => {
   return (
     <>
       <ProUpgradeModal />
+      <WalletAnnouncementModal />
       <div className="flex h-screen overflow-hidden bg-background">
         {/* Desktop sidebar */}
         <div className="hidden lg:block">
