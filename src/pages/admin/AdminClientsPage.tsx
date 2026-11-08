@@ -34,6 +34,7 @@ const getPlanBadgeClass = (plan: string) => {
 
 const AdminClientsPage = () => {
   const [tenants, setTenants] = useState<any[]>([]);
+  const [botGuilds, setBotGuilds] = useState<Record<string, { id: string; name: string; icon: string | null; member_count: number; presence_count: number }>>({});
   const [tokens, setTokens] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
@@ -180,6 +181,18 @@ const AdminClientsPage = () => {
       .order("created_at", { ascending: false });
     setTenants(data || []);
     setLoading(false);
+
+    // Fetch all guilds where the bot is connected to display server name + icon + member count
+    try {
+      const { data: guildData } = await supabase.functions.invoke("discord-guild-info", {
+        body: { action: "list_bot_guilds" },
+      });
+      if (guildData?.guilds) {
+        setBotGuilds(guildData.guilds);
+      }
+    } catch {
+      // ignore if guild lookup fails
+    }
   }, []);
 
   const fetchTokens = useCallback(async (tenantId: string) => {
@@ -197,10 +210,12 @@ const AdminClientsPage = () => {
 
   const filteredTenants = tenants.filter((t) => {
     const q = searchQuery.trim().toLowerCase();
+    const guildInfo = t.discord_guild_id ? botGuilds[t.discord_guild_id] : null;
     const matchesSearch =
       !q ||
       t.name?.toLowerCase().includes(q) ||
       t.discord_guild_id?.includes(q) ||
+      guildInfo?.name?.toLowerCase().includes(q) ||
       t.owner_discord_username?.toLowerCase().includes(q) ||
       t.owner_discord_id?.includes(q) ||
       t.email?.toLowerCase().includes(q) ||
@@ -853,15 +868,15 @@ const AdminClientsPage = () => {
                               </span>
                             )}
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                            {/* Discord Badge com Link Direto */}
-                            {tenant.owner_discord_id || tenant.owner_discord_username ? (
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-1">
+                            {/* 1. Usuário do Discord */}
+                            {(tenant.owner_discord_id || tenant.owner_discord_username) && (
                               <a
                                 href={tenant.owner_discord_id ? `https://discord.com/users/${tenant.owner_discord_id}` : `https://discord.com/channels/${tenant.discord_guild_id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                title={`Abrir ${tenant.owner_discord_id ? `perfil de @${tenant.owner_discord_username || tenant.owner_discord_id}` : `servidor`} no Discord`}
+                                title={`Abrir perfil de @${tenant.owner_discord_username || tenant.owner_discord_id} no Discord`}
                                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-[#5865F2]/15 border border-[#5865F2]/35 text-[#798bf2] hover:bg-[#5865F2]/25 hover:text-white transition-all shadow-sm group"
                               >
                                 <DiscordIcon className="h-3.5 w-3.5 text-[#5865F2] group-hover:scale-110 transition-transform shrink-0" />
@@ -875,26 +890,89 @@ const AdminClientsPage = () => {
                                 )}
                                 <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100 shrink-0" />
                               </a>
-                            ) : tenant.discord_guild_id ? (
-                              <a
-                                href={`https://discord.com/channels/${tenant.discord_guild_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                title={`Abrir servidor do cliente no Discord (${tenant.discord_guild_id})`}
-                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-[#5865F2]/15 border border-[#5865F2]/35 text-[#798bf2] hover:bg-[#5865F2]/25 hover:text-white transition-all shadow-sm group"
-                              >
-                                <Server className="h-3 w-3 text-[#5865F2] shrink-0" />
-                                <span className="group-hover:underline font-mono">
-                                  Servidor: {tenant.discord_guild_id}
-                                </span>
-                                <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100 shrink-0" />
-                              </a>
-                            ) : (
-                              <span className="text-xs text-muted-foreground/60 inline-flex items-center gap-1">
-                                <DiscordIcon className="h-3 w-3 opacity-40 shrink-0" /> Sem Discord
-                              </span>
                             )}
+
+                            {/* 2. Servidor Conectado (Bot) — sempre exibido junto! */}
+                            {(() => {
+                              const guildInfo = tenant.discord_guild_id ? botGuilds[tenant.discord_guild_id] : null;
+                              if (tenant.discord_guild_id) {
+                                return (
+                                  <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold border transition-all shadow-sm ${
+                                      guildInfo
+                                        ? "bg-emerald-500/12 border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/20"
+                                        : "bg-indigo-500/12 border-indigo-500/35 text-indigo-300 hover:bg-indigo-500/20"
+                                    }`}
+                                  >
+                                    {guildInfo?.icon ? (
+                                      <img
+                                        src={guildInfo.icon}
+                                        alt={guildInfo.name}
+                                        className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
+                                      />
+                                    ) : (
+                                      <Server className={`h-3 w-3 shrink-0 ${guildInfo ? "text-emerald-400" : "text-indigo-400"}`} />
+                                    )}
+                                    {guildInfo && (
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" title="Bot ativo neste servidor" />
+                                    )}
+                                    <a
+                                      href={`https://discord.com/channels/${tenant.discord_guild_id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={`Abrir servidor no Discord (${tenant.discord_guild_id})`}
+                                      className="hover:underline flex items-center gap-1"
+                                    >
+                                      <span>
+                                        Servidor: <strong>{guildInfo?.name || tenant.discord_guild_id}</strong>
+                                      </span>
+                                      {guildInfo?.name && (
+                                        <span className="text-[10px] opacity-70 font-mono hidden md:inline">
+                                          ({tenant.discord_guild_id})
+                                        </span>
+                                      )}
+                                      {guildInfo?.member_count ? (
+                                        <span className="text-[10px] text-emerald-400/90 font-normal hidden lg:inline">
+                                          • {guildInfo.member_count.toLocaleString("pt-BR")} membros
+                                        </span>
+                                      ) : null}
+                                      <ExternalLink className="h-2.5 w-2.5 opacity-60 hover:opacity-100 shrink-0" />
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(tenant.discord_guild_id);
+                                        toast({
+                                          title: "ID do Servidor copiado! 📋",
+                                          description: `${guildInfo?.name ? `${guildInfo.name} — ` : ""}${tenant.discord_guild_id}`,
+                                        });
+                                      }}
+                                      title="Copiar ID do Servidor"
+                                      className="opacity-60 hover:opacity-100 bg-transparent border-none cursor-pointer p-0.5 text-current"
+                                    >
+                                      <Copy className="h-2.5 w-2.5" />
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              if (tenant.owner_discord_id || tenant.owner_discord_username) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 border border-amber-500/25 text-amber-400/90">
+                                    <Server className="h-3 w-3 opacity-75 shrink-0" />
+                                    Sem servidor conectado
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <span className="text-xs text-muted-foreground/60 inline-flex items-center gap-1">
+                                  <DiscordIcon className="h-3 w-3 opacity-40 shrink-0" /> Sem Discord
+                                </span>
+                              );
+                            })()}
 
                             {tenant.email && (
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1493,19 +1571,39 @@ const AdminClientsPage = () => {
                             </div>
 
                             <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40">
-                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">ID da Guild (Servidor):</span>
+                              <span className="text-muted-foreground block text-[11px] font-medium mb-0.5">Servidor Conectado (Bot):</span>
                               {tenant.discord_guild_id ? (
-                                <a
-                                  href={`https://discord.com/channels/${tenant.discord_guild_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="font-mono font-semibold text-foreground hover:text-primary transition-colors flex items-center gap-1"
-                                >
-                                  {tenant.discord_guild_id}
-                                  <ExternalLink className="h-3 w-3 opacity-60" />
-                                </a>
+                                (() => {
+                                  const gInfo = botGuilds[tenant.discord_guild_id];
+                                  return (
+                                    <div className="space-y-0.5">
+                                      <a
+                                        href={`https://discord.com/channels/${tenant.discord_guild_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold text-emerald-400 hover:underline transition-colors flex items-center gap-1.5"
+                                      >
+                                        {gInfo?.icon ? (
+                                          <img src={gInfo.icon} alt="" className="h-4 w-4 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                          <Server className="h-3.5 w-3.5 shrink-0" />
+                                        )}
+                                        <span className="truncate">{gInfo?.name || tenant.discord_guild_id}</span>
+                                        <ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
+                                      </a>
+                                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                                        <span>ID: {tenant.discord_guild_id}</span>
+                                        {gInfo?.member_count ? (
+                                          <span className="text-emerald-400/90 font-sans">
+                                            • {gInfo.member_count.toLocaleString("pt-BR")} membros
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                               ) : (
-                                <span className="text-muted-foreground/60 italic">Sem servidor</span>
+                                <span className="text-muted-foreground/60 italic">Sem servidor conectado</span>
                               )}
                             </div>
 

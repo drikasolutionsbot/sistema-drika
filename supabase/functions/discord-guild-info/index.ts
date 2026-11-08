@@ -22,6 +22,49 @@ serve(async (req) => {
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
+    // Action: list all guilds where the bot is currently connected
+    if (body.action === "list_bot_guilds") {
+      if (!botToken) {
+        return new Response(JSON.stringify({ guilds: {} }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const guildsRes = await fetch("https://discord.com/api/v10/users/@me/guilds?with_counts=true", {
+        headers: { Authorization: `Bot ${botToken}` },
+      });
+
+      if (!guildsRes.ok) {
+        const errText = await guildsRes.text();
+        console.error("Failed to list bot guilds:", errText);
+        return new Response(JSON.stringify({ guilds: {} }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const guildsList = await guildsRes.json();
+      const guildsMap: Record<
+        string,
+        { id: string; name: string; icon: string | null; member_count: number; presence_count: number }
+      > = {};
+
+      if (Array.isArray(guildsList)) {
+        for (const g of guildsList) {
+          guildsMap[g.id] = {
+            id: g.id,
+            name: g.name,
+            icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
+            member_count: g.approximate_member_count ?? 0,
+            presence_count: g.approximate_presence_count ?? 0,
+          };
+        }
+      }
+
+      return new Response(JSON.stringify({ guilds: guildsMap }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // If tenant_id provided, resolve guild_id
     if (body.tenant_id) {
       const { data: tenant, error } = await supabase
