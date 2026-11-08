@@ -2930,32 +2930,13 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
 
                       {/* Alerta de Erro na Gateway (se houver) */}
                       {gatewayErrorAlert && (
-                        <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 space-y-3">
+                        <div className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 space-y-2">
                           <div className="flex items-start gap-2.5">
                             <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
                             <div>
                               <p className="font-bold text-rose-300 text-xs">Falha no Disparo Automático via Gateway</p>
                               <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">{gatewayErrorAlert}</p>
                             </div>
-                          </div>
-                          <div className="pt-2 border-t border-rose-500/20 flex flex-col gap-2">
-                            <span className="text-[11px] text-slate-300">
-                              Caso o PIX já tenha saído pelo seu banco, aprove manualmente:
-                            </span>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => handleApproveSubmit(true)}
-                              disabled={processingAction}
-                              className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-sm"
-                            >
-                              {processingAction ? (
-                                <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                              ) : (
-                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                              )}
-                              Aprovar Manualmente Agora
-                            </Button>
                           </div>
                         </div>
                       )}
@@ -2994,29 +2975,18 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                               Enviar PIX Automático ({formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents - selectedTx.fee_cents)})
                             </Button>
 
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => handleApproveSubmit(true)}
-                                disabled={processingAction}
-                                className="h-8 text-xs border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-medium"
-                              >
-                                Aprovar Manual
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                  setApproveModalOpen(false);
-                                  setRejectModalOpen(true);
-                                }}
-                                disabled={processingAction}
-                                className="h-8 text-xs border-rose-500/30 text-rose-400 hover:bg-rose-500/10 font-medium"
-                              >
-                                Rejeitar Saque
-                              </Button>
-                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setApproveModalOpen(false);
+                                setRejectModalOpen(true);
+                              }}
+                              disabled={processingAction}
+                              className="w-full h-8 text-xs border-rose-500/30 text-rose-400 hover:bg-rose-500/10 font-medium"
+                            >
+                              Rejeitar Saque
+                            </Button>
 
                             <Button
                               type="button"
