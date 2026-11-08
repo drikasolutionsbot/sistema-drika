@@ -601,6 +601,12 @@ const LandingPage = () => {
             {landingConfig && !landingConfig.is_free_system && (
               <button onClick={scrollToPlans} className="text-xs text-white/70 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">Planos</button>
             )}
+            <button onClick={() => navigate("/taxas")} className="text-xs text-pink-400 hover:text-pink-300 font-semibold bg-transparent border-none cursor-pointer transition-colors">
+              Taxas & Calculadora
+            </button>
+            <button onClick={() => navigate("/termos")} className="hidden sm:inline-block text-xs text-white/70 hover:text-white font-medium bg-transparent border-none cursor-pointer transition-colors">
+              Termos
+            </button>
             <button 
               onClick={handleDiscordLogin} 
               disabled={discordLoading}
@@ -1163,6 +1169,46 @@ const LandingPage = () => {
 
 
 
+      {/* ===== 7. TRANSPARÊNCIA DE TAXAS & CALCULADORA DE MARGEM ===== */}
+      <section className="relative z-10 py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <ScrollReveal>
+            <div className="relative rounded-3xl border border-pink-500/30 bg-gradient-to-br from-[#1a0818]/90 via-[#0b0e18]/95 to-[#071516]/90 p-6 sm:p-8 overflow-hidden shadow-[0_0_50px_rgba(236,72,153,0.12)]">
+              <div className="absolute -top-24 -right-24 w-72 h-72 bg-pink-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="space-y-2.5 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/15 border border-pink-500/30 px-3 py-1 text-[11px] font-bold text-pink-300 uppercase tracking-wider">
+                    <Sparkles className="h-3.5 w-3.5 text-pink-400" /> Transparência & Clareza Total
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-white font-display">
+                    Pagamentos 100% via Carteira Integrada & Split PIX
+                  </h3>
+                  <p className="text-xs sm:text-sm text-white/70 leading-relaxed">
+                    Sem precisar configurar chaves de gateway externo. Taxa fixa de <strong className="text-white">R$ 1,00 + 2%</strong> apenas por venda aprovada, <strong className="text-emerald-400">1º saque semanal grátis</strong> e calculadora de margem interativa para planejar o preço dos seus produtos.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 w-full md:w-auto shrink-0">
+                  <button
+                    onClick={() => navigate("/taxas")}
+                    className="px-5 py-3 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs cursor-pointer border-none transition-all flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(236,72,153,0.35)]"
+                  >
+                    <span>Simular na Calculadora de Margem</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => navigate("/termos")}
+                    className="px-5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white/80 hover:text-white font-semibold text-xs cursor-pointer transition-all text-center"
+                  >
+                    Ler Termos de Uso & Regras de Taxas
+                  </button>
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
       {/* ===== 8. FOOTER ===== */}
       <footer className="relative z-20 border-t border-white/10 py-5 px-4">
         <ScrollReveal>
@@ -1178,8 +1224,14 @@ const LandingPage = () => {
               <a href="https://www.youtube.com/@DrikaHub" target="_blank" rel="noopener noreferrer" className="relative z-30 cursor-pointer text-white/70 hover:text-primary transition-colors" aria-label="YouTube">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
               </a>
+              <button onClick={() => navigate("/taxas")} className="relative z-30 text-xs text-pink-400 hover:text-pink-300 transition-colors bg-transparent border-none cursor-pointer font-semibold">
+                Taxas & Calculadora
+              </button>
               <button onClick={() => navigate("/termos")} className="relative z-30 text-xs text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer font-medium">
                 Termos
+              </button>
+              <button onClick={() => navigate("/privacidade")} className="relative z-30 text-xs text-white/70 hover:text-white transition-colors bg-transparent border-none cursor-pointer font-medium">
+                Privacidade
               </button>
             </div>
           </div>

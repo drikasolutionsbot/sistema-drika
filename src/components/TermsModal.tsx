@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Shield, ExternalLink } from "lucide-react";
+import { Shield, ExternalLink, Calculator, Percent, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface TermsModalProps {
@@ -14,97 +14,110 @@ const TermsModal = ({ open, onOpenChange }: TermsModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] p-0 gap-0">
-        <DialogHeader className="p-6 pb-4 border-b border-border">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Shield className="h-5 w-5 text-primary" />
-            Termos de Serviço
+      <DialogContent className="max-w-2xl max-h-[85vh] p-0 gap-0 border-white/15 bg-[#090d1a] text-white">
+        <DialogHeader className="p-6 pb-4 border-b border-white/10">
+          <DialogTitle className="flex items-center gap-2 text-lg text-white">
+            <Shield className="h-5 w-5 text-pink-500" />
+            Termos de Serviço & Política de Taxas Drika Hub
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[55vh] px-6 py-4">
+        <ScrollArea className="max-h-[58vh] px-6 py-4">
           <div className="space-y-5 text-sm">
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">1. Aceitação dos Termos</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Ao acessar e utilizar a plataforma Drika Solutions ("Plataforma"), você concorda com estes Termos de Serviço. 
-                Se você não concordar com qualquer parte destes termos, não utilize a Plataforma.
-              </p>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">2. Descrição do Serviço</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                A Drika Solutions oferece uma plataforma SaaS de gerenciamento de bots de vendas para Discord, incluindo:
-              </p>
-              <ul className="text-muted-foreground space-y-1 list-disc pl-5">
-                <li>Sistema de loja automatizada com entrega digital</li>
-                <li>Gerenciamento de produtos, estoque e variações</li>
-                <li>Processamento de pagamentos via PIX e provedores integrados</li>
-                <li>Sistema de tickets e suporte ao cliente</li>
-                <li>Automações, sorteios e sistema VIP</li>
+            {/* Highlight Box: Taxas & Split */}
+            <div className="rounded-2xl border border-pink-500/30 bg-pink-500/10 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-pink-300 font-bold text-xs uppercase tracking-wider">
+                <Percent className="h-4 w-4" />
+                <span>Resumo Oficial de Taxas (Carteira & Split PIX)</span>
+              </div>
+              <ul className="text-xs text-slate-200 space-y-1.5 list-disc pl-4">
+                <li>
+                  <strong>Taxa por Venda Aprovada (Split PIX):</strong>{" "}
+                  <span className="text-pink-300 font-bold">R$ 1,00 fixo + 2%</span> sobre o valor do pedido pago.
+                </li>
+                <li>
+                  <strong>Geração de QR Code PIX:</strong> <span className="text-emerald-400 font-bold">GRÁTIS</span>{" "}
+                  (pedidos não pagos não geram cobrança).
+                </li>
+                <li>
+                  <strong>Saques PIX da Carteira:</strong>{" "}
+                  <span className="text-emerald-400 font-bold">1º saque da semana GRÁTIS (R$ 0,00)</span>. Saques
+                  adicionais na mesma semana têm taxa fixa de <strong>R$ 1,00</strong> (saque mínimo de R$ 10,00).
+                </li>
               </ul>
-            </section>
+            </div>
 
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">3. Conta e Token de Acesso</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                O acesso à Plataforma é concedido através de um token único. Você é responsável por manter a 
-                confidencialidade do seu token e por todas as atividades realizadas com ele.
+            <section className="space-y-1.5">
+              <h3 className="font-semibold text-white">1. Aceitação dos Termos</h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Ao acessar e utilizar a plataforma Drika Hub / Drika Solutions ("Plataforma"), você concorda com estes
+                Termos de Serviço e com a nossa Política de Taxas e Liquidação.
               </p>
             </section>
 
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">4. Uso Aceitável</h3>
-              <ul className="text-muted-foreground space-y-1 list-disc pl-5">
-                <li>Não utilizar o serviço para atividades ilegais ou fraudulentas</li>
-                <li>Não violar os Termos de Serviço do Discord</li>
-                <li>Não realizar engenharia reversa ou tentativas de acesso não autorizado</li>
-                <li>Não revender ou redistribuir o acesso sem autorização</li>
-              </ul>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">5. Pagamentos e Planos</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Os planos e preços estão sujeitos a alterações com aviso prévio. A Drika Solutions não se 
-                responsabiliza por transações realizadas entre você e seus clientes finais.
+            <section className="space-y-1.5">
+              <h3 className="font-semibold text-white">2. Funcionamento da Carteira Digital & Split</h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Todas as vendas do seu bot no Discord são processadas automaticamente via PIX integrado. Assim que o
+                cliente final paga, a taxa de intermediação (R$ 1,00 fixo + 2%) é descontada automaticamente e o valor
+                líquido é creditado na hora na sua Carteira Drika Hub.
               </p>
             </section>
 
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">6. Disponibilidade e Privacidade</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                A Drika Solutions se esforça para manter a Plataforma disponível 24/7, mas não garante disponibilidade 
-                ininterrupta. Coletamos apenas os dados necessários para o funcionamento do serviço e seus dados não 
-                serão vendidos a terceiros.
+            <section className="space-y-1.5">
+              <h3 className="font-semibold text-white">3. Saques PIX, Segurança e Prevenção a Fraudes (MED)</h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Os saques são enviados via PIX para a chave cadastrada pelo lojista e acompanham comprovante oficial em
+                PDF. Em caso de contestação bancária (MED / fraude reportada pelo banco do comprador), o valor
+                correspondente poderá ser retido ou estornado cautelarmente. É proibido comercializar itens ilícitos ou
+                fraudulentos.
               </p>
             </section>
 
-            <section className="space-y-2">
-              <h3 className="font-semibold text-foreground">7. Suspensão e Encerramento</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                A Drika Solutions reserva-se o direito de suspender ou encerrar o acesso à Plataforma em caso 
-                de violação destes termos.
+            <section className="space-y-1.5">
+              <h3 className="font-semibold text-white">4. Responsabilidade do Lojista</h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                A Drika Hub fornece a infraestrutura tecnológica de automação. O lojista é o único responsável pelos
+                produtos anunciados, entrega de estoque e suporte prestado aos membros de seu servidor Discord.
               </p>
             </section>
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t border-border flex items-center justify-between">
+        <div className="p-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 bg-[#070a14]">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-pink-500/40 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:text-white text-xs"
+              onClick={() => {
+                onOpenChange(false);
+                navigate("/taxas");
+              }}
+            >
+              <Calculator className="h-3.5 w-3.5" />
+              Calculadora de Margem & Taxas
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-slate-300 hover:text-white text-xs"
+              onClick={() => {
+                onOpenChange(false);
+                navigate("/termos");
+              }}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Termos Completos
+            </Button>
+          </div>
+
           <Button
-            variant="ghost"
             size="sm"
-            className="gap-2 text-muted-foreground"
-            onClick={() => {
-              onOpenChange(false);
-              navigate("/termos");
-            }}
+            onClick={() => onOpenChange(false)}
+            className="bg-pink-600 hover:bg-pink-500 text-white font-semibold text-xs"
           >
-            <ExternalLink className="h-4 w-4" />
-            Ver página completa
-          </Button>
-          <Button size="sm" onClick={() => onOpenChange(false)}>
             Entendi
           </Button>
         </div>

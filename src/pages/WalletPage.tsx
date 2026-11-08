@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,7 @@ import {
   Receipt,
   FileText,
   Download,
+  Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +113,7 @@ export default function WalletPage() {
   const { tenantId, tenant, refetch: refetchTenant } = useTenant();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const activeTab = searchParams.get("tab") || "extrato";
   const handleTabChange = (tab: string) => {
@@ -548,7 +550,17 @@ export default function WalletPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/taxas")}
+            className="gap-2 border-pink-500/30 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:text-white"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            Calculadora de Margem & Taxas
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -642,12 +654,21 @@ export default function WalletPage() {
             </div>
 
             {/* Banner de Status / Aprovação */}
-            <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-3.5 flex items-start sm:items-center gap-3">
-              <Clock className="h-5 w-5 text-blue-400 shrink-0 mt-0.5 sm:mt-0" />
-              <div className="text-xs text-blue-200/90 leading-relaxed">
-                <strong className="text-white font-semibold">Aprovação Manual de Saques:</strong>{" "}
-                Cada solicitação passa por conferência manual da administração. Taxa de 2% da plataforma retida no envio. Saque a partir de R$ 5,00.
+            <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3">
+                <Clock className="h-5 w-5 text-blue-400 shrink-0 mt-0.5 sm:mt-0" />
+                <div className="text-xs text-blue-200/90 leading-relaxed">
+                  <strong className="text-white font-semibold">Regras de Split & Saques PIX:</strong>{" "}
+                  Taxa por venda aprovada: <strong>R$ 1,00 fixo + 2%</strong>. Você tem <strong>1 saque semanal grátis</strong> (saques extras na semana: R$ 1,00 • mínimo R$ 10,00).
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => navigate("/taxas")}
+                className="shrink-0 text-xs font-bold text-pink-400 hover:text-pink-300 underline underline-offset-4 bg-transparent border-none cursor-pointer self-start sm:self-center"
+              >
+                Simular Margem →
+              </button>
             </div>
           </div>
 

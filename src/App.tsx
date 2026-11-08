@@ -93,6 +93,7 @@ const AppRoutes = () => (
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     <Route path="/signup" element={<SignupPage />} />
     <Route path="/termos" element={<TermsPage />} />
+    <Route path="/taxas" element={<TermsPage />} />
     <Route path="/privacidade" element={<PrivacyPage />} />
     <Route path="/verify/result" element={<VerifyResultPage />} />
     <Route path="/verify/:slug" element={<VerifyRedirectPage />} />
