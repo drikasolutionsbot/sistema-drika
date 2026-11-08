@@ -535,6 +535,12 @@ export default function AdminWalletPage() {
 
   // Handle Copy full withdrawal audit report
   const handleCopyWithdrawalReport = (tx: WithdrawalItem) => {
+    const grossCents = tx.source_order?.total_cents || tx.source_deposit?.amount_cents || tx.amount_cents;
+    const fixedFee = splitFixedFeeCents;
+    const pctFee = Math.round(grossCents * (splitPercentFee / 100));
+    const totalSplitFee = tx.source_deposit?.fee_cents ?? tx.source_order?.commission_cents ?? (fixedFee + pctFee);
+    const netCredited = tx.source_deposit?.net_amount_cents || (grossCents - totalSplitFee);
+
     const report = `--- COMPROVANTE & REVISÃO DE SAQUE ---
 Loja: ${tx.tenants?.name || "Loja"} (${tx.tenant_id})
 Data do Saque: ${format(new Date(tx.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
@@ -545,13 +551,15 @@ Loja: ${tx.tenants?.name || "Loja"}
 Produto: ${tx.source_order?.product_name || "Venda Loja"}
 Pedido: #${tx.source_order?.order_number || tx.source_order?.id?.slice(0, 8) || "—"}
 Comprador Discord: ${tx.source_order?.discord_username ? `@${tx.source_order.discord_username}` : "—"}
-Entrada Bruta da Venda: ${formatBRL(tx.source_order?.total_cents || tx.amount_cents)}
-Taxas Retidas na Venda: ${formatBRL(tx.source_deposit?.fee_cents ?? (tx.source_order?.commission_cents ?? 0))}
-Crédito na Carteira: ${formatBRL(tx.source_deposit?.net_amount_cents || tx.amount_cents)}
+Entrada Bruta da Venda: ${formatBRL(grossCents)}
+Taxa Base Fixa (R$): ${formatBRL(fixedFee)}
+Taxa Split (${splitPercentFee}%): ${formatBRL(pctFee)}
+Total Taxas Retidas na Venda: ${formatBRL(totalSplitFee)}
+Crédito na Carteira: ${formatBRL(netCredited)}
 
 DADOS DO PAGAMENTO PIX:
 Bruto Solicitado: ${formatBRL(tx.amount_cents)}
-Taxa Saque Plataforma (2%): ${formatBRL(tx.fee_cents)}
+Taxa Saque Plataforma: ${formatBRL(tx.fee_cents)}
 LÍQUIDO A PAGAR: ${formatBRL(tx.net_amount_cents || tx.amount_cents - tx.fee_cents)}
 Chave PIX: ${tx.pix_key} (${tx.pix_key_type?.toUpperCase() || "PIX"})
 
@@ -997,13 +1005,13 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
     const allVolumeCents = filteredAuditSales.reduce((acc, s) => acc + (s.total_cents || 0), 0);
     const paidCount = paidSales.length;
     const totalCount = filteredAuditSales.length;
-    const feesCents = paidSales.reduce(
+      const feesCents = paidSales.reduce(
       (acc, s) =>
         acc +
-        (s.commission_cents != null
-          ? s.commission_cents
+        ((s as any).commission_cents != null
+          ? (s as any).commission_cents
           : s.total_cents
-          ? 60 + Math.round(s.total_cents * 0.02)
+          ? Math.min(s.total_cents, splitFixedFeeCents + Math.round(s.total_cents * (splitPercentFee / 100)))
           : 0),
       0
     );
@@ -1014,7 +1022,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
       total_platform_fees_cents: feesCents,
       average_ticket_cents: avgTicket,
     };
-  }, [filteredAuditSales]);
+  }, [filteredAuditSales, splitFixedFeeCents, splitPercentFee]);
 
   const pendingCount = metrics?.pending_count || 0;
 
@@ -1063,7 +1071,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                 {splitWalletEnabled ? "Split & Carteira: ATIVO" : "Split: DESATIVADO"}
               </span>
               <span className="text-[9px] text-slate-400">
-                {splitWalletEnabled ? "Central (1% taxa)" : "Gateways dos lojistas"}
+                {splitWalletEnabled ? `Central (${formatBRL(splitFixedFeeCents)} + ${splitPercentFee}%)` : "Gateways dos lojistas"}
               </span>
             </div>
             <Switch
@@ -1572,7 +1580,7 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                         <th className="py-3 px-4">Data</th>
                         <th className="py-3 px-4">Chave PIX</th>
                         <th className="py-3 px-4 text-right">Bruto Solicitado</th>
-                        <th className="py-3 px-4 text-right">Taxa (2%) Lucro</th>
+                        <th className="py-3 px-4 text-right">Taxa de Saque</th>
                         <th className="py-3 px-4 text-right">Líquido a Pagar</th>
                         <th className="py-3 px-4 text-center">Status</th>
                         <th className="py-3 px-4 text-right">Ações</th>
@@ -2405,14 +2413,14 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                       <tbody className="divide-y divide-slate-800/40">
                         {displayedAuditSales.map((sale) => {
                           const feeCents =
-                            sale.commission_cents != null
-                              ? sale.commission_cents
+                            (sale as any).commission_cents != null
+                              ? (sale as any).commission_cents
                               : sale.total_cents
-                              ? 60 + Math.round(sale.total_cents * 0.02)
+                              ? Math.min(sale.total_cents, splitFixedFeeCents + Math.round(sale.total_cents * (splitPercentFee / 100)))
                               : 0;
                           const netCents =
-                            sale.seller_received_cents != null
-                              ? sale.seller_received_cents
+                            (sale as any).seller_received_cents != null
+                              ? (sale as any).seller_received_cents
                               : Math.max(0, sale.total_cents - feeCents);
 
                           return (
@@ -2710,31 +2718,52 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                         </div>
 
                         {/* Split Contábil da Venda */}
-                        <div className="space-y-2.5">
-                          <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">
-                            Detalhamento do Split da Venda
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
-                              <span className="text-[11px] text-slate-400 block">Entrada no Gateway:</span>
-                              <span className="text-base font-extrabold text-emerald-400 font-mono mt-0.5 block">
-                                +{formatBRL(selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents)}
-                              </span>
+                        {(() => {
+                          const grossCents = selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents;
+                          const fixedFee = splitFixedFeeCents;
+                          const pctFee = Math.round(grossCents * (splitPercentFee / 100));
+                          const totalSplitFee = selectedTx.source_deposit?.fee_cents ?? Math.min(grossCents, fixedFee + pctFee);
+                          const netCredited = selectedTx.source_deposit?.net_amount_cents ?? Math.max(0, grossCents - totalSplitFee);
+
+                          return (
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">
+                                  Detalhamento do Split da Venda ({formatBRL(fixedFee)} Fixo + {splitPercentFee}%)
+                                </span>
+                                <span className="text-[11px] font-mono font-bold text-purple-300">
+                                  Total Taxa Split: +{formatBRL(totalSplitFee)}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
+                                  <span className="text-[11px] text-slate-400 block">Entrada no Gateway:</span>
+                                  <span className="text-sm sm:text-base font-extrabold text-emerald-400 font-mono mt-0.5 block">
+                                    +{formatBRL(grossCents)}
+                                  </span>
+                                </div>
+                                <div className="rounded-lg border border-purple-500/25 bg-[#070b14] p-3">
+                                  <span className="text-[11px] text-slate-400 block">Taxa Base Fixa (R$):</span>
+                                  <span className="text-sm sm:text-base font-extrabold text-purple-400 font-mono mt-0.5 block">
+                                    +{formatBRL(fixedFee)}
+                                  </span>
+                                </div>
+                                <div className="rounded-lg border border-purple-500/25 bg-[#070b14] p-3">
+                                  <span className="text-[11px] text-slate-400 block">Taxa Split ({splitPercentFee}%):</span>
+                                  <span className="text-sm sm:text-base font-extrabold text-purple-400 font-mono mt-0.5 block">
+                                    +{formatBRL(pctFee)}
+                                  </span>
+                                </div>
+                                <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
+                                  <span className="text-[11px] text-slate-400 block">Creditado na Carteira:</span>
+                                  <span className="text-sm sm:text-base font-extrabold text-white font-mono mt-0.5 block">
+                                    {formatBRL(netCredited)}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
-                              <span className="text-[11px] text-slate-400 block">Taxa Drika Hub (1%):</span>
-                              <span className="text-base font-extrabold text-purple-400 font-mono mt-0.5 block">
-                                +{formatBRL(Math.round(((selectedTx.source_order?.total_cents || selectedTx.source_deposit?.amount_cents || selectedTx.amount_cents) * 0.01)))}
-                              </span>
-                            </div>
-                            <div className="rounded-lg border border-slate-800 bg-[#070b14] p-3">
-                              <span className="text-[11px] text-slate-400 block">Creditado na Carteira:</span>
-                              <span className="text-base font-extrabold text-white font-mono mt-0.5 block">
-                                {formatBRL(selectedTx.source_deposit?.net_amount_cents || (selectedTx.source_order?.total_cents ? selectedTx.source_order.total_cents - Math.round(selectedTx.source_order.total_cents * 0.01) : selectedTx.amount_cents))}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Identificadores Técnicos da Transação */}
@@ -2855,8 +2884,10 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                             <span className="font-semibold text-slate-200">{formatBRL(selectedTx.amount_cents)}</span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-400">Taxa de Saque Plataforma (2%):</span>
-                            <span className="font-bold text-emerald-400">+{formatBRL(selectedTx.fee_cents)}</span>
+                            <span className="text-slate-400">Taxa de Saque ({selectedTx.fee_cents > 0 ? `Fixa ${formatBRL(withdrawalFeeCents)}` : "1º Saque Semanal Grátis"}):</span>
+                            <span className="font-bold text-emerald-400">
+                              {selectedTx.fee_cents > 0 ? `+${formatBRL(selectedTx.fee_cents)}` : "R$ 0,00 (Isento)"}
+                            </span>
                           </div>
 
                           <div className="border-t border-slate-800/80 pt-3 flex flex-col gap-1">
@@ -3456,26 +3487,47 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                 </div>
 
                 {/* Divisão do Dinheiro (Split) */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Entrada Bruta no Caixa:</span>
-                    <span className="font-mono font-extrabold text-emerald-400 text-sm">
-                      +{formatBRL(selectedAuditSale.total_cents)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Taxa Intermediação Plataforma (1%):</span>
-                    <span className="font-mono font-bold text-purple-400">
-                      +{formatBRL(Math.round(selectedAuditSale.total_cents * 0.01))}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs border-t border-slate-800/80 pt-1.5">
-                    <span className="font-semibold text-slate-200">Crédito Líquido na Carteira da Loja:</span>
-                    <span className="font-mono font-bold text-white">
-                      {formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.01))}
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const gross = selectedAuditSale.total_cents || 0;
+                  const fixed = splitFixedFeeCents;
+                  const pct = Math.round(gross * (splitPercentFee / 100));
+                  const totalFee = Math.min(gross, fixed + pct);
+                  const net = Math.max(0, gross - totalFee);
+                  return (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-400">Entrada Bruta no Caixa:</span>
+                        <span className="font-mono font-extrabold text-emerald-400 text-sm">
+                          +{formatBRL(gross)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-400">Taxa Base Fixa (R$):</span>
+                        <span className="font-mono font-bold text-purple-400">
+                          +{formatBRL(fixed)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-400">Taxa Percentual ({splitPercentFee}%):</span>
+                        <span className="font-mono font-bold text-purple-400">
+                          +{formatBRL(pct)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-300 font-semibold">Total Taxa Split Retida:</span>
+                        <span className="font-mono font-bold text-purple-300">
+                          +{formatBRL(totalFee)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs border-t border-slate-800/80 pt-1.5">
+                        <span className="font-semibold text-slate-200">Crédito Líquido na Carteira da Loja:</span>
+                        <span className="font-mono font-bold text-white">
+                          {formatBRL(net)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Dados Técnicos de Pagamento */}
@@ -3535,14 +3587,21 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                   type="button"
                   variant="outline"
                   onClick={() => {
+                    const gross = selectedAuditSale.total_cents || 0;
+                    const fixedFee = splitFixedFeeCents;
+                    const pctFee = Math.round(gross * (splitPercentFee / 100));
+                    const totalFee = selectedAuditSale.commission_cents || (fixedFee + pctFee);
+                    const netStore = gross - totalFee;
                     const report = `--- COMPROVANTE DE AUDITORIA ---
 Loja: ${selectedAuditSale.tenants?.name || "Loja"}
 Pedido: #${selectedAuditSale.order_number || selectedAuditSale.id.slice(0, 8)}
 Produto: ${selectedAuditSale.product_name}
 Cliente: @${selectedAuditSale.discord_username || "desconhecido"} (${selectedAuditSale.discord_user_id || "N/A"})
-Valor Bruto: ${formatBRL(selectedAuditSale.total_cents)}
-Taxa 1%: ${formatBRL(Math.round(selectedAuditSale.total_cents * 0.01))}
-Líquido Loja: ${formatBRL(selectedAuditSale.total_cents - Math.round(selectedAuditSale.total_cents * 0.01))}
+Valor Bruto: ${formatBRL(gross)}
+Taxa Base Fixa (R$): ${formatBRL(fixedFee)}
+Taxa Percentual (${splitPercentFee}%): ${formatBRL(pctFee)}
+Total Taxa Split Retida: ${formatBRL(totalFee)}
+Líquido Loja: ${formatBRL(netStore)}
 Gateway: ${selectedAuditSale.payment_provider || "PIX"}
 ID Transação: ${selectedAuditSale.payment_id || selectedAuditSale.id}
 Data: ${selectedAuditSale.created_at}`;
