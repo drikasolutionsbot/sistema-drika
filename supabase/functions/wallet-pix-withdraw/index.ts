@@ -273,52 +273,55 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Load gateway config
-    let { data: provider, error: provErr } = await supabase
-      .from("payment_providers")
-      .select("provider_key, api_key_encrypted, secret_key_encrypted, active, pix_out_enabled, efi_cert_pem, efi_key_pem, efi_pix_key")
-      .eq("tenant_id", tenant_id)
-      .eq("provider_key", provider_key)
-      .maybeSingle();
+    // 1. Prioriza SEMPRE a Gateway Central da Plataforma (landing_config) para saques da Carteira Split
+    let provider: any = null;
 
-    // Fallback: if provider not configured per-tenant, check central platform gateway in landing_config
-    if (!provider) {
-      if (provider_key === "misticpay") {
-        const { data: lc } = await supabase
-          .from("landing_config")
-          .select("misticpay_active, misticpay_client_id, misticpay_client_secret")
-          .limit(1)
-          .maybeSingle();
-        if ((lc as any)?.misticpay_active && (lc as any)?.misticpay_client_id && (lc as any)?.misticpay_client_secret) {
-          provider = {
-            provider_key: "misticpay",
-            api_key_encrypted: (lc as any).misticpay_client_id,
-            secret_key_encrypted: (lc as any).misticpay_client_secret,
-            active: true,
-            pix_out_enabled: true,
-            is_central: true,
-          } as any;
-        }
-      } else if (provider_key === "efi") {
-        const { data: lc } = await supabase
-          .from("landing_config")
-          .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key")
-          .limit(1)
-          .maybeSingle();
-        if (lc?.efi_active && lc?.efi_client_id) {
-          provider = {
-            provider_key: "efi",
-            api_key_encrypted: lc.efi_client_id,
-            secret_key_encrypted: lc.efi_client_secret,
-            efi_cert_pem: lc.efi_cert_pem,
-            efi_key_pem: lc.efi_key_pem,
-            efi_pix_key: lc.efi_pix_key,
-            active: true,
-            pix_out_enabled: true,
-            is_central: true,
-          } as any;
-        }
+    if (provider_key === "misticpay" || provider_key === "mistic_pay") {
+      const { data: lc } = await supabase
+        .from("landing_config")
+        .select("misticpay_active, misticpay_client_id, misticpay_client_secret")
+        .limit(1)
+        .maybeSingle();
+      if ((lc as any)?.misticpay_client_id && (lc as any)?.misticpay_client_secret) {
+        provider = {
+          provider_key: "misticpay",
+          api_key_encrypted: (lc as any).misticpay_client_id,
+          secret_key_encrypted: (lc as any).misticpay_client_secret,
+          active: true,
+          pix_out_enabled: true,
+          is_central: true,
+        };
       }
+    } else if (provider_key === "efi") {
+      const { data: lc } = await supabase
+        .from("landing_config")
+        .select("efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key")
+        .limit(1)
+        .maybeSingle();
+      if (lc?.efi_active && lc?.efi_client_id) {
+        provider = {
+          provider_key: "efi",
+          api_key_encrypted: lc.efi_client_id,
+          secret_key_encrypted: lc.efi_client_secret,
+          efi_cert_pem: lc.efi_cert_pem,
+          efi_key_pem: lc.efi_key_pem,
+          efi_pix_key: lc.efi_pix_key,
+          active: true,
+          pix_out_enabled: true,
+          is_central: true,
+        };
+      }
+    }
+
+    // 2. Fallback para provider individual da loja apenas se a Gateway Central não estiver configurada
+    if (!provider) {
+      const { data: tenantProvider } = await supabase
+        .from("payment_providers")
+        .select("provider_key, api_key_encrypted, secret_key_encrypted, active, pix_out_enabled, efi_cert_pem, efi_key_pem, efi_pix_key")
+        .eq("tenant_id", tenant_id)
+        .eq("provider_key", provider_key)
+        .maybeSingle();
+      provider = tenantProvider;
     }
 
     if (!provider) {
@@ -332,11 +335,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Source of truth for wallet funds is the GATEWAY balance (Efí/MisticPay),
-    // not the local `wallets.balance_cents`. Verify the gateway has enough to send.
+    // Source of truth for wallet funds is the CENTRAL GATEWAY balance (Efí/MisticPay).
     try {
       const balRes = await supabase.functions.invoke("wallet-gateway-balance", {
-        body: { tenant_id, provider_key },
+        body: { tenant_id: provider.is_central ? "central" : tenant_id, provider_key },
       });
       const balData: any = balRes.data || {};
       // Only block when the gateway explicitly reports a balance lower than the amount.
