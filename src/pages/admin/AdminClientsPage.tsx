@@ -883,18 +883,14 @@ const AdminClientsPage = () => {
                                 <span className="group-hover:underline">
                                   @{tenant.owner_discord_username || tenant.owner_discord_id}
                                 </span>
-                                {tenant.owner_discord_id && (
-                                  <span className="text-[10px] text-muted-foreground/60 font-mono hidden sm:inline">
-                                    ({tenant.owner_discord_id})
-                                  </span>
-                                )}
                                 <ExternalLink className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100 shrink-0" />
                               </a>
                             )}
 
-                            {/* 2. Servidor Conectado (Bot) — sempre exibido junto! */}
+                            {/* 2. Servidor Conectado (Bot) — exibe o NOME DO SERVIDOR e não o ID */}
                             {(() => {
                               const guildInfo = tenant.discord_guild_id ? botGuilds[tenant.discord_guild_id] : null;
+                              const serverDisplayName = guildInfo?.name || tenant.name || "Servidor Conectado";
                               if (tenant.discord_guild_id) {
                                 return (
                                   <div
@@ -908,7 +904,7 @@ const AdminClientsPage = () => {
                                     {guildInfo?.icon ? (
                                       <img
                                         src={guildInfo.icon}
-                                        alt={guildInfo.name}
+                                        alt={serverDisplayName}
                                         className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
                                       />
                                     ) : (
@@ -921,17 +917,12 @@ const AdminClientsPage = () => {
                                       href={`https://discord.com/channels/${tenant.discord_guild_id}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title={`Abrir servidor no Discord (${tenant.discord_guild_id})`}
+                                      title={`Abrir servidor "${serverDisplayName}" no Discord`}
                                       className="hover:underline flex items-center gap-1"
                                     >
                                       <span>
-                                        Servidor: <strong>{guildInfo?.name || tenant.discord_guild_id}</strong>
+                                        Servidor: <strong>{serverDisplayName}</strong>
                                       </span>
-                                      {guildInfo?.name && (
-                                        <span className="text-[10px] opacity-70 font-mono hidden md:inline">
-                                          ({tenant.discord_guild_id})
-                                        </span>
-                                      )}
                                       {guildInfo?.member_count ? (
                                         <span className="text-[10px] text-emerald-400/90 font-normal hidden lg:inline">
                                           • {guildInfo.member_count.toLocaleString("pt-BR")} membros
@@ -939,21 +930,6 @@ const AdminClientsPage = () => {
                                       ) : null}
                                       <ExternalLink className="h-2.5 w-2.5 opacity-60 hover:opacity-100 shrink-0" />
                                     </a>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(tenant.discord_guild_id);
-                                        toast({
-                                          title: "ID do Servidor copiado! 📋",
-                                          description: `${guildInfo?.name ? `${guildInfo.name} — ` : ""}${tenant.discord_guild_id}`,
-                                        });
-                                      }}
-                                      title="Copiar ID do Servidor"
-                                      className="opacity-60 hover:opacity-100 bg-transparent border-none cursor-pointer p-0.5 text-current"
-                                    >
-                                      <Copy className="h-2.5 w-2.5" />
-                                    </button>
                                   </div>
                                 );
                               }
@@ -1575,6 +1551,7 @@ const AdminClientsPage = () => {
                               {tenant.discord_guild_id ? (
                                 (() => {
                                   const gInfo = botGuilds[tenant.discord_guild_id];
+                                  const serverDisplayName = gInfo?.name || tenant.name || "Servidor Conectado";
                                   return (
                                     <div className="space-y-0.5">
                                       <a
@@ -1588,17 +1565,14 @@ const AdminClientsPage = () => {
                                         ) : (
                                           <Server className="h-3.5 w-3.5 shrink-0" />
                                         )}
-                                        <span className="truncate">{gInfo?.name || tenant.discord_guild_id}</span>
+                                        <span className="truncate">{serverDisplayName}</span>
                                         <ExternalLink className="h-3 w-3 opacity-60 shrink-0" />
                                       </a>
-                                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
-                                        <span>ID: {tenant.discord_guild_id}</span>
-                                        {gInfo?.member_count ? (
-                                          <span className="text-emerald-400/90 font-sans">
-                                            • {gInfo.member_count.toLocaleString("pt-BR")} membros
-                                          </span>
-                                        ) : null}
-                                      </div>
+                                      {gInfo?.member_count ? (
+                                        <div className="text-[10px] text-emerald-400/90">
+                                          {gInfo.member_count.toLocaleString("pt-BR")} membros no servidor
+                                        </div>
+                                      ) : null}
                                     </div>
                                   );
                                 })()

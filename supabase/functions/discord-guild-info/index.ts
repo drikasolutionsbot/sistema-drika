@@ -22,7 +22,7 @@ serve(async (req) => {
 
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
 
-    // Action: list all guilds where the bot is currently connected
+    // Action: list all guilds where the bot is currently connected (with pagination over 200+ guilds)
     if (body.action === "list_bot_guilds") {
       if (!botToken) {
         return new Response(JSON.stringify({ guilds: {} }), {
@@ -30,25 +30,35 @@ serve(async (req) => {
         });
       }
 
-      const guildsRes = await fetch("https://discord.com/api/v10/users/@me/guilds?with_counts=true", {
-        headers: { Authorization: `Bot ${botToken}` },
-      });
-
-      if (!guildsRes.ok) {
-        const errText = await guildsRes.text();
-        console.error("Failed to list bot guilds:", errText);
-        return new Response(JSON.stringify({ guilds: {} }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const guildsList = await guildsRes.json();
       const guildsMap: Record<
         string,
         { id: string; name: string; icon: string | null; member_count: number; presence_count: number }
       > = {};
 
-      if (Array.isArray(guildsList)) {
+      let afterId: string | null = null;
+      for (let page = 0; page < 10; page++) {
+        const url = new URL("https://discord.com/api/v10/users/@me/guilds");
+        url.searchParams.set("with_counts", "true");
+        url.searchParams.set("limit", "200");
+        if (afterId) {
+          url.searchParams.set("after", afterId);
+        }
+
+        const guildsRes = await fetch(url.toString(), {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+
+        if (!guildsRes.ok) {
+          const errText = await guildsRes.text();
+          console.error("Failed to list bot guilds page", page, errText);
+          break;
+        }
+
+        const guildsList = await guildsRes.json();
+        if (!Array.isArray(guildsList) || guildsList.length === 0) {
+          break;
+        }
+
         for (const g of guildsList) {
           guildsMap[g.id] = {
             id: g.id,
@@ -58,6 +68,11 @@ serve(async (req) => {
             presence_count: g.approximate_presence_count ?? 0,
           };
         }
+
+        if (guildsList.length < 200) {
+          break;
+        }
+        afterId = guildsList[guildsList.length - 1].id;
       }
 
       return new Response(JSON.stringify({ guilds: guildsMap }), {
