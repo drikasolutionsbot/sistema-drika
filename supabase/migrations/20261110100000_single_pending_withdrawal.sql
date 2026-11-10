@@ -1,165 +1,130 @@
--- Migration: allow only 1 pending withdrawal per tenant at a time
+-- Bloqueia mais de 1 solicitação de saque pendente simultânea por loja (tenant)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_pending_withdrawal_per_tenant
+  ON public.wallet_transactions (tenant_id)
+  WHERE type = 'withdrawal' AND status IN ('pending', 'processing');
 
 CREATE OR REPLACE FUNCTION public.request_wallet_withdrawal(
-  _tenant_id uuid,
-  _amount_cents integer,
-  _pix_key text,
-  _pix_key_type text,
-  _description text DEFAULT 'Solicitação de Saque PIX'
+  _tenant_id UUID,
+  _amount_cents BIGINT,
+  _pix_key TEXT,
+  _pix_key_type TEXT DEFAULT 'aleatoria',
+  _description TEXT DEFAULT 'Solicitação de Saque PIX'
 )
-RETURNS jsonb
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
 AS $$
 DECLARE
-  _current_balance integer;
-  _min_withdrawal_cents integer;
-  _withdrawal_fee_cents integer;
-  _weekly_free_withdrawals integer;
-  _withdrawals_this_week integer;
-  _fee_cents integer := 0;
-  _net_cents integer := 0;
-  _is_free boolean := true;
-  _new_tx_id uuid;
-  _start_of_week timestamptz;
-  _pending_count integer := 0;
+  _current_balance BIGINT;
+  _tx_id UUID;
+  _fee_cents BIGINT := 0;
+  _net_cents BIGINT;
+  _min_withdrawal BIGINT := 1000;
+  _standard_fee BIGINT := 100;
+  _free_per_week INT := 1;
+  _withdrawals_this_week INT := 0;
+  _start_of_week TIMESTAMPTZ;
+  _pending_count INT := 0;
 BEGIN
   IF _amount_cents <= 0 THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Informe um valor válido para saque');
+    RETURN jsonb_build_object('success', false, 'error', 'O valor do saque deve ser maior que zero');
   END IF;
 
-  IF _pix_key IS NULL OR length(trim(_pix_key)) = 0 THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Chave PIX obrigatória');
-  END IF;
-
-  -- Lê configurações globais de saque da landing_config
-  SELECT 
-    COALESCE(min_withdrawal_cents, 1000),
-    COALESCE(withdrawal_fee_cents, 100),
-    COALESCE(weekly_free_withdrawals, 1)
-  INTO 
-    _min_withdrawal_cents,
-    _withdrawal_fee_cents,
-    _weekly_free_withdrawals
-  FROM public.landing_config
-  LIMIT 1;
-
-  IF _min_withdrawal_cents IS NULL THEN _min_withdrawal_cents := 1000; END IF;
-  IF _withdrawal_fee_cents IS NULL THEN _withdrawal_fee_cents := 100; END IF;
-  IF _weekly_free_withdrawals IS NULL THEN _weekly_free_withdrawals := 1; END IF;
-
-  -- Validação de Valor Mínimo de Saque
-  IF _amount_cents < _min_withdrawal_cents THEN
-    RETURN jsonb_build_object(
-      'success', false, 
-      'error', format('O valor mínimo para solicitação de saque é de R$ %s', trim(to_char(_min_withdrawal_cents / 100.0, '999990D00')))
-    );
-  END IF;
-
-  -- Garante linha de carteira
-  INSERT INTO public.wallets (tenant_id, balance_cents, locked_balance_cents, total_earned_cents, total_withdrawn_cents)
-  VALUES (_tenant_id, 0, 0, 0, 0)
-  ON CONFLICT (tenant_id) DO NOTHING;
-
-  -- Bloqueia a linha da carteira para leitura e atualização segura
+  -- Lock wallet row para impedir condição de corrida (clique duplo simultâneo)
   SELECT balance_cents INTO _current_balance
   FROM public.wallets
   WHERE tenant_id = _tenant_id
   FOR UPDATE;
 
-  -- Bloqueio: apenas 1 saque pendente/em processamento por vez (protegido pelo FOR UPDATE acima)
-  SELECT count(*) INTO _pending_count
+  IF _current_balance IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Carteira não encontrada');
+  END IF;
+
+  -- Bloqueia nova solicitação enquanto houver saque pendente ou em processamento
+  SELECT COUNT(*) INTO _pending_count
   FROM public.wallet_transactions
   WHERE tenant_id = _tenant_id
     AND type = 'withdrawal'
     AND status IN ('pending', 'processing');
 
-  IF COALESCE(_pending_count, 0) > 0 THEN
+  IF _pending_count > 0 THEN
     RETURN jsonb_build_object(
       'success', false,
-      'error', 'Voc� j� possui 1 saque pendente. Aguarde a aprova��o para solicitar um novo saque.',
+      'error', 'Você já possui 1 saque pendente. Aguarde a aprovação para solicitar um novo saque.',
       'code', 'PENDING_WITHDRAWAL_EXISTS'
     );
   END IF;
 
-  IF _current_balance IS NULL OR _current_balance < _amount_cents THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Saldo disponível insuficiente para saque');
+  -- Read config rules
+  SELECT
+    COALESCE(min_withdrawal_cents, 1000),
+    COALESCE(withdrawal_fee_cents, 100),
+    COALESCE(weekly_free_withdrawals, 1)
+  INTO _min_withdrawal, _standard_fee, _free_per_week
+  FROM public.landing_config
+  LIMIT 1;
+
+  IF _amount_cents < _min_withdrawal THEN
+    RETURN jsonb_build_object('success', false, 'error', 'O valor mínimo para saque é R$ ' || TRIM(TO_CHAR(_min_withdrawal / 100.0, '999G990D00')));
   END IF;
 
-  -- Início da semana atual (Segunda-feira 00:00:00 fuso de Brasília)
+  IF _current_balance < _amount_cents THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Saldo insuficiente para realizar este saque');
+  END IF;
+
+  -- Check how many withdrawals this tenant made in the current week (starting Monday 00:00 BRT)
   _start_of_week := date_trunc('week', now() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo';
 
-  -- Conta saques já solicitados/processados nesta semana pelo lojista
-  SELECT count(*) INTO _withdrawals_this_week
+  SELECT COUNT(*) INTO _withdrawals_this_week
   FROM public.wallet_transactions
   WHERE tenant_id = _tenant_id
     AND type = 'withdrawal'
     AND status IN ('pending', 'completed', 'processing')
     AND created_at >= _start_of_week;
 
-  -- Aplica a regra: 1 saque grátis por semana. Passou de 1, desconta R$ 1,00 de taxa
-  IF COALESCE(_withdrawals_this_week, 0) < _weekly_free_withdrawals THEN
+  IF _withdrawals_this_week < _free_per_week THEN
     _fee_cents := 0;
-    _is_free := true;
   ELSE
-    _fee_cents := _withdrawal_fee_cents;
-    _is_free := false;
+    _fee_cents := _standard_fee;
   END IF;
 
-  -- Valor líquido que será transferido no PIX (mínimo 0)
-  _net_cents := GREATEST(0, _amount_cents - _fee_cents);
-
-  IF _net_cents < 100 THEN
-    RETURN jsonb_build_object('success', false, 'error', 'O valor líquido do saque após taxas deve ser de no mínimo R$ 1,00');
+  IF _amount_cents <= _fee_cents THEN
+    RETURN jsonb_build_object('success', false, 'error', 'O valor do saque deve ser superior à taxa de saque');
   END IF;
 
-  -- Retém os fundos da carteira: debita do saldo livre e adiciona ao saldo bloqueado (em custódia)
+  _net_cents := _amount_cents - _fee_cents;
+
+  -- Deduct from available balance and add to total_withdrawn
   UPDATE public.wallets
   SET balance_cents = balance_cents - _amount_cents,
-      locked_balance_cents = COALESCE(locked_balance_cents, 0) + _amount_cents,
+      total_withdrawn_cents = total_withdrawn_cents + _amount_cents,
       updated_at = now()
   WHERE tenant_id = _tenant_id;
 
-  -- Insere o registro de transação com auditoria completa de taxas
+  -- Create pending withdrawal transaction
   INSERT INTO public.wallet_transactions (
-    tenant_id,
-    type,
-    amount_cents,
-    fee_cents,
-    net_amount_cents,
-    description,
-    status,
-    pix_key,
-    pix_key_type,
-    admin_notes,
-    created_at
+    tenant_id, type, status, amount_cents, fee_cents, net_amount_cents,
+    description, pix_key, pix_key_type
   ) VALUES (
-    _tenant_id,
-    'withdrawal',
-    _amount_cents,
-    _fee_cents,
-    _net_cents,
-    COALESCE(_description, 'Solicitação de Saque PIX'),
-    'pending',
-    _pix_key,
-    _pix_key_type,
-    CASE 
-      WHEN _is_free THEN '1º saque da semana (Isento de taxa)'
-      ELSE format('Taxa de saque de R$ %s retida (saque adicional na semana)', trim(to_char(_fee_cents / 100.0, '999990D00')))
-    END,
-    now()
-  ) RETURNING id INTO _new_tx_id;
+    _tenant_id, 'withdrawal', 'pending', _amount_cents, _fee_cents, _net_cents,
+    _description, _pix_key, _pix_key_type
+  ) RETURNING id INTO _tx_id;
 
   RETURN jsonb_build_object(
     'success', true,
-    'tx_id', _new_tx_id,
+    'tx_id', _tx_id,
     'amount_cents', _amount_cents,
     'fee_cents', _fee_cents,
     'net_amount_cents', _net_cents,
-    'is_free', _is_free,
-    'withdrawals_this_week', _withdrawals_this_week
+    'is_free', (_fee_cents = 0),
+    'new_balance_cents', _current_balance - _amount_cents
   );
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Você já possui 1 saque pendente. Aguarde a aprovação para solicitar um novo saque.',
+      'code', 'PENDING_WITHDRAWAL_EXISTS'
+    );
 END;
 $$;
-
