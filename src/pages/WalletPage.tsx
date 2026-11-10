@@ -353,9 +353,42 @@ export default function WalletPage() {
 
   const isAmountValid = parsedAmountCents >= minWithdrawalCents && parsedAmountCents <= availableBalanceCents;
 
+  // Apenas 1 saque pendente por vez: libera novo saque somente após aprovação/rejeição
+  const pendingWithdrawal = useMemo(
+    () =>
+      transactions.find(
+        (tx) => tx.type === "withdrawal" && (tx.status === "pending" || tx.status === "processing")
+      ) || null,
+    [transactions]
+  );
+
+  const showPendingWithdrawalError = () => {
+    toast({
+      title: "Você já tem 1 saque pendente",
+      description: pendingWithdrawal
+        ? `Seu saque de ${formatBRL(pendingWithdrawal.amount_cents)} está aguardando aprovação. Aguarde para solicitar um novo saque.`
+        : "Aguarde a aprovação do saque atual para solicitar um novo.",
+      variant: "destructive",
+    });
+  };
+
+  const openWithdrawModal = () => {
+    if (pendingWithdrawal) {
+      showPendingWithdrawalError();
+      return;
+    }
+    setWithdrawModalOpen(true);
+  };
+
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenantId) return;
+    if (!tenantId || submittingWithdraw) return;
+
+    if (pendingWithdrawal) {
+      showPendingWithdrawalError();
+      setWithdrawModalOpen(false);
+      return;
+    }
 
     if (parsedAmountCents < minWithdrawalCents) {
       toast({
@@ -410,7 +443,24 @@ export default function WalletPage() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Extrai a mensagem real retornada pela edge function (ex.: saque pendente)
+        let serverMsg = error.message;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx?.json) {
+            const errBody = await ctx.json();
+            if (errBody?.error) serverMsg = errBody.error;
+          }
+        } catch { /* ignore */ }
+        if (/saque pendente/i.test(serverMsg || "")) {
+          toast({ title: "Você já tem 1 saque pendente", description: serverMsg, variant: "destructive" });
+          setWithdrawModalOpen(false);
+          loadWalletData(true);
+          return;
+        }
+        throw new Error(serverMsg);
+      }
       if (data?.error) throw new Error(data.error);
 
       toast({
@@ -573,7 +623,7 @@ export default function WalletPage() {
           </Button>
 
           <Button
-            onClick={() => setWithdrawModalOpen(true)}
+            onClick={openWithdrawModal}
             disabled={availableBalanceCents <= 0}
             className="gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold shadow-lg shadow-pink-900/30 transition-all hover:scale-[1.02]"
           >
@@ -652,6 +702,17 @@ export default function WalletPage() {
                 </p>
               </div>
             </div>
+
+            {/* Aviso: saque pendente bloqueia novas solicitações */}
+            {pendingWithdrawal && (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-950/25 p-3.5 flex items-start sm:items-center gap-3">
+                <Clock className="h-5 w-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0 animate-pulse" />
+                <div className="text-xs text-amber-200/90 leading-relaxed">
+                  <strong className="text-white font-semibold">Você tem 1 saque pendente:</strong>{" "}
+                  {formatBRL(pendingWithdrawal.amount_cents)} aguardando aprovação. Assim que for aprovado, você poderá solicitar um novo saque.
+                </div>
+              </div>
+            )}
 
             {/* Banner de Status / Aprovação */}
             <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -911,7 +972,7 @@ export default function WalletPage() {
             </div>
 
             <Button
-              onClick={() => setWithdrawModalOpen(true)}
+              onClick={openWithdrawModal}
               disabled={availableBalanceCents <= 0}
               className="w-full gap-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-semibold shadow-md"
             >
@@ -1286,7 +1347,7 @@ export default function WalletPage() {
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => setWithdrawModalOpen(true)}
+                        onClick={openWithdrawModal}
                         disabled={availableBalanceCents <= 0}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1 shadow-md"
                       >
