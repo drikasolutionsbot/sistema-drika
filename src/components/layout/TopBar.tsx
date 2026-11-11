@@ -69,10 +69,20 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_cycl
     // Format expiration date
     expiresLabel = expires.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
     
+    const graceEndMs = expires.getTime() + 2 * 24 * 60 * 60 * 1000;
+    const isGrace = now.getTime() <= graceEndMs;
+
     if (diffMs <= 0) {
-      timeLeft = t.plan.expired;
-      isExpiring = true;
-      isExpired = true;
+      if (isGrace) {
+        const graceHours = Math.ceil((graceEndMs - now.getTime()) / (1000 * 60 * 60));
+        timeLeft = `Tolerância (${graceHours}h)`;
+        isExpiring = true;
+        isExpired = false;
+      } else {
+        timeLeft = `${t.plan.expired} (Modo Free)`;
+        isExpiring = true;
+        isExpired = true;
+      }
     } else {
       const days = differenceInDays(expires, now);
       const hours = differenceInHours(expires, now) % 24;
@@ -95,9 +105,11 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_cycl
         <button className={`flex items-center gap-1.5 sm:gap-2 rounded-full px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border transition-colors cursor-pointer outline-none ${
           isExpired
             ? "bg-destructive/15 border-destructive/30 text-destructive animate-pulse"
-            : isPaid
-              ? planInfo.color
-              : isExpiring
+            : isExpiring && timeLeft.includes("Tolerância")
+              ? "bg-amber-500/15 border-amber-500/40 text-amber-300 animate-pulse"
+              : isPaid
+                ? planInfo.color
+                : isExpiring
                 ? "bg-destructive/10 border-destructive/20 text-destructive"
                 : "bg-muted border-border text-muted-foreground"
         }`}>
@@ -503,10 +515,20 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                 const now = new Date();
                 const expires = new Date(tenant.plan_expires_at);
                 const diffMs = expires.getTime() - now.getTime();
+                const graceEndMs = expires.getTime() + 2 * 24 * 60 * 60 * 1000;
+                const isGrace = now.getTime() <= graceEndMs;
+
                 if (diffMs <= 0) {
-                  timeLeft = t.plan.expired;
-                  isExpired = true;
-                  isExpiring = true;
+                  if (isGrace) {
+                    const graceHours = Math.ceil((graceEndMs - now.getTime()) / (1000 * 60 * 60));
+                    timeLeft = `Tolerância (${graceHours}h)`;
+                    isExpiring = true;
+                    isExpired = false;
+                  } else {
+                    timeLeft = `${t.plan.expired} (Modo Free)`;
+                    isExpired = true;
+                    isExpiring = true;
+                  }
                 } else {
                   const days = differenceInDays(expires, now);
                   const hours = differenceInHours(expires, now) % 24;
@@ -521,11 +543,13 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                 ? "border-primary/25 bg-primary/5"
                 : isExpired
                 ? "border-destructive/30 bg-destructive/10"
-                : isPaid
-                  ? "border-primary/25 bg-primary/5"
-                  : isExpiring
-                    ? "border-destructive/20 bg-destructive/5"
-                    : "border-border bg-muted/40";
+                : isExpiring && timeLeft.includes("Tolerância")
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                  : isPaid
+                    ? "border-primary/25 bg-primary/5"
+                    : isExpiring
+                      ? "border-destructive/20 bg-destructive/5"
+                      : "border-border bg-muted/40";
               return (
                 <div className="px-2 pb-2">
                   <button

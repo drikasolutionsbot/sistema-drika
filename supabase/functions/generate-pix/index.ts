@@ -350,7 +350,7 @@ serve(async (req) => {
   }
 
   try {
-    const { tenant_id, amount_cents, product_name, tx_id, product_id, provider_key } = await req.json();
+    const { tenant_id, amount_cents, product_name, tx_id, product_id, provider_key, order_id } = await req.json();
 
     if (!tenant_id) throw new Error("Missing tenant_id");
 
@@ -358,13 +358,38 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 0. Check platform-level gateway settings (admin can disable gateways globally and control split mode)
+    // 0. Load tenant plan and expiration to evaluate Split Mode vs Own Gateways Mode
+    const { data: tenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("id, name, plan, plan_expires_at, pix_key, pix_key_type")
+      .eq("id", tenant_id)
+      .maybeSingle();
+
+    if (tenantError) throw tenantError;
+
+    // Regra de Negócio:
+    // - Plano Free: opera em Split Central + taxas + carteira
+    // - Plano Pago (Master/Pro ativo): 100% isento de taxas, usa gateways próprias, recebimento direto
+    // - Expiração: ao vencer, ganha 2 dias (48h) de tolerância. Passados os 2 dias, opera como Free (Split)
+    const now = new Date();
+    const GRACE_PERIOD_MS = 2 * 24 * 60 * 60 * 1000; // 48 horas / 2 dias
+    const planKey = (tenant?.plan || "free").toLowerCase().trim();
+    const isPaid = planKey === "pro" || planKey === "master";
+
+    let canUseOwnGateways = false;
+    if (isPaid) {
+      if (!tenant?.plan_expires_at) {
+        canUseOwnGateways = true;
+      } else {
+        const expiry = new Date(tenant.plan_expires_at);
+        const graceEnd = new Date(expiry.getTime() + GRACE_PERIOD_MS);
+        canUseOwnGateways = now <= graceEnd; // Ativo ou dentro dos 2 dias de tolerância
+      }
+    }
+
     const { data: gwSettings } = await supabase
       .from("platform_gateway_settings")
       .select("gateway_key, enabled");
-
-    const splitSetting = (gwSettings || []).find((g: any) => g.gateway_key === "system_split_wallet");
-    const isSplitActive = splitSetting ? splitSetting.enabled : true;
 
     const disabledGateways = new Set(
       (gwSettings || []).filter((g: any) => !g.enabled && g.gateway_key !== "system_split_wallet").map((g: any) => g.gateway_key)
@@ -372,8 +397,9 @@ serve(async (req) => {
 
     let activeProvider: any = null;
 
-    // If Split & Carteira mode is active: use Central Platform Gateway from landing_config
-    if (isSplitActive) {
+    // ─── Escolha da Rota de Pagamento ───
+    if (!canUseOwnGateways) {
+      // 1. MODO FREE / EXPIRADO (> 2 dias): Split na Gateway Central da Drika
       const { data: lc } = await supabase
         .from("landing_config")
         .select("misticpay_active, misticpay_client_id, misticpay_client_secret, efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
@@ -387,6 +413,7 @@ serve(async (req) => {
             api_key_encrypted: (lc as any).misticpay_client_id,
             secret_key_encrypted: (lc as any).misticpay_client_secret,
             is_central: true,
+            is_split: true,
           };
         } else if (lc.efi_active && lc.efi_client_id) {
           activeProvider = {
@@ -397,29 +424,33 @@ serve(async (req) => {
             efi_key_pem: lc.efi_key_pem,
             efi_pix_key: lc.efi_pix_key,
             is_central: true,
+            is_split: true,
           };
         } else if (lc.pushinpay_active && lc.pushinpay_api_key) {
           activeProvider = {
             provider_key: "pushinpay",
             api_key_encrypted: lc.pushinpay_api_key,
             is_central: true,
+            is_split: true,
           };
         } else if (lc.abacatepay_active && lc.abacatepay_api_key) {
           activeProvider = {
             provider_key: "abacatepay",
             api_key_encrypted: lc.abacatepay_api_key,
             is_central: true,
+            is_split: true,
           };
         }
       }
-    }
 
-    // If Split mode is INACTIVE (or central fallback): resolve lojista's own gateways avulsas
-    if (!activeProvider) {
-      // 1. Resolve preferred provider: explicit > product-level > tenant default
+      if (!activeProvider) {
+        throw new Error("Gateway central da plataforma indisponível no momento. Contate o suporte.");
+      }
+    } else {
+      // 2. MODO PLANO PAGO: Gateway Própria do Lojista (Recebimento Direto / Taxa 0%)
       let preferredKey: string | null = provider_key || null;
-      // If preferred gateway is platform-disabled, clear it
       if (preferredKey && disabledGateways.has(preferredKey)) preferredKey = null;
+
       if (!preferredKey && product_id) {
         const { data: prod } = await supabase
           .from("products")
@@ -430,14 +461,13 @@ serve(async (req) => {
         preferredKey = (prod as any)?.payment_provider_key || null;
       }
 
-      // 2. Load active payment providers for tenant â€” exclude platform-disabled gateways
+      // Provedores ativos cadastrados pelo lojista
       const { data: providers } = await supabase
         .from("payment_providers")
         .select("provider_key, api_key_encrypted, secret_key_encrypted, active, efi_cert_pem, efi_key_pem, efi_pix_key")
         .eq("tenant_id", tenant_id)
         .eq("active", true);
 
-      // Filter out platform-disabled gateways
       const allowedProviders = (providers || []).filter((p: any) => !disabledGateways.has(p.provider_key));
 
       if (preferredKey) {
@@ -446,6 +476,13 @@ serve(async (req) => {
       if (!activeProvider) {
         activeProvider = allowedProviders.find((p: any) => p.api_key_encrypted) || null;
       }
+
+      if (!activeProvider) {
+        throw new Error("A sua loja está no Plano Pago (isenção de taxas), mas ainda não possui nenhuma gateway própria ativa em Configurações > Gateways. Ative ao menos uma gateway (Mercado Pago, Efí, PushinPay, etc.) para receber os pagamentos diretamente na sua conta.");
+      }
+
+      activeProvider.is_central = false;
+      activeProvider.is_split = false;
     }
     const amount = amount_cents ? amount_cents / 100 : undefined;
     const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
@@ -483,11 +520,26 @@ serve(async (req) => {
           throw new Error(`Provider ${providerKey} nÃ£o suporta PIX dinÃ¢mico`);
       }
 
+      // Se um order_id foi passado, atualiza o pedido com flag is_split
+      if (order_id) {
+        try {
+          await supabase.from("orders").update({
+            is_split: Boolean(activeProvider.is_split),
+            payment_provider: providerKey,
+            payment_id: result.payment_id,
+          }).eq("id", order_id);
+        } catch (e) {
+          console.error("Erro ao atualizar status do pedido em generate-pix:", e);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           method: "dynamic",
           provider: providerKey,
+          is_central: Boolean(activeProvider.is_central),
+          is_split: Boolean(activeProvider.is_split),
           brcode: result.brcode,
           qr_code_base64: result.qr_code_base64 || null,
           payment_id: result.payment_id,
@@ -498,19 +550,12 @@ serve(async (req) => {
       );
     }
 
-    // 3. Fallback: static PIX using tenant's pix_key (only if split mode is INACTIVE)
-    if (isSplitActive) {
-      throw new Error("Modo Split ativo, mas o gateway central da plataforma nÃ£o pÃ´de gerar o PIX dinÃ¢mico. Verifique as credenciais da Landing Page.");
+    // 3. Fallback: static PIX using tenant's pix_key (only if Free mode and static PIX is enabled)
+    if (!canUseOwnGateways) {
+      throw new Error("Modo Split ativo, mas o gateway central da plataforma não pôde gerar o PIX dinâmico. Verifique as credenciais da Landing Page.");
     }
 
-    const { data: tenant, error: tenantError } = await supabase
-      .from("tenants")
-      .select("name, pix_key, pix_key_type")
-      .eq("id", tenant_id)
-      .single();
-
-    if (tenantError) throw tenantError;
-    if (!tenant.pix_key) {
+    if (!tenant?.pix_key) {
       throw new Error(
         activeProvider && (!amount || amount <= 0)
           ? "Informe um valor para gerar PIX dinÃ¢mico via gateway."

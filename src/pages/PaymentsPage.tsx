@@ -1,4 +1,4 @@
-import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key, Settings2, Wallet } from "lucide-react";
+import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key, Settings2, Wallet, Lock, Crown, ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import * as forge from "node-forge";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
@@ -137,7 +137,7 @@ interface PaymentProvider {
 }
 
 const PaymentsPage = () => {
-  const { tenantId } = useTenant();
+  const { tenant, tenantId, planAccess } = useTenant();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   const allProviders = buildProviders(t);
@@ -253,6 +253,117 @@ const PaymentsPage = () => {
 
   const selectedProvider = providers.find(p => p.key === selectedProviderKey);
 
+  // ─── Se a loja NÃO pode usar gateways próprias (Plano Free ou Expirado > 2 dias) ───
+  if (!planAccess.canUseOwnGateways) {
+    return (
+      <div className="space-y-6 animate-fade-in pb-10">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-white mb-2">Gateways de Pagamento</h1>
+          <p className="text-muted-foreground text-sm">Integrações de pagamento direto via PIX e Cartão</p>
+        </div>
+
+        {/* Card Explicativo e Bloqueio do Free */}
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-950/30 via-[#0b1329] to-[#05070e] p-6 sm:p-8 shadow-2xl">
+          <div className="absolute -top-24 -right-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 text-xs font-semibold flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                Exclusivo para Planos Pagos
+              </Badge>
+              <Badge variant="outline" className="border-border text-muted-foreground text-xs">
+                Modo Atual: Free (Split Central)
+              </Badge>
+            </div>
+
+            <div className="space-y-2 max-w-2xl">
+              <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2.5">
+                <Crown className="h-6 w-6 text-amber-400 shrink-0" />
+                Receba 100% Direto no seu Gateway com Taxa Zero
+              </h2>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                No seu plano atual (<strong>Free</strong>), todas as vendas do seu bot são intermediadas pela <strong>Gateway Central da Drika</strong>. O saldo líquido cai automaticamente na sua <Link to="/wallet" className="underline font-semibold text-emerald-400 hover:text-emerald-300">Carteira</Link> e você solicita saques via PIX.
+              </p>
+            </div>
+
+            {/* Comparativo de Vantagens */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/20 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                  <Sparkles className="h-4 w-4" /> Vantagens dos Planos Básico e Master
+                </div>
+                <ul className="text-xs text-slate-300 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Taxa 0% da Drika:</strong> 100% isento de split e taxas da plataforma.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Dinheiro direto na sua conta:</strong> Receba direto no Mercado Pago, Efí, PushinPay, Stripe ou AbacatePay.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Sem carteira e sem espera:</strong> Não há retenção em carteira nem necessidade de pedir saques.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3">
+                <div className="flex items-center gap-2 text-slate-300 font-semibold text-sm">
+                  <Wallet className="h-4 w-4 text-sky-400" /> Como funciona o seu Plano Atual (Free)
+                </div>
+                <ul className="text-xs text-slate-400 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-400 mt-1.5 shrink-0" />
+                    <span>Vendas intermediadas pelo Gateway Central Drika Hub.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-400 mt-1.5 shrink-0" />
+                    <span>Taxa base fixa (R$ 1,00) + split percentual (2%) por venda.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-400 mt-1.5 shrink-0" />
+                    <span>Saldo líquido acumulado na sua Carteira com 1º saque semanal grátis.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center gap-3 pt-3">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold shadow-lg shadow-amber-500/20 gap-2"
+                onClick={() => {
+                  sessionStorage.setItem("open_upgrade_modal", "true");
+                  window.dispatchEvent(new Event("storage"));
+                }}
+              >
+                <Crown className="h-4 w-4" />
+                Fazer Upgrade para Plano Pago
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+
+              <Button asChild variant="outline" size="lg" className="border-border hover:bg-accent/40 gap-2">
+                <Link to="/wallet">
+                  <Wallet className="h-4 w-4 text-emerald-400" />
+                  Ir para Minha Carteira
+                </Link>
+              </Button>
+
+              <Button asChild variant="ghost" size="lg" className="text-muted-foreground hover:text-white text-xs">
+                <Link to="/taxas" target="_blank">
+                  Ver Tabela de Taxas & Calculadora
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-fade-in pb-10">
       <div>
@@ -260,26 +371,50 @@ const PaymentsPage = () => {
         <p className="text-muted-foreground text-lg">{t.paymentsPage.description}</p>
       </div>
 
-      {isSplitWalletMode && (
-        <div className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0a1628] to-[#070b14] p-4 sm:p-5 shadow-lg">
-          <div className="flex items-start gap-3.5">
-            <div className="p-2.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0 mt-0.5">
-              <Zap className="h-5 w-5 text-emerald-400 animate-pulse" />
+      {/* Banner de Status do Plano Pago */}
+      {planAccess.isInGracePeriod ? (
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-black/40 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/30 shrink-0">
+              <AlertCircle className="h-5 w-5 text-amber-400 animate-pulse" />
             </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-white">
-                  Sistema de Split & Carteira Central Ativo
-                </h3>
+            <div>
+              <p className="text-sm font-bold text-white">
+                Período de Tolerância Ativo ({planAccess.graceHoursRemaining}h restantes)
+              </p>
+              <p className="text-xs text-amber-200/80">
+                Suas gateways próprias continuam ativas por 2 dias. Renove sua assinatura para manter as integrações ativas com 0% de taxa.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-amber-500 hover:bg-amber-600 text-black font-bold shrink-0 text-xs px-3 py-1.5 h-8"
+            onClick={() => {
+              sessionStorage.setItem("open_upgrade_modal", "true");
+              window.dispatchEvent(new Event("storage"));
+            }}
+          >
+            Renovar Plano
+          </Button>
+        </div>
+      ) : (
+        <div className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0a1628] to-[#070b14] p-4 shadow-lg flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0">
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-white">
+                  Plano Pago Ativo — 100% Isento de Taxas Drika (0%)
+                </p>
                 <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">
-                  Operação Centralizada
+                  Recebimento Direto
                 </Badge>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                A plataforma está operando no <strong>Modo Central com Carteira Digital</strong>. Suas vendas são processadas automaticamente pela Gateway Central e creditadas diretamente na sua <Link to="/wallet" className="underline font-semibold text-emerald-400 hover:text-emerald-300">Carteira</Link>. Você pode solicitar saques via PIX a qualquer momento!
-              </p>
-              <p className="text-[11px] text-slate-400">
-                (As credenciais das suas gateways abaixo permanecem salvas para o caso de a administração alternar para o modo de gateways avulsas).
+              <p className="text-xs text-slate-300 mt-0.5">
+                Suas vendas caem diretamente na sua conta do gateway configurado abaixo, sem intermediação, sem retenção em carteira e com taxa zero da plataforma.
               </p>
             </div>
           </div>

@@ -29,14 +29,16 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date().toISOString();
+    // Tolerância de 2 dias (48 horas): o plano só é revertido para Free após 2 dias do vencimento
+    const graceThreshold = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Find all tenants with expired plans that are still set to pro/master/free
+    // Encontra lojas cujo plano pago expirou há mais de 2 dias (período de tolerância esgotado)
     const { data: expired, error } = await supabase
       .from("tenants")
       .select("id, name, plan, plan_expires_at, bot_banner_url, discord_guild_id")
       .not("plan_expires_at", "is", null)
-      .lte("plan_expires_at", now)
-      .not("plan", "eq", "expired");
+      .lte("plan_expires_at", graceThreshold)
+      .in("plan", ["pro", "master"]);
 
     if (error) throw error;
 
@@ -89,7 +91,8 @@ Deno.serve(async (req) => {
     };
 
     for (const tenant of expired || []) {
-      const updates: Record<string, any> = { plan: "expired", updated_at: now };
+      // Reverte para o plano Free após esgotar os 2 dias de tolerância
+      const updates: Record<string, any> = { plan: "free", updated_at: now };
       let mustClearDiscord = false;
 
       // Master perk: custom bot banner. When plan expires, revoke it so the

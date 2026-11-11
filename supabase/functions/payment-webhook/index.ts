@@ -518,7 +518,7 @@ serve(async (req) => {
           // We must always use the tenant_id stored in the order row.
           const { data: paidOrder } = await supabase
             .from("orders")
-            .select("id, tenant_id, order_number, product_name, discord_user_id, discord_username, total_cents")
+            .select("id, tenant_id, order_number, product_name, discord_user_id, discord_username, total_cents, is_split")
             .eq("id", orderId)
             .single();
 
@@ -553,9 +553,12 @@ serve(async (req) => {
           // console.log("Auto-delivery result:", JSON.stringify(deliverResult));
 
           if (paidOrder && effectiveTenantId) {
-            // Credit tenant wallet for the sale using dynamic split fee (fixed R$ + % configured by owner)
-            try {
-              if (paidOrder.total_cents && paidOrder.total_cents > 0) {
+            // Verifica se o pedido é do modo Split (Free / Expirado > 2 dias) ou Gateway Própria (Plano Pago)
+            const isSplitOrder = Boolean((paidOrder as any)?.is_split) || isCentralRoute;
+
+            if (isSplitOrder && paidOrder.total_cents && paidOrder.total_cents > 0) {
+              // ─── 1. MODO FREE / CENTRAL: Desconta taxas e credita valor líquido na Carteira Drika ───
+              try {
                 const desc = `Venda Pedido #${paidOrder.order_number || String(orderId).slice(0, 8)} - ${paidOrder.product_name || "Produto"}`;
 
                 const walletResult = await supabase.rpc("credit_order_to_wallet", {
@@ -573,12 +576,27 @@ serve(async (req) => {
                     .update({
                       commission_cents: feeCents,
                       seller_received_cents: netCents,
+                      is_split: true,
                     })
                     .eq("id", orderId);
                 }
+              } catch (walletErr) {
+                console.error("[Wallet] Failed to credit wallet for order:", walletErr);
               }
-            } catch (walletErr) {
-              console.error("[Wallet] Failed to credit wallet for order:", walletErr);
+            } else if (!isSplitOrder && paidOrder.total_cents && paidOrder.total_cents > 0) {
+              // ─── 2. MODO PLANO PAGO: 100% recebido direto na conta/gateway do lojista (0% taxa Drika) ───
+              try {
+                await supabase
+                  .from("orders")
+                  .update({
+                    commission_cents: 0,
+                    seller_received_cents: paidOrder.total_cents,
+                    is_split: false,
+                  })
+                  .eq("id", orderId);
+              } catch (updateErr) {
+                console.error("[Plano Pago] Erro ao registrar pedido sem taxa:", updateErr);
+              }
             }
 
             // Trigger order_paid automations

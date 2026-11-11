@@ -3605,14 +3605,31 @@ async function generatePixInThread(
     preferredKey = (prod as any)?.payment_provider_key || null;
   }
 
-  // Check if platform Split / Central Wallet mode is enabled
-  const { data: splitRow } = await supabase
-    .from("platform_gateway_settings")
-    .select("enabled")
-    .eq("gateway_key", "system_split_wallet")
+  // Load tenant plan & grace period to check if store uses Split (Free) or Own Gateways (Paid)
+  const { data: tenantRow } = await supabase
+    .from("tenants")
+    .select("plan, plan_expires_at")
+    .eq("id", tenantId)
     .maybeSingle();
 
-  const isSplitActive = splitRow ? splitRow.enabled : true;
+  const now = new Date();
+  const GRACE_PERIOD_MS = 2 * 24 * 60 * 60 * 1000; // 48 horas / 2 dias
+  const planKey = (tenantRow?.plan || "free").toLowerCase().trim();
+  const isPaid = planKey === "pro" || planKey === "master";
+
+  let canUseOwnGateways = false;
+  if (isPaid) {
+    if (!tenantRow?.plan_expires_at) {
+      canUseOwnGateways = true;
+    } else {
+      const expiry = new Date(tenantRow.plan_expires_at);
+      const graceEnd = new Date(expiry.getTime() + GRACE_PERIOD_MS);
+      canUseOwnGateways = now <= graceEnd; // Ativo ou dentro dos 2 dias de tolerância
+    }
+  }
+
+  // Se NÃO pode usar gateway própria (Free ou vencido > 2 dias), ativa Split da plataforma
+  const isSplitActive = !canUseOwnGateways;
 
   let activeProvider: any = null;
 
@@ -3753,6 +3770,11 @@ async function generatePixInThread(
       return;
     }
 
+    const apiKey = activeProvider.api_key_encrypted;
+    const webhookUrl = activeProvider.is_central
+      ? `${webhookBaseUrl}/${providerKey}/central`
+      : `${webhookBaseUrl}/${providerKey}/${tenantId}`;
+
     if (providerKey === "mercadopago") {
       const result = await generateMercadoPagoPix(apiKey, amountBRL, orderName, externalRef, webhookUrl);
       brcode = result.brcode;
@@ -3761,11 +3783,11 @@ async function generatePixInThread(
       const result = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
       brcode = result.brcode;
       paymentId = result.payment_id;
-    } else if (providerKey === "efi" || providerKey === "misticpay") {
+    } else if (providerKey === "efi" || providerKey === "misticpay" || providerKey === "abacatepay") {
       const pixRes = await fetch(`${supabaseUrl}/functions/v1/generate-pix`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-        body: JSON.stringify({ tenant_id: tenantId, amount_cents: priceCents, product_name: orderName, tx_id: externalRef }),
+        body: JSON.stringify({ tenant_id: tenantId, amount_cents: priceCents, product_name: orderName, tx_id: externalRef, order_id: order.id }),
       });
       const pixData = await pixRes.json();
       if (pixData.error) throw new Error(pixData.error);
@@ -3773,11 +3795,30 @@ async function generatePixInThread(
       paymentId = pixData.payment_id || externalRef;
     }
 
-    await supabase.from("orders").update({ payment_id: paymentId, payment_provider: providerKey }).eq("id", order.id);
+    await supabase.from("orders").update({ 
+      payment_id: paymentId, 
+      payment_provider: providerKey,
+      is_split: Boolean(activeProvider.is_split)
+    }).eq("id", order.id);
 
     // Log: Pedido solicitado (gateway)
     await sendPixGeneratedLog(supabase, botToken, order, providerKey);
   } else {
+    if (canUseOwnGateways) {
+      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "❌ Gateway Própria Não Configurada",
+            description: "A sua loja está no Plano Pago (isenção de taxas), mas você ainda não configurou uma gateway própria ativa em Configurações > Gateways para receber diretamente na sua conta.",
+            color: 0xED4245,
+          }],
+        }),
+      });
+      return;
+    }
+
     // If Split mode is active, never allow static PIX
     if (isSplitActive) {
       await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {

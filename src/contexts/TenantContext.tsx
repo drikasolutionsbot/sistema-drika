@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { evaluatePlanAccess, type PlanAccessStatus } from "@/lib/plans";
 
 interface Tenant {
   id: string;
@@ -44,6 +45,7 @@ interface TenantContextType {
   isPlanExpired: boolean;
   isSystemFree: boolean;
   globalBotBanner: string | null;
+  planAccess: PlanAccessStatus;
 }
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
@@ -209,18 +211,12 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [tenant?.id, tenant?.discord_guild_id]);
 
-  const isPlanExpired = (() => {
-    if (isSystemFree) return false;
-    if (!tenant) return false;
-    if (tenant.plan === "expired") return true;
-    if (tenant.plan_expires_at && new Date(tenant.plan_expires_at) < new Date()) {
-      return true;
-    }
-    return false;
-  })();
+  const planAccess = evaluatePlanAccess(tenant, isSystemFree);
+  // Mantém retrocompatibilidade de isPlanExpired (somente quando a tolerância de 2 dias também já expirou)
+  const isPlanExpired = planAccess.isExpired && planAccess.isGraceExpired;
 
   return (
-    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree, globalBotBanner }}>
+    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree, globalBotBanner, planAccess }}>
       {children}
     </TenantContext.Provider>
   );

@@ -110,7 +110,7 @@ const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 
 export default function WalletPage() {
-  const { tenantId, tenant, refetch: refetchTenant } = useTenant();
+  const { tenantId, tenant, refetch: refetchTenant, planAccess } = useTenant();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -632,6 +632,30 @@ export default function WalletPage() {
           </Button>
         </div>
       </div>
+
+      {/* ─── Banner para Lojista em Plano Pago (Isento de Carteira / Recebimento Direto) ─── */}
+      {planAccess.canUseOwnGateways && (
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0a1628] to-[#070b14] p-4 sm:p-5 shadow-lg">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0 mt-0.5">
+              <ShieldCheck className="h-5 w-5 text-emerald-400" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-white">
+                  Plano Pago Ativo — Suas vendas caem 100% no seu Gateway Próprio
+                </h3>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">
+                  Taxa 0% Drika
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Como assinante, você não precisa de intermediação da Carteira: o valor total das suas vendas é creditado diretamente no gateway próprio configurado por você em <Link to="/settings?tab=gateways" className="underline font-semibold text-emerald-400 hover:text-emerald-300">Configurações &gt; Gateways</Link>. O saldo abaixo representa valores residuais (ex.: de quando a loja operava no Plano Free).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── 2. Hero Card Principal (Saldo + Cartão 3D) ─── */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#080d19] via-[#0b1324] to-[#070b14] p-6 md:p-8 shadow-2xl">

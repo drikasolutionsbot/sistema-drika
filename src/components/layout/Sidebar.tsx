@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, DollarSign, Server, Box, Hash, ShieldCheck, Shield,
   Store, Ticket, Cloud, Headset, Settings,
   ChevronLeft, ChevronRight, ClipboardCheck, Sparkles, BookOpen,
   ShoppingBag, Gift, Users, HandMetal, LayoutTemplate, Mail,
-  ChevronUp, ChevronDown, GripVertical, Check, Wallet,
+  ChevronUp, ChevronDown, GripVertical, Check, Wallet, Plug,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,8 @@ const navLabelKeys: Record<string, keyof typeof import("@/i18n/translations/pt-B
   "/ai-assistant": "aiGenerator",
   "/finance": "finance",
   "/wallet": "wallet",
+  "/payments": "payments",
+  "/settings?tab=gateways": "payments" as any,
   "/approvals": "approvals",
   "/customization": "server",
   "/resources": "resources",
@@ -128,6 +130,8 @@ const iconMap: Record<string, React.ElementType> = {
   "/ai-assistant": Sparkles,
   "/finance": DollarSign,
   "/wallet": Wallet,
+  "/payments": Plug,
+  "/settings?tab=gateways": Plug,
   "/approvals": ClipboardCheck,
   "/customization": Server,
   "/resources": Box,
@@ -275,10 +279,38 @@ const NavItem = ({ item, isActive, collapsed, resolvedLabel, reordering, onMoveU
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
-  const { tenant, tenantId } = useTenant();
+  const { tenant, tenantId, planAccess } = useTenant();
   const { t } = useLanguage();
   const [reorderingGroup, setReorderingGroup] = useState<string | null>(null);
   const [navGroups, setNavGroups] = useState<NavGroup[]>(defaultNavGroups);
+
+  // Filtra itens de acordo com o plano:
+  // - Plano Pago (ou em tolerância): mostra "Gateways" e oculta "Carteira"
+  // - Plano Free (ou expirado > 2 dias): mostra "Carteira" e oculta "Gateways"
+  const filteredNavGroups = useMemo(() => {
+    return navGroups.map((group) => {
+      if (group.key === "gerenciamento") {
+        let items = group.items;
+        if (planAccess.canUseOwnGateways) {
+          items = items.map((item) => {
+            if (item.path === "/wallet") {
+              return { label: "payments", icon: Plug, path: "/settings?tab=gateways" };
+            }
+            return item;
+          });
+        } else {
+          items = items.map((item) => {
+            if (item.path === "/settings?tab=gateways" || item.path === "/payments") {
+              return { label: "wallet", icon: Wallet, path: "/wallet" };
+            }
+            return item;
+          });
+        }
+        return { ...group, items };
+      }
+      return group;
+    });
+  }, [navGroups, planAccess.canUseOwnGateways]);
 
   // Load saved order on mount / tenantId change
   useEffect(() => {
@@ -375,7 +407,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         )}>
           {collapsed ? (
             <>
-              {navGroups.flatMap(g => g.items).map((item) => (
+              {filteredNavGroups.flatMap(g => g.items).map((item) => (
                 <NavItem
                   key={item.path}
                   item={item}
@@ -386,7 +418,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               ))}
             </>
           ) : (
-            navGroups.map((group) => (
+            filteredNavGroups.map((group) => (
               <div key={group.key}>
                 <div className="flex items-center justify-between px-3 mb-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/40">

@@ -12,7 +12,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isPaidPlan } from "@/lib/plans";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
  * Rotas liberadas no plano Free.
@@ -56,7 +57,7 @@ export const DashboardLayout = () => {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { tenant, isPlanExpired, isSystemFree } = useTenant();
+  const { tenant, isSystemFree, planAccess } = useTenant();
   const isMobile = useIsMobile();
   const [allowCustomization, setAllowCustomization] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
@@ -76,13 +77,12 @@ export const DashboardLayout = () => {
     fetchConfig();
   }, []);
 
-  if (isPlanExpired) {
-    return <PlanExpiredPage />;
-  }
-
-  // Bloqueio Free: rotas não-permitidas viram tela de upgrade
+  // No novo modelo de negócio:
+  // - Venceu: ganha 2 dias de tolerância com gateways ativas e taxas 0%
+  // - Passou de 2 dias sem renovar: gateways somem e a loja opera no modo Free (Split + Taxas + Carteira)
+  // O painel nunca é travado com tela preta de PlanExpiredPage; o cliente opera normalmente em modo Free.
   const path = location.pathname;
-  const isFree = !!tenant && !isPaidPlan(tenant.plan);
+  const isFree = !isSystemFree && (planAccess.isFree || planAccess.isGraceExpired);
   
   let isLockedRoute = !FREE_ALLOWED_ROUTES.has(path);
   
@@ -122,6 +122,64 @@ export const DashboardLayout = () => {
 
         <div className="flex flex-1 flex-col overflow-hidden">
           <TopBar onToggleSidebar={toggleSidebar} />
+
+          {/* Banner de Tolerância de 2 Dias (48 horas) */}
+          {planAccess.isInGracePeriod && (
+            <div className="mx-4 mt-3 md:mx-6 p-3.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-black/40 text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/30 shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-amber-400 animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white flex items-center gap-2">
+                    Plano Expirado — Período de Tolerância ({planAccess.graceHoursRemaining}h restantes)
+                  </p>
+                  <p className="text-xs text-amber-200/80 leading-relaxed">
+                    Suas gateways próprias continuam ativas por 2 dias. Renove agora para continuar recebendo direto na sua conta com 0% de taxas!
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-bold shrink-0 text-xs px-3.5 py-1.5 h-8 shadow-md"
+                onClick={() => {
+                  sessionStorage.setItem("open_upgrade_modal", "true");
+                  window.dispatchEvent(new Event("storage"));
+                }}
+              >
+                Renovar Plano
+              </Button>
+            </div>
+          )}
+
+          {/* Banner de Plano Expirado há mais de 2 dias (Modo Free / Split Ativo) */}
+          {planAccess.isGraceExpired && (
+            <div className="mx-4 mt-3 md:mx-6 p-3.5 rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 via-[#07152b] to-black/40 text-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-sky-500/20 border border-sky-500/30 shrink-0">
+                  <Info className="h-5 w-5 text-sky-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">
+                    Sua loja está operando no Modo Free (Split & Carteira)
+                  </p>
+                  <p className="text-xs text-sky-200/80 leading-relaxed">
+                    O período de tolerância de 2 dias terminou. Suas vendas agora entram pela Gateway Central com taxas e liquidação na sua Carteira. Assine um plano pago para reativar suas gateways e ter taxa zero!
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="bg-sky-500 hover:bg-sky-600 text-black font-bold shrink-0 text-xs px-3.5 py-1.5 h-8 shadow-md"
+                onClick={() => {
+                  sessionStorage.setItem("open_upgrade_modal", "true");
+                  window.dispatchEvent(new Event("storage"));
+                }}
+              >
+                Fazer Upgrade
+              </Button>
+            </div>
+          )}
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <ErrorBoundary key={location.pathname}>
               {isFree && loadingConfig ? (
