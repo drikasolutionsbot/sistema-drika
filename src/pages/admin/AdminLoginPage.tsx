@@ -24,9 +24,18 @@ const AdminLoginPage = () => {
       });
 
       if (error || data?.error) {
+        let msg = data?.error;
+        if (!msg && error) {
+          try {
+            const errContext = await (error as any).context?.json();
+            msg = errContext?.error;
+          } catch {
+            // fallback
+          }
+        }
         toast({
           title: "Acesso negado",
-          description: data?.error || error?.message || "Credenciais inválidas.",
+          description: msg || error?.message || "Credenciais inválidas.",
           variant: "destructive",
         });
         setLoading(false);
