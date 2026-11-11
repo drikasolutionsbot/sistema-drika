@@ -165,26 +165,22 @@ export default function GatewaySettingsTab() {
             </div>
 
             <h3 className="text-lg sm:text-xl font-extrabold text-white">
-              Sistema de Split & Carteira Geral da Plataforma
+              Sistema Híbrido: Free (Split) vs Planos Pagos (Gateways Próprias)
             </h3>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              {splitWalletEnabled ? (
-                <>
-                  <strong className="text-emerald-400">✅ ATIVADO (Operação Central):</strong> O Bot Externo e o Checkout operam exclusivamente com a <strong>Gateway Central da Plataforma</strong> (Drika Hub). O dinheiro das vendas entra na conta da plataforma e é creditado na <strong>Carteira do Lojista</strong> para saque via PIX (com taxa fixa de 2%). As gateways avulsas abaixo ficam em segundo plano.
-                </>
-              ) : (
-                <>
-                  <strong className="text-amber-400">⚪ DESATIVADO (Gateways Avulsas):</strong> O Bot Externo e o Checkout operam com as <strong>gateways próprias (avulsas)</strong> configuradas por cada lojista (Mercado Pago, PushinPay, etc.), respeitando as opções ativadas e visíveis configuradas abaixo.
-                </>
-              )}
+              A plataforma opera de forma inteligente por plano:
+              <br />
+              • <strong>Plano Free:</strong> Opera obrigatoriamente no <strong>Modo Split Central</strong> (vendas entram na Central Drika e o saldo líquido vai para a Carteira com taxas).
+              <br />
+              • <strong>Planos Pagos (Master/Pro):</strong> Têm <strong>isenção de 100% das taxas</strong> e recebem direto nas suas próprias gateways configuradas abaixo.
             </p>
           </div>
 
           <div className="flex flex-col items-start sm:items-end gap-2 shrink-0 pt-2 sm:pt-0">
             <div className="flex items-center gap-3 bg-[#070b14]/80 border border-slate-800 p-2 px-3 rounded-xl">
               <span className="text-xs font-semibold text-slate-300">
-                {splitWalletEnabled ? "Split Ativo" : "Split Desativado"}
+                {splitWalletEnabled ? "Split Ativo (Free)" : "Split Desativado"}
               </span>
               <Switch
                 checked={splitWalletEnabled}
@@ -193,21 +189,19 @@ export default function GatewaySettingsTab() {
               />
             </div>
             <span className="text-[10px] text-slate-500 font-medium">
-              Altera instantaneamente no bot e na web
+              Controle geral do Split para contas Free
             </span>
           </div>
         </div>
       </div>
 
       {/* Warning banner */}
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 mb-6">
-        <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-        <div className="text-sm text-amber-300">
-          <p className="font-semibold">Controle individual de gateways avulsas</p>
-          <p className="text-amber-300/80 mt-0.5">
-            {splitWalletEnabled
-              ? "Como o Modo Split está ATIVO, o bot e checkout usam a gateway central da Drika Hub. As opções abaixo definem a visibilidade no painel dos lojistas e valem para quando o split for desativado."
-              : "Desativar uma gateway bloqueia seu uso em todos os clientes — nenhum PIX será gerado e webhooks serão ignorados. Ocultar apenas esconde a opção no painel do cliente."}
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 mb-6">
+        <Sparkles className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+        <div className="text-sm text-emerald-200">
+          <p className="font-semibold text-white">Gateways liberadas para assinantes dos Planos Pagos</p>
+          <p className="text-emerald-300/80 mt-0.5 text-xs">
+            As gateways marcadas como <strong>Visíveis e Ativadas</strong> abaixo aparecerão <strong>exclusivamente para os clientes que possuem Plano Pago ativo</strong> (ou em tolerância de 2 dias). Lojistas no Plano Free não têm acesso a essas configurações.
           </p>
         </div>
       </div>
