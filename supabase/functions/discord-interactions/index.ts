@@ -3804,20 +3804,6 @@ async function generatePixInThread(
     // Log: Pedido solicitado (gateway)
     await sendPixGeneratedLog(supabase, botToken, order, providerKey);
   } else {
-    if (canUseOwnGateways) {
-      await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          embeds: [{
-            title: "❌ Gateway Própria Não Configurada",
-            description: "A sua loja está no Plano Pago (isenção de taxas), mas você ainda não configurou uma gateway própria ativa em Configurações > Gateways para receber diretamente na sua conta.",
-            color: 0xED4245,
-          }],
-        }),
-      });
-      return;
-    }
 
     // If Split mode is active, never allow static PIX
     if (isSplitActive) {
