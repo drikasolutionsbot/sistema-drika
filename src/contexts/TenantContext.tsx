@@ -31,6 +31,7 @@ interface Tenant {
   referred_by_tenant_id: string | null;
   referral_credits_cents: number;
   affiliate_active: boolean;
+  use_split_wallet?: boolean | null;
   access_token?: string | null;
   token?: string | null;
   owner_discord_username?: string | null;
@@ -117,6 +118,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               referred_by_tenant_id: null,
               referral_credits_cents: 0,
               affiliate_active: false,
+              use_split_wallet: false,
             };
           }
           setTenant(result);

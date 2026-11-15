@@ -56,7 +56,11 @@ const SettingsPage = () => {
               </TabsTrigger>
               <TabsTrigger value="gateways" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
                 <Plug className="h-4 w-4" /> Gateways
-                {!planAccess.canUseOwnGateways && (
+                {planAccess.optedInSplitWallet ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    Split Ativo
+                  </span>
+                ) : !planAccess.canUseOwnGateways && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     Pro/Master
                   </span>

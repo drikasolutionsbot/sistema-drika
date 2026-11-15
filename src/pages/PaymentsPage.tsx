@@ -20,6 +20,7 @@ import { toast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef, useCallback } from "react";
 import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
 import { GatewayTutorialDialog } from "@/components/payments/GatewayTutorialDialog";
+import { SplitWalletToggleCard } from "@/components/payments/SplitWalletToggleCard";
 import { GraduationCap } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { TranslationKeys } from "@/i18n/translations/pt-BR";
@@ -253,8 +254,27 @@ const PaymentsPage = () => {
 
   const selectedProvider = providers.find(p => p.key === selectedProviderKey);
 
-  // ─── Se a loja NÃO pode usar gateways próprias (Plano Free ou Expirado > 2 dias) ───
+  // ─── Se a loja NÃO usa gateways próprias no momento ───
   if (!planAccess.canUseOwnGateways) {
+    // Caso 1: Cliente de Plano Pago que escolheu voluntariamente ativar Carteira & Split Global
+    if (planAccess.optedInSplitWallet) {
+      return (
+        <div className="space-y-6 animate-fade-in pb-10">
+          <div>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white mb-2">
+              {t.paymentsPage.title}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Gerencie sua preferência entre Gateways Próprias (0% taxa) e Carteira & Split Global
+            </p>
+          </div>
+
+          <SplitWalletToggleCard contextPage="gateways" />
+        </div>
+      );
+    }
+
+    // Caso 2: Plano Free ou Expirado (> 2 dias) — bloqueio com opção de Upgrade
     return (
       <div className="space-y-6 animate-fade-in pb-10">
         <div>
@@ -371,8 +391,8 @@ const PaymentsPage = () => {
         <p className="text-muted-foreground text-lg">{t.paymentsPage.description}</p>
       </div>
 
-      {/* Banner de Status do Plano Pago */}
-      {planAccess.isInGracePeriod ? (
+      {/* Banner de Tolerância ou Card de Escolha (Gateways Próprias vs Carteira & Split Global) */}
+      {planAccess.isInGracePeriod && (
         <div className="relative overflow-hidden rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-black/40 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/30 shrink-0">
@@ -398,28 +418,9 @@ const PaymentsPage = () => {
             Renovar Plano
           </Button>
         </div>
-      ) : (
-        <div className="relative overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0a1628] to-[#070b14] p-4 shadow-lg flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0">
-              <ShieldCheck className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-white">
-                  Plano Pago Ativo — 100% Isento de Taxas Drika (0%)
-                </p>
-                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">
-                  Recebimento Direto
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Suas vendas caem diretamente na sua conta do gateway configurado abaixo, sem intermediação, sem retenção em carteira e com taxa zero da plataforma.
-              </p>
-            </div>
-          </div>
-        </div>
       )}
+
+      <SplitWalletToggleCard contextPage="gateways" />
 
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -120,14 +120,18 @@ export interface PlanAccessStatus {
   isGraceExpired: boolean;
   /**
    * Se a loja pode usar gateways próprias (Mercado Pago, Efí, PushinPay, etc.) com 0% taxa:
-   * Permitido para plano pago ativo OU durante os 2 dias de tolerância após vencer.
+   * Permitido para plano pago ativo OU durante os 2 dias de tolerância após vencer,
+   * desde que não tenha optado voluntariamente pelo sistema de Carteira & Split Global.
    */
   canUseOwnGateways: boolean;
   /**
    * Se a loja opera no modo Split da plataforma (taxa fixa + % split e saldo na carteira):
-   * Ativo para Plano Free OU quando o plano pago expirou há mais de 2 dias.
+   * Ativo para Plano Free, quando o plano pago expirou há mais de 2 dias,
+   * ou quando o assinante pago ativou a opção de Carteira & Split Global.
    */
   usesSplitWallet: boolean;
+  /** True quando o assinante de plano pago escolheu voluntariamente usar Carteira & Split Global */
+  optedInSplitWallet: boolean;
   /** Horas restantes dentro da tolerância de 2 dias (se aplicável) */
   graceHoursRemaining: number;
   /** Dias corridos desde a expiração (se aplicável) */
@@ -140,9 +144,11 @@ export const GRACE_PERIOD_DAYS = 2;
 export const GRACE_PERIOD_MS = GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000; // 48h
 
 export function evaluatePlanAccess(
-  tenant?: { plan?: string | null; plan_expires_at?: string | null } | null,
+  tenant?: { plan?: string | null; plan_expires_at?: string | null; use_split_wallet?: boolean | null } | null,
   isSystemFree = false
 ): PlanAccessStatus {
+  const optedIn = Boolean(tenant?.use_split_wallet);
+
   if (isSystemFree) {
     return {
       isFree: false,
@@ -150,8 +156,9 @@ export function evaluatePlanAccess(
       isExpired: false,
       isInGracePeriod: false,
       isGraceExpired: false,
-      canUseOwnGateways: true,
-      usesSplitWallet: false,
+      canUseOwnGateways: !optedIn,
+      usesSplitWallet: optedIn,
+      optedInSplitWallet: optedIn,
       graceHoursRemaining: 0,
       daysExpired: 0,
       graceEnd: null,
@@ -167,6 +174,7 @@ export function evaluatePlanAccess(
       isGraceExpired: false,
       canUseOwnGateways: false,
       usesSplitWallet: true,
+      optedInSplitWallet: false,
       graceHoursRemaining: 0,
       daysExpired: 0,
       graceEnd: null,
@@ -186,6 +194,7 @@ export function evaluatePlanAccess(
       isGraceExpired: false,
       canUseOwnGateways: false,
       usesSplitWallet: true,
+      optedInSplitWallet: false,
       graceHoursRemaining: 0,
       daysExpired: 0,
       graceEnd: null,
@@ -200,8 +209,9 @@ export function evaluatePlanAccess(
       isExpired: false,
       isInGracePeriod: false,
       isGraceExpired: false,
-      canUseOwnGateways: true,
-      usesSplitWallet: false,
+      canUseOwnGateways: !optedIn,
+      usesSplitWallet: optedIn,
+      optedInSplitWallet: optedIn,
       graceHoursRemaining: 0,
       daysExpired: 0,
       graceEnd: null,
@@ -219,8 +229,9 @@ export function evaluatePlanAccess(
       isExpired: false,
       isInGracePeriod: false,
       isGraceExpired: false,
-      canUseOwnGateways: true,
-      usesSplitWallet: false,
+      canUseOwnGateways: !optedIn,
+      usesSplitWallet: optedIn,
+      optedInSplitWallet: optedIn,
       graceHoursRemaining: 0,
       daysExpired: 0,
       graceEnd: null,
@@ -246,21 +257,23 @@ export function evaluatePlanAccess(
       isGraceExpired: true,
       canUseOwnGateways: false,
       usesSplitWallet: true,
+      optedInSplitWallet: false,
       graceHoursRemaining: 0,
       daysExpired,
       graceEnd: new Date(graceEndTime),
     };
   }
 
-  // Ainda dentro dos 2 dias de tolerância: mantém gateways próprias ativas temporariamente
+  // Ainda dentro dos 2 dias de tolerância: mantém escolha do plano pago ativa temporariamente
   return {
     isFree: false,
     isPaid: true,
     isExpired: true,
     isInGracePeriod: true,
     isGraceExpired: false,
-    canUseOwnGateways: true,
-    usesSplitWallet: false,
+    canUseOwnGateways: !optedIn,
+    usesSplitWallet: optedIn,
+    optedInSplitWallet: optedIn,
     graceHoursRemaining,
     daysExpired,
     graceEnd: new Date(graceEndTime),

@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, tenant_id, provider_key, api_key, secret_key, provider_id, efi_cert_pem, efi_key_pem, efi_pix_key, stripe_webhook_secret } = await req.json();
+    const { action, tenant_id, provider_key, api_key, secret_key, provider_id, efi_cert_pem, efi_key_pem, efi_pix_key, stripe_webhook_secret, enabled } = await req.json();
     if (!tenant_id) throw new Error("Missing tenant_id");
 
     const supabase = createClient(
@@ -132,6 +132,51 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (action === "set_split_wallet" || action === "toggle_split_wallet") {
+      const { data: tenantRow, error: tenantErr } = await supabase
+        .from("tenants")
+        .select("id, plan, plan_expires_at, use_split_wallet")
+        .eq("id", tenant_id)
+        .maybeSingle();
+
+      if (tenantErr) throw tenantErr;
+      if (!tenantRow) throw new Error("Loja não encontrada");
+
+      const planKey = String(tenantRow.plan || "free").toLowerCase().trim();
+      const isPaid = planKey === "pro" || planKey === "master";
+      const GRACE_PERIOD_MS = 2 * 24 * 60 * 60 * 1000;
+      const isEligiblePaid =
+        isPaid &&
+        (!tenantRow.plan_expires_at ||
+          Date.now() <= new Date(tenantRow.plan_expires_at).getTime() + GRACE_PERIOD_MS);
+
+      if (!isEligiblePaid) {
+        throw new Error(
+          "Apenas assinantes de plano pago ativo podem alternar entre Gateways Próprias e Carteira & Split Global."
+        );
+      }
+
+      const nextValue =
+        typeof enabled === "boolean" ? enabled : !Boolean(tenantRow.use_split_wallet);
+
+      const { error: updateErr } = await supabase
+        .from("tenants")
+        .update({
+          use_split_wallet: nextValue,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", tenant_id);
+
+      if (updateErr) throw updateErr;
+
+      return new Response(
+        JSON.stringify({ success: true, use_split_wallet: nextValue }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     throw new Error("Invalid action");

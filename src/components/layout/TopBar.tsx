@@ -619,6 +619,12 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
                   <QrCode className="mr-2 h-4 w-4" />
                   Chave PIX (Saques)
                 </DropdownMenuItem>
+                {planAccess.optedInSplitWallet && (
+                  <DropdownMenuItem onClick={() => navigate("/settings?tab=gateways")} className="cursor-pointer">
+                    <Plug className="mr-2 h-4 w-4 text-emerald-400" />
+                    Gateways Próprias (0% Taxa)
+                  </DropdownMenuItem>
+                )}
               </>
             )}
             <DropdownMenuSeparator />

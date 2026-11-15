@@ -2361,6 +2361,7 @@ export type Database = {
           referred_by_tenant_id: string | null
           secondary_color: string | null
           updated_at: string
+          use_split_wallet: boolean
           verify_button_label: string | null
           verify_button_style: string | null
           verify_channel_id: string | null
@@ -2408,6 +2409,7 @@ export type Database = {
           referred_by_tenant_id?: string | null
           secondary_color?: string | null
           updated_at?: string
+          use_split_wallet?: boolean
           verify_button_label?: string | null
           verify_button_style?: string | null
           verify_channel_id?: string | null
@@ -2455,6 +2457,7 @@ export type Database = {
           referred_by_tenant_id?: string | null
           secondary_color?: string | null
           updated_at?: string
+          use_split_wallet?: boolean
           verify_button_label?: string | null
           verify_button_style?: string | null
           verify_channel_id?: string | null

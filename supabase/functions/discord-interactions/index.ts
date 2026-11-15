@@ -3803,10 +3803,10 @@ async function generatePixInThread(
     preferredKey = (prod as any)?.payment_provider_key || null;
   }
 
-  // Load tenant plan & grace period to check if store uses Split (Free) or Own Gateways (Paid)
+  // Load tenant plan, grace period & opt-in split setting to check if store uses Split or Own Gateways
   const { data: tenantRow } = await supabase
     .from("tenants")
-    .select("plan, plan_expires_at")
+    .select("plan, plan_expires_at, use_split_wallet")
     .eq("id", tenantId)
     .maybeSingle();
 
@@ -3826,7 +3826,12 @@ async function generatePixInThread(
     }
   }
 
-  // Se NÃO pode usar gateway própria (Free ou vencido > 2 dias), ativa Split da plataforma
+  // Assinante de plano pago pode optar explicitamente por usar Carteira & Split Global
+  if (tenantRow?.use_split_wallet) {
+    canUseOwnGateways = false;
+  }
+
+  // Se NÃO pode usar gateway própria (Free, vencido > 2 dias, ou optou pelo Split), ativa Split da plataforma
   const isSplitActive = !canUseOwnGateways;
 
   let activeProvider: any = null;

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { SplitWalletToggleCard } from "@/components/payments/SplitWalletToggleCard";
 import {
   Wallet,
   ArrowUpRight,
@@ -588,41 +589,51 @@ export default function WalletPage() {
 
   if (!loading && planAccess.canUseOwnGateways && !hasResidualBalance) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4">
-        <div className="relative max-w-xl w-full overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[#0b1324] to-[#070b14] p-8 shadow-2xl text-center space-y-6">
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-            <ShieldCheck className="h-8 w-8 text-emerald-400" />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-6">
+        <div className="max-w-3xl w-full space-y-6">
+          <div className="relative w-full overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[#0b1324] to-[#070b14] p-7 sm:p-8 shadow-2xl text-center space-y-5">
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <ShieldCheck className="h-7 w-7 text-emerald-400" />
+            </div>
+            <div className="space-y-2 relative z-10 max-w-xl mx-auto">
+              <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-0.5">
+                Plano Pago Ativo • Taxa 0% por Padrão
+              </Badge>
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                Carteira de Split desativada nesta conta
+              </h1>
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Por padrão no seu plano pago, suas vendas vão direto para{" "}
+                <strong className="text-white">suas próprias Gateways</strong> com{" "}
+                <strong className="text-emerald-400">0% de taxa</strong>. Mas se você preferir, pode ativar abaixo o{" "}
+                <strong className="text-white">Sistema de Carteira & Split Global</strong> por escolha própria.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1 relative z-10">
+              <Button
+                onClick={() => navigate("/settings?tab=gateways")}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+              >
+                <CreditCard className="h-4 w-4" />
+                Configurar Minhas Gateways (0%)
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/dashboard")}
+                className="border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800"
+              >
+                Voltar para Visão Geral
+              </Button>
+            </div>
           </div>
-          <div className="space-y-2 relative z-10">
-            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-0.5">
-              Plano Pago Ativo • Taxa 0%
-            </Badge>
-            <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              Sua loja não utiliza Carteira de Split
-            </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              Como assinante de plano pago, todas as suas vendas são processadas diretamente pelas{" "}
-              <strong className="text-white">suas próprias Gateways</strong> com{" "}
-              <strong className="text-emerald-400">0% de taxa</strong> e caem direto na sua conta bancária, sem retenção em carteira.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 relative z-10">
-            <Button
-              onClick={() => navigate("/settings?tab=gateways")}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
-            >
-              <CreditCard className="h-4 w-4" />
-              Configurar Minhas Gateways
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/dashboard")}
-              className="border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800"
-            >
-              Voltar para Visão Geral
-            </Button>
-          </div>
+
+          <SplitWalletToggleCard
+            contextPage="wallet"
+            onModeChanged={() => {
+              void loadWalletData(true);
+            }}
+          />
         </div>
       </div>
     );
@@ -679,28 +690,14 @@ export default function WalletPage() {
         </div>
       </div>
 
-      {/* ─── Banner para Lojista em Plano Pago (Isento de Carteira / Recebimento Direto) ─── */}
-      {planAccess.canUseOwnGateways && (
-        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-[#0a1628] to-[#070b14] p-4 sm:p-5 shadow-lg">
-          <div className="flex items-start gap-3.5">
-            <div className="p-2.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 shrink-0 mt-0.5">
-              <ShieldCheck className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-white">
-                  Plano Pago Ativo — Suas vendas caem 100% no seu Gateway Próprio
-                </h3>
-                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px]">
-                  Taxa 0% Drika
-                </Badge>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Como assinante, você não precisa de intermediação da Carteira: o valor total das suas vendas é creditado diretamente no gateway próprio configurado por você em <Link to="/settings?tab=gateways" className="underline font-semibold text-emerald-400 hover:text-emerald-300">Configurações &gt; Gateways</Link>. O saldo abaixo representa valores residuais (ex.: de quando a loja operava no Plano Free).
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* ─── Escolha de Modo para Assinante de Plano Pago (Gateways Próprias 0% vs Split Global) ─── */}
+      {planAccess.isPaid && (
+        <SplitWalletToggleCard
+          contextPage="wallet"
+          onModeChanged={() => {
+            void loadWalletData(true);
+          }}
+        />
       )}
 
       {/* ─── 2. Hero Card Principal (Saldo + Cartão 3D) ─── */}

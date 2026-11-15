@@ -318,10 +318,10 @@ async function isSplitWalletActive() {
 async function getActivePaymentProvider(tenantId) {
   let canUseOwnGateways = false;
   try {
-    // 1. Evaluate tenant plan & 48h grace period (same rule as generate-pix / discord-interactions)
+    // 1. Evaluate tenant plan, 48h grace period & opt-in split choice (same rule as generate-pix / discord-interactions)
     const { data: tenantRow } = await supabase
       .from("tenants")
-      .select("plan, plan_expires_at")
+      .select("plan, plan_expires_at, use_split_wallet")
       .eq("id", tenantId)
       .maybeSingle();
 
@@ -338,6 +338,10 @@ async function getActivePaymentProvider(tenantId) {
         const graceEnd = new Date(expiry.getTime() + GRACE_PERIOD_MS);
         canUseOwnGateways = now <= graceEnd;
       }
+    }
+
+    if (tenantRow?.use_split_wallet) {
+      canUseOwnGateways = false;
     }
 
     if (!canUseOwnGateways) {

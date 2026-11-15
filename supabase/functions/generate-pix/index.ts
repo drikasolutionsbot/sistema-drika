@@ -361,7 +361,7 @@ serve(async (req) => {
     // 0. Load tenant plan and expiration to evaluate Split Mode vs Own Gateways Mode
     const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
-      .select("id, name, plan, plan_expires_at, pix_key, pix_key_type")
+      .select("id, name, plan, plan_expires_at, use_split_wallet, pix_key, pix_key_type")
       .eq("id", tenant_id)
       .maybeSingle();
 
@@ -385,6 +385,11 @@ serve(async (req) => {
         const graceEnd = new Date(expiry.getTime() + GRACE_PERIOD_MS);
         canUseOwnGateways = now <= graceEnd; // Ativo ou dentro dos 2 dias de tolerância
       }
+    }
+
+    // Assinante de plano pago pode optar explicitamente por operar na Carteira & Split Global
+    if (tenant?.use_split_wallet) {
+      canUseOwnGateways = false;
     }
 
     const { data: gwSettings } = await supabase

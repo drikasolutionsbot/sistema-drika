@@ -14,7 +14,7 @@ export const WalletAnnouncementModal = () => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!tenantId || planAccess.canUseOwnGateways) return;
+    if (!tenantId || !planAccess.isFree) return;
     const storageKey = `${STORAGE_KEY_PREFIX}:${tenantId}`;
     const alreadySeenInSession = sessionStorage.getItem(storageKey);
     if (!alreadySeenInSession) {
@@ -23,7 +23,7 @@ export const WalletAnnouncementModal = () => {
       }, 450);
       return () => clearTimeout(timer);
     }
-  }, [tenantId, planAccess.canUseOwnGateways]);
+  }, [tenantId, planAccess.isFree]);
 
   const handleClose = () => {
     if (tenantId) {
@@ -40,7 +40,7 @@ export const WalletAnnouncementModal = () => {
     navigate("/wallet");
   };
 
-  if (!tenant || planAccess.canUseOwnGateways) return null;
+  if (!tenant || !planAccess.isFree) return null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
