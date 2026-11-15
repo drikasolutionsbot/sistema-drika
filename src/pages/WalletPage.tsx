@@ -582,6 +582,52 @@ export default function WalletPage() {
     });
   };
 
+  // Planos pagos sem saldo residual não operam com Carteira (recebem direto nas próprias gateways)
+  const hasResidualBalance =
+    availableBalanceCents > 0 || (wallet?.locked_balance_cents || 0) > 0 || Boolean(pendingWithdrawal);
+
+  if (!loading && planAccess.canUseOwnGateways && !hasResidualBalance) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="relative max-w-xl w-full overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[#0b1324] to-[#070b14] p-8 shadow-2xl text-center space-y-6">
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+            <ShieldCheck className="h-8 w-8 text-emerald-400" />
+          </div>
+          <div className="space-y-2 relative z-10">
+            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-0.5">
+              Plano Pago Ativo • Taxa 0%
+            </Badge>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">
+              Sua loja não utiliza Carteira de Split
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Como assinante de plano pago, todas as suas vendas são processadas diretamente pelas{" "}
+              <strong className="text-white">suas próprias Gateways</strong> com{" "}
+              <strong className="text-emerald-400">0% de taxa</strong> e caem direto na sua conta bancária, sem retenção em carteira.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 relative z-10">
+            <Button
+              onClick={() => navigate("/settings?tab=gateways")}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+            >
+              <CreditCard className="h-4 w-4" />
+              Configurar Minhas Gateways
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/dashboard")}
+              className="border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800"
+            >
+              Voltar para Visão Geral
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 w-full text-slate-100">
       {/* ─── 1. Header estilo Fintech ─── */}

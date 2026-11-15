@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Globe, KeyRound } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, QrCode, Zap, CheckCircle, AlertCircle, Inbox, Wallet, Crown, Clock, Globe, KeyRound, Plug } from "lucide-react";
 import { useTheme } from "next-themes";
 import { differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
 import ThemeToggle from "@/components/ui/theme-toggle";
@@ -201,7 +201,7 @@ const PlanBadge = ({ tenant, isSystemFree }: { tenant: { plan: string; plan_cycl
 
 export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   const { user, signOut } = useAuth();
-  const { tenant, tenantId, isSystemFree } = useTenant();
+  const { tenant, tenantId, isSystemFree, planAccess } = useTenant();
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
@@ -360,21 +360,25 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
         </div>
       </div>
       <div className="flex items-center gap-1.5 md:gap-3">
-        {/* Wallet Balance Button */}
-        <button
-          onClick={() => navigate("/wallet")}
-          className="flex items-center gap-2 h-8 md:h-9 px-2.5 md:px-3 rounded-full border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 cursor-pointer shadow-sm group shrink-0"
-          title="Minha Carteira • Ver Saldo & Extrato"
-        >
-          <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
-            <Wallet className="h-3.5 w-3.5" />
-          </div>
-          <span className="text-xs font-bold font-mono text-emerald-300 whitespace-nowrap">
-            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((walletBalanceCents || 0) / 100)}
-          </span>
-        </button>
+        {/* Wallet Balance Button: visível no plano Free/Expirado ou se houver saldo residual > 0 */}
+        {(!planAccess.canUseOwnGateways || (walletBalanceCents ?? 0) > 0) && (
+          <>
+            <button
+              onClick={() => navigate("/wallet")}
+              className="flex items-center gap-2 h-8 md:h-9 px-2.5 md:px-3 rounded-full border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 cursor-pointer shadow-sm group shrink-0"
+              title={planAccess.canUseOwnGateways ? "Saldo Residual da Carteira • Sacar para seu PIX" : "Minha Carteira • Ver Saldo & Extrato"}
+            >
+              <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
+                <Wallet className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-xs font-bold font-mono text-emerald-300 whitespace-nowrap">
+                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((walletBalanceCents || 0) / 100)}
+              </span>
+            </button>
 
-        <div className="hidden sm:block h-6 w-px bg-border mx-0.5" />
+            <div className="hidden sm:block h-6 w-px bg-border mx-0.5" />
+          </>
+        )}
         {/* Language Switcher */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -592,14 +596,31 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
               <KeyRound className="mr-2 h-4 w-4 text-[#5865F2]" />
               Discord & Token
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/wallet")} className="cursor-pointer">
-              <Wallet className="mr-2 h-4 w-4" />
-              {t.topbar.wallet}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/wallet?tab=pix")} className="cursor-pointer">
-              <QrCode className="mr-2 h-4 w-4" />
-              Chave PIX (Saques)
-            </DropdownMenuItem>
+            {planAccess.canUseOwnGateways ? (
+              <>
+                <DropdownMenuItem onClick={() => navigate("/settings?tab=gateways")} className="cursor-pointer">
+                  <Plug className="mr-2 h-4 w-4 text-emerald-400" />
+                  Meus Gateways (0% Taxa)
+                </DropdownMenuItem>
+                {(walletBalanceCents ?? 0) > 0 && (
+                  <DropdownMenuItem onClick={() => navigate("/wallet")} className="cursor-pointer">
+                    <Wallet className="mr-2 h-4 w-4 text-amber-400" />
+                    Carteira (Saldo Residual)
+                  </DropdownMenuItem>
+                )}
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem onClick={() => navigate("/wallet")} className="cursor-pointer">
+                  <Wallet className="mr-2 h-4 w-4" />
+                  {t.topbar.wallet}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/wallet?tab=pix")} className="cursor-pointer">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Chave PIX (Saques)
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
               <LogOut className="mr-2 h-4 w-4" />

@@ -9,12 +9,12 @@ import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 const STORAGE_KEY_PREFIX = "drika_wallet_split_popup_v1";
 
 export const WalletAnnouncementModal = () => {
-  const { tenantId, tenant } = useTenant();
+  const { tenantId, tenant, planAccess } = useTenant();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || planAccess.canUseOwnGateways) return;
     const storageKey = `${STORAGE_KEY_PREFIX}:${tenantId}`;
     const alreadySeenInSession = sessionStorage.getItem(storageKey);
     if (!alreadySeenInSession) {
@@ -23,7 +23,7 @@ export const WalletAnnouncementModal = () => {
       }, 450);
       return () => clearTimeout(timer);
     }
-  }, [tenantId]);
+  }, [tenantId, planAccess.canUseOwnGateways]);
 
   const handleClose = () => {
     if (tenantId) {
@@ -40,7 +40,7 @@ export const WalletAnnouncementModal = () => {
     navigate("/wallet");
   };
 
-  if (!tenant) return null;
+  if (!tenant || planAccess.canUseOwnGateways) return null;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
