@@ -365,24 +365,25 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
 
   if (!txid && !endToEndId) return { handled: false, reason: "No txid or endToEndId" };
 
+  const isCentral = tenantId === "central" || tenantId === "platform";
   let order: any = null;
   if (txid) {
-    const { data } = await supabase
+    let q = supabase
       .from("orders")
       .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
-      .eq("payment_id", txid)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+      .eq("payment_id", txid);
+    if (!isCentral) q = q.eq("tenant_id", tenantId);
+    const { data } = await q.maybeSingle();
     order = data;
   }
 
   if (!order && endToEndId) {
-    const { data } = await supabase
+    let q = supabase
       .from("orders")
       .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
-      .eq("payment_id", endToEndId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+      .eq("payment_id", endToEndId);
+    if (!isCentral) q = q.eq("tenant_id", tenantId);
+    const { data } = await q.maybeSingle();
     order = data;
   }
 
@@ -620,8 +621,11 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const pathParts = url.pathname.split("/").filter(Boolean);
-    
+    let pathParts = url.pathname.split("/").filter(Boolean);
+    if (pathParts[pathParts.length - 1] === "pix") {
+      pathParts = pathParts.slice(0, -1);
+    }
+
     // Expected path: /payment-webhook/{provider_key}/{tenant_id}
     const provider = pathParts[pathParts.length - 2];
     const tenantId = pathParts[pathParts.length - 1];
@@ -732,19 +736,21 @@ serve(async (req) => {
         result = { handled: false, reason: `Unknown provider: ${provider}` };
     }
 
-    // ─── Wallet deposit fallback: credit wallet ONLY after server-to-server provider confirmation ───
+    // ─── Wallet deposit & subscription fallbacks: credit ONLY after server-to-server provider confirmation ───
     if (!result?.handled) {
       try {
         const pid = extractPaymentId();
-        if (pid && !isCentralWebhook) {
-          const { data: walletTx } = await supabase
+        if (pid) {
+          let walletQuery = supabase
             .from("wallet_transactions")
-            .select("id, status, type, amount_cents")
-            .eq("tenant_id", tenantId)
+            .select("id, tenant_id, status, type, amount_cents")
             .in("payment_id", [pid, pid.toLowerCase()])
             .eq("type", "deposit")
-            .eq("status", "pending")
-            .maybeSingle();
+            .eq("status", "pending");
+          if (!isCentralWebhook) {
+            walletQuery = walletQuery.eq("tenant_id", tenantId);
+          }
+          const { data: walletTx } = await walletQuery.maybeSingle();
 
           if (walletTx) {
             const verification = await verifyPaymentWithGateway(supabase, provider, pid, tenantId, null, true);
@@ -759,10 +765,31 @@ serve(async (req) => {
             } else {
               console.warn(`Wallet deposit ${walletTx.id} rejected by provider check: verified=${verification.verifiedPaid}, reason=${verification.reason}`);
             }
+          } else if (provider === "efi") {
+            const { data: subTx } = await supabase
+              .from("subscription_payments")
+              .select("id")
+              .eq("payment_id", pid)
+              .eq("status", "pending")
+              .maybeSingle();
+
+            if (subTx) {
+              const fwdRes = await fetch(`${supabaseUrl}/functions/v1/subscription-webhook`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                },
+                body: JSON.stringify(body),
+              });
+              if (fwdRes.ok) {
+                result = { handled: true, forwarded_to: "subscription-webhook", payment_id: pid };
+              }
+            }
           }
         }
       } catch (e) {
-        console.error("Wallet credit fallback failed:", e);
+        console.error("Wallet/subscription fallback failed:", e);
       }
     }
 

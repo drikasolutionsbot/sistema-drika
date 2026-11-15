@@ -116,35 +116,60 @@ const SubscriptionPaymentsTab = () => {
   };
 
   const handleForceApprove = async (payment: SubscriptionPayment) => {
-    if (!confirm("Tem certeza que deseja aprovar manualmente este pagamento? Isso ativará o plano Pro.")) return;
-    
+    const planKey: "pro" | "master" =
+      payment.plan === "master" || payment.metadata?.plan === "master" ? "master" : "pro";
+    const planDisplay = planKey === "master" ? "Master" : "Básico (Pro)";
+    const cycleDays =
+      Number(payment.metadata?.cycle_days) ||
+      (payment.metadata?.cycle === "semiannual" ? 180 : payment.metadata?.cycle === "quarterly" ? 90 : 30);
+    const cycleToSet =
+      payment.metadata?.cycle ||
+      (cycleDays === 180 ? "semiannual" : cycleDays === 90 ? "quarterly" : "monthly");
+
+    if (!confirm(`Tem certeza que deseja aprovar manualmente este pagamento? Isso ativará o plano ${planDisplay} por ${cycleDays} dias.`)) return;
+
     setCheckingIds(prev => new Set(prev).add(payment.id));
-    
+
     try {
       const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setDate(periodEnd.getDate() + 30);
+      let periodEnd = new Date(now);
       const isNewSubscriber = payment.tenant_id === "00000000-0000-0000-0000-000000000000";
 
       if (isNewSubscriber) {
+        periodEnd.setDate(periodEnd.getDate() + cycleDays);
         // For new subscribers, trigger via check-subscription-status which handles the full flow
         // We need to use the edge function to handle user creation
-        const { data, error } = await supabase.functions.invoke("check-subscription-status", {
+        const { data } = await supabase.functions.invoke("check-subscription-status", {
           body: { payment_id: payment.payment_id },
         });
-        
+
         if (data?.status !== "paid") {
-          // Force approve by directly updating + creating tenant via subscription-webhook logic
-          // Call subscription-webhook with the payment_id
+          // Force approve by calling subscription-webhook with the payment_id
           const { error: whErr } = await supabase.functions.invoke("subscription-webhook", {
             body: { id: payment.payment_id },
           });
           if (whErr) throw whErr;
         }
       } else {
-        // Existing tenant - just update payment and tenant
+        const { data: currentTenant } = await supabase
+          .from("tenants")
+          .select("plan, plan_expires_at")
+          .eq("id", payment.tenant_id)
+          .maybeSingle();
+
+        if (
+          currentTenant?.plan &&
+          currentTenant.plan !== "free" &&
+          currentTenant.plan_expires_at &&
+          new Date(currentTenant.plan_expires_at) > now
+        ) {
+          periodEnd = new Date(currentTenant.plan_expires_at);
+        }
+        periodEnd.setDate(periodEnd.getDate() + cycleDays);
+
         await supabase.from("subscription_payments").update({
           status: "paid",
+          plan: planKey,
           paid_at: now.toISOString(),
           period_start: now.toISOString(),
           period_end: periodEnd.toISOString(),
@@ -152,14 +177,17 @@ const SubscriptionPaymentsTab = () => {
         }).eq("id", payment.id);
 
         await supabase.from("tenants").update({
-          plan: "pro",
+          plan: planKey,
+          plan_cycle: cycleToSet,
           plan_started_at: now.toISOString(),
           plan_expires_at: periodEnd.toISOString(),
+          reminder_d1_sent_at: null,
+          reminder_d0_sent_at: null,
           updated_at: now.toISOString(),
         }).eq("id", payment.tenant_id);
       }
 
-      toast({ title: "Pagamento aprovado!", description: "O plano Pro foi ativado manualmente." });
+      toast({ title: "Pagamento aprovado!", description: `O plano ${planDisplay} foi ativado manualmente.` });
       await fetchPayments();
     } catch (err: any) {
       toast({ title: "Erro ao aprovar", description: err.message, variant: "destructive" });

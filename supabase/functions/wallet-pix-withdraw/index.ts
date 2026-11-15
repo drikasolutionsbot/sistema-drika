@@ -41,6 +41,7 @@ async function withdrawViaEfi(opts: {
   destinationKey: string;
   amountBRL: number;
   description?: string;
+  isCentral?: boolean;
 }): Promise<{ payment_id: string; status: string }> {
   const normalizedCert = opts.certPem.replace(/\r\n/g, "\n").trim();
   const normalizedKey = opts.keyPem.replace(/\r\n/g, "\n").trim();
@@ -68,21 +69,43 @@ async function withdrawViaEfi(opts: {
   const { access_token } = await tokenRes.json();
 
   // Ensure webhook is registered for the source PIX key (Efí requires it for /envio).
-  // Efí appends /pix to webhook calls; ?ignorar= keeps our route intact.
-  const webhookUrl = `${SUPABASE_URL}/functions/v1/payment-webhook/efi/${opts.tenantId}?ignorar=`;
-  const webhookRes = await fetch(`https://pix.api.efipay.com.br/v2/webhook/${encodeURIComponent(opts.pixKey)}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-      "Content-Type": "application/json",
-      "x-skip-mtls-checking": "true",
-    },
-    body: JSON.stringify({ webhookUrl }),
-    ...fetchOpts,
-  } as any);
-  if (!webhookRes.ok) {
-    const err = await webhookRes.json().catch(async () => ({ mensagem: await webhookRes.text().catch(() => "") }));
-    throw new Error(err.mensagem || err.detail || `Efí webhook: ${webhookRes.status}`);
+  // For the central PIX key, preserve existing Drika Supabase webhook (e.g. subscription-webhook) instead of clobbering it.
+  const targetSegment = opts.isCentral ? "central" : opts.tenantId;
+  const webhookUrl = `${SUPABASE_URL}/functions/v1/payment-webhook/efi/${targetSegment}?ignorar=`;
+  let needsRegister = true;
+  if (opts.isCentral) {
+    try {
+      const checkRes = await fetch(`https://pix.api.efipay.com.br/v2/webhook/${encodeURIComponent(opts.pixKey)}`, {
+        headers: { Authorization: `Bearer ${access_token}` },
+        ...fetchOpts,
+      } as any);
+      if (checkRes.ok) {
+        const current = await checkRes.json();
+        const currentUrl = String(current?.webhookUrl || "");
+        if (
+          currentUrl.startsWith(`${SUPABASE_URL}/functions/v1/subscription-webhook`) ||
+          currentUrl.startsWith(`${SUPABASE_URL}/functions/v1/payment-webhook/efi/central`)
+        ) {
+          needsRegister = false;
+        }
+      }
+    } catch { /* fallback to PUT */ }
+  }
+  if (needsRegister) {
+    const webhookRes = await fetch(`https://pix.api.efipay.com.br/v2/webhook/${encodeURIComponent(opts.pixKey)}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "Content-Type": "application/json",
+        "x-skip-mtls-checking": "true",
+      },
+      body: JSON.stringify({ webhookUrl }),
+      ...fetchOpts,
+    } as any);
+    if (!webhookRes.ok) {
+      const err = await webhookRes.json().catch(async () => ({ mensagem: await webhookRes.text().catch(() => "") }));
+      throw new Error(err.mensagem || err.detail || `Efí webhook: ${webhookRes.status}`);
+    }
   }
 
   // Send PIX (envio): POST /v3/gn/pix/:idEnvio
@@ -390,6 +413,7 @@ Deno.serve(async (req) => {
           destinationKey: pix_key,
           amountBRL: amount_cents / 100,
           description,
+          isCentral: Boolean(provider.is_central),
         });
       } else if (provider_key === "misticpay") {
         if (!provider.api_key_encrypted || !provider.secret_key_encrypted) {

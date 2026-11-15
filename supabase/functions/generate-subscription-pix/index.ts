@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -128,6 +128,35 @@ async function generateViaEfi(config: any, tenant_id: string, email: string | un
 
   const tokenData = await tokenRes.json();
   const accessToken = tokenData.access_token;
+
+  // Ensure Efí webhook for this PIX key points to our subscription-webhook endpoint
+  if (config.efi_pix_key) {
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const expectedBase = `${supabaseUrl}/functions/v1/subscription-webhook`;
+      const desiredWebhookUrl = `${expectedBase}?ignorar=`;
+      const whCheckRes = await fetch(`https://pix.api.efipay.com.br/v2/webhook/${encodeURIComponent(config.efi_pix_key)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        client: httpClient,
+      } as any);
+      const currentWh = whCheckRes.ok ? await whCheckRes.json().catch(() => ({})) : {};
+      const currentWhUrl = String(currentWh?.webhookUrl || "");
+      if (!currentWhUrl.startsWith(expectedBase)) {
+        await fetch(`https://pix.api.efipay.com.br/v2/webhook/${encodeURIComponent(config.efi_pix_key)}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "x-skip-mtls-checking": "true",
+          },
+          body: JSON.stringify({ webhookUrl: desiredWebhookUrl }),
+          client: httpClient,
+        } as any);
+      }
+    } catch (whErr: any) {
+      console.warn("Efí webhook auto-register warning:", whErr?.message || whErr);
+    }
+  }
 
   const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${txId}`, {
     method: "PUT",

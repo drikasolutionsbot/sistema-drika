@@ -82,7 +82,7 @@ const ProUpgradeModal = () => {
     pollRef.current = setInterval(async () => {
       try {
         const { data } = await supabase.functions.invoke("check-subscription-status", {
-          body: { payment_id: paymentId },
+          body: { payment_id: paymentId, tenant_id: tenantId },
         });
         if (data?.status === "paid") {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -95,7 +95,31 @@ const ProUpgradeModal = () => {
           setTimeout(() => window.location.reload(), 3000);
         }
       } catch { /* ignore */ }
-    }, 15000);
+    }, 5000);
+  };
+
+  const handleRegeneratePix = async () => {
+    if (pixResult?.payment_id && tenantId) {
+      setLoading(true);
+      try {
+        const { data } = await supabase.functions.invoke("check-subscription-status", {
+          body: { payment_id: pixResult.payment_id, tenant_id: tenantId },
+        });
+        if (data?.status === "paid") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setConfirmed(true);
+          setLoading(false);
+          toast({
+            title: "Pagamento confirmado!",
+            description: `Seu plano ${planKey === "master" ? "Master" : "Pro"} foi ativado.`,
+          });
+          setTimeout(() => window.location.reload(), 3000);
+          return;
+        }
+      } catch { /* proceed to regenerate */ }
+    }
+    setPixResult(null);
+    generatePix();
   };
 
   const generatePix = async (planOverride?: PlanKey) => {
@@ -214,10 +238,8 @@ const ProUpgradeModal = () => {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => {
-                  setPixResult(null);
-                  generatePix();
-                }}
+                disabled={loading}
+                onClick={handleRegeneratePix}
               >
                 <QrCode className="h-4 w-4 mr-2" />
                 Gerar Novo PIX

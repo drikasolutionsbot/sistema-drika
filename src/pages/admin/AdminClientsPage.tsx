@@ -268,10 +268,14 @@ const AdminClientsPage = () => {
       const updateData: any = { plan: newPlan, plan_cycle: newCycle };
 
       if (newPlan === "pro" || newPlan === "master") {
-        if (!oldTenant?.plan_started_at) {
+        const wasFree = oldPlan === "free" || !oldPlan;
+        const cycleChanged = (oldTenant?.plan_cycle || "monthly") !== newCycle;
+        const isExpired = !oldTenant?.plan_expires_at || new Date(oldTenant.plan_expires_at) < now;
+
+        if (wasFree || !oldTenant?.plan_started_at) {
           updateData.plan_started_at = now.toISOString();
         }
-        if (!oldTenant?.plan_expires_at || new Date(oldTenant.plan_expires_at) < now) {
+        if (wasFree || cycleChanged || isExpired) {
           updateData.plan_expires_at = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000).toISOString();
         }
         updateData.reminder_d1_sent_at = null;
