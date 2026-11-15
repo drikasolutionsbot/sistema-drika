@@ -316,19 +316,32 @@ async function isSplitWalletActive() {
 
 // ── Payment Providers ──
 async function getActivePaymentProvider(tenantId) {
-  let isSplitActive = true;
+  let canUseOwnGateways = false;
   try {
-    // 1. Check if platform Split / Central Wallet mode is enabled
-    const { data: splitRow } = await supabase
-      .from("platform_gateway_settings")
-      .select("enabled")
-      .eq("gateway_key", "system_split_wallet")
+    // 1. Evaluate tenant plan & 48h grace period (same rule as generate-pix / discord-interactions)
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .select("plan, plan_expires_at")
+      .eq("id", tenantId)
       .maybeSingle();
 
-    isSplitActive = splitRow ? splitRow.enabled : true;
+    const now = new Date();
+    const GRACE_PERIOD_MS = 2 * 24 * 60 * 60 * 1000; // 48 horas
+    const planKey = String(tenantRow?.plan || "free").toLowerCase().trim();
+    const isPaid = planKey === "pro" || planKey === "master";
 
-    if (isSplitActive) {
-      // Split mode is ACTIVE: Bot operates ONLY with central platform gateway
+    if (isPaid) {
+      if (!tenantRow?.plan_expires_at) {
+        canUseOwnGateways = true;
+      } else {
+        const expiry = new Date(tenantRow.plan_expires_at);
+        const graceEnd = new Date(expiry.getTime() + GRACE_PERIOD_MS);
+        canUseOwnGateways = now <= graceEnd;
+      }
+    }
+
+    if (!canUseOwnGateways) {
+      // Split mode is ACTIVE (Free or expired > 48h): Bot operates with central platform gateway
       const { data: lc } = await supabase
         .from("landing_config")
         .select("misticpay_active, misticpay_client_id, misticpay_client_secret, efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
@@ -378,15 +391,15 @@ async function getActivePaymentProvider(tenantId) {
       return null;
     }
   } catch (err) {
-    console.error("Error checking split wallet mode in getActivePaymentProvider:", err);
+    console.error("Error checking tenant plan/split mode in getActivePaymentProvider:", err);
   }
 
-  // 2. Split mode is INACTIVE: Operate with tenant's individual gateways avulsas
+  // 2. Paid Plan (active/grace): Operate with tenant's own configured gateways (0% fee)
   const { data: gwSettings } = await supabase
     .from("platform_gateway_settings")
     .select("gateway_key, enabled")
     .eq("enabled", false);
-  const disabledKeys = new Set((gwSettings || []).map((g) => g.gateway_key));
+  const disabledKeys = new Set((gwSettings || []).filter((g) => g.gateway_key !== "system_split_wallet").map((g) => g.gateway_key));
 
   const { data } = await supabase
     .from("payment_providers")
@@ -395,7 +408,12 @@ async function getActivePaymentProvider(tenantId) {
     .eq("active", true);
 
   const allowed = (data || []).filter((p) => !disabledKeys.has(p.provider_key));
-  return allowed.find((p) => p.api_key_encrypted) || null;
+  const own = allowed.find((p) => p.api_key_encrypted) || null;
+  if (own) {
+    own.is_central = false;
+    own.is_split = false;
+  }
+  return own;
 }
 
 // ── Automations ──

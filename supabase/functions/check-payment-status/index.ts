@@ -23,7 +23,7 @@ serve(async (req) => {
     // Get order
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("id, status, payment_id, payment_provider, tenant_id, total_cents, product_name, is_global, global_listing_id")
+      .select("id, status, payment_id, payment_provider, tenant_id, total_cents, product_name, is_global, is_split, global_listing_id")
       .eq("id", order_id)
       .eq("tenant_id", tenant_id)
       .single();
@@ -44,10 +44,10 @@ serve(async (req) => {
       });
     }
 
-    // Resolve credentials: global orders use central gateway in landing_config,
+    // Resolve credentials: global/split orders use central gateway in landing_config,
     // regular tenant orders use payment_providers row for that tenant.
     let providerConfig: any = null;
-    if (order.is_global) {
+    if (order.is_global || order.is_split) {
       const { data: lc } = await supabase
         .from("landing_config")
         .select("misticpay_client_id, misticpay_client_secret, misticpay_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key")
@@ -381,28 +381,41 @@ serve(async (req) => {
       try {
         const { data: orderForWallet } = await supabase
           .from("orders")
-          .select("order_number, product_name, discord_user_id, discord_username, total_cents")
+          .select("order_number, product_name, discord_user_id, discord_username, total_cents, is_split, is_global")
           .eq("id", order_id)
           .single();
 
         if (orderForWallet && orderForWallet.total_cents && orderForWallet.total_cents > 0) {
-          const desc = `Venda Pedido #${orderForWallet.order_number || order_id.slice(0, 8)} - ${orderForWallet.product_name || "Produto"}`;
-          const walletResult = await supabase.rpc("credit_order_to_wallet", {
-            _tenant_id: tenant_id,
-            _order_id: String(order_id),
-            _amount_cents: orderForWallet.total_cents,
-            _description: desc,
-          });
+          const isSplitOrder = Boolean((orderForWallet as any).is_split) || Boolean((orderForWallet as any).is_global);
+          if (isSplitOrder) {
+            const desc = `Venda Pedido #${orderForWallet.order_number || order_id.slice(0, 8)} - ${orderForWallet.product_name || "Produto"}`;
+            const walletResult = await supabase.rpc("credit_order_to_wallet", {
+              _tenant_id: tenant_id,
+              _order_id: String(order_id),
+              _amount_cents: orderForWallet.total_cents,
+              _description: desc,
+            });
 
-          // Persist commission and net amount on the order row
-          if (walletResult?.data) {
-            const feeCents = walletResult.data.fee_cents ?? 0;
-            const netCents = walletResult.data.net_amount_cents ?? Math.max(0, orderForWallet.total_cents - feeCents);
+            // Persist commission and net amount on the order row
+            if (walletResult?.data) {
+              const feeCents = walletResult.data.fee_cents ?? 0;
+              const netCents = walletResult.data.net_amount_cents ?? Math.max(0, orderForWallet.total_cents - feeCents);
+              await supabase
+                .from("orders")
+                .update({
+                  commission_cents: feeCents,
+                  seller_received_cents: netCents,
+                  is_split: true,
+                })
+                .eq("id", order_id);
+            }
+          } else {
             await supabase
               .from("orders")
               .update({
-                commission_cents: feeCents,
-                seller_received_cents: netCents,
+                commission_cents: 0,
+                seller_received_cents: orderForWallet.total_cents,
+                is_split: false,
               })
               .eq("id", order_id);
           }

@@ -31,7 +31,7 @@ async function resolveGatewayCredentials(
   const isCentral = tenantId === "central" || tenantId === "platform";
   const effectiveTenantId = order?.tenant_id || (!isCentral ? tenantId : null);
 
-  if (!isCentral && !order?.is_global && !order?.is_split && effectiveTenantId) {
+  if (!order?.is_global && !order?.is_split && effectiveTenantId) {
     const { data: pc } = await supabase
       .from("payment_providers")
       .select("api_key_encrypted, secret_key_encrypted, efi_cert_pem, efi_key_pem, efi_pix_key")
@@ -420,7 +420,7 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
   });
   if (!claimed) return { handled: false, reason: "Order already processed" };
 
-  return { handled: true, order_status: "paid", payment_id: finalPaymentId, order_id: order.id };
+  return { handled: true, order_status: "paid", payment_id: finalPaymentId, order_id: order.id, tenant_id: order.tenant_id };
 }
 
 async function handleMisticPay(body: any, tenantId: string, supabase: any) {
@@ -793,18 +793,21 @@ serve(async (req) => {
       }
     }
 
-    // Log webhook
-    try {
-      await supabase.from("webhook_logs").insert({
-        tenant_id: tenantId,
-        provider_key: provider,
-        event_type: eventType,
-        payload: body,
-        result,
-        status: result?.handled ? "processed" : "ignored",
-      });
-    } catch (logErr) {
-      console.error("Failed to log webhook:", logErr);
+    // Log webhook (tenant_id column is uuid NOT NULL; skip insert if central/unresolved)
+    const logTenantId = result?.tenant_id || (!isCentralWebhook ? tenantId : null);
+    if (logTenantId) {
+      try {
+        await supabase.from("webhook_logs").insert({
+          tenant_id: logTenantId,
+          provider_key: provider,
+          event_type: eventType,
+          payload: body,
+          result,
+          status: result?.handled ? "processed" : "ignored",
+        });
+      } catch (logErr) {
+        console.error("Failed to log webhook:", logErr);
+      }
     }
 
     // console.log(`Webhook ${provider}/${tenantId}:`, JSON.stringify(result));
@@ -855,8 +858,8 @@ serve(async (req) => {
           // console.log("Auto-delivery result:", JSON.stringify(deliverResult));
 
           if (paidOrder && effectiveTenantId) {
-            // Verifica se o pedido é do modo Split (Free / Expirado > 2 dias) ou Gateway Própria (Plano Pago)
-            const isSplitOrder = Boolean((paidOrder as any)?.is_split) || isCentralRoute;
+            // Verifica se o pedido é do modo Split (Free / Expirado > 2 dias / Global) ou Gateway Própria (Plano Pago)
+            const isSplitOrder = Boolean((paidOrder as any)?.is_split) || Boolean((paidOrder as any)?.is_global);
 
             if (isSplitOrder && paidOrder.total_cents && paidOrder.total_cents > 0) {
               // ─── 1. MODO FREE / CENTRAL: Desconta taxas e credita valor líquido na Carteira Drika ───

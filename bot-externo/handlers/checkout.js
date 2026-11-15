@@ -725,10 +725,15 @@ async function goToPayment(interaction, tenant, orderId) {
   const provider = await getActivePaymentProvider(tenant.id);
 
   if (provider && amountBRL > 0) {
-    const providerKey = provider.provider_key;
+    let providerKey = provider.provider_key;
+    let actualIsCentral = Boolean(provider.is_central);
+    let actualIsSplit = Boolean(provider.is_split);
     const apiKey = provider.api_key_encrypted;
     const cleanOrderId = String(order.id).replace(/[^a-zA-Z0-9]/g, "");
     const externalRef = `order_${cleanOrderId}`.slice(0, 32);
+    const webhookUrl = actualIsCentral
+      ? `${webhookBaseUrl}/${providerKey}/central`
+      : `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
 
     if (providerKey === "mercadopago") {
       const r = await generateMercadoPagoPix(apiKey, amountBRL, order.product_name, externalRef, webhookUrl);
@@ -740,16 +745,20 @@ async function goToPayment(interaction, tenant, orderId) {
       const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-        body: JSON.stringify({ tenant_id: tenant.id, amount_cents: priceCents, product_name: order.product_name, tx_id: externalRef, provider_key: providerKey }),
+        body: JSON.stringify({ tenant_id: tenant.id, amount_cents: priceCents, product_name: order.product_name, tx_id: externalRef, provider_key: providerKey, order_id: order.id }),
       });
       const pixData = await pixRes.json();
       if (pixData.error) throw new Error(pixData.error);
-      brcode = pixData.brcode || ""; paymentId = pixData.payment_id || externalRef;
+      brcode = pixData.brcode || "";
+      paymentId = pixData.payment_id || externalRef;
+      if (pixData.provider) providerKey = pixData.provider;
+      if (typeof pixData.is_central === "boolean") actualIsCentral = pixData.is_central;
+      if (typeof pixData.is_split === "boolean") actualIsSplit = pixData.is_split;
     }
 
-    await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, pix_brcode: brcode });
+    await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, is_split: actualIsSplit, pix_brcode: brcode });
 
-    const provLabel = provider.is_central
+    const provLabel = actualIsCentral
       ? (providerKey === "misticpay" ? "Pix – MisticPay (Split)"
         : providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
         : providerKey === "efi" ? "Pix – Efi Bank (Split)"
