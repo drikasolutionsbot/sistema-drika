@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang } from "../_shared/i18n.ts";
 import { formatCdnUrl } from "../_shared/utils.ts";
@@ -29,6 +29,62 @@ const formatMoney = (cents: number, currency: string | null = "BRL") => {
 };
 
 
+async function authorizeDeliveryCaller(
+  req: Request,
+  supabase: any,
+  serviceRoleKey: string,
+  tenantId: string,
+  bodyToken?: string | null
+): Promise<boolean> {
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization") || "";
+  const apiKeyHeader = req.headers.get("apikey") || "";
+  const rawToken = (authHeader.replace(/^Bearer\s+/i, "") || apiKeyHeader).trim();
+
+  // 1. Internal service_role calls (edge functions, webhooks, polling)
+  if (serviceRoleKey && (rawToken === serviceRoleKey || apiKeyHeader === serviceRoleKey)) {
+    return true;
+  }
+
+  // 2. Dashboard login via store access token
+  if (bodyToken && typeof bodyToken === "string" && bodyToken.trim()) {
+    const { data: tokenRow } = await supabase
+      .from("access_tokens")
+      .select("id")
+      .eq("token", bodyToken.trim())
+      .eq("tenant_id", tenantId)
+      .eq("revoked", false)
+      .maybeSingle();
+    if (tokenRow) return true;
+  }
+
+  // 3. Authenticated Supabase user JWT (super_admin or tenant owner/admin)
+  if (rawToken && rawToken.includes(".")) {
+    const { data: { user }, error } = await supabase.auth.getUser(rawToken);
+    if (!error && user) {
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role, tenant_id")
+        .eq("user_id", user.id);
+
+      const isAllowed = (roleRows || []).some((r: any) =>
+        r.role === "super_admin" ||
+        (r.tenant_id === tenantId && (r.role === "owner" || r.role === "admin"))
+      );
+      if (isAllowed) return true;
+
+      const { data: ownedTenant } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("id", tenantId)
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      if (ownedTenant) return true;
+    }
+  }
+
+  return false;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,22 +94,55 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  let claimedOrderId: string | null = null;
+  let claimedTenantId: string | null = null;
+  let stockConsumed = false;
+
   try {
-    const { order_id, tenant_id } = await req.json();
-    if (!order_id || !tenant_id) throw new Error("Missing order_id or tenant_id");
+    const { order_id, tenant_id: requestedTenantId, access_token } = await req.json();
+    if (!order_id) throw new Error("Missing order_id");
 
-    // 1. Get order details
-    const { data: order, error: orderErr } = await supabase
+    // 1. Resolve order tenant_id first (allows callers passing only order_id while enforcing strict auth)
+    const { data: existingOrder, error: existingErr } = await supabase
       .from("orders")
-      .select("*")
+      .select("id, tenant_id, status")
       .eq("id", order_id)
-      .eq("tenant_id", tenant_id)
-      .single();
+      .maybeSingle();
 
-    if (orderErr || !order) throw new Error("Order not found");
-    if (order.status !== "paid") throw new Error("Order is not paid");
+    if (existingErr || !existingOrder) throw new Error("Order not found");
+    const tenant_id = requestedTenantId || existingOrder.tenant_id;
+    if (requestedTenantId && existingOrder.tenant_id !== requestedTenantId) {
+      throw new Error("Order not found");
+    }
 
-    // 2. Get tenant + external bot token
+    const authorized = await authorizeDeliveryCaller(req, supabase, serviceRoleKey, tenant_id, access_token);
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 2. Atomically transition status 'paid' -> 'delivering' to eliminate parallel race conditions
+    const { data: claimedRows, error: claimErr } = await supabase.rpc("claim_order_for_delivery", {
+      _order_id: order_id,
+      _tenant_id: tenant_id,
+    });
+
+    if (claimErr) throw new Error(`Failed to claim order: ${claimErr.message}`);
+    const order = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
+    if (!order) {
+      return new Response(JSON.stringify({ error: "Order is not paid or already being delivered", status: existingOrder.status }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    claimedOrderId = order.id;
+    claimedTenantId = tenant_id;
+    const orderQty = Math.max(1, Math.min(99, Number(order.quantity) || 1));
+
+    // 3. Get tenant + external bot token
     const { data: tenant } = await supabase
       .from("tenants")
       .select("name, logo_url, discord_guild_id, bot_name, bot_avatar_url, language")
@@ -74,7 +163,7 @@ serve(async (req) => {
     const guildId = tenant?.discord_guild_id;
     if (!guildId) throw new Error("Guild ID not configured");
 
-    // 3. Get product details + determine delivery type
+    // 4. Get product details + determine delivery type
     let isAutoDelivery = false;
     let stockItems: any[] = [];
     const fieldId = order.field_id;
@@ -96,7 +185,7 @@ serve(async (req) => {
       }
 
       if (isAutoDelivery) {
-        let deliveryQty = 1;
+        let perUnitQty = 1;
 
         if (fieldId) {
           const { data: fieldData } = await supabase
@@ -105,7 +194,7 @@ serve(async (req) => {
             .eq("id", fieldId)
             .eq("tenant_id", tenant_id)
             .single();
-          if (fieldData) deliveryQty = fieldData.delivery_quantity || 1;
+          if (fieldData) perUnitQty = Math.max(1, Math.min(500, Number(fieldData.delivery_quantity) || 1));
         } else {
           const { data: fields } = await supabase
             .from("product_fields")
@@ -113,30 +202,34 @@ serve(async (req) => {
             .eq("product_id", order.product_id)
             .eq("tenant_id", tenant_id)
             .order("sort_order", { ascending: true })
-            .limit(1);
-          if (fields && fields.length > 0) deliveryQty = fields[0].delivery_quantity || 1;
+            .limit(2);
+          if (fields && fields.length === 1) {
+            perUnitQty = Math.max(1, Math.min(500, Number(fields[0].delivery_quantity) || 1));
+          }
         }
 
-        const { data: items } = await supabase
-          .from("product_stock_items")
-          .select("*")
-          .eq("product_id", order.product_id)
-          .eq("tenant_id", tenant_id)
-          .eq("delivered", false)
-          .order("created_at", { ascending: true })
-          .limit(deliveryQty);
+        const totalDeliveryQty = Math.min(orderQty * perUnitQty, 1000);
+
+        const { data: items, error: stockErr } = await supabase.rpc("consume_order_stock", {
+          _tenant_id: tenant_id,
+          _product_id: order.product_id,
+          _field_id: fieldId || null,
+          _qty: totalDeliveryQty,
+          _delivered_to: order.discord_user_id,
+        });
+
+        if (stockErr) throw new Error(`Stock consumption error: ${stockErr.message}`);
 
         if (items && items.length > 0) {
+          stockConsumed = true;
           stockItems = items;
-          const ids = items.map((i: any) => i.id);
+
+          // Immediately mark order delivered so crash/timeout later never re-consumes stock
           await supabase
-            .from("product_stock_items")
-            .update({
-              delivered: true,
-              delivered_at: new Date().toISOString(),
-              delivered_to: order.discord_user_id,
-            })
-            .in("id", ids);
+            .from("orders")
+            .update({ status: "delivered", updated_at: new Date().toISOString() })
+            .eq("id", order.id)
+            .eq("tenant_id", tenant_id);
 
           // Recalculate real stock count and sync Discord embed
           const { count: realStock } = await supabase
@@ -218,7 +311,7 @@ serve(async (req) => {
             description: tr(lang, "order_approved_desc"),
             color: purchaseEmbedColor,
             fields: [
-              { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
+              { name: `**${tr(lang, "details_label")}**`, value: `${orderQty}x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
               { name: `**${tr(lang, "payment_gateway_label")}**`, value: providerLabel, inline: true },
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
@@ -268,7 +361,7 @@ serve(async (req) => {
             description: trf(lang, "payment_confirmed_desc", { total: formatMoney(order.total_cents, order.currency) }),
             color: purchaseEmbedColor,
             fields: [
-              { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name}`, inline: false },
+              { name: `**${tr(lang, "details_label")}**`, value: `${orderQty}x ${order.product_name}`, inline: false },
               { name: `**${tr(lang, "payment_gateway_label")}**`, value: providerLabel, inline: true },
               { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: true },
             ],
@@ -284,12 +377,14 @@ serve(async (req) => {
       if (isAutoDelivery && stockItems.length > 0) {
         const stockContent = stockItems.map((item: any) => item.content).join("\n");
 
-        // Send stock content as plain text first
-        await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: stockContent }),
-        });
+        // Send stock content as plain text only if within Discord's 2000-char limit
+        if (stockContent.length <= 1900) {
+          await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: stockContent }),
+          });
+        }
 
         // Send .txt file attachment
         const blob = new Blob([stockContent], { type: "text/plain" });
@@ -317,7 +412,7 @@ serve(async (req) => {
           : `**${tr(lang, "manual_delivery_heading")}**\n${tr(lang, "manual_delivery_customer_desc")}`,
         color: embedColor,
         fields: [
-          { name: `**${tr(lang, "details_label")}**`, value: `1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
+          { name: `**${tr(lang, "details_label")}**`, value: `${orderQty}x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}`, inline: false },
         ],
         footer: {
           text: `${storeBrand.name} â€¢ ${tr(lang, "today_at")} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })}`,
@@ -513,7 +608,7 @@ serve(async (req) => {
           description: trf(lang, "payment_confirmed_log_desc", { user_id: order.discord_user_id }),
           color: 0x57F287, // Verde fixo para log de pagamento confirmado
           fields: [
-            { name: `**${tr(lang, "details_label")}**`, value: `\`1x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
+            { name: `**${tr(lang, "details_label")}**`, value: `\`${orderQty}x ${order.product_name} | ${formatMoney(order.total_cents, order.currency)}\``, inline: false },
             { name: `**${tr(lang, "order_id_label")}**`, value: `\`${order.id}\``, inline: false },
             { name: `**${tr(lang, "payment_method_label")}**`, value: `\`ðŸ’Ž Pix â€“ ${providerLabel}\``, inline: false },
           ],
@@ -682,7 +777,7 @@ serve(async (req) => {
             userAvatarUrl,
             dateTime: `${dateStr} - ${timeStr}`,
             title: tr(lang, "purchase_completed_title"),
-            productName: `1x ${order.product_name}`,
+            productName: `${orderQty}x ${order.product_name}`,
             productPrice: formattedMoney,
             subtotal: formattedMoney,
             total: formattedMoney,
@@ -755,7 +850,7 @@ serve(async (req) => {
               "",
               tr(lang, "purchase_completed"),
               "",
-              `**${tr(lang, "cart_label")}** 1x ${order.product_name}`,
+              `**${tr(lang, "cart_label")}** ${orderQty}x ${order.product_name}`,
               `**${tr(lang, "paid_amount_label")}** ${formattedMoney}`,
             ].join("\n"),
             color: storeConfig?.purchase_embed_color
@@ -821,6 +916,20 @@ serve(async (req) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("deliver-order error:", message);
+
+    if (claimedOrderId && claimedTenantId && !stockConsumed) {
+      try {
+        await supabase
+          .from("orders")
+          .update({ status: "paid", updated_at: new Date().toISOString() })
+          .eq("id", claimedOrderId)
+          .eq("tenant_id", claimedTenantId)
+          .eq("status", "delivering");
+      } catch (rbErr) {
+        console.error("deliver-order rollback failed:", rbErr);
+      }
+    }
+
     return new Response(JSON.stringify({ error: message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

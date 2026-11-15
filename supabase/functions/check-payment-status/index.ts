@@ -104,15 +104,17 @@ serve(async (req) => {
     }
 
     let isPaid = false;
+    const isAmountSufficient = (paidCents: number | null) =>
+      paidCents === null || !order.total_cents || paidCents + 1 >= order.total_cents;
 
-    // â”€â”€ EfÃ­: Check charge status via API â”€â”€
+    // ── Efí: Check charge status via API ──
     if (provider === "efi") {
       const clientId = providerConfig.api_key_encrypted;
       const clientSecret = providerConfig.secret_key_encrypted;
       const certPem = providerConfig.efi_cert_pem;
       const keyPem = providerConfig.efi_key_pem;
 
-      if (!clientId || !clientSecret) throw new Error("EfÃ­ credentials missing");
+      if (!clientId || !clientSecret) throw new Error("Efí credentials missing");
 
       const fetchOpts: any = {};
       if (certPem && keyPem) {
@@ -138,7 +140,7 @@ serve(async (req) => {
         ...fetchOpts,
       } as any);
 
-      if (!tokenRes.ok) throw new Error(`EfÃ­ OAuth error: ${tokenRes.status}`);
+      if (!tokenRes.ok) throw new Error(`Efí OAuth error: ${tokenRes.status}`);
       const tokenData = await tokenRes.json();
       const accessToken = tokenData.access_token;
 
@@ -150,31 +152,35 @@ serve(async (req) => {
 
       if (cobRes.ok) {
         const cobData = await cobRes.json();
-        // console.log(`EfÃ­ cob status for ${paymentId}: ${cobData.status}`, JSON.stringify(cobData));
-        // EfÃ­ statuses: ATIVA (active), CONCLUIDA (paid), REMOVIDA_PELO_USUARIO_RECEBEDOR, REMOVIDA_PELO_PSP
-        if (cobData.status === "CONCLUIDA") {
+        // Efí statuses: ATIVA (active), CONCLUIDA (paid), REMOVIDA_PELO_USUARIO_RECEBEDOR, REMOVIDA_PELO_PSP
+        const pixValor = cobData.pix?.[0]?.valor ?? cobData.valor?.original;
+        const paidCents = pixValor != null && Number.isFinite(Number(pixValor)) ? Math.round(Number(pixValor) * 100) : null;
+        if (cobData.status === "CONCLUIDA" && isAmountSufficient(paidCents)) {
           isPaid = true;
           // Get endToEndId from pix array if available
           const endToEndId = cobData.pix?.[0]?.endToEndId;
           if (endToEndId) {
-            await supabase.from("orders").update({ payment_id: endToEndId }).eq("id", order_id);
+            await supabase.from("orders").update({ payment_id: endToEndId }).eq("id", order_id).eq("status", "pending_payment");
           }
         }
       }
     }
 
-    // â”€â”€ Mercado Pago: Check payment status â”€â”€
+    // ── Mercado Pago: Check payment status ──
     if (provider === "mercadopago" && paymentId) {
       const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Bearer ${providerConfig.api_key_encrypted}` },
       });
       if (res.ok) {
         const payment = await res.json();
-        if (payment.status === "approved") isPaid = true;
+        const paidCents = payment.transaction_amount != null && Number.isFinite(Number(payment.transaction_amount))
+          ? Math.round(Number(payment.transaction_amount) * 100)
+          : null;
+        if (payment.status === "approved" && isAmountSufficient(paidCents)) isPaid = true;
       }
     }
 
-    // â”€â”€ PushinPay: Check payment status â”€â”€
+    // ── PushinPay: Check payment status ──
     if (provider === "pushinpay" && paymentId) {
       const res = await fetch(`https://api.pushinpay.com.br/api/pix/cashIn/${paymentId}`, {
         headers: {
@@ -184,11 +190,14 @@ serve(async (req) => {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.status === "paid" || data.status === "completed" || data.status === "approved") isPaid = true;
+        const paidCents = data?.value != null && Number.isFinite(Number(data.value)) ? Math.round(Number(data.value)) : null;
+        if ((data.status === "paid" || data.status === "completed" || data.status === "approved") && isAmountSufficient(paidCents)) {
+          isPaid = true;
+        }
       }
     }
 
-    // â”€â”€ AbacatePay: Check payment status â”€â”€
+    // ── AbacatePay: Check payment status ──
     if (provider === "abacatepay" && paymentId) {
       try {
         // GET /v1/pixQrCode/check?id=...
@@ -203,15 +212,15 @@ serve(async (req) => {
           const json = await res.json();
           const data = json?.data || json;
           const status = (data?.status || "").toString().toUpperCase();
-          // console.log(`AbacatePay check for ${paymentId}: ${status}`);
-          if (status === "PAID") isPaid = true;
+          const paidCents = data?.amount != null && Number.isFinite(Number(data.amount)) ? Math.round(Number(data.amount)) : null;
+          if (status === "PAID" && (paidCents === null || paidCents <= 0 || isAmountSufficient(paidCents))) isPaid = true;
         }
       } catch (e) {
         console.error("AbacatePay polling error:", e);
       }
     }
 
-    // â”€â”€ MisticPay: Check payment status via transactions/check â”€â”€
+    // ── MisticPay: Check payment status via transactions/check ──
     if (provider === "misticpay" && paymentId) {
       try {
         const ci = providerConfig?.api_key_encrypted || "";
@@ -243,7 +252,7 @@ serve(async (req) => {
       }
     }
 
-    // â”€â”€ Stripe: Check Checkout Session status â”€â”€
+    // ── Stripe: Check Checkout Session status ──
     if (provider === "stripe" && paymentId) {
       try {
         const stripeSecret = providerConfig.api_key_encrypted;
@@ -253,8 +262,12 @@ serve(async (req) => {
           });
           if (res.ok) {
             const session = await res.json();
-            // console.log(`Stripe session ${paymentId}: payment_status=${session.payment_status}, status=${session.status}`);
-            if (session.payment_status === "paid" || session.status === "complete") isPaid = true;
+            const paidCents = session.amount_total != null && Number.isFinite(Number(session.amount_total))
+              ? Math.round(Number(session.amount_total))
+              : null;
+            if ((session.payment_status === "paid" || session.status === "complete") && isAmountSufficient(paidCents)) {
+              isPaid = true;
+            }
           }
         }
       } catch (e) {
@@ -262,7 +275,7 @@ serve(async (req) => {
       }
     }
 
-    // â”€â”€ LofyPay: Check payment status via polling â”€â”€
+    // ── LofyPay: Check payment status via polling ──
     if (provider === "lofypay" && paymentId) {
       try {
         const res = await fetch("https://app.lofypay.com/api/v1/webhook/", {
@@ -273,7 +286,6 @@ serve(async (req) => {
         if (res.ok) {
           const data = await res.json();
           const status = (data?.status || "").toString().toUpperCase();
-          // console.log(`LofyPay check for ${paymentId}: ${status}`);
           if (status === "PAID") isPaid = true;
         }
       } catch (e) {
@@ -281,13 +293,28 @@ serve(async (req) => {
       }
     }
 
-    // If paid, update order and trigger delivery
+    // If paid, claim order atomically and trigger delivery
     if (isPaid) {
-      await supabase
+      const { data: claimedOrder } = await supabase
         .from("orders")
         .update({ status: "paid", updated_at: new Date().toISOString() })
         .eq("id", order_id)
-        .eq("tenant_id", tenant_id);
+        .eq("tenant_id", tenant_id)
+        .eq("status", "pending_payment")
+        .select("id")
+        .maybeSingle();
+
+      if (!claimedOrder) {
+        const { data: latestOrder } = await supabase
+          .from("orders")
+          .select("status")
+          .eq("id", order_id)
+          .eq("tenant_id", tenant_id)
+          .maybeSingle();
+        return new Response(JSON.stringify({ status: latestOrder?.status || "paid", changed: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       // For global marketplace orders, bump listing stats and register split.
       if (order.is_global && order.global_listing_id) {

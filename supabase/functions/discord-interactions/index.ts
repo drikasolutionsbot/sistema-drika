@@ -1383,30 +1383,41 @@ serve(async (req: Request) => {
         const { data: field } = await supabase.from("product_fields").select("*").eq("id", fieldId).single();
         if (!field) { await editFollowup(interaction, botToken, tr(Lproduct, "variation_not_found")); return ok(); }
 
-        // â”€â”€ Stock check for this variation â”€â”€
-        const { count: fieldStock } = await supabase
-          .from("product_stock_items")
-          .select("id", { count: "exact", head: true })
-          .eq("field_id", fieldId)
-          .eq("tenant_id", product.tenant_id)
-          .eq("delivered", false);
-
-        // Fallback: check general stock (field_id IS NULL)
-        let totalStock = fieldStock || 0;
-        if (totalStock === 0) {
-          const { count: generalStock } = await supabase
+        // ── Stock check for this variation (respecting isolation & delivery_quantity) ──
+        if (product.auto_delivery) {
+          const requiredPerUnit = Math.max(1, Math.min(500, Number(field.delivery_quantity ?? product.delivery_quantity ?? 1)));
+          const { count: fieldStock } = await supabase
             .from("product_stock_items")
             .select("id", { count: "exact", head: true })
-            .eq("product_id", product.id)
+            .eq("field_id", fieldId)
             .eq("tenant_id", product.tenant_id)
-            .is("field_id", null)
             .eq("delivered", false);
-          totalStock = generalStock || 0;
-        }
 
-        if (totalStock <= 0) {
-          await editFollowup(interaction, botToken, tr(Lproduct, "variation_out_of_stock"));
-          return ok();
+          let totalStock = fieldStock || 0;
+          if (totalStock === 0) {
+            // Only fallback to general stock if this variation has NEVER had dedicated stock items
+            const { count: fieldTotalEver } = await supabase
+              .from("product_stock_items")
+              .select("id", { count: "exact", head: true })
+              .eq("field_id", fieldId)
+              .eq("tenant_id", product.tenant_id);
+
+            if ((fieldTotalEver || 0) === 0) {
+              const { count: generalStock } = await supabase
+                .from("product_stock_items")
+                .select("id", { count: "exact", head: true })
+                .eq("product_id", product.id)
+                .eq("tenant_id", product.tenant_id)
+                .is("field_id", null)
+                .eq("delivered", false);
+              totalStock = generalStock || 0;
+            }
+          }
+
+          if (totalStock < requiredPerUnit) {
+            await editFollowup(interaction, botToken, tr(Lproduct, "variation_out_of_stock"));
+            return ok();
+          }
         }
 
         await processPurchase(supabase, interaction, botToken, product, product.tenant_id, userId, username, field.price_cents, interaction.guild_id, interaction.channel_id, fieldId, field.name);
@@ -1696,7 +1707,7 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // â”€â”€â”€ CHECKOUT: GO TO PAYMENT (Pix) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ─── CHECKOUT: GO TO PAYMENT (Pix) ────────────────────
       if (customId.startsWith("checkout_pay:")) {
         const orderId = customId.replace("checkout_pay:", "");
         await respondDeferredUpdate(interaction, botToken);
@@ -1704,13 +1715,62 @@ serve(async (req: Request) => {
         const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
         if (!order) { await editFollowup(interaction, botToken, tr("en", "order_not_found")); return ok(); }
         const L = await resolveOrderLang(supabase, order);
+        if (order.discord_user_id && userId && order.discord_user_id !== userId) {
+          await editFollowup(interaction, botToken, "⛔ Apenas o comprador deste pedido pode realizar o pagamento.");
+          return ok();
+        }
         if (order.status !== "pending_payment") {
           await editFollowup(interaction, botToken, trf(L, "order_not_pending_notice", { order_number: order.order_number }));
           return ok();
         }
 
-        // Send loading message with product color
+        // Re-check stock before generating PIX or confirming 100%-discounted order
+        const requestedUnits = Math.max(1, Number(order.quantity ?? 1));
+        const stockInfo = await getOrderStockAvailability(supabase, order);
+        if (stockInfo.autoDelivery && stockInfo.availableUnits < requestedUnits) {
+          await editFollowup(
+            interaction,
+            botToken,
+            `⚠️ Estoque insuficiente para **${requestedUnits}x** (disponível: **${stockInfo.availableUnits}x**). Reduza a quantidade ou aguarde reposição.`,
+          );
+          return ok();
+        }
+
         const channelId = interaction.channel_id;
+
+        // Handle orders discounted to R$ 0.00 via valid coupon safely
+        if ((order.total_cents ?? 0) <= 0) {
+          let couponOk = false;
+          if (order.coupon_id) {
+            const { data: appliedCoupon } = await supabase
+              .from("coupons")
+              .select("id, active")
+              .eq("id", order.coupon_id)
+              .maybeSingle();
+            couponOk = Boolean(appliedCoupon?.active);
+          }
+          if (!couponOk) {
+            await editFollowup(interaction, botToken, "⚠️ Valor do pedido inválido para geração de pagamento.");
+            return ok();
+          }
+          const { data: paidFreeOrder } = await supabase
+            .from("orders")
+            .update({ status: "paid", payment_provider: "coupon_100", updated_at: new Date().toISOString() })
+            .eq("id", order.id)
+            .eq("status", "pending_payment")
+            .select("id")
+            .maybeSingle();
+          if (paidFreeOrder) {
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/deliver-order`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+              body: JSON.stringify({ order_id: order.id, tenant_id: order.tenant_id }),
+            }).catch((e) => console.error("Coupon 100% delivery error:", e));
+          }
+          return ok();
+        }
+
+        // Send loading message with product color
         const loadingColor = await resolveOrderEmbedColor(order) || 0x2B2D31;
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
@@ -3026,58 +3086,64 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // â”€â”€â”€ COUPON MODAL SUBMIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ─── COUPON MODAL SUBMIT ──────────────────────────────
       if (customId.startsWith("coupon_modal_")) {
         const orderId = customId.replace("coupon_modal_", "");
         await respondDeferred(interaction, botToken);
 
         const couponCode = interaction.data?.components?.[0]?.components?.[0]?.value?.trim()?.toUpperCase();
-        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        const { data: order } = await supabase.from("orders").select("id, tenant_id, currency, language, product_id").eq("id", orderId).maybeSingle();
         const L = await resolveOrderLang(supabase, order || {});
         if (!couponCode) { await editFollowup(interaction, botToken, tr(L, "invalid_coupon_code")); return ok(); }
-        if (!order || order.status !== "pending_payment") {
+        if (!order) {
           await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
           return ok();
         }
 
-        // Find coupon
-        const { data: coupon } = await supabase
-          .from("coupons")
-          .select("*")
-          .eq("tenant_id", order.tenant_id)
-          .eq("code", couponCode)
-          .eq("active", true)
-          .single();
+        const { data: couponRes, error: couponRpcErr } = await supabase.rpc("apply_coupon_to_order", {
+          _order_id: orderId,
+          _coupon_code: couponCode,
+          _user_id: userId,
+        });
 
-        if (!coupon) {
+        if (couponRpcErr || !couponRes) {
+          console.error("[COUPON] RPC error:", couponRpcErr);
           await editFollowup(interaction, botToken, tr(L, "coupon_not_found"));
           return ok();
         }
 
-        if (coupon.max_uses && coupon.used_count >= coupon.max_uses) {
-          await editFollowup(interaction, botToken, tr(L, "coupon_usage_limit"));
+        if (!couponRes.ok) {
+          const errCode = couponRes.error;
+          if (errCode === "unauthorized") {
+            await editFollowup(interaction, botToken, "⛔ Apenas o comprador deste pedido pode aplicar cupom.");
+          } else if (errCode === "order_not_pending" || errCode === "order_not_found") {
+            await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
+          } else if (errCode === "coupon_already_applied") {
+            await editFollowup(interaction, botToken, "⚠️ Este pedido já possui um cupom aplicado.");
+          } else if (errCode === "coupon_limit_reached") {
+            await editFollowup(interaction, botToken, tr(L, "coupon_usage_limit"));
+          } else if (errCode === "coupon_expired") {
+            await editFollowup(interaction, botToken, "⏰ Este cupom está expirado.");
+          } else if (errCode === "coupon_wrong_product") {
+            await editFollowup(interaction, botToken, tr(L, "coupon_not_valid_for_product"));
+          } else {
+            await editFollowup(interaction, botToken, tr(L, "coupon_not_found"));
+          }
           return ok();
         }
 
-        if (coupon.product_id && coupon.product_id !== order.product_id) {
-          await editFollowup(interaction, botToken, tr(L, "coupon_not_valid_for_product"));
-          return ok();
-        }
-
-        // Calculate discount
-        let discount = 0;
-        if (coupon.type === "percent") {
-          discount = Math.floor(order.total_cents * coupon.value / 100);
-        } else {
-          discount = coupon.value;
-        }
-        const newTotal = Math.max(0, order.total_cents - discount);
-
-        // Update order
-        await supabase.from("orders").update({ total_cents: newTotal, coupon_id: coupon.id }).eq("id", orderId);
-        await supabase.from("coupons").update({ used_count: coupon.used_count + 1 }).eq("id", coupon.id);
-
+        const oldTotal = Number(couponRes.old_total_cents ?? 0);
+        const discount = Number(couponRes.discount_cents ?? 0);
+        const newTotal = Number(couponRes.new_total_cents ?? 0);
         const channelId = interaction.channel_id;
+
+        if (couponRes.previous_pix_message_id) {
+          await fetch(`${DISCORD_API}/channels/${channelId}/messages/${couponRes.previous_pix_message_id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${botToken}` },
+          }).catch(() => {});
+        }
+
         const couponColor = 0x57F287;
         // Send updated review in the thread
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
@@ -3086,7 +3152,7 @@ serve(async (req: Request) => {
           body: JSON.stringify({
             embeds: [{
               title: tr(L, "coupon_applied_title"),
-              description: trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatMoney(order.total_cents, order.currency), new_total: formatMoney(newTotal, order.currency), discount: formatMoney(discount, order.currency) }),
+              description: trf(L, "coupon_applied_desc", { coupon: couponCode, old_total: formatMoney(oldTotal, order.currency), new_total: formatMoney(newTotal, order.currency), discount: formatMoney(discount, order.currency) }),
               color: couponColor,
             }],
           }),
@@ -3109,16 +3175,21 @@ serve(async (req: Request) => {
         return ok();
       }
 
-      // â”€â”€â”€ QUANTITY MODAL SUBMIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ─── QUANTITY MODAL SUBMIT ──────────────────────────────
       if (customId.startsWith("quantity_modal_")) {
         const orderId = customId.replace("quantity_modal_", "");
         await respondDeferred(interaction, botToken);
 
-        const qtyStr = interaction.data?.components?.[0]?.components?.[0]?.value?.trim();
-        const qty = parseInt(qtyStr || "1");
-        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).single();
+        const qtyStr = (interaction.data?.components?.[0]?.components?.[0]?.value || "").trim();
+        const { data: order } = await supabase.from("orders").select("*").eq("id", orderId).maybeSingle();
         const L = await resolveOrderLang(supabase, order || {});
-        if (isNaN(qty) || qty < 1 || qty > 99) {
+
+        if (!/^\d+$/.test(qtyStr)) {
+          await editFollowup(interaction, botToken, tr(L, "invalid_quantity"));
+          return ok();
+        }
+        const qty = Number(qtyStr);
+        if (!Number.isInteger(qty) || qty < 1 || qty > 99) {
           await editFollowup(interaction, botToken, tr(L, "invalid_quantity"));
           return ok();
         }
@@ -3126,9 +3197,24 @@ serve(async (req: Request) => {
           await editFollowup(interaction, botToken, tr(L, "order_not_found_or_processed"));
           return ok();
         }
+        if (order.discord_user_id && userId && order.discord_user_id !== userId) {
+          await editFollowup(interaction, botToken, "⛔ Apenas o comprador deste pedido pode alterar a quantidade.");
+          return ok();
+        }
+
+        // Verify stock before updating order quantity
+        const stockInfo = await getOrderStockAvailability(supabase, order);
+        if (stockInfo.autoDelivery && stockInfo.availableUnits < qty) {
+          await editFollowup(
+            interaction,
+            botToken,
+            `⚠️ Estoque insuficiente para **${qty}x** (disponível: **${stockInfo.availableUnits}x**).`,
+          );
+          return ok();
+        }
 
         // Get original unit price
-        let unitPrice = order.total_cents; // if qty was 1
+        let unitPrice = order.total_cents;
         if (order.field_id) {
           const { data: field } = await supabase.from("product_fields").select("price_cents").eq("id", order.field_id).single();
           if (field) unitPrice = field.price_cents;
@@ -3137,10 +3223,42 @@ serve(async (req: Request) => {
           if (prod) unitPrice = prod.price_cents;
         }
 
-        const newTotal = unitPrice * qty;
-        await supabase.from("orders").update({ total_cents: newTotal }).eq("id", orderId);
+        const grossTotal = unitPrice * qty;
+        let newTotal = grossTotal;
+        if (order.coupon_id) {
+          const { data: appliedCoupon } = await supabase
+            .from("coupons")
+            .select("type, value")
+            .eq("id", order.coupon_id)
+            .maybeSingle();
+          if (appliedCoupon) {
+            const discount = appliedCoupon.type === "percent"
+              ? Math.floor((grossTotal * appliedCoupon.value) / 100)
+              : appliedCoupon.value;
+            newTotal = Math.max(0, grossTotal - discount);
+          }
+        }
+
+        await supabase
+          .from("orders")
+          .update({
+            quantity: qty,
+            total_cents: newTotal,
+            payment_id: null,
+            pix_brcode: null,
+            pix_message_id: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId)
+          .eq("status", "pending_payment");
 
         const channelId = interaction.channel_id;
+        if (order.pix_message_id) {
+          await fetch(`${DISCORD_API}/channels/${channelId}/messages/${order.pix_message_id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${botToken}` },
+          }).catch(() => {});
+        }
         const qtyColor = 0x2B2D31;
         await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
           method: "POST",
@@ -3270,7 +3388,86 @@ serve(async (req: Request) => {
   });
 });
 
-// â”€â”€â”€ Process Purchase: create order + checkout thread â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Stock Availability Helper (respects field_id isolation & delivery_quantity) ────────
+async function getOrderStockAvailability(
+  supabase: any,
+  order: { tenant_id: string; product_id: string | null; field_id: string | null },
+): Promise<{ autoDelivery: boolean; availableUnits: number; rawStock: number; perUnitQty: number }> {
+  if (!order.product_id) {
+    return { autoDelivery: false, availableUnits: 999999, rawStock: 999999, perUnitQty: 1 };
+  }
+
+  const { data: prod } = await supabase
+    .from("products")
+    .select("auto_delivery, delivery_quantity")
+    .eq("id", order.product_id)
+    .maybeSingle();
+
+  if (!prod?.auto_delivery) {
+    return { autoDelivery: false, availableUnits: 999999, rawStock: 999999, perUnitQty: 1 };
+  }
+
+  let perUnitQty = Number(prod.delivery_quantity ?? 1);
+  if (order.field_id) {
+    const { data: field } = await supabase
+      .from("product_fields")
+      .select("delivery_quantity")
+      .eq("id", order.field_id)
+      .maybeSingle();
+    if (field?.delivery_quantity != null) {
+      perUnitQty = Number(field.delivery_quantity);
+    }
+  }
+  perUnitQty = Math.max(1, Math.min(500, Number.isFinite(perUnitQty) ? perUnitQty : 1));
+
+  let rawStock = 0;
+  if (order.field_id) {
+    const { count: fieldStock } = await supabase
+      .from("product_stock_items")
+      .select("id", { count: "exact", head: true })
+      .eq("field_id", order.field_id)
+      .eq("tenant_id", order.tenant_id)
+      .eq("delivered", false);
+    rawStock = fieldStock || 0;
+
+    if (rawStock === 0) {
+      const { count: fieldTotalEver } = await supabase
+        .from("product_stock_items")
+        .select("id", { count: "exact", head: true })
+        .eq("field_id", order.field_id)
+        .eq("tenant_id", order.tenant_id);
+
+      if ((fieldTotalEver || 0) === 0) {
+        const { count: generalStock } = await supabase
+          .from("product_stock_items")
+          .select("id", { count: "exact", head: true })
+          .eq("product_id", order.product_id)
+          .eq("tenant_id", order.tenant_id)
+          .is("field_id", null)
+          .eq("delivered", false);
+        rawStock = generalStock || 0;
+      }
+    }
+  } else {
+    const { count: generalStock } = await supabase
+      .from("product_stock_items")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", order.product_id)
+      .eq("tenant_id", order.tenant_id)
+      .is("field_id", null)
+      .eq("delivered", false);
+    rawStock = generalStock || 0;
+  }
+
+  return {
+    autoDelivery: true,
+    rawStock,
+    perUnitQty,
+    availableUnits: Math.floor(rawStock / perUnitQty),
+  };
+}
+
+// ─── Process Purchase: create order + checkout thread ────────
 async function processPurchase(
   supabase: any,
   interaction: any,
@@ -3312,6 +3509,7 @@ async function processPurchase(
       product_name: orderName,
       discord_user_id: userId,
       discord_username: username,
+      quantity: 1,
       total_cents: priceCents,
       currency: orderCurrency,
       status: "pending_payment",
@@ -3341,7 +3539,7 @@ async function processPurchase(
     });
   } catch (e) { console.error("Automation order_created failed:", e); }
 
-  // â”€â”€â”€ FREE PRODUCT: deliver immediately without payment â”€â”€â”€â”€
+  // ─── FREE PRODUCT: deliver immediately without payment ────
   if (priceCents <= 0) {
     await supabase.from("orders").update({ 
       status: "paid", 
@@ -3353,7 +3551,7 @@ async function processPurchase(
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/deliver-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-        body: JSON.stringify({ order_id: order.id }),
+        body: JSON.stringify({ order_id: order.id, tenant_id: tenantId }),
       });
     } catch (e) { console.error("Free delivery error:", e); }
 

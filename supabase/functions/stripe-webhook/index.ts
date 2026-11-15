@@ -107,16 +107,26 @@ serve(async (req) => {
       });
     }
 
-    // Buscar webhook secret do tenant para validar assinatura
+    // Buscar webhook secret e API key do tenant para validar assinatura ou consultar Stripe API
     const { data: provider } = await supabase
       .from("payment_providers")
-      .select("stripe_webhook_secret")
+      .select("stripe_webhook_secret, api_key_encrypted")
       .eq("tenant_id", tenantId)
       .eq("provider_key", "stripe")
       .maybeSingle();
 
     const webhookSecret = provider?.stripe_webhook_secret;
-    if (webhookSecret && sigHeader) {
+    let verifiedByStripe = false;
+    let verifiedAmountCents: number | null = null;
+
+    if (webhookSecret) {
+      if (!sigHeader) {
+        console.error("Missing stripe-signature header");
+        return new Response(JSON.stringify({ error: "Missing signature" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const ok = await verifyStripeSignature(rawBody, sigHeader, webhookSecret);
       if (!ok) {
         console.error("Invalid Stripe signature");
@@ -125,8 +135,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-    } else {
-      console.warn("stripe-webhook: secret/signature ausente — aceitando sem validação");
+      verifiedByStripe = true;
     }
 
     // Eventos que confirmam pagamento
@@ -137,36 +146,107 @@ serve(async (req) => {
     ]);
 
     if (PAID_EVENTS.has(eventType) && orderId) {
-      // Verifica status atual e marca como paid
       const { data: order } = await supabase
         .from("orders")
-        .select("id, status")
+        .select("id, status, tenant_id, total_cents, payment_id")
         .eq("id", orderId)
-        .single();
+        .maybeSingle();
 
-      if (order && order.status !== "paid" && order.status !== "delivered") {
-        await supabase
+      if (!order) {
+        return new Response(JSON.stringify({ received: true, ignored: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!verifiedByStripe) {
+        const stripeApiKey = provider?.api_key_encrypted;
+        const lookupId = String(paymentId || order.payment_id || "");
+        if (!stripeApiKey || !lookupId) {
+          console.error("stripe-webhook: secret ausente e sem api_key/payment_id para validação server-to-server");
+          return new Response(JSON.stringify({ error: "Webhook signature or API verification required" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const isSession = lookupId.startsWith("cs_");
+        const stripeEndpoint = isSession
+          ? `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(lookupId)}`
+          : `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(lookupId)}`;
+        const stripeRes = await fetch(stripeEndpoint, {
+          headers: { Authorization: `Bearer ${stripeApiKey}` },
+        });
+        if (!stripeRes.ok) {
+          return new Response(JSON.stringify({ error: "Stripe API verification failed" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const stripeObj = await stripeRes.json();
+        const apiPaid = isSession
+          ? (stripeObj.payment_status === "paid" || stripeObj.status === "complete")
+          : stripeObj.status === "succeeded";
+        if (!apiPaid) {
+          return new Response(JSON.stringify({ received: true, paid: false }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const rawAmt = isSession ? stripeObj.amount_total : stripeObj.amount_received;
+        if (rawAmt != null && Number.isFinite(Number(rawAmt))) {
+          verifiedAmountCents = Math.round(Number(rawAmt));
+        }
+        verifiedByStripe = true;
+      } else {
+        const obj = event?.data?.object;
+        const rawAmt = obj?.amount_total ?? obj?.amount_received ?? obj?.amount;
+        if (rawAmt != null && Number.isFinite(Number(rawAmt))) {
+          verifiedAmountCents = Math.round(Number(rawAmt));
+        }
+      }
+
+      if (!verifiedByStripe) {
+        return new Response(JSON.stringify({ error: "Unverified Stripe event" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (verifiedAmountCents !== null && order.total_cents != null && verifiedAmountCents + 1 < order.total_cents) {
+        console.error(`stripe-webhook: amount mismatch for order=${orderId}, paid=${verifiedAmountCents}, expected=${order.total_cents}`);
+        return new Response(JSON.stringify({ error: "Amount below order total" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (order.status === "pending_payment") {
+        const { data: claimedOrder } = await supabase
           .from("orders")
           .update({
             status: "paid",
             payment_provider: "stripe",
-            payment_id: paymentId,
+            payment_id: paymentId || order.payment_id,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", orderId);
+          .eq("id", orderId)
+          .eq("status", "pending_payment")
+          .select("id")
+          .maybeSingle();
 
-        // Dispara entrega
-        try {
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/deliver-order`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({ order_id: orderId }),
-          });
-        } catch (e) {
-          console.error("deliver-order trigger failed:", e);
+        if (claimedOrder) {
+          // Dispara entrega com tenant_id explícito
+          try {
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/deliver-order`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({ order_id: orderId, tenant_id: order.tenant_id || tenantId }),
+            });
+          } catch (e) {
+            console.error("deliver-order trigger failed:", e);
+          }
         }
       }
     }

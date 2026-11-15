@@ -1128,6 +1128,7 @@ export type Database = {
           pix_message_id: string | null
           product_id: string | null
           product_name: string
+          quantity: number
           seller_received_cents: number
           status: Database["public"]["Enums"]["order_status"]
           tenant_id: string
@@ -1157,6 +1158,7 @@ export type Database = {
           pix_message_id?: string | null
           product_id?: string | null
           product_name: string
+          quantity?: number
           seller_received_cents?: number
           status?: Database["public"]["Enums"]["order_status"]
           tenant_id: string
@@ -1186,6 +1188,7 @@ export type Database = {
           pix_message_id?: string | null
           product_id?: string | null
           product_name?: string
+          quantity?: number
           seller_received_cents?: number
           status?: Database["public"]["Enums"]["order_status"]
           tenant_id?: string

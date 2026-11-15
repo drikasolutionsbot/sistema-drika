@@ -1,4 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { bgBase64 } from "./bg.ts";
 
 const corsHeaders = {
@@ -310,6 +310,8 @@ Deno.serve(async (req) => {
 
     // CREATE a new field
     if (action === "create") {
+      const safePriceCents = Math.max(0, Math.round(Number(field?.price_cents || 0) || 0));
+      const safeDeliveryQty = Math.max(1, Math.min(500, Math.round(Number(field?.delivery_quantity || 1) || 1)));
       const { data, error } = await supabase
         .from("product_fields")
         .insert({
@@ -317,7 +319,8 @@ Deno.serve(async (req) => {
           tenant_id,
           name: field?.name || "Novo",
           description: field?.description || "",
-          price_cents: field?.price_cents || 0,
+          price_cents: safePriceCents,
+          delivery_quantity: safeDeliveryQty,
           sort_order: field?.sort_order || 0,
         })
         .select()
@@ -330,9 +333,19 @@ Deno.serve(async (req) => {
 
     // UPDATE a field
     if (action === "update") {
+      const sanitizedField: Record<string, any> = { ...(field || {}) };
+      if (sanitizedField.delivery_quantity !== undefined) {
+        sanitizedField.delivery_quantity = Math.max(
+          1,
+          Math.min(500, Math.round(Number(sanitizedField.delivery_quantity) || 1))
+        );
+      }
+      if (sanitizedField.price_cents !== undefined) {
+        sanitizedField.price_cents = Math.max(0, Math.round(Number(sanitizedField.price_cents) || 0));
+      }
       const { error } = await supabase
         .from("product_fields")
-        .update(field)
+        .update(sanitizedField)
         .eq("id", field_id)
         .eq("tenant_id", tenant_id);
       if (error) throw error;

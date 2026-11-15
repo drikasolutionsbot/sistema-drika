@@ -118,50 +118,65 @@ const FieldGeralTab = ({
       </div>
 
       {/* Price */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-bold">Preço</Label>
-          <Input
-            type="text"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={priceDisplay}
-            onChange={(e) => setPriceDisplay(e.target.value)}
-            onBlur={() => {
-              const raw = priceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
-              const num = parseFloat(raw);
-              const cents = isNaN(num) ? 0 : Math.round(num * 100);
-              updateField(field.id, { price_cents: cents });
-              setPriceDisplay((cents / 100).toFixed(2).replace(".", ","));
-            }}
-            className="bg-muted border-border"
-          />
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Preço</Label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={priceDisplay}
+              onChange={(e) => setPriceDisplay(e.target.value)}
+              onBlur={() => {
+                const raw = priceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
+                const num = parseFloat(raw);
+                const cents = isNaN(num) ? 0 : Math.max(0, Math.round(num * 100));
+                updateField(field.id, { price_cents: cents });
+                setPriceDisplay((cents / 100).toFixed(2).replace(".", ","));
+              }}
+              className="bg-muted border-border"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">
+              Preço de Comparação <span className="font-normal text-muted-foreground">(Opcional)</span>
+            </Label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={comparePriceDisplay}
+              onChange={(e) => setComparePriceDisplay(e.target.value)}
+              onBlur={() => {
+                const raw = comparePriceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
+                const num = parseFloat(raw);
+                if (!raw || isNaN(num) || num <= 0) {
+                  updateField(field.id, { compare_price_cents: null });
+                  setComparePriceDisplay("");
+                } else {
+                  const cents = Math.round(num * 100);
+                  updateField(field.id, { compare_price_cents: cents });
+                  setComparePriceDisplay((cents / 100).toFixed(2).replace(".", ","));
+                }
+              }}
+              className="bg-muted border-border"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-bold">
-            Preço de Comparação <span className="font-normal text-muted-foreground">(Opcional)</span>
-          </Label>
-          <Input
-            type="text"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={comparePriceDisplay}
-            onChange={(e) => setComparePriceDisplay(e.target.value)}
-            onBlur={() => {
-              const raw = comparePriceDisplay.replace(/[^0-9.,]/g, "").replace(",", ".");
-              const num = parseFloat(raw);
-              if (!raw || isNaN(num) || num <= 0) {
-                updateField(field.id, { compare_price_cents: null });
-                setComparePriceDisplay("");
-              } else {
-                const cents = Math.round(num * 100);
-                updateField(field.id, { compare_price_cents: cents });
-                setComparePriceDisplay((cents / 100).toFixed(2).replace(".", ","));
-              }
-            }}
-            className="bg-muted border-border"
-          />
-        </div>
+        {(() => {
+          const raw = (priceDisplay || "").replace(/[^0-9.,]/g, "").replace(",", ".");
+          const num = parseFloat(raw);
+          const livePriceCents = isNaN(num) ? field.price_cents : Math.max(0, Math.round(num * 100));
+          return livePriceCents <= 0 ? (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 flex items-start gap-2 text-xs text-amber-300">
+              <span>⚠️</span>
+              <span>
+                <strong>Preço R$ 0,00:</strong> qualquer compra nesta variedade será entregue gratuitamente sem gerar cobrança PIX.
+              </span>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* Explicação de taxas & recebimento líquido da variedade */}
@@ -342,17 +357,32 @@ const FieldEstoqueTab = ({
           <h4 className="text-sm font-bold">Quantidade por Entrega</h4>
         </div>
         <div className="space-y-2">
-          <Label className="text-xs font-bold">Itens enviados por compra</Label>
+          <Label className="text-xs font-bold">Itens enviados por compra (1 a 500)</Label>
           <Input
             type="number"
             min={1}
+            max={500}
             value={field.delivery_quantity}
-            onChange={(e) => updateField(field.id, { delivery_quantity: parseInt(e.target.value) || 1 })}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10);
+              const clamped = Math.max(1, Math.min(500, isNaN(parsed) ? 1 : parsed));
+              updateField(field.id, { delivery_quantity: clamped });
+            }}
             className="bg-muted border-border h-9 max-w-[200px]"
           />
           <p className="text-[11px] text-muted-foreground">
-            Define quantos itens do estoque geral serão enviados ao comprador nesta variação.
+            Define quantos itens do estoque serão enviados ao comprador por cada unidade adquirida nesta variação.
           </p>
+          {(field.delivery_quantity || 1) > 1 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 flex items-start gap-2 text-xs text-amber-300">
+              <span>⚠️</span>
+              <span>
+                <strong>Atenção:</strong> cada unidade comprada enviará{" "}
+                <strong>{field.delivery_quantity} itens</strong> do estoque automaticamente (ex: 1x compra ={" "}
+                {field.delivery_quantity} itens, 2x = {(field.delivery_quantity || 1) * 2} itens).
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -718,7 +748,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
             emoji: field.emoji,
             icon_url: field.icon_url,
             banner_url: field.banner_url,
-            price_cents: field.price_cents,
+            price_cents: Math.max(0, Math.round(Number(field.price_cents) || 0)),
             compare_price_cents: field.compare_price_cents,
             enable_credits: field.enable_credits,
             is_subscription: field.is_subscription,
@@ -728,7 +758,7 @@ export const ProductDetailFields = ({ productId, onFieldsChange }: ProductDetail
             require_role_id: field.require_role_id,
             min_quantity: field.min_quantity,
             max_quantity: field.max_quantity,
-            delivery_quantity: field.delivery_quantity || 1,
+            delivery_quantity: Math.max(1, Math.min(500, Math.round(Number(field.delivery_quantity) || 1))),
             pre_purchase_messages: field.pre_purchase_messages || [],
             post_purchase_messages: field.post_purchase_messages || [],
           },

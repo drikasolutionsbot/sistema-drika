@@ -10,7 +10,238 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// â”€â”€â”€ Provider-specific webhook handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Provider-specific verification & webhook helpers ────────────────────────
+
+interface VerifiedGatewayPayment {
+  verifiedPaid: boolean;
+  mappedStatus: "paid" | "pending_payment" | "canceled";
+  paidCents: number | null;
+  endToEndId?: string;
+  externalRef?: string;
+  reason?: string;
+}
+
+async function resolveGatewayCredentials(
+  supabase: any,
+  provider: string,
+  tenantId: string,
+  order: any,
+  allowLandingFallback = false,
+): Promise<any | null> {
+  const isCentral = tenantId === "central" || tenantId === "platform";
+  const effectiveTenantId = order?.tenant_id || (!isCentral ? tenantId : null);
+
+  if (!isCentral && !order?.is_global && !order?.is_split && effectiveTenantId) {
+    const { data: pc } = await supabase
+      .from("payment_providers")
+      .select("api_key_encrypted, secret_key_encrypted, efi_cert_pem, efi_key_pem, efi_pix_key")
+      .eq("tenant_id", effectiveTenantId)
+      .eq("provider_key", provider)
+      .eq("active", true)
+      .maybeSingle();
+    if (pc) return pc;
+  }
+
+  if (isCentral || order?.is_global || order?.is_split || allowLandingFallback || provider === "misticpay") {
+    const { data: lc } = await supabase
+      .from("landing_config")
+      .select("misticpay_client_id, misticpay_client_secret, misticpay_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_api_key, abacatepay_api_key")
+      .limit(1)
+      .maybeSingle();
+    if (lc) {
+      return {
+        api_key_encrypted:
+          provider === "misticpay" ? (lc as any).misticpay_client_id :
+          provider === "efi" ? lc.efi_client_id :
+          provider === "pushinpay" ? lc.pushinpay_api_key :
+          provider === "abacatepay" ? lc.abacatepay_api_key :
+          null,
+        secret_key_encrypted:
+          provider === "misticpay" ? (lc as any).misticpay_client_secret :
+          provider === "efi" ? lc.efi_client_secret :
+          null,
+        efi_cert_pem: lc.efi_cert_pem,
+        efi_key_pem: lc.efi_key_pem,
+        efi_pix_key: lc.efi_pix_key,
+      };
+    }
+  }
+
+  return null;
+}
+
+async function verifyPaymentWithGateway(
+  supabase: any,
+  provider: string,
+  paymentId: string,
+  tenantId: string,
+  order: any,
+  allowLandingFallback = false,
+): Promise<VerifiedGatewayPayment> {
+  const cfg = await resolveGatewayCredentials(supabase, provider, tenantId, order, allowLandingFallback);
+
+  if (provider === "mercadopago") {
+    if (!cfg?.api_key_encrypted) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: "No API key" };
+    const res = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
+      headers: { Authorization: `Bearer ${cfg.api_key_encrypted}` },
+    });
+    if (!res.ok) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `MP API error: ${res.status}` };
+    const payment = await res.json();
+    let mappedStatus: "paid" | "pending_payment" | "canceled" = "pending_payment";
+    if (payment.status === "approved") mappedStatus = "paid";
+    else if (["cancelled", "refunded", "charged_back"].includes(payment.status)) mappedStatus = "canceled";
+    const rawAmount = payment.transaction_amount;
+    const paidCents = rawAmount != null && Number.isFinite(Number(rawAmount)) ? Math.round(Number(rawAmount) * 100) : null;
+    return {
+      verifiedPaid: mappedStatus === "paid",
+      mappedStatus,
+      paidCents,
+      externalRef: payment.external_reference || undefined,
+    };
+  }
+
+  if (provider === "pushinpay") {
+    if (!cfg?.api_key_encrypted) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: "No PushinPay API key" };
+    const res = await fetch(`https://api.pushinpay.com.br/api/pix/cashIn/${encodeURIComponent(paymentId)}`, {
+      headers: {
+        Authorization: `Bearer ${cfg.api_key_encrypted}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `PushinPay API error: ${res.status}` };
+    const data = await res.json();
+    const st = String(data?.status || "").toLowerCase();
+    const verifiedPaid = st === "paid" || st === "completed" || st === "approved";
+    const paidCents = data?.value != null && Number.isFinite(Number(data.value)) ? Math.round(Number(data.value)) : null;
+    return { verifiedPaid, mappedStatus: verifiedPaid ? "paid" : "pending_payment", paidCents };
+  }
+
+  if (provider === "efi") {
+    if (!cfg?.api_key_encrypted || !cfg?.secret_key_encrypted) {
+      return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: "Missing Efí credentials" };
+    }
+    const fetchOpts: any = {};
+    if (cfg.efi_cert_pem && cfg.efi_key_pem) {
+      const normalizedCert = String(cfg.efi_cert_pem).replace(/\r\n/g, "\n").trim();
+      const normalizedKey = String(cfg.efi_key_pem).replace(/\r\n/g, "\n").trim();
+      fetchOpts.client = Deno.createHttpClient({
+        certChain: normalizedCert,
+        privateKey: normalizedKey,
+        cert: normalizedCert,
+        key: normalizedKey,
+      } as any);
+    }
+    const credentials = btoa(`${cfg.api_key_encrypted}:${cfg.secret_key_encrypted}`);
+    const tokenRes = await fetch("https://pix.api.efipay.com.br/oauth/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ grant_type: "client_credentials" }),
+      ...fetchOpts,
+    } as any);
+    if (!tokenRes.ok) {
+      return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `Efí OAuth error: ${tokenRes.status}` };
+    }
+    const tokenData = await tokenRes.json();
+    const cobRes = await fetch(`https://pix.api.efipay.com.br/v2/cob/${encodeURIComponent(paymentId)}`, {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      ...fetchOpts,
+    } as any);
+    if (!cobRes.ok) {
+      return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `Efí cob lookup error: ${cobRes.status}` };
+    }
+    const cobData = await cobRes.json();
+    const verifiedPaid = cobData?.status === "CONCLUIDA";
+    const pixValor = cobData?.pix?.[0]?.valor ?? cobData?.valor?.original;
+    const paidCents = pixValor != null && Number.isFinite(Number(pixValor)) ? Math.round(Number(pixValor) * 100) : null;
+    const endToEndId = cobData?.pix?.[0]?.endToEndId;
+    return { verifiedPaid, mappedStatus: verifiedPaid ? "paid" : "pending_payment", paidCents, endToEndId };
+  }
+
+  if (provider === "misticpay") {
+    const ci = cfg?.api_key_encrypted || "";
+    const cs = cfg?.secret_key_encrypted || "";
+    if (!ci || !cs) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: "Missing MisticPay credentials" };
+    const basicAuth = btoa(`${ci}:${cs}`);
+    const res = await fetch("https://api.misticpay.com/api/transactions/check", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${basicAuth}`,
+        "ci": ci,
+        "cs": cs,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ transactionId: paymentId }),
+    });
+    if (!res.ok) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `MisticPay API error: ${res.status}` };
+    const data = await res.json();
+    const txState = String(
+      data?.transaction?.transactionState ||
+      data?.data?.transactionState ||
+      data?.transactionState ||
+      data?.status ||
+      ""
+    ).toUpperCase();
+    const verifiedPaid = txState === "COMPLETO" || txState === "PAID" || txState === "COMPLETED" || txState === "APROVADO";
+    return { verifiedPaid, mappedStatus: verifiedPaid ? "paid" : "pending_payment", paidCents: null };
+  }
+
+  if (provider === "abacatepay") {
+    if (!cfg?.api_key_encrypted) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: "Missing AbacatePay API key" };
+    const res = await fetch(`https://api.abacatepay.com/v1/pixQrCode/check?id=${encodeURIComponent(paymentId)}`, {
+      headers: {
+        Authorization: `Bearer ${cfg.api_key_encrypted}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `AbacatePay API error: ${res.status}` };
+    const json = await res.json();
+    const data = json?.data || json;
+    const status = String(data?.status || "").toUpperCase();
+    const verifiedPaid = status === "PAID";
+    const paidCents = data?.amount != null && Number.isFinite(Number(data.amount)) ? Math.round(Number(data.amount)) : null;
+    return { verifiedPaid, mappedStatus: verifiedPaid ? "paid" : "pending_payment", paidCents };
+  }
+
+  if (provider === "lofypay") {
+    const res = await fetch("https://app.lofypay.com/api/v1/webhook/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idtransaction: paymentId }),
+    });
+    if (!res.ok) return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `LofyPay API error: ${res.status}` };
+    const data = await res.json();
+    const status = String(data?.status || "").toUpperCase();
+    const verifiedPaid = status === "PAID";
+    return {
+      verifiedPaid,
+      mappedStatus: verifiedPaid ? "paid" : "pending_payment",
+      paidCents: null,
+      externalRef: data?.external_reference || undefined,
+    };
+  }
+
+  return { verifiedPaid: false, mappedStatus: "pending_payment", paidCents: null, reason: `Unsupported provider: ${provider}` };
+}
+
+async function claimPendingOrderAsPaid(
+  supabase: any,
+  order: any,
+  updateFields: Record<string, any>,
+): Promise<boolean> {
+  const { data: updated, error } = await supabase
+    .from("orders")
+    .update({ ...updateFields, status: "paid", updated_at: new Date().toISOString() })
+    .eq("id", order.id)
+    .eq("status", "pending_payment")
+    .select("id")
+    .maybeSingle();
+  return !error && Boolean(updated);
+}
+
+// ─── Provider-specific webhook handlers ──────────────────────────────────────
 async function handleMercadoPago(body: any, tenantId: string, supabase: any) {
   const action = body?.action;
   if (!action?.startsWith("payment.")) return { handled: false, reason: "Not a payment event" };
@@ -18,91 +249,109 @@ async function handleMercadoPago(body: any, tenantId: string, supabase: any) {
   const paymentId = body?.data?.id;
   if (!paymentId) return { handled: false, reason: "No payment ID" };
 
-  const { data: provider } = await supabase
-    .from("payment_providers")
-    .select("api_key_encrypted")
+  const verification = await verifyPaymentWithGateway(supabase, "mercadopago", String(paymentId), tenantId, null);
+  if (verification.reason) return { handled: false, reason: verification.reason };
+
+  if (!verification.externalRef) return { handled: false, reason: "No external_reference" };
+  const orderId = verification.externalRef.replace(/^order_/, "");
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, status, tenant_id, total_cents, payment_id")
+    .eq("id", orderId)
     .eq("tenant_id", tenantId)
-    .eq("provider_key", "mercadopago")
-    .single();
+    .maybeSingle();
 
-  if (!provider?.api_key_encrypted) return { handled: false, reason: "No API key" };
+  if (!order) return { handled: false, reason: "Order not found" };
 
-  const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${provider.api_key_encrypted}` },
-  });
-
-  if (!res.ok) return { handled: false, reason: `MP API error: ${res.status}` };
-
-  const payment = await res.json();
-
-  let orderStatus: string;
-  switch (payment.status) {
-    case "approved": orderStatus = "paid"; break;
-    case "pending": case "in_process": case "authorized": orderStatus = "pending_payment"; break;
-    case "cancelled": case "refunded": case "charged_back": orderStatus = "canceled"; break;
-    default: orderStatus = "pending_payment";
+  if (verification.mappedStatus === "paid") {
+    if (order.status !== "pending_payment") {
+      return { handled: false, reason: `Order already in status ${order.status}` };
+    }
+    if (verification.paidCents !== null && order.total_cents != null && verification.paidCents + 1 < order.total_cents) {
+      console.error(`MercadoPago amount mismatch for order ${orderId}: paid=${verification.paidCents}, expected=${order.total_cents}`);
+      return { handled: false, reason: "Payment amount below order total" };
+    }
+    const claimed = await claimPendingOrderAsPaid(supabase, order, {
+      payment_id: String(paymentId),
+      payment_provider: "mercadopago",
+    });
+    if (!claimed) return { handled: false, reason: "Order already processed concurrently" };
+    return { handled: true, order_status: "paid", payment_id: paymentId, order_id: orderId };
   }
 
-  if (payment.external_reference) {
-    const orderId = payment.external_reference.replace(/^order_/, "");
+  if (verification.mappedStatus === "canceled" && order.status === "pending_payment") {
     await supabase
       .from("orders")
-      .update({ status: orderStatus, payment_id: String(paymentId), payment_provider: "mercadopago" })
+      .update({ status: "canceled", payment_id: String(paymentId), payment_provider: "mercadopago", updated_at: new Date().toISOString() })
       .eq("id", orderId)
-      .eq("tenant_id", tenantId);
-
-    return { handled: true, order_status: orderStatus, payment_id: paymentId, order_id: orderId };
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending_payment");
+    return { handled: true, order_status: "canceled", payment_id: paymentId, order_id: orderId };
   }
 
-  return { handled: false, reason: "No external_reference" };
+  return { handled: false, order_status: verification.mappedStatus, reason: "Payment not yet approved" };
 }
 
 async function handlePushinPay(body: any, tenantId: string, supabase: any) {
-  // PushinPay webhook payload may vary - extract payment ID
   const paymentId = body?.id || body?.payment_id || body?.transaction_id;
-  const status = body?.status;
-
-  // console.log(`PushinPay webhook: paymentId=${paymentId}, status=${status}, body=${JSON.stringify(body)}`);
+  const status = String(body?.status || "").toLowerCase();
 
   if (!paymentId) return { handled: false, reason: "No payment ID in webhook" };
 
-  // Accept various "paid" statuses from PushinPay
   const isPaid = status === "paid" || status === "completed" || status === "approved";
   if (!isPaid) return { handled: false, reason: `Status not paid: ${status}` };
 
-  // Look up order by payment_id (stored when PIX was generated)
-  const { data: order, error: orderErr } = await supabase
+  const { data: orderByPid } = await supabase
     .from("orders")
-    .select("id, status")
+    .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
     .eq("payment_id", String(paymentId))
     .eq("tenant_id", tenantId)
-    .single();
+    .maybeSingle();
 
-  if (orderErr || !order) {
-    // Fallback: try external_reference or metadata
+  let order = orderByPid;
+  if (!order) {
     const extRef = body?.external_reference || body?.metadata?.order_id;
     if (extRef) {
-      const orderId = extRef.replace(/^order_/, "");
-      await supabase
+      const orderId = String(extRef).replace(/^order_/, "");
+      const { data: orderByExt } = await supabase
         .from("orders")
-        .update({ status: "paid", payment_id: String(paymentId), payment_provider: "pushinpay" })
+        .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
         .eq("id", orderId)
-        .eq("tenant_id", tenantId);
-      return { handled: true, order_status: "paid", payment_id: paymentId, order_id: orderId };
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (orderByExt && (!orderByExt.payment_id || orderByExt.payment_id === String(paymentId))) {
+        order = orderByExt;
+      }
     }
+  }
+
+  if (!order) {
     console.error(`PushinPay: No order found for payment_id=${paymentId} in tenant=${tenantId}`);
     return { handled: false, reason: "Order not found by payment_id" };
   }
 
-  if (order.status === "paid" || order.status === "delivered") {
+  if (order.status !== "pending_payment") {
     return { handled: false, reason: "Order already processed" };
   }
 
-  await supabase
-    .from("orders")
-    .update({ status: "paid", payment_provider: "pushinpay" })
-    .eq("id", order.id)
-    .eq("tenant_id", tenantId);
+  // Server-to-server verification against PushinPay API
+  const verification = await verifyPaymentWithGateway(supabase, "pushinpay", String(paymentId), tenantId, order);
+  if (!verification.verifiedPaid) {
+    console.warn(`PushinPay webhook rejected by API check for payment=${paymentId}: ${verification.reason || "unpaid"}`);
+    return { handled: false, reason: verification.reason || "Payment not confirmed by gateway API" };
+  }
+
+  if (verification.paidCents !== null && order.total_cents != null && verification.paidCents + 1 < order.total_cents) {
+    console.error(`PushinPay amount mismatch for order ${order.id}: paid=${verification.paidCents}, expected=${order.total_cents}`);
+    return { handled: false, reason: "Payment amount below order total" };
+  }
+
+  const claimed = await claimPendingOrderAsPaid(supabase, order, {
+    payment_id: String(paymentId),
+    payment_provider: "pushinpay",
+  });
+  if (!claimed) return { handled: false, reason: "Order already processed" };
 
   return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
 }
@@ -111,91 +360,88 @@ async function handleEfi(body: any, tenantId: string, supabase: any) {
   const pix = body?.pix?.[0];
   if (!pix) return { handled: false, reason: "No PIX data" };
 
-  const txid = pix.txid;
-  const endToEndId = pix.endToEndId;
-
-  // console.log(`EfÃ­ webhook: txid=${txid}, endToEndId=${endToEndId}, body=${JSON.stringify(body)}`);
+  const txid = pix.txid ? String(pix.txid) : "";
+  const endToEndId = pix.endToEndId ? String(pix.endToEndId) : "";
 
   if (!txid && !endToEndId) return { handled: false, reason: "No txid or endToEndId" };
 
-  // Look up order by payment_id (txid or endToEndId stored during PIX generation)
-  let order = null;
-
+  let order: any = null;
   if (txid) {
     const { data } = await supabase
       .from("orders")
-      .select("id, status")
+      .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
       .eq("payment_id", txid)
       .eq("tenant_id", tenantId)
-      .single();
+      .maybeSingle();
     order = data;
   }
 
   if (!order && endToEndId) {
     const { data } = await supabase
       .from("orders")
-      .select("id, status")
+      .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
       .eq("payment_id", endToEndId)
       .eq("tenant_id", tenantId)
-      .single();
-    order = data;
-  }
-
-  // Fallback: try txid as order ID directly (legacy)
-  if (!order && txid) {
-    const { data } = await supabase
-      .from("orders")
-      .select("id, status")
-      .eq("id", txid)
-      .eq("tenant_id", tenantId)
-      .single();
+      .maybeSingle();
     order = data;
   }
 
   if (!order) {
-    console.error(`EfÃ­: No order found for txid=${txid} endToEndId=${endToEndId} in tenant=${tenantId}`);
+    console.error(`Efí: No order found for txid=${txid} endToEndId=${endToEndId} in tenant=${tenantId}`);
     return { handled: false, reason: "Order not found" };
   }
 
-  if (order.status === "paid" || order.status === "delivered") {
+  if (order.status !== "pending_payment") {
     return { handled: false, reason: "Order already processed" };
   }
 
-  await supabase
-    .from("orders")
-    .update({ status: "paid", payment_id: endToEndId || txid, payment_provider: "efi" })
-    .eq("id", order.id)
-    .eq("tenant_id", tenantId);
+  const cobLookupId = txid || order.payment_id;
+  if (!cobLookupId) {
+    return { handled: false, reason: "Missing txid for Efí verification" };
+  }
 
-  return { handled: true, order_status: "paid", payment_id: endToEndId || txid, order_id: order.id };
+  // Server-to-server verification against Efí API
+  const verification = await verifyPaymentWithGateway(supabase, "efi", cobLookupId, tenantId, order);
+  if (!verification.verifiedPaid) {
+    console.warn(`Efí webhook rejected by API check for txid=${cobLookupId}: ${verification.reason || "unpaid"}`);
+    return { handled: false, reason: verification.reason || "Payment not confirmed by Efí API" };
+  }
+
+  if (verification.paidCents !== null && order.total_cents != null && verification.paidCents + 1 < order.total_cents) {
+    console.error(`Efí amount mismatch for order ${order.id}: paid=${verification.paidCents}, expected=${order.total_cents}`);
+    return { handled: false, reason: "Payment amount below order total" };
+  }
+
+  const finalPaymentId = verification.endToEndId || endToEndId || cobLookupId;
+  const claimed = await claimPendingOrderAsPaid(supabase, order, {
+    payment_id: finalPaymentId,
+    payment_provider: "efi",
+  });
+  if (!claimed) return { handled: false, reason: "Order already processed" };
+
+  return { handled: true, order_status: "paid", payment_id: finalPaymentId, order_id: order.id };
 }
 
 async function handleMisticPay(body: any, tenantId: string, supabase: any) {
-  // MisticPay webhook: { transactionId, status, value, transactionType, ... } or nested in body.data
   const data = body?.data || body;
   const transactionId = data?.transactionId || body?.transactionId || data?.id || body?.id;
   const status = String(data?.status || data?.transactionState || body?.status || body?.transactionState || "").toUpperCase();
   const transactionType = String(data?.transactionType || body?.transactionType || "").toUpperCase();
 
-  // console.log(`MisticPay webhook: txId=${transactionId}, status=${status}, type=${transactionType}, body=${JSON.stringify(body)}`);
-
   if (!transactionId) return { handled: false, reason: "No transactionId in webhook" };
-  
-  // Only process deposit (cashin) webhooks
+
   if (transactionType && transactionType !== "DEPOSITO" && transactionType !== "CASHIN" && transactionType !== "PIX_IN") {
     return { handled: false, reason: `Not a deposit: ${transactionType}` };
   }
 
-  // Only process completed payments
   if (status !== "COMPLETO" && status !== "PAID" && status !== "COMPLETED" && status !== "APROVADO") {
     return { handled: false, reason: `Status not COMPLETO: ${status}` };
   }
 
-  // Look up order by payment_id (supports both central split mode and per-tenant mode)
   const isCentral = tenantId === "central" || tenantId === "platform";
   let orderQuery = supabase
     .from("orders")
-    .select("id, status, tenant_id")
+    .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
     .eq("payment_id", String(transactionId));
 
   if (!isCentral) {
@@ -204,14 +450,15 @@ async function handleMisticPay(body: any, tenantId: string, supabase: any) {
 
   let { data: order } = await orderQuery.maybeSingle();
 
-  // Fallback: if not found with tenant filter, try by payment_id globally
   if (!order && !isCentral) {
     const { data: globalOrder } = await supabase
       .from("orders")
-      .select("id, status, tenant_id")
+      .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
       .eq("payment_id", String(transactionId))
       .maybeSingle();
-    order = globalOrder;
+    if (globalOrder && (globalOrder.is_split || globalOrder.is_global)) {
+      order = globalOrder;
+    }
   }
 
   if (!order) {
@@ -219,135 +466,150 @@ async function handleMisticPay(body: any, tenantId: string, supabase: any) {
     return { handled: false, reason: "Order not found by payment_id" };
   }
 
-  if (order.status === "paid" || order.status === "delivered") {
+  if (order.status !== "pending_payment") {
     return { handled: false, reason: "Order already processed" };
   }
 
-  await supabase
-    .from("orders")
-    .update({ status: "paid", payment_provider: "misticpay" })
-    .eq("id", order.id);
+  // Server-to-server verification against MisticPay API
+  const verification = await verifyPaymentWithGateway(supabase, "misticpay", String(transactionId), tenantId, order);
+  if (!verification.verifiedPaid) {
+    console.warn(`MisticPay webhook rejected by API check for tx=${transactionId}: ${verification.reason || "unpaid"}`);
+    return { handled: false, reason: verification.reason || "Payment not confirmed by MisticPay API" };
+  }
+
+  const claimed = await claimPendingOrderAsPaid(supabase, order, {
+    payment_provider: "misticpay",
+  });
+  if (!claimed) return { handled: false, reason: "Order already processed" };
 
   return { handled: true, order_status: "paid", payment_id: String(transactionId), order_id: order.id };
 }
 
 async function handleAbacatePay(body: any, tenantId: string, supabase: any) {
-  // AbacatePay webhook payload: { event: "billing.paid" | "pix.paid", data: { id, status, ... } }
-  // Docs: https://docs.abacatepay.com/pages/v1/webhooks
   const event = body?.event || body?.type;
   const data = body?.data || body;
   const paymentId = data?.id || data?.pixQrCodeId || body?.id;
   const status = (data?.status || body?.status || "").toString().toUpperCase();
 
-  // console.log(`AbacatePay webhook: event=${event}, paymentId=${paymentId}, status=${status}`);
-
   if (!paymentId) return { handled: false, reason: "No payment ID in webhook" };
 
-  // AbacatePay envia "PAID" quando confirmado
   const isPaid = status === "PAID" || event === "billing.paid" || event === "pix.paid";
   if (!isPaid) return { handled: false, reason: `Status not paid: ${status} / ${event}` };
 
-  const { data: order, error: orderErr } = await supabase
+  const { data: orderByPid } = await supabase
     .from("orders")
-    .select("id, status")
+    .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
     .eq("payment_id", String(paymentId))
     .eq("tenant_id", tenantId)
-    .single();
+    .maybeSingle();
 
-  if (orderErr || !order) {
+  let order = orderByPid;
+  if (!order) {
     const extRef = data?.externalId || body?.externalId;
     if (extRef) {
-      const orderId = extRef.replace(/^order_/, "").replace(/^PIX/, "");
+      const orderId = String(extRef).replace(/^order_/, "").replace(/^PIX/, "");
       const { data: orderByExt } = await supabase
         .from("orders")
-        .select("id, status")
+        .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
         .eq("id", orderId)
         .eq("tenant_id", tenantId)
         .maybeSingle();
-      if (orderByExt) {
-        await supabase
-          .from("orders")
-          .update({ status: "paid", payment_id: String(paymentId), payment_provider: "abacatepay" })
-          .eq("id", orderByExt.id)
-          .eq("tenant_id", tenantId);
-        return { handled: true, order_status: "paid", payment_id: paymentId, order_id: orderByExt.id };
+      if (orderByExt && (!orderByExt.payment_id || orderByExt.payment_id === String(paymentId))) {
+        order = orderByExt;
       }
     }
+  }
+
+  if (!order) {
     console.error(`AbacatePay: No order found for payment_id=${paymentId} in tenant=${tenantId}`);
     return { handled: false, reason: "Order not found by payment_id" };
   }
 
-  if (order.status === "paid" || order.status === "delivered") {
+  if (order.status !== "pending_payment") {
     return { handled: false, reason: "Order already processed" };
   }
 
-  await supabase
-    .from("orders")
-    .update({ status: "paid", payment_provider: "abacatepay" })
-    .eq("id", order.id)
-    .eq("tenant_id", tenantId);
+  // Server-to-server verification against AbacatePay API
+  const verification = await verifyPaymentWithGateway(supabase, "abacatepay", String(paymentId), tenantId, order);
+  if (!verification.verifiedPaid) {
+    console.warn(`AbacatePay webhook rejected by API check for payment=${paymentId}: ${verification.reason || "unpaid"}`);
+    return { handled: false, reason: verification.reason || "Payment not confirmed by AbacatePay API" };
+  }
+
+  if (verification.paidCents !== null && verification.paidCents > 0 && order.total_cents != null && verification.paidCents + 1 < order.total_cents) {
+    console.error(`AbacatePay amount mismatch for order ${order.id}: paid=${verification.paidCents}, expected=${order.total_cents}`);
+    return { handled: false, reason: "Payment amount below order total" };
+  }
+
+  const claimed = await claimPendingOrderAsPaid(supabase, order, {
+    payment_id: String(paymentId),
+    payment_provider: "abacatepay",
+  });
+  if (!claimed) return { handled: false, reason: "Order already processed" };
 
   return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
 }
 
 async function handleLofyPay(body: any, tenantId: string, supabase: any) {
-  // LofyPay webhook payload: { status: "PAID", idTransaction, amount, external_reference, paid_at }
   const status = (body?.status || "").toString().toUpperCase();
   const paymentId = body?.idTransaction || body?.id;
   const extRef = body?.external_reference;
 
-  // console.log(`LofyPay webhook: status=${status}, paymentId=${paymentId}, extRef=${extRef}`);
-
   if (status !== "PAID") return { handled: false, reason: `Status not PAID: ${status}` };
   if (!paymentId && !extRef) return { handled: false, reason: "No payment ID or external_reference" };
 
-  // Try by external_reference first (most reliable)
-  if (extRef) {
-    const orderId = extRef.replace(/^order_/, "");
-    const { data: order } = await supabase
-      .from("orders")
-      .select("id, status")
-      .eq("id", orderId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
-
-    if (order) {
-      if (order.status === "paid" || order.status === "delivered") {
-        return { handled: false, reason: "Order already processed" };
-      }
-      await supabase
-        .from("orders")
-        .update({ status: "paid", payment_id: String(paymentId || extRef), payment_provider: "lofypay" })
-        .eq("id", order.id)
-        .eq("tenant_id", tenantId);
-      return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
-    }
-  }
-
-  // Fallback: try by payment_id
+  let order: any = null;
   if (paymentId) {
-    const { data: order } = await supabase
+    const { data } = await supabase
       .from("orders")
-      .select("id, status")
+      .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
       .eq("payment_id", String(paymentId))
       .eq("tenant_id", tenantId)
       .maybeSingle();
+    order = data;
+  }
 
-    if (order) {
-      if (order.status === "paid" || order.status === "delivered") {
-        return { handled: false, reason: "Order already processed" };
-      }
-      await supabase
-        .from("orders")
-        .update({ status: "paid", payment_provider: "lofypay" })
-        .eq("id", order.id)
-        .eq("tenant_id", tenantId);
-      return { handled: true, order_status: "paid", payment_id: paymentId, order_id: order.id };
+  if (!order && extRef) {
+    const orderId = String(extRef).replace(/^order_/, "");
+    const { data } = await supabase
+      .from("orders")
+      .select("id, status, tenant_id, total_cents, payment_id, is_global, is_split")
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (data && (!data.payment_id || !paymentId || data.payment_id === String(paymentId))) {
+      order = data;
     }
   }
 
-  console.error(`LofyPay: No order found for extRef=${extRef}, paymentId=${paymentId} in tenant=${tenantId}`);
-  return { handled: false, reason: "Order not found" };
+  if (!order) {
+    console.error(`LofyPay: No order found for extRef=${extRef}, paymentId=${paymentId} in tenant=${tenantId}`);
+    return { handled: false, reason: "Order not found" };
+  }
+
+  if (order.status !== "pending_payment") {
+    return { handled: false, reason: "Order already processed" };
+  }
+
+  const lookupTxId = String(paymentId || order.payment_id || "");
+  if (!lookupTxId) {
+    return { handled: false, reason: "No LofyPay transaction ID to verify" };
+  }
+
+  // Server-to-server verification against LofyPay API
+  const verification = await verifyPaymentWithGateway(supabase, "lofypay", lookupTxId, tenantId, order);
+  if (!verification.verifiedPaid) {
+    console.warn(`LofyPay webhook rejected by API check for tx=${lookupTxId}: ${verification.reason || "unpaid"}`);
+    return { handled: false, reason: verification.reason || "Payment not confirmed by LofyPay API" };
+  }
+
+  const claimed = await claimPendingOrderAsPaid(supabase, order, {
+    payment_id: lookupTxId,
+    payment_provider: "lofypay",
+  });
+  if (!claimed) return { handled: false, reason: "Order already processed" };
+
+  return { handled: true, order_status: "paid", payment_id: lookupTxId, order_id: order.id };
 }
 
 // â”€â”€â”€ Main handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -432,15 +694,19 @@ serve(async (req) => {
     // Helper: extract a payment_id from the webhook body for any provider
     const extractPaymentId = (): string | null => {
       const id =
+        body?.pix?.[0]?.txid ||
         body?.data?.id ||
+        body?.data?.transactionId ||
         body?.id ||
         body?.payment_id ||
         body?.transaction_id ||
+        body?.transactionId ||
         body?.idTransaction ||
         body?.txid ||
         body?.pixQrCode?.id ||
+        body?.pix?.[0]?.endToEndId ||
         null;
-      return id ? String(id).toLowerCase() : null;
+      return id ? String(id) : null;
     };
 
     switch (provider) {
@@ -466,24 +732,33 @@ serve(async (req) => {
         result = { handled: false, reason: `Unknown provider: ${provider}` };
     }
 
-    // â”€â”€â”€ Wallet deposit fallback: credit wallet if a pending deposit matches this payment â”€â”€â”€
-    if (!result?.handled || result?.order_status === "paid") {
+    // ─── Wallet deposit fallback: credit wallet ONLY after server-to-server provider confirmation ───
+    if (!result?.handled) {
       try {
         const pid = extractPaymentId();
-        if (pid) {
+        if (pid && !isCentralWebhook) {
           const { data: walletTx } = await supabase
             .from("wallet_transactions")
-            .select("id, status, type")
+            .select("id, status, type, amount_cents")
             .eq("tenant_id", tenantId)
-            .eq("payment_id", pid)
+            .in("payment_id", [pid, pid.toLowerCase()])
             .eq("type", "deposit")
             .eq("status", "pending")
             .maybeSingle();
 
           if (walletTx) {
-            await supabase.rpc("credit_wallet_deposit", { _tx_id: walletTx.id });
-            // console.log(`Wallet deposit credited: tx=${walletTx.id} payment_id=${pid}`);
-            result = { ...(result || {}), wallet_credited: true };
+            const verification = await verifyPaymentWithGateway(supabase, provider, pid, tenantId, null, true);
+            const amountOk =
+              verification.paidCents === null ||
+              !walletTx.amount_cents ||
+              verification.paidCents + 1 >= walletTx.amount_cents;
+
+            if (verification.verifiedPaid && amountOk) {
+              await supabase.rpc("credit_wallet_deposit", { _tx_id: walletTx.id });
+              result = { handled: true, wallet_credited: true, payment_id: pid };
+            } else {
+              console.warn(`Wallet deposit ${walletTx.id} rejected by provider check: verified=${verification.verifiedPaid}, reason=${verification.reason}`);
+            }
           }
         }
       } catch (e) {

@@ -46,7 +46,7 @@ async function invokeWithRetry(fnName: string, body: any, retries = 2) {
 }
 
 export default function ApprovalsPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, tenant } = useTenant();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("pending_payment");
   const [processing, setProcessing] = useState<string | null>(null);
@@ -83,7 +83,11 @@ export default function ApprovalsPage() {
       if (error) throw error;
 
       try {
-        await invokeWithRetry("deliver-order", { order_id: orderId });
+        await invokeWithRetry("deliver-order", {
+          order_id: orderId,
+          tenant_id: tenantId,
+          access_token: tenant?.access_token,
+        });
       } catch (e) {
         console.error("Auto-deliver error:", e);
       }
