@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { evaluatePlanAccess, type PlanAccessStatus } from "@/lib/plans";
@@ -215,8 +215,27 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   // Mantém retrocompatibilidade de isPlanExpired (somente quando a tolerância de 2 dias também já expirou)
   const isPlanExpired = planAccess.isExpired && planAccess.isGraceExpired;
 
+  // Se o período de tolerância de 2 dias já expirou, a loja opera efetivamente no plano "free"
+  const effectiveTenant = useMemo(() => {
+    if (!tenant) return null;
+    if (planAccess.isGraceExpired && tenant.plan !== "free") {
+      return { ...tenant, plan: "free" };
+    }
+    return tenant;
+  }, [tenant, planAccess.isGraceExpired]);
+
+  // Sincroniza com o banco de dados caso ainda estivesse salvo como pro/master
+  useEffect(() => {
+    if (tenant?.id && planAccess.isGraceExpired && tenant.plan !== "free") {
+      supabase
+        .from("tenants")
+        .update({ plan: "free", updated_at: new Date().toISOString() })
+        .eq("id", tenant.id);
+    }
+  }, [tenant?.id, tenant?.plan, planAccess.isGraceExpired]);
+
   return (
-    <TenantContext.Provider value={{ tenant, tenantId: tenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree, globalBotBanner, planAccess }}>
+    <TenantContext.Provider value={{ tenant: effectiveTenant, tenantId: effectiveTenant?.id ?? null, loading, refetch: () => fetchTenant(true), isPlanExpired, isSystemFree, globalBotBanner, planAccess }}>
       {children}
     </TenantContext.Provider>
   );

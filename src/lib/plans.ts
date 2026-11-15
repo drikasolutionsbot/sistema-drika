@@ -236,16 +236,31 @@ export function evaluatePlanAccess(
   const graceHoursRemaining = Math.ceil(msUntilGraceEnd / (1000 * 60 * 60));
   const daysExpired = Math.max(1, Math.floor((now - expiryTime) / (1000 * 60 * 60 * 24)));
 
+  if (isGraceExpired) {
+    // Esgotou a tolerância de 2 dias: a loja volta automaticamente para o Plano FREE
+    return {
+      isFree: true,
+      isPaid: false,
+      isExpired: true,
+      isInGracePeriod: false,
+      isGraceExpired: true,
+      canUseOwnGateways: false,
+      usesSplitWallet: true,
+      graceHoursRemaining: 0,
+      daysExpired,
+      graceEnd: new Date(graceEndTime),
+    };
+  }
+
+  // Ainda dentro dos 2 dias de tolerância: mantém gateways próprias ativas temporariamente
   return {
     isFree: false,
     isPaid: true,
     isExpired: true,
-    isInGracePeriod,
-    isGraceExpired,
-    // Permite usar gateways próprias até 2 dias de tolerância
-    canUseOwnGateways: isInGracePeriod,
-    // Se passou de 2 dias sem renovar, opera em Split + Carteira igual ao Free
-    usesSplitWallet: isGraceExpired,
+    isInGracePeriod: true,
+    isGraceExpired: false,
+    canUseOwnGateways: true,
+    usesSplitWallet: false,
     graceHoursRemaining,
     daysExpired,
     graceEnd: new Date(graceEndTime),

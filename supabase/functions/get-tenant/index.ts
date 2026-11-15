@@ -28,6 +28,20 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    // Se o plano pago expirou há mais de 2 dias (tolerância de 48h esgotada), reverte para Free
+    if (data.plan && data.plan !== "free" && data.plan_expires_at) {
+      const nowMs = Date.now();
+      const expiryMs = new Date(data.plan_expires_at).getTime();
+      const graceEndMs = expiryMs + 2 * 24 * 60 * 60 * 1000;
+      if (nowMs > graceEndMs) {
+        data.plan = "free";
+        await supabase
+          .from("tenants")
+          .update({ plan: "free", updated_at: new Date().toISOString() })
+          .eq("id", tenant_id);
+      }
+    }
+
     // Fetch active access token for this tenant (auto-renew or create if missing)
     const { data: tokenData } = await supabase
       .from("access_tokens")
