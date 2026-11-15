@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Wallet,
@@ -42,6 +42,8 @@ import {
   Download,
   Settings2,
   Info,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { generateWithdrawalReceiptPDF } from "@/lib/withdrawalReceiptPdf";
 import { Button } from "@/components/ui/button";
@@ -205,6 +207,57 @@ export interface AuditSummary {
 const formatBRL = (cents: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 
+// Chime de notificação agradável em Web Audio API nativo (sem depender de arquivos externos)
+const playChimeSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+    const now = ctx.currentTime;
+
+    // Nota 1: E5 (659.25 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(659.25, now);
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.3);
+
+    // Nota 2: A5 (880 Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(880, now + 0.12);
+    gain2.gain.setValueAtTime(0.25, now + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.12);
+    osc2.stop(now + 0.5);
+
+    // Nota 3: C#6 (1108.73 Hz) - acorde de confirmação
+    const osc3 = ctx.createOscillator();
+    const gain3 = ctx.createGain();
+    osc3.type = "sine";
+    osc3.frequency.setValueAtTime(1108.73, now + 0.24);
+    gain3.gain.setValueAtTime(0.3, now + 0.24);
+    gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    osc3.connect(gain3);
+    gain3.connect(ctx.destination);
+    osc3.start(now + 0.24);
+    osc3.stop(now + 0.7);
+  } catch (err) {
+    console.warn("Could not play notification audio:", err);
+  }
+};
+
 export default function AdminWalletPage() {
   const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
@@ -221,6 +274,34 @@ export default function AdminWalletPage() {
     const next = !showBalance;
     setShowBalance(next);
     localStorage.setItem("drika_admin_show_balance", String(next));
+  };
+
+  // Sound alert for new withdrawals
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem("drika_admin_wallet_sound") !== "false";
+  });
+  const soundEnabledRef = useRef(soundEnabled);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
+
+  const prevPendingCountRef = useRef<number | null>(null);
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem("drika_admin_wallet_sound", String(next));
+    if (next) {
+      playChimeSound();
+      toast({
+        title: "🔊 Alerta sonoro ativado!",
+        description: "Você ouvirá um toque sempre que entrar um novo saque.",
+      });
+    } else {
+      toast({
+        title: "🔇 Alerta sonoro silenciado.",
+      });
+    }
   };
 
   // Active Tab
@@ -372,16 +453,37 @@ export default function AdminWalletPage() {
   };
 
   // Load all admin data
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const loadData = useCallback(async (isRefresh = false, silent = false) => {
+    if (silent) {
+      // Atualização silenciosa em tempo real / polling, sem travar tela ou piscar botões
+    } else if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
     try {
       // 1. Metrics
       const mRes = await supabase.functions.invoke("manage-wallet", {
         body: { action: "admin_metrics" },
       });
-      if (mRes.data?.metrics) setMetrics(mRes.data.metrics);
+      if (mRes.data?.metrics) {
+        const nextMetrics = mRes.data.metrics;
+        setMetrics(nextMetrics);
+
+        // Detecta se entrou novo saque pendente
+        const curPending = nextMetrics.pending_count || 0;
+        if (prevPendingCountRef.current !== null && curPending > prevPendingCountRef.current) {
+          if (soundEnabledRef.current) {
+            playChimeSound();
+          }
+          toast({
+            title: "🔔 Novo Saque Solicitado!",
+            description: `Você tem ${curPending} saque(s) aguardando aprovação.`,
+          });
+        }
+        prevPendingCountRef.current = curPending;
+      }
 
       // 2. Withdrawals
       const wRes = await supabase.functions.invoke("manage-wallet", {
@@ -457,16 +559,30 @@ export default function AdminWalletPage() {
       }
     } catch (err: any) {
       console.error("Error loading admin wallet data:", err);
-      toast({
-        title: "Erro ao carregar dados",
-        description: err.message,
-        variant: "destructive",
-      });
+      if (!silent) {
+        toast({
+          title: "Erro ao carregar dados",
+          description: err.message,
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
+
+  // Notificação no título da aba do navegador para novos saques
+  useEffect(() => {
+    const pendingCount = metrics?.pending_count || 0;
+    if (pendingCount > 0) {
+      document.title = `(${pendingCount}) 🔔 Saque Pendente | Drika Hub Admin`;
+    } else {
+      document.title = "Carteira & Saques | Drika Hub Admin";
+    }
+  }, [metrics?.pending_count]);
 
   // Handle Toggle Split Mode
   const handleToggleSplit = async (newVal: boolean) => {
@@ -497,22 +613,57 @@ export default function AdminWalletPage() {
   useEffect(() => {
     loadData();
 
-    // Realtime: auto-refresh when orders are created or updated, or wallet transactions change
+    // Realtime: auto-refresh imediato quando clientes solicitam saque, quando pedidos entram ou carteiras mudam
     const channel = supabase
-      .channel("admin-wallet-realtime")
+      .channel("admin-wallet-realtime-live")
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "wallet_transactions" },
+        (payload: any) => {
+          const newTx = payload?.new;
+          if (newTx?.type === "withdrawal" && newTx?.status === "pending") {
+            if (soundEnabledRef.current) {
+              playChimeSound();
+            }
+            toast({
+              title: "🔔 Novo Saque Solicitado!",
+              description: `Valor: ${formatBRL(newTx.amount_cents || 0)} aguardando aprovação.`,
+            });
+          }
+          loadData(true, true);
+        }
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "UPDATE", schema: "public", table: "wallet_transactions" },
+        () => loadData(true, true)
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "DELETE", schema: "public", table: "wallet_transactions" },
+        () => loadData(true, true)
+      )
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "wallets" },
+        () => loadData(true, true)
+      )
       .on(
         "postgres_changes" as any,
         { event: "*", schema: "public", table: "orders" },
-        () => loadData()
+        () => loadData(true, true)
       )
-      .on(
-        "postgres_changes" as any,
-        { event: "*", schema: "public", table: "wallet_transactions" },
-        () => loadData()
-      )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Realtime] Carteira admin conectado:", status);
+      });
+
+    // Fallback: Polling a cada 10s para garantir atualização mesmo em caso de perda temporária de socket
+    const pollInterval = setInterval(() => {
+      loadData(true, true);
+    }, 10000);
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [loadData]);
@@ -1089,6 +1240,43 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
           >
             <Settings2 className="h-3.5 w-3.5 text-pink-400" />
             Regras de Saque
+          </Button>
+
+          {/* Indicador de Tempo Real */}
+          <div
+            title="Sincronização em tempo real ativada (Supabase Realtime + Polling inteligente)"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 text-xs font-semibold select-none shadow-sm"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="hidden sm:inline">Tempo Real Ativo</span>
+          </div>
+
+          {/* Botão de Alerta Sonoro */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSound}
+            title={soundEnabled ? "Toque sonoro ativado ao receber novo saque (clique para silenciar)" : "Som desativado (clique para ativar toque)"}
+            className={`gap-1.5 border text-xs transition-colors ${
+              soundEnabled
+                ? "border-emerald-500/40 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/40 hover:text-white"
+                : "border-slate-800 bg-[#0d1321] text-slate-400 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            {soundEnabled ? (
+              <>
+                <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Som Ativo</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="h-3.5 w-3.5 text-slate-400" />
+                <span className="hidden sm:inline">Som Mudo</span>
+              </>
+            )}
           </Button>
 
           <Button
