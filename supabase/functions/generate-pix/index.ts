@@ -147,7 +147,7 @@ async function generateViaPushinPay(
   };
 }
 
-// â”€â”€â”€ Gateway: EfÃ­ (Gerencianet) with mTLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Gateway: Efí (Gerencianet) with mTLS ─────────────────────────
 async function generateViaEfi(
   clientId: string,
   clientSecret: string,
@@ -185,7 +185,7 @@ async function generateViaEfi(
   } as any);
 
   if (!tokenRes.ok) {
-    throw new Error(`EfÃ­ OAuth error: ${tokenRes.status}`);
+    throw new Error(`Efí OAuth error: ${tokenRes.status}`);
   }
 
   const tokenData = await tokenRes.json();
@@ -216,7 +216,7 @@ async function generateViaEfi(
 
   if (!cobRes.ok) {
     const err = await cobRes.json().catch(() => ({}));
-    throw new Error(err.mensagem || `EfÃ­ cob error: ${cobRes.status}`);
+    throw new Error(err.mensagem || `Efí cob error: ${cobRes.status}`);
   }
 
   const cobData = await cobRes.json();
@@ -400,11 +400,12 @@ serve(async (req) => {
       (gwSettings || []).filter((g: any) => !g.enabled && g.gateway_key !== "system_split_wallet").map((g: any) => g.gateway_key)
     );
 
+    const centralCandidates: any[] = [];
     let activeProvider: any = null;
 
     // ─── Escolha da Rota de Pagamento ───
     if (!canUseOwnGateways) {
-      // 1. MODO FREE / EXPIRADO (> 2 dias): Split na Gateway Central da Drika
+      // 1. MODO FREE / EXPIRADO (> 2 dias) / SPLIT OPT-IN: Gateway Central da Drika (com fallback entre ativas)
       const { data: lc } = await supabase
         .from("landing_config")
         .select("misticpay_active, misticpay_client_id, misticpay_client_secret, efi_active, efi_client_id, efi_client_secret, efi_cert_pem, efi_key_pem, efi_pix_key, pushinpay_active, pushinpay_api_key, abacatepay_active, abacatepay_api_key")
@@ -413,15 +414,16 @@ serve(async (req) => {
 
       if (lc) {
         if ((lc as any).misticpay_active && (lc as any).misticpay_client_id && (lc as any).misticpay_client_secret) {
-          activeProvider = {
+          centralCandidates.push({
             provider_key: "misticpay",
             api_key_encrypted: (lc as any).misticpay_client_id,
             secret_key_encrypted: (lc as any).misticpay_client_secret,
             is_central: true,
             is_split: true,
-          };
-        } else if (lc.efi_active && lc.efi_client_id) {
-          activeProvider = {
+          });
+        }
+        if (lc.efi_active && lc.efi_client_id) {
+          centralCandidates.push({
             provider_key: "efi",
             api_key_encrypted: lc.efi_client_id,
             secret_key_encrypted: lc.efi_client_secret,
@@ -430,27 +432,30 @@ serve(async (req) => {
             efi_pix_key: lc.efi_pix_key,
             is_central: true,
             is_split: true,
-          };
-        } else if (lc.pushinpay_active && lc.pushinpay_api_key) {
-          activeProvider = {
+          });
+        }
+        if (lc.pushinpay_active && lc.pushinpay_api_key) {
+          centralCandidates.push({
             provider_key: "pushinpay",
             api_key_encrypted: lc.pushinpay_api_key,
             is_central: true,
             is_split: true,
-          };
-        } else if (lc.abacatepay_active && lc.abacatepay_api_key) {
-          activeProvider = {
+          });
+        }
+        if (lc.abacatepay_active && lc.abacatepay_api_key) {
+          centralCandidates.push({
             provider_key: "abacatepay",
             api_key_encrypted: lc.abacatepay_api_key,
             is_central: true,
             is_split: true,
-          };
+          });
         }
       }
 
-      if (!activeProvider) {
+      if (centralCandidates.length === 0) {
         throw new Error("Gateway central da plataforma indisponível no momento. Contate o suporte.");
       }
+      activeProvider = centralCandidates[0];
     } else {
       // 2. MODO PLANO PAGO: Gateway Própria do Lojista (Recebimento Direto / Taxa 0%)
       let preferredKey: string | null = provider_key || null;
@@ -492,44 +497,71 @@ serve(async (req) => {
     const amount = amount_cents ? amount_cents / 100 : undefined;
     const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;
 
-    // 2. If we have an active gateway AND an amount, use dynamic PIX
-    if (activeProvider && amount && amount > 0) {
-      const providerKey = activeProvider.provider_key;
-      const apiKey = activeProvider.api_key_encrypted;
-      const secretKey = activeProvider.secret_key_encrypted || "";
+    // Helper: execute dynamic PIX for a single provider config
+    const runDynamicProvider = async (prov: any) => {
+      const pKey = prov.provider_key;
+      const apiKey = prov.api_key_encrypted;
+      const secretKey = prov.secret_key_encrypted || "";
       const externalRef = tx_id || `PIX${Date.now()}`;
-      const webhookUrl = activeProvider.is_central
-        ? `${webhookBaseUrl}/${providerKey}/central`
-        : `${webhookBaseUrl}/${providerKey}/${tenant_id}`;
+      const webhookUrl = prov.is_central
+        ? `${webhookBaseUrl}/${pKey}/central`
+        : `${webhookBaseUrl}/${pKey}/${tenant_id}`;
       const description = product_name || "Pagamento PIX";
 
-      let result: { brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string };
-
-      switch (providerKey) {
+      let res: { brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string };
+      switch (pKey) {
         case "mercadopago":
-          result = await generateViaMercadoPago(apiKey, amount, description, externalRef, webhookUrl);
+          res = await generateViaMercadoPago(apiKey, amount!, description, externalRef, webhookUrl);
           break;
         case "pushinpay":
-          result = await generateViaPushinPay(apiKey, amount_cents, webhookUrl);
+          res = await generateViaPushinPay(apiKey, amount_cents, webhookUrl);
           break;
         case "efi":
-          result = await generateViaEfi(apiKey, secretKey, amount, externalRef, webhookUrl, activeProvider.efi_cert_pem, activeProvider.efi_key_pem, activeProvider.efi_pix_key);
+          res = await generateViaEfi(apiKey, secretKey, amount!, externalRef, webhookUrl, prov.efi_cert_pem, prov.efi_key_pem, prov.efi_pix_key);
           break;
         case "misticpay":
-          result = await generateViaMisticPay(apiKey, secretKey, amount, externalRef, webhookUrl);
+          res = await generateViaMisticPay(apiKey, secretKey, amount!, externalRef, webhookUrl);
           break;
         case "abacatepay":
-          result = await generateViaAbacatePay(apiKey, amount_cents, description, externalRef);
+          res = await generateViaAbacatePay(apiKey, amount_cents, description, externalRef);
           break;
         default:
-          throw new Error(`Provider ${providerKey} nÃ£o suporta PIX dinÃ¢mico`);
+          throw new Error(`Provider ${pKey} não suporta PIX dinâmico`);
       }
+      if (!res.brcode) {
+        throw new Error(`Provider ${pKey} retornou código PIX vazio`);
+      }
+      return { res, prov };
+    };
+
+    // 2. If we have an active gateway AND an amount, use dynamic PIX (with automatic fallback for Central Split)
+    if (activeProvider && amount && amount > 0) {
+      const candidates = !canUseOwnGateways ? centralCandidates : [activeProvider];
+      let chosen: { res: { brcode: string; qr_code_base64?: string; payment_id: string; expires_at?: string }; prov: any } | null = null;
+      let lastErr: Error | null = null;
+
+      for (const candidate of candidates) {
+        try {
+          chosen = await runDynamicProvider(candidate);
+          break;
+        } catch (err) {
+          lastErr = err instanceof Error ? err : new Error(String(err));
+          console.warn(`[generate-pix] Provider ${candidate.provider_key} failed:`, lastErr.message);
+        }
+      }
+
+      if (!chosen) {
+        throw lastErr || new Error("Falha ao gerar PIX dinâmico.");
+      }
+
+      const providerKey = chosen.prov.provider_key;
+      const result = chosen.res;
 
       // Se um order_id foi passado, atualiza o pedido com flag is_split
       if (order_id) {
         try {
           await supabase.from("orders").update({
-            is_split: Boolean(activeProvider.is_split),
+            is_split: Boolean(chosen.prov.is_split),
             payment_provider: providerKey,
             payment_id: result.payment_id,
           }).eq("id", order_id);
@@ -543,8 +575,8 @@ serve(async (req) => {
           success: true,
           method: "dynamic",
           provider: providerKey,
-          is_central: Boolean(activeProvider.is_central),
-          is_split: Boolean(activeProvider.is_split),
+          is_central: Boolean(chosen.prov.is_central),
+          is_split: Boolean(chosen.prov.is_split),
           brcode: result.brcode,
           qr_code_base64: result.qr_code_base64 || null,
           payment_id: result.payment_id,
@@ -563,8 +595,8 @@ serve(async (req) => {
     if (!tenant?.pix_key) {
       throw new Error(
         activeProvider && (!amount || amount <= 0)
-          ? "Informe um valor para gerar PIX dinÃ¢mico via gateway."
-          : "Chave PIX nÃ£o configurada e nenhum gateway ativo. Configure em ConfiguraÃ§Ãµes > PIX ou Pagamentos."
+          ? "Informe um valor para gerar PIX dinâmico via gateway."
+          : "Chave PIX não configurada e nenhum gateway ativo. Configure em Configurações > PIX ou Pagamentos."
       );
     }
 

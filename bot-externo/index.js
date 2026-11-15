@@ -1,4 +1,4 @@
-﻿const {
+const {
   Client,
   GatewayIntentBits,
   Collection,
@@ -88,7 +88,7 @@ async function syncBotStatus() {
         } catch (e) { 
           console.error("Banner set err:", e.message); 
           if (e.message.includes('RATE_LIMIT')) {
-            console.warn("[ALERTA] O Discord bloqueou a troca de capa do perfil por excesso de tentativas (Rate Limit). VocÃª precisa esperar algumas horas.");
+            console.warn("[ALERTA] O Discord bloqueou a troca de capa do perfil por excesso de tentativas (Rate Limit). Você precisa esperar algumas horas.");
           }
         }
       }
@@ -96,7 +96,7 @@ async function syncBotStatus() {
 
     if (config?.global_bot_banner_force_reapply_at) {
       if (lastForceReapplyAt !== null && lastForceReapplyAt !== config.global_bot_banner_force_reapply_at) {
-        console.log("[BANNER] Detectada solicitaÃ§Ã£o de reaplicaÃ§Ã£o global do banner. Invocando edge function...");
+        console.log("[BANNER] Detectada solicitação de reaplicação global do banner. Invocando edge function...");
         fetch(`${process.env.SUPABASE_URL}/functions/v1/sync-global-banner`, {
           method: "POST",
           headers: {
@@ -115,16 +115,16 @@ async function syncBotStatus() {
       status: "online",
     });
     lastAppliedStatus = status;
-    console.log(`ðŸ”„ Status atualizado: "${status}"`);
+    console.log(`🔄 Status atualizado: "${status}"`);
   } catch (err) {
     console.error("Erro ao sincronizar status do bot:", err.message);
   }
 }
 
-// â”€â”€ Ready â”€â”€
+// ── Ready ──
 client.on(Events.ClientReady, async () => {
-  console.log(`âœ… Bot online como ${client.user.tag}`);
-  console.log(`ðŸ“¡ Conectado em ${client.guilds.cache.size} servidor(es)`);
+  console.log(`✅ Bot online como ${client.user.tag}`);
+  console.log(`📡 Conectado em ${client.guilds.cache.size} servidor(es)`);
 
   // Sync status immediately
   await syncBotStatus();
@@ -190,7 +190,7 @@ client.on(Events.ClientReady, async () => {
               console.error(`[SORTEIO] Falha ao sortear ${g.id}: ${res.status} ${text}`);
             }
           } catch (e) {
-            console.error(`[SORTEIO] Erro na requisiÃ§Ã£o para sortear ${g.id}:`, e.message);
+            console.error(`[SORTEIO] Erro na requisição para sortear ${g.id}:`, e.message);
           }
         }
       }
@@ -218,7 +218,7 @@ client.on(Events.ClientReady, async () => {
                   await thread.setLocked(true).catch(() => {});
                   await thread.setArchived(true).catch(() => {});
                 } else if (thread.deletable) {
-                  await thread.delete("Arquivamento automÃ¡tico do checkout").catch(() => {});
+                  await thread.delete("Arquivamento automático do checkout").catch(() => {});
                 }
               }
             }
@@ -255,7 +255,7 @@ client.on(Events.ClientReady, async () => {
     }
   };
 
-  // Primeira checagem apÃ³s 15 segundos do bot online, depois a cada 30 minutos
+  // Primeira checagem após 15 segundos do bot online, depois a cada 30 minutos
   setTimeout(checkSubscriptionReminders, 15_000);
   setInterval(checkSubscriptionReminders, 30 * 60 * 1000);
 });
@@ -391,8 +391,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     await interactionHandler(client, interaction);
   } catch (err) {
-    console.error("Erro na interaÃ§Ã£o:", err);
-    const reply = { content: "<:close:1521192513048674505> Ocorreu um erro ao processar esta aÃ§Ã£o.", ephemeral: true };
+    console.error("Erro na interação:", err);
+    const reply = { content: "❌ Ocorreu um erro ao processar esta ação.", ephemeral: true };
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp(reply).catch(() => {});
     } else {
@@ -420,7 +420,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
       await memberJoinHandler.handleMemberLeave(client, member);
     }
   } catch (err) {
-    console.error("Erro ao processar saÃ­da de membro:", err);
+    console.error("Erro ao processar saída de membro:", err);
   }
 });
 
@@ -442,7 +442,7 @@ client.on(Events.GuildMemberAdd, async (member) => {
   try {
     await protectionHandler.onMemberJoin(client, member);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (join):", err);
+    console.error("Erro na proteção (join):", err);
   }
 });
 
@@ -450,7 +450,7 @@ client.on(Events.MessageCreate, async (message) => {
   try {
     await protectionHandler.onMessage(client, message);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (message):", err);
+    console.error("Erro na proteção (message):", err);
   }
 });
 
@@ -459,7 +459,7 @@ client.on(Events.GuildBanAdd, async (ban) => {
   try {
     await protectionHandler.onGuildBanAdd(client, ban);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (ban):", err);
+    console.error("Erro na proteção (ban):", err);
   }
 });
 
@@ -468,7 +468,7 @@ client.on(Events.GuildMemberRemove, async (member) => {
   try {
     await protectionHandler.onGuildMemberRemove(client, member);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (kick):", err);
+    console.error("Erro na proteção (kick):", err);
   }
 });
 
@@ -477,7 +477,7 @@ client.on(Events.ChannelCreate, async (channel) => {
   try {
     await protectionHandler.onChannelCreate(client, channel);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (channel create):", err);
+    console.error("Erro na proteção (channel create):", err);
   }
 });
 
@@ -486,7 +486,7 @@ client.on(Events.ChannelDelete, async (channel) => {
   try {
     await protectionHandler.onChannelDelete(client, channel);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (channel delete):", err);
+    console.error("Erro na proteção (channel delete):", err);
   }
 });
 
@@ -495,12 +495,12 @@ client.on(Events.GuildRoleDelete, async (role) => {
   try {
     await protectionHandler.onRoleDelete(client, role);
   } catch (err) {
-    console.error("Erro na proteÃ§Ã£o (role delete):", err);
+    console.error("Erro na proteção (role delete):", err);
   }
 });
 
 // â”€â”€ Login â”€â”€
 client.login(process.env.DISCORD_BOT_TOKEN).catch((err) => {
-  console.error("<:close:1521192513048674505> Falha ao fazer login:", err.message);
+  console.error("❌ Falha ao fazer login:", err.message);
   process.exit(1);
 });

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Template oficial Drika - configuracoes dos embeds do bot.
  * Banners so aparecem onde o cliente configurar explicitamente
  * no painel (ex: banner de produto, banner de ticket, banner de boas-vindas).
@@ -15,7 +15,7 @@ function setGlobalCover(url) {
 
 const DRIKA_TEMPLATES = {
   purchase: {
-    title: "<:car:1521242918290194493> Compra Confirmada",
+    title: "🛒 Compra Confirmada",
     description: "Sua compra foi processada com sucesso! Confira os detalhes abaixo.",
   },
   ticket: {

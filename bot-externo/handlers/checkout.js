@@ -26,7 +26,7 @@ function outOfStockPayload(productId, tenantId, fieldId = null) {
     : `notify_restock:${productId}`;
     
   return {
-    content: "<:close:1521192513048674505> | Este produto está sem estoque. Aguarde um reabastecimento!",
+    content: "❌ | Este produto está sem estoque. Aguarde um reabastecimento!",
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -166,7 +166,7 @@ async function sendLog(guild, tenant, { title, description, color, fields: extra
       const errBody = await res.text();
       console.error(`[LOG] REST send failed [${title}]: ${res.status} ${errBody}`);
     } else {
-      console.log(`[LOG] <:check:1521190651146801222> ${title} sent for tenant ${tenant.id} to channel ${storeConfig.logs_channel_id}`);
+      console.log(`[LOG] ✅ ${title} sent for tenant ${tenant.id} to channel ${storeConfig.logs_channel_id}`);
     }
   } catch (err) {
     console.error(`Failed to send log [${title}]:`, err.message);
@@ -283,7 +283,11 @@ async function generateMercadoPagoPix(apiKey, amount, desc, ref, webhook) {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "X-Idempotency-Key": ref },
     body: JSON.stringify({ transaction_amount: amount, payment_method_id: "pix", description: desc, statement_descriptor: "Drika Solutions", external_reference: ref, notification_url: webhook, payer: { email: "customer@email.com" } }),
   });
-  if (!res.ok) throw new Error(`Mercado Pago error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    const detail = errBody?.message || errBody?.error || "";
+    throw new Error(`Mercado Pago error: ${res.status}${detail ? ` (${detail})` : ""}`);
+  }
   const data = await res.json();
   return { brcode: data.point_of_interaction?.transaction_data?.qr_code || "", payment_id: String(data.id) };
 }
@@ -295,14 +299,18 @@ async function generatePushinPayPix(apiKey, amountCents, webhook) {
     headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ value: amountCents, webhook_url: webhook || undefined }),
   });
-  if (!res.ok) throw new Error(`PushinPay error: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    const detail = errBody?.message || errBody?.error || "";
+    throw new Error(`PushinPay error: ${res.status}${detail ? ` (${detail})` : ""}`);
+  }
   const data = await res.json();
   return { brcode: data.qr_code || "", payment_id: data.id };
 }
 
 // ── Start Checkout (from buy_product button) ──
 async function startCheckout(interaction, tenant, productId) {
-  await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, criando carrinho...", ephemeral: true });
+  await interaction.reply({ content: "⏳ Aguarde, criando carrinho...", ephemeral: true });
 
   console.log(`[CHECKOUT] startCheckout productId=${productId} tenantId=${tenant.id}`);
 
@@ -329,10 +337,10 @@ async function startCheckout(interaction, tenant, productId) {
 
   if (!product) {
     console.error(`[CHECKOUT] Product not found for rawId=${productId} tenantId=${tenant.id}`);
-    return interaction.editReply({ content: "<:close:1521192513048674505> Produto não encontrado." });
+    return interaction.editReply({ content: "❌ Produto não encontrado." });
   }
 
-  if (!product.active) return interaction.editReply({ content: "<:close:1521192513048674505> Este produto está indisponível." });
+  if (!product.active) return interaction.editReply({ content: "❌ Este produto está indisponível." });
 
   const fields = await getProductFields(product.id, tenant.id);
 
@@ -378,7 +386,7 @@ async function startCheckout(interaction, tenant, productId) {
       description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stockMap[f.id] || 0}`,
     }));
 
-    const autoDelivery = product.auto_delivery ? "<:zap:1521562668992037004> **Entrega Automática!**\n\n" : "";
+    const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
     const embed = new EmbedBuilder()
       .setTitle(product.name)
       .setDescription(`${autoDelivery}${product.description || ""}`)
@@ -399,15 +407,15 @@ async function startCheckout(interaction, tenant, productId) {
 
 // ── Select Variation (from dropdown) ──
 async function selectVariation(interaction, tenant, productId, fieldId) {
-  await interaction.reply({ content: "<a:loading:1521565470686445678> Aguarde, processando seleção...", ephemeral: true });
+  await interaction.reply({ content: "⏳ Aguarde, processando seleção...", ephemeral: true });
 
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.editReply({ content: "<:close:1521192513048674505> Produto não encontrado." });
+  if (!product) return interaction.editReply({ content: "❌ Produto não encontrado." });
 
   const fields = await getProductFields(product.id, tenant.id);
   const field = fields.find((f) => f.id === fieldId);
-  if (!field) return interaction.editReply({ content: "<:close:1521192513048674505> Variação não encontrada." });
+  if (!field) return interaction.editReply({ content: "❌ Variação não encontrada." });
 
   // Check stock for this specific field
   const embedConfig = getProductEmbedConfig(product);
@@ -446,7 +454,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
   if (priceCents <= 0) {
     await updateOrderStatus(order.id, "paid", { payment_provider: "free" });
     await deliverOrder(order.id, tenant.id);
-    return interaction.editReply({ content: `<:check:1521190651146801222> Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
+    return interaction.editReply({ content: `✅ Pedido **#${order.order_number}** — **${orderName}** entregue gratuitamente! Verifique sua DM.` });
   }
 
   let checkoutThread;
@@ -461,7 +469,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     await checkoutThread.members.add(userId).catch(() => {});
   } catch (err) {
     console.error("[CHECKOUT] create thread error:", err.message);
-    return interaction.editReply({ content: "<:close:1521192513048674505> Erro ao criar o tópico de checkout." });
+    return interaction.editReply({ content: "❌ Erro ao criar o tópico de checkout." });
   }
 
   await updateOrderStatus(order.id, "pending_payment", { checkout_thread_id: checkoutThread.id });
@@ -519,7 +527,7 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // Build checkout embed
   const descLines = [];
-  if (product.auto_delivery) descLines.push("<:zap:1521562668992037004> **Entrega Automática!**");
+  if (product.auto_delivery) descLines.push("⚡ **Entrega Automática!**");
   if (product.description) descLines.push(product.description);
 
   const { date: checkoutDate, time: checkoutTime } = formatDateTime();
@@ -582,11 +590,11 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
     new ButtonBuilder().setLabel("Ir para o carrinho").setStyle(ButtonStyle.Link).setURL(threadLink)
   );
 
-  await interaction.editReply({ content: "<:sim:1521560564990480454> | Seu carrinho foi criado com êxito.", components: [linkRow] });
+  await interaction.editReply({ content: "✅ | Seu carrinho foi criado com êxito.", components: [linkRow] });
 
   // ── Send "Carrinho aberto" log to logs channel ──
   await sendLog(interaction.guild, tenant, {
-    title: "<:car:1521242918290194493> Carrinho aberto",
+    title: "🛒 Carrinho aberto",
     description: `Usuário <@${userId}> abriu um carrinho.`,
     color: 0x5865F2,
     fields: [
@@ -708,221 +716,241 @@ async function goToPayment(interaction, tenant, orderId) {
   await interaction.deferUpdate();
 
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido não está mais pendente.`, ephemeral: true });
 
   const channel = interaction.channel;
   const preStoreConfig = await getStoreConfig(tenant.id);
   const preEmbedColor = await resolveOrderColor(order, preStoreConfig);
-  const loadingMsg = await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("<a:loading:1521565470686445678> | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
+  const loadingMsg = await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setDescription("⏳ | Gerando QR Code...\nQuase lá, só mais um instante!").setColor(preEmbedColor)] });
 
-  const priceCents = order.total_cents;
-  const amountBRL = priceCents / 100;
-  const webhookBaseUrl = `${process.env.SUPABASE_URL}/functions/v1/payment-webhook`;
-  let brcode = "";
-  let paymentId = "";
-
-  const provider = await getActivePaymentProvider(tenant.id);
-
-  if (provider && amountBRL > 0) {
-    let providerKey = provider.provider_key;
-    let actualIsCentral = Boolean(provider.is_central);
-    let actualIsSplit = Boolean(provider.is_split);
-    const apiKey = provider.api_key_encrypted;
-    const cleanOrderId = String(order.id).replace(/[^a-zA-Z0-9]/g, "");
-    const externalRef = `order_${cleanOrderId}`.slice(0, 32);
-    const webhookUrl = actualIsCentral
-      ? `${webhookBaseUrl}/${providerKey}/central`
-      : `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
-
-    if (providerKey === "mercadopago") {
-      const r = await generateMercadoPagoPix(apiKey, amountBRL, order.product_name, externalRef, webhookUrl);
-      brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "pushinpay") {
-      const r = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
-      brcode = r.brcode; paymentId = r.payment_id;
-    } else if (providerKey === "efi" || providerKey === "misticpay" || providerKey === "abacatepay") {
-      const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-        body: JSON.stringify({ tenant_id: tenant.id, amount_cents: priceCents, product_name: order.product_name, tx_id: externalRef, provider_key: providerKey, order_id: order.id }),
-      });
-      const pixData = await pixRes.json();
-      if (pixData.error) throw new Error(pixData.error);
-      brcode = pixData.brcode || "";
-      paymentId = pixData.payment_id || externalRef;
-      if (pixData.provider) providerKey = pixData.provider;
-      if (typeof pixData.is_central === "boolean") actualIsCentral = pixData.is_central;
-      if (typeof pixData.is_split === "boolean") actualIsSplit = pixData.is_split;
+  const updateLoadingOrSend = async (payload) => {
+    try {
+      if (loadingMsg && loadingMsg.edit && typeof loadingMsg.edit === "function") {
+        await loadingMsg.edit(payload);
+        return;
+      }
+      if (loadingMsg && loadingMsg.id) {
+        const edited = await editWithIdentity(channel, loadingMsg.id, payload);
+        if (edited) return;
+      }
+    } catch (editErr) {
+      console.error("Failed to edit loading message:", editErr.message);
     }
-
-    await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, is_split: actualIsSplit, pix_brcode: brcode });
-
-    const provLabel = actualIsCentral
-      ? (providerKey === "misticpay" ? "Pix – MisticPay (Split)"
-        : providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
-        : providerKey === "efi" ? "Pix – Efi Bank (Split)"
-        : providerKey === "abacatepay" ? "Pix – AbacatePay (Split)"
-        : `Pix – ${providerKey} (Split)`)
-      : (providerKey === "pushinpay" ? "Pix – PushinPay"
-        : providerKey === "efi" ? "Pix – Efi Bank"
-        : providerKey === "mercadopago" ? "Pix – Mercado Pago"
-        : providerKey === "misticpay" ? "Pix – Mistic Pay"
-        : providerKey === "abacatepay" ? "Pix – AbacatePay"
-        : `Pix – ${providerKey}`);
-
-    await sendLog(interaction.guild, tenant, {
-      title: "🆕 Pedido solicitado",
-      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
-      color: 0xFEE75C,
-      fields: [
-        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
-      ],
-      user: interaction.user,
-      order: order,
-      productName: order.product_name,
-      totalCents: priceCents,
-      labelTotal: "VALOR A PAGAR"
-    });
-  } else {
-    // Check if platform Split mode is active: if active, never allow static PIX
-    const splitActive = await isSplitWalletActive();
-    if (splitActive) {
-      return sendWithIdentity(channel, tenant, {
-        embeds: [
-          new EmbedBuilder()
-            .setTitle("<:close:1521192513048674505> Gateway Central Indisponível")
-            .setDescription("O modo Split da plataforma está ativo, mas o gateway central não pôde gerar o pagamento. Por favor, verifique as credenciais da Landing Page ou contate o suporte.")
-            .setColor(0xED4245)
-        ]
-      });
-    }
-
-    // Static PIX (only allowed when split mode is INACTIVE)
-    if (!tenant.pix_key) {
-      return sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
-    }
-    brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
-    await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix", pix_brcode: brcode });
-
-    const storeConfig = await getStoreConfig(tenant.id);
-    const approvalRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("1521190651146801222").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("<:close:1521192513048674505>").setStyle(ButtonStyle.Danger),
-    );
-
-    await sendLog(interaction.guild, tenant, {
-      title: "🆕 Pedido solicitado",
-      description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
-      color: 0xFEE75C,
-      fields: [
-        { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
-        { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
-        { name: "**Forma de Pagamento**", value: "`💎 Pix – Estático`", inline: false },
-      ],
-      components: [approvalRow],
-      storeConfig,
-      user: interaction.user,
-      order: order,
-      productName: order.product_name,
-      totalCents: priceCents,
-      labelTotal: "VALOR A PAGAR"
-    });
-  }
-
-  // Send PIX embed
-  const storeConfig = await getStoreConfig(tenant.id);
-  const storeName = storeConfig?.store_title || tenant.name || "Loja";
-  const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
-  const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
-  const embedColor = await resolveOrderColor(order, storeConfig);
-  const qrLogoUrl = storeConfig?.qr_code_logo_url;
-  const qrStyle = storeConfig?.qr_code_style || "classic";
-
-  let qrAttachment = await generateStyledQrAttachment(brcode, qrStyle, qrLogoUrl);
-  let qrImageUrl = qrAttachment ? "attachment://qrcode.png" : "";
-
-  const { date: paymentDate, time: paymentTime } = formatDateTime();
-  const pixFooterText = resolvePixFooter(storeConfig, {
-    storeName,
-    productName: order.product_name,
-    orderNumber: order.order_number,
-    timeoutMin,
-    date: paymentDate,
-    time: paymentTime,
-    username: order.discord_username || "",
-  });
-
-  const pixEmbed = new EmbedBuilder()
-    .setAuthor({ name: "Pagamento PIX", iconURL: "https://cdn.discordapp.com/emojis/1521557393471832295.png" })
-    .setDescription([
-      "<a:loading:1521565470686445678> Aguardando confirmação de pagamento.\n",
-      `**Pedido:**`,
-      `• \`${order.product_name}\` **1x**\n`,
-      `💵 **Subtotal:** ${formatBRL(order.total_cents)}`,
-      `\n💸 **Total a Pagar:** ${formatBRL(order.total_cents)}`,
-      `<:pix:1521557393471832295> **PIX Copia e Cola:** use o botão **Copiar código pix** abaixo.`,
-      `⚠️ *O código expira em ${timeoutMin} minutos.*`,
-    ].join("\n"))
-    .setColor(embedColor)
-    .setFooter({ text: pixFooterText, iconURL: storeLogo || undefined });
-
-  if (qrImageUrl) {
-    pixEmbed.setImage(qrImageUrl);
-  }
-
-  // Buttons: copy + confirm (only for static PIX)
-  const copyBtn = new ButtonBuilder()
-    .setCustomId(`copy_pix:${order.id}`)
-    .setLabel("Copiar código pix")
-    .setEmoji("1521557393471832295")
-    .setStyle(ButtonStyle.Secondary);
-
-  let pixRow;
-  if (!provider) {
-    // Static PIX: show confirm button for manual approval
-    const confirmBtn = new ButtonBuilder()
-      .setCustomId(`approve_order:${order.id}`)
-      .setLabel("Confirmar pagamento")
-      .setEmoji("1521190651146801222")
-      .setStyle(ButtonStyle.Success);
-    pixRow = new ActionRowBuilder().addComponents(copyBtn, confirmBtn);
-  } else {
-    pixRow = new ActionRowBuilder().addComponents(copyBtn);
-  }
+    await sendWithIdentity(channel, tenant, payload);
+  };
 
   try {
-    const messagePayload = {
-      embeds: [pixEmbed],
-      components: [pixRow],
-      files: qrAttachment ? [qrAttachment] : []
-    };
+    const priceCents = order.total_cents;
+    const amountBRL = priceCents / 100;
+    const webhookBaseUrl = `${process.env.SUPABASE_URL}/functions/v1/payment-webhook`;
+    let brcode = "";
+    let paymentId = "";
 
-    if (loadingMsg && loadingMsg.edit && typeof loadingMsg.edit === "function") {
-      await loadingMsg.edit(messagePayload);
-    } else if (loadingMsg && loadingMsg.id) {
-      const edited = await editWithIdentity(channel, loadingMsg.id, messagePayload);
-      if (!edited) {
-        await sendWithIdentity(channel, tenant, messagePayload);
+    const provider = await getActivePaymentProvider(tenant.id);
+
+    if (provider && amountBRL > 0) {
+      let providerKey = provider.provider_key;
+      let actualIsCentral = Boolean(provider.is_central);
+      let actualIsSplit = Boolean(provider.is_split);
+      const apiKey = provider.api_key_encrypted;
+      const cleanOrderId = String(order.id).replace(/[^a-zA-Z0-9]/g, "");
+      const externalRef = `order_${cleanOrderId}`.slice(0, 32);
+      const webhookUrl = actualIsCentral
+        ? `${webhookBaseUrl}/${providerKey}/central`
+        : `${webhookBaseUrl}/${providerKey}/${tenant.id}`;
+
+      if (providerKey === "mercadopago") {
+        const r = await generateMercadoPagoPix(apiKey, amountBRL, order.product_name, externalRef, webhookUrl);
+        brcode = r.brcode; paymentId = r.payment_id;
+      } else if (providerKey === "pushinpay") {
+        const r = await generatePushinPayPix(apiKey, priceCents, webhookUrl);
+        brcode = r.brcode; paymentId = r.payment_id;
+      } else if (providerKey === "efi" || providerKey === "misticpay" || providerKey === "abacatepay") {
+        const pixRes = await fetch(`${process.env.SUPABASE_URL}/functions/v1/generate-pix`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+          body: JSON.stringify({ tenant_id: tenant.id, amount_cents: priceCents, product_name: order.product_name, tx_id: externalRef, provider_key: providerKey, order_id: order.id }),
+        });
+        const rawText = await pixRes.text();
+        let pixData = {};
+        try { pixData = JSON.parse(rawText); } catch {}
+        if (!pixRes.ok || pixData.error) {
+          throw new Error(pixData.error || `Falha no serviço PIX (HTTP ${pixRes.status}): ${rawText.slice(0, 180)}`);
+        }
+        brcode = pixData.brcode || "";
+        paymentId = pixData.payment_id || externalRef;
+        if (pixData.provider) providerKey = pixData.provider;
+        if (typeof pixData.is_central === "boolean") actualIsCentral = pixData.is_central;
+        if (typeof pixData.is_split === "boolean") actualIsSplit = pixData.is_split;
       }
+
+      if (!brcode) {
+        throw new Error(`A gateway (${providerKey}) não retornou um código PIX Copia e Cola válido.`);
+      }
+
+      await updateOrderStatus(order.id, "pending_payment", { payment_id: paymentId, payment_provider: providerKey, is_split: actualIsSplit, pix_brcode: brcode });
+
+      const provLabel = actualIsCentral
+        ? (providerKey === "misticpay" ? "Pix – MisticPay (Split)"
+          : providerKey === "pushinpay" ? "Pix – PushinPay (Split)"
+          : providerKey === "efi" ? "Pix – Efi Bank (Split)"
+          : providerKey === "abacatepay" ? "Pix – AbacatePay (Split)"
+          : `Pix – ${providerKey} (Split)`)
+        : (providerKey === "pushinpay" ? "Pix – PushinPay"
+          : providerKey === "efi" ? "Pix – Efi Bank"
+          : providerKey === "mercadopago" ? "Pix – Mercado Pago"
+          : providerKey === "misticpay" ? "Pix – Mistic Pay"
+          : providerKey === "abacatepay" ? "Pix – AbacatePay"
+          : `Pix – ${providerKey}`);
+
+      await sendLog(interaction.guild, tenant, {
+        title: "🆕 Pedido solicitado",
+        description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+        color: 0xFEE75C,
+        fields: [
+          { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+          { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+          { name: "**Forma de Pagamento**", value: `\`💎 ${provLabel}\``, inline: false },
+        ],
+        user: interaction.user,
+        order: order,
+        productName: order.product_name,
+        totalCents: priceCents,
+        labelTotal: "VALOR A PAGAR"
+      });
     } else {
-      await sendWithIdentity(channel, tenant, messagePayload);
+      // Check if platform Split mode is active: if active, never allow static PIX
+      const splitActive = await isSplitWalletActive();
+      if (splitActive) {
+        return updateLoadingOrSend({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("❌ Gateway Central Indisponível")
+              .setDescription("O modo Split da plataforma está ativo, mas o gateway central não pôde gerar o pagamento. Por favor, verifique as credenciais da Landing Page ou contate o suporte.")
+              .setColor(0xED4245)
+          ]
+        });
+      }
+
+      // Static PIX (only allowed when split mode is INACTIVE)
+      if (!tenant.pix_key) {
+        return updateLoadingOrSend({ embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
+      }
+      brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+      await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix", pix_brcode: brcode });
+
+      const storeConfig = await getStoreConfig(tenant.id);
+      const approvalRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`approve_order:${order.id}`).setLabel("Aprovar Pagamento").setEmoji("✅").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`reject_order:${order.id}`).setLabel("Recusar").setEmoji("❌").setStyle(ButtonStyle.Danger),
+      );
+
+      await sendLog(interaction.guild, tenant, {
+        title: "🆕 Pedido solicitado",
+        description: `Usuário <@${order.discord_user_id}> solicitou um pedido.`,
+        color: 0xFEE75C,
+        fields: [
+          { name: "**Detalhes**", value: `\`1x ${order.product_name} | ${formatBRL(priceCents)}\``, inline: false },
+          { name: "**ID do Pedido**", value: `\`${order.id}\``, inline: false },
+          { name: "**Forma de Pagamento**", value: "`💎 Pix – Estático`", inline: false },
+        ],
+        components: [approvalRow],
+        storeConfig,
+        user: interaction.user,
+        order: order,
+        productName: order.product_name,
+        totalCents: priceCents,
+        labelTotal: "VALOR A PAGAR"
+      });
     }
-  } catch (e) {
-    console.error("Failed to edit loading message:", e.message);
-    await sendWithIdentity(channel, tenant, {
+
+    // Send PIX embed
+    const storeConfig = await getStoreConfig(tenant.id);
+    const storeName = storeConfig?.store_title || tenant.name || "Loja";
+    const storeLogo = storeConfig?.store_logo_url || tenant.logo_url;
+    const timeoutMin = storeConfig?.payment_timeout_minutes || 30;
+    const embedColor = await resolveOrderColor(order, storeConfig);
+    const qrLogoUrl = storeConfig?.qr_code_logo_url;
+    const qrStyle = storeConfig?.qr_code_style || "classic";
+
+    let qrAttachment = await generateStyledQrAttachment(brcode, qrStyle, qrLogoUrl);
+    let qrImageUrl = qrAttachment ? "attachment://qrcode.png" : "";
+
+    const { date: paymentDate, time: paymentTime } = formatDateTime();
+    const pixFooterText = resolvePixFooter(storeConfig, {
+      storeName,
+      productName: order.product_name,
+      orderNumber: order.order_number,
+      timeoutMin,
+      date: paymentDate,
+      time: paymentTime,
+      username: order.discord_username || "",
+    });
+
+    const pixEmbed = new EmbedBuilder()
+      .setAuthor({ name: "Pagamento PIX", iconURL: "https://cdn.discordapp.com/emojis/1521557393471832295.png" })
+      .setDescription([
+        "⏳ Aguardando confirmação de pagamento.\n",
+        `**Pedido:**`,
+        `• \`${order.product_name}\` **1x**\n`,
+        `💵 **Subtotal:** ${formatBRL(order.total_cents)}`,
+        `\n💸 **Total a Pagar:** ${formatBRL(order.total_cents)}`,
+        `💠 **PIX Copia e Cola:** use o botão **Copiar código pix** abaixo.`,
+        `⚠️ *O código expira em ${timeoutMin} minutos.*`,
+      ].join("\n"))
+      .setColor(embedColor)
+      .setFooter({ text: pixFooterText, iconURL: storeLogo || undefined });
+
+    if (qrImageUrl) {
+      pixEmbed.setImage(qrImageUrl);
+    }
+
+    // Buttons: copy + confirm (only for static PIX)
+    const copyBtn = new ButtonBuilder()
+      .setCustomId(`copy_pix:${order.id}`)
+      .setLabel("Copiar código pix")
+      .setEmoji("💠")
+      .setStyle(ButtonStyle.Secondary);
+
+    let pixRow;
+    if (!provider) {
+      // Static PIX: show confirm button for manual approval
+      const confirmBtn = new ButtonBuilder()
+        .setCustomId(`approve_order:${order.id}`)
+        .setLabel("Confirmar pagamento")
+        .setEmoji("✅")
+        .setStyle(ButtonStyle.Success);
+      pixRow = new ActionRowBuilder().addComponents(copyBtn, confirmBtn);
+    } else {
+      pixRow = new ActionRowBuilder().addComponents(copyBtn);
+    }
+
+    await updateLoadingOrSend({
       embeds: [pixEmbed],
       components: [pixRow],
       files: qrAttachment ? [qrAttachment] : []
     });
-  }
 
-
-  // ── Start payment polling for providers without reliable webhooks ──
-  if (provider && provider.provider_key) {
-    startPaymentPolling(order.id, tenant.id, channel, tenant, timeoutMin);
+    // ── Start payment polling for providers without reliable webhooks ──
+    if (provider && provider.provider_key) {
+      startPaymentPolling(order.id, tenant.id, channel, tenant, timeoutMin);
+    }
+  } catch (err) {
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[goToPayment] Failed for order ${order.id} (tenant ${tenant.id}):`, err);
+    const isAuthError = /401|403|unauthorized|invalid_token|credentials/i.test(rawMsg);
+    const hint = isAuthError
+      ? "\n\n🔑 As credenciais da gateway de pagamento parecem inválidas ou expiradas. O administrador da loja deve verificar **Configurações > Gateways** ou ativar a **Carteira Global (Split)** no painel."
+      : "";
+    await updateLoadingOrSend({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("❌ Erro ao gerar QR Code PIX")
+          .setDescription(`Não foi possível gerar o pagamento agora.\n\`\`\`${rawMsg.slice(0, 300)}\`\`\`${hint}`)
+          .setColor(0xED4245)
+      ]
+    }).catch(() => {});
   }
 }
 
@@ -1037,14 +1065,14 @@ async function approveOrder(interaction, tenant, orderId) {
   const hasPermission = await isStaffMember(interaction, tenant);
   if (!hasPermission) {
     return interaction.reply({
-      content: "<:close:1521192513048674505> Você não tem permissão para confirmar manualmente este pedido.",
+      content: "❌ Você não tem permissão para confirmar manualmente este pedido.",
       ephemeral: true,
     });
   }
 
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "paid", { payment_provider: "static_pix" });
@@ -1067,7 +1095,7 @@ async function approveOrder(interaction, tenant, orderId) {
 
     const paidEmbed = new EmbedBuilder()
       .setTitle(`Pagamento Confirmado • ${storeName}`)
-      .setDescription(`<:check:1521190651146801222> Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi aprovado!\nSeu produto será entregue em instantes.`)
+      .setDescription(`✅ Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi aprovado!\nSeu produto será entregue em instantes.`)
       .setColor(dmEmbedColor)
       .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
       .setTimestamp();
@@ -1082,7 +1110,7 @@ async function approveOrder(interaction, tenant, orderId) {
   const approveEmbedColor = await resolveOrderColor(order, approveStoreConfig);
   const approvedEmbed = new EmbedBuilder()
     .setTitle("Pedido Aprovado")
-    .setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
+    .setDescription(`✅ Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>`)
     .setColor(approveEmbedColor)
     .addFields(
       { name: "📦 Produto", value: order.product_name, inline: true },
@@ -1095,7 +1123,7 @@ async function approveOrder(interaction, tenant, orderId) {
 
   // Log: Pedido aprovado
   await sendLog(interaction.guild, tenant, {
-    title: "<:check:1521190651146801222> Pedido aprovado",
+    title: "✅ Pedido aprovado",
     description: `Pedido **#${order.order_number}** aprovado por <@${interaction.user.id}>.`,
     color: 0x57F287,
     fields: [
@@ -1112,14 +1140,14 @@ async function rejectOrder(interaction, tenant, orderId) {
   const hasPermission = await isStaffMember(interaction, tenant);
   if (!hasPermission) {
     return interaction.reply({
-      content: "<:close:1521192513048674505> Você não tem permissão para recusar este pedido.",
+      content: "❌ Você não tem permissão para recusar este pedido.",
       ephemeral: true,
     });
   }
 
   await interaction.deferUpdate();
   const order = await getOrder(orderId);
-  if (!order) return interaction.followUp({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.followUp({ content: "❌ Pedido não encontrado.", ephemeral: true });
   if (order.status !== "pending_payment") return interaction.followUp({ content: `ℹ️ Pedido #${order.order_number} já processado.`, ephemeral: true });
 
   await updateOrderStatus(orderId, "canceled");
@@ -1130,7 +1158,7 @@ async function rejectOrder(interaction, tenant, orderId) {
     const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
 
     const rejectEmbed = new EmbedBuilder()
-      .setTitle(`<:close:1521192513048674505> Pedido Recusado • ${storeName}`)
+      .setTitle(`❌ Pedido Recusado • ${storeName}`)
       .setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi recusado.`)
       .setColor(0xED4245)
       .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
@@ -1143,7 +1171,7 @@ async function rejectOrder(interaction, tenant, orderId) {
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
+    embeds: [new EmbedBuilder().setTitle("❌ Pedido Recusado").setDescription(`Pedido **#${order.order_number}** recusado por <@${interaction.user.id}>`).setColor(0xED4245).addFields({ name: "📦 Produto", value: order.product_name, inline: true }, { name: "👤 Comprador", value: `<@${order.discord_user_id}>`, inline: true }).setTimestamp()],
     components: [],
   });
 
@@ -1179,7 +1207,7 @@ async function cancelOrder(interaction, tenant, orderId) {
   const channel = interaction.channel;
   const cancelStoreConfig = await getStoreConfig(tenant.id);
   const cancelEmbedColor = await resolveOrderColor(order, cancelStoreConfig);
-  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
+  await sendWithIdentity(channel, tenant, { embeds: [new EmbedBuilder().setTitle("❌ Compra Cancelada").setDescription(`Pedido **#${order.order_number}** foi cancelado.\nO tópico será arquivado.`).setColor(cancelEmbedColor)] });
 
   // Log: Pedido cancelado pelo cliente
   const buyerObj2 = await interaction.client.users.fetch(order.discord_user_id).catch(() => null);
@@ -1207,7 +1235,7 @@ async function cancelOrder(interaction, tenant, orderId) {
 // ── Copy PIX ──
 async function copyPix(interaction, tenant, orderId) {
   const order = await getOrder(orderId);
-  if (!order) return interaction.reply({ content: "<:close:1521192513048674505> Pedido não encontrado.", ephemeral: true });
+  if (!order) return interaction.reply({ content: "❌ Pedido não encontrado.", ephemeral: true });
 
   // 1. Try to use the saved brcode from the database
   if (order.pix_brcode) {
@@ -1220,7 +1248,7 @@ async function copyPix(interaction, tenant, orderId) {
     return interaction.reply({ content: brcode, ephemeral: true });
   }
 
-  return interaction.reply({ content: "<:close:1521192513048674505> Código PIX não disponível. Copie manualmente da mensagem acima.", ephemeral: true });
+  return interaction.reply({ content: "❌ Código PIX não disponível. Copie manualmente da mensagem acima.", ephemeral: true });
 }
 
 // ── Coupon Modal ──
@@ -1233,16 +1261,16 @@ async function showCouponModal(interaction, orderId) {
 
 // ── Coupon Modal Submit ──
 async function handleCouponModal(interaction, tenant, orderId) {
-  await interaction.reply({ content: "<a:loading:1521565470686445678> Verificando cupom...", ephemeral: true });
+  await interaction.reply({ content: "⏳ Verificando cupom...", ephemeral: true });
   const couponCode = interaction.fields.getTextInputValue("coupon_code").trim().toUpperCase();
-  if (!couponCode) return interaction.editReply({ content: "<:close:1521192513048674505> Código inválido." });
+  if (!couponCode) return interaction.editReply({ content: "❌ Código inválido." });
 
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "<:close:1521192513048674505> Pedido não encontrado ou já processado." });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
 
   const coupon = await getCoupon(tenant.id, couponCode);
-  if (!coupon) return interaction.editReply({ content: "<:close:1521192513048674505> Cupom não encontrado ou inativo." });
-  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "<:close:1521192513048674505> Este cupom não é válido para este produto." });
+  if (!coupon) return interaction.editReply({ content: "❌ Cupom não encontrado ou inativo." });
+  if (coupon.product_id && coupon.product_id !== order.product_id) return interaction.editReply({ content: "❌ Este cupom não é válido para este produto." });
 
   let discount = coupon.type === "percent" ? Math.floor(order.total_cents * coupon.value / 100) : coupon.value;
   const newTotal = Math.max(0, order.total_cents - discount);
@@ -1254,7 +1282,7 @@ async function handleCouponModal(interaction, tenant, orderId) {
     embeds: [new EmbedBuilder().setTitle("🏷️ Cupom Aplicado!").setDescription(`Cupom **${couponCode}** aplicado!\n\n~~${formatBRL(order.total_cents)}~~ → **${formatBRL(newTotal)}**\nDesconto: **-${formatBRL(discount)}**`).setColor(0x57F287)],
   });
 
-  await interaction.editReply({ content: "<:check:1521190651146801222> Cupom aplicado!" });
+  await interaction.editReply({ content: "✅ Cupom aplicado!" });
 
   // Log: Cupom aplicado
   await sendLog(interaction.guild, tenant, {
@@ -1279,12 +1307,12 @@ async function showQuantityModal(interaction, orderId) {
 
 // ── Quantity Modal Submit ──
 async function handleQuantityModal(interaction, tenant, orderId) {
-  await interaction.reply({ content: "<a:loading:1521565470686445678> Atualizando quantidade...", ephemeral: true });
+  await interaction.reply({ content: "⏳ Atualizando quantidade...", ephemeral: true });
   const qty = parseInt(interaction.fields.getTextInputValue("quantity_value").trim());
-  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "<:close:1521192513048674505> Quantidade inválida (1-99)." });
+  if (isNaN(qty) || qty < 1 || qty > 99) return interaction.editReply({ content: "❌ Quantidade inválida (1-99)." });
 
   const order = await getOrder(orderId);
-  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "<:close:1521192513048674505> Pedido não encontrado ou já processado." });
+  if (!order || order.status !== "pending_payment") return interaction.editReply({ content: "❌ Pedido não encontrado ou já processado." });
 
   let unitPrice = order.total_cents;
   if (order.field_id) {
@@ -1302,7 +1330,7 @@ async function handleQuantityModal(interaction, tenant, orderId) {
     embeds: [new EmbedBuilder().setTitle("✏️ Quantidade Atualizada").setDescription(`Quantidade: **${qty}x**\nNovo total: **${formatBRL(newTotal)}**`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
   });
 
-  await interaction.editReply({ content: `<:check:1521190651146801222> Quantidade atualizada para ${qty}x!` });
+  await interaction.editReply({ content: `✅ Quantidade atualizada para ${qty}x!` });
 
   // Log: Quantidade editada
   await sendLog(interaction.guild, tenant, {
@@ -1421,12 +1449,12 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
   }
 
   await sendWithIdentity(interaction.channel, tenant, {
-    embeds: [new EmbedBuilder().setTitle("Entrega Confirmada").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
+    embeds: [new EmbedBuilder().setTitle("Entrega Confirmada").setDescription(`✅ Pedido **#${order.order_number}** marcado como entregue por <@${interaction.user.id}>.`).setColor(await resolveOrderColor(order, await getStoreConfig(tenant.id)))],
 
   });
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO carrinho será fechado em 10 segundos.`).setColor(0x57F287)],
+    embeds: [new EmbedBuilder().setTitle("Pedido Entregue").setDescription(`✅ Pedido **#${order.order_number}** (${order.product_name}) entregue.\nO carrinho será fechado em 10 segundos.`).setColor(0x57F287)],
     components: [],
   });
 
@@ -1500,7 +1528,7 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
         await checkoutThread.send({
           embeds: [new EmbedBuilder()
             .setTitle("Pedido Entregue")
-            .setDescription(`<:check:1521190651146801222> Pedido **#${order.order_number}** (${order.product_name}) entregue.\nEste carrinho será fechado em 10 segundos.`)
+            .setDescription(`✅ Pedido **#${order.order_number}** (${order.product_name}) entregue.\nEste carrinho será fechado em 10 segundos.`)
             .setColor(0x57F287)],
         }).catch(() => {});
       }
@@ -1542,7 +1570,7 @@ async function cancelManual(interaction, tenant, orderId) {
     const storeAvatar = tenant?.bot_avatar_url || tenant?.logo_url || null;
 
     const cancelEmbed = new EmbedBuilder()
-      .setTitle(`<:close:1521192513048674505> Pedido Cancelado • ${storeName}`)
+      .setTitle(`❌ Pedido Cancelado • ${storeName}`)
       .setDescription(`Seu pedido **#${order.order_number}** (${order.product_name}) em **${storeName}** foi cancelado.`)
       .setColor(0xED4245)
       .setFooter({ text: storeName, iconURL: storeAvatar || undefined })
@@ -1555,7 +1583,7 @@ async function cancelManual(interaction, tenant, orderId) {
   } catch {}
 
   await interaction.editReply({
-    embeds: [new EmbedBuilder().setTitle("<:close:1521192513048674505> Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
+    embeds: [new EmbedBuilder().setTitle("❌ Pedido Cancelado").setDescription(`Pedido **#${order.order_number}** cancelado por <@${interaction.user.id}>.`).setColor(0xED4245)],
     components: [],
   });
 
@@ -1584,14 +1612,14 @@ async function copyDelivered(interaction, tenant, orderId) {
   await interaction.deferReply({ ephemeral: true });
 
   const order = await getOrder(orderId);
-  if (!order) return interaction.editReply({ content: "<:close:1521192513048674505> Pedido não encontrado." });
+  if (!order) return interaction.editReply({ content: "❌ Pedido não encontrado." });
 
   const { data: items } = await supabase.from("product_stock_items").select("content")
     .eq("product_id", order.product_id).eq("tenant_id", order.tenant_id)
     .eq("delivered_to", order.discord_user_id).eq("delivered", true)
     .order("delivered_at", { ascending: false }).limit(10);
 
-  if (!items?.length) return interaction.editReply({ content: "<:close:1521192513048674505> Nenhum conteúdo entregue encontrado." });
+  if (!items?.length) return interaction.editReply({ content: "❌ Nenhum conteúdo entregue encontrado." });
   const content = items.map((i) => i.content).join("\n");
   return interaction.editReply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\`` });
 }
@@ -1599,7 +1627,7 @@ async function copyDelivered(interaction, tenant, orderId) {
 // ── View Variations ──
 async function viewVariations(interaction, tenant, productId) {
   const { data: product } = await supabase.from("products").select("name, tenant_id").eq("id", productId).single();
-  if (!product) return interaction.reply({ content: "<:close:1521192513048674505> Produto não encontrado.", ephemeral: true });
+  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
 
   const fields = await getProductFields(productId, product.tenant_id);
   if (!fields.length) return interaction.reply({ content: "Este produto não tem variações.", ephemeral: true });
@@ -1624,13 +1652,13 @@ async function viewVariations(interaction, tenant, productId) {
 async function viewDetails(interaction, tenant, productId) {
   const products = await getProducts(tenant.id, false);
   const product = products.find((p) => p.id === productId);
-  if (!product) return interaction.reply({ content: "<:close:1521192513048674505> Produto não encontrado.", ephemeral: true });
+  if (!product) return interaction.reply({ content: "❌ Produto não encontrado.", ephemeral: true });
 
   const fields = await getProductFields(productId, tenant.id);
   const storeConfig = await getStoreConfig(tenant.id);
   const embedColor = resolveProductColor(product, storeConfig);
 
-  const autoDeliveryText = product.auto_delivery ? "<:zap:1521562668992037004> **Entrega Automática!**\n\n" : "";
+  const autoDeliveryText = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
   const embed = new EmbedBuilder()
     .setTitle(`ℹ️ ${product.name}`)
     .setDescription(`${autoDeliveryText}${product.description || "Sem descrição."}`)
