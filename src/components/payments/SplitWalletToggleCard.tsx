@@ -191,7 +191,7 @@ export function SplitWalletToggleCard({
             </div>
 
             {/* Controle principal bem visível */}
-            <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-3 shrink-0 rounded-xl border border-white/10 bg-black/35 p-4 min-w-[250px]">
+            <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-3 shrink-0 rounded-xl border border-white/10 bg-black/35 p-3.5 sm:p-4 w-full lg:w-auto lg:min-w-[250px]">
               <div className="flex items-center justify-between gap-4 w-full">
                 <div className="text-left">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">

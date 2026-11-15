@@ -14,8 +14,8 @@ const ResourcesPage = () => {
       </div>
 
       <Tabs defaultValue="cargos" className="space-y-4">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-muted flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
             <TabsTrigger value="cargos">{t.resourcesPage.rolesTab}</TabsTrigger>
             <TabsTrigger value="modulos">{t.resourcesPage.modulesTab}</TabsTrigger>
           </TabsList>

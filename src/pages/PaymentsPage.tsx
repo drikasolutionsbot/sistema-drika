@@ -351,10 +351,10 @@ const PaymentsPage = () => {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-3">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 pt-3">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold shadow-lg shadow-amber-500/20 gap-2"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold shadow-lg shadow-amber-500/20 gap-2"
                 onClick={() => {
                   sessionStorage.setItem("open_upgrade_modal", "true");
                   window.dispatchEvent(new Event("storage"));
@@ -365,14 +365,14 @@ const PaymentsPage = () => {
                 <ArrowRight className="h-4 w-4" />
               </Button>
 
-              <Button asChild variant="outline" size="lg" className="border-border hover:bg-accent/40 gap-2">
+              <Button asChild variant="outline" size="lg" className="w-full sm:w-auto border-border hover:bg-accent/40 gap-2">
                 <Link to="/wallet">
                   <Wallet className="h-4 w-4 text-emerald-400" />
                   Ir para Minha Carteira
                 </Link>
               </Button>
 
-              <Button asChild variant="ghost" size="lg" className="text-muted-foreground hover:text-white text-xs">
+              <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto text-muted-foreground hover:text-white text-xs">
                 <Link to="/taxas" target="_blank">
                   Ver Tabela de Taxas & Calculadora
                 </Link>
@@ -385,10 +385,10 @@ const PaymentsPage = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-6 sm:space-y-8 animate-fade-in pb-10">
       <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-white mb-2">{t.paymentsPage.title}</h1>
-        <p className="text-muted-foreground text-lg">{t.paymentsPage.description}</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white mb-1 sm:mb-2">{t.paymentsPage.title}</h1>
+        <p className="text-muted-foreground text-sm sm:text-lg">{t.paymentsPage.description}</p>
       </div>
 
       {/* Banner de Tolerância ou Card de Escolha (Gateways Próprias vs Carteira & Split Global) */}

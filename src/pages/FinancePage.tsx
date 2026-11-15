@@ -323,15 +323,15 @@ const FinancePage = () => {
               <DollarSign className="h-7 w-7 text-emerald-400" />
             </div>
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight text-white/95">Finanças</h1>
-              <p className="text-sm text-muted-foreground/80 font-medium">Acompanhe receitas, pedidos e métricas de vendas</p>
+              <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white/95">Finanças</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground/80 font-medium">Acompanhe receitas, pedidos e métricas de vendas</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             {/* Period selector */}
             <Select value={period} onValueChange={handlePeriodChange}>
-              <SelectTrigger className="w-[180px] bg-card border-border/50 h-9 text-sm">
-                <Calendar className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[180px] bg-card border-border/50 h-9 text-sm">
+                <Calendar className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -349,8 +349,8 @@ const FinancePage = () => {
                     {dateFrom ? format(dateFrom, "dd/MM") : "?"} — {dateTo ? format(dateTo, "dd/MM") : "?"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <div className="flex gap-2 p-2">
+                <PopoverContent className="w-auto max-w-[calc(100vw-1.5rem)] max-h-[80dvh] overflow-y-auto p-0" align="end">
+                  <div className="flex flex-col sm:flex-row gap-2 p-2">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1 px-2">De</p>
                       <CalendarComponent mode="single" selected={dateFrom} onSelect={setDateFrom} locale={ptBR} />

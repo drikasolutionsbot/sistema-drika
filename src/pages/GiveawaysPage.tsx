@@ -90,8 +90,8 @@ export default function GiveawaysPage() {
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted/50 border border-border w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-muted/50 border border-border flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
             <TabsTrigger value="active" className="gap-2 text-xs sm:text-sm"><Gift className="h-4 w-4" />Ativos</TabsTrigger>
             <TabsTrigger value="history" className="gap-2 text-xs sm:text-sm"><History className="h-4 w-4" />Histórico</TabsTrigger>
             <TabsTrigger value="create" className="gap-2 text-xs sm:text-sm"><PlusCircle className="h-4 w-4" />Criar</TabsTrigger>

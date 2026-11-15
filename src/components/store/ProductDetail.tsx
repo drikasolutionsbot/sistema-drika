@@ -243,9 +243,9 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
 
       {/* Tabs */}
       <Tabs defaultValue="geral" className="flex flex-col flex-1 min-h-0">
-        {/* Tab bar — always visible, never scrolls away */}
-        <div className="px-2 sm:px-6 pt-3 overflow-x-auto border-b border-white/5 shrink-0">
-          <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-xl w-max p-1 h-auto mb-[-1px]">
+        {/* Tab bar — always visible, wraps cleanly on mobile */}
+        <div className="px-3 sm:px-6 pt-3 border-b border-white/5 shrink-0">
+          <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-xl flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start p-1 h-auto mb-2 sm:mb-[-1px]">
             <TabsTrigger value="geral" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
             <TabsTrigger value="embed" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Embed</TabsTrigger>
             <TabsTrigger value="campos" className="rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Variedades</TabsTrigger>

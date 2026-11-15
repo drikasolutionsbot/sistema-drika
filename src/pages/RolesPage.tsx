@@ -513,12 +513,12 @@ const RolesPage = () => {
                   <div className="border-t border-border/50">
                     <Tabs defaultValue="discord" className="w-full">
                       <div className="px-4 pt-3">
-                        <TabsList className="w-full justify-start">
-                          <TabsTrigger value="discord" className="gap-2">
+                        <TabsList className="flex flex-wrap sm:inline-flex gap-1 w-full justify-start h-auto p-1">
+                          <TabsTrigger value="discord" className="gap-1.5 text-xs sm:text-sm">
                             <Globe className="h-3.5 w-3.5" /> Permissões Discord
                             {discordDirty && <span className="h-2 w-2 rounded-full bg-amber-400" />}
                           </TabsTrigger>
-                          <TabsTrigger value="panel" className="gap-2">
+                          <TabsTrigger value="panel" className="gap-1.5 text-xs sm:text-sm">
                             <Settings2 className="h-3.5 w-3.5" /> Permissões do Painel
                             {panelDirty && <span className="h-2 w-2 rounded-full bg-amber-400" />}
                           </TabsTrigger>
@@ -535,9 +535,9 @@ const RolesPage = () => {
                           <>
                             {/* Save bar */}
                             {discordDirty && (
-                              <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 mb-4">
-                                <p className="text-sm font-medium">Permissões Discord alteradas</p>
-                                <div className="flex gap-2">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 sm:px-4 py-2.5 mb-4">
+                                <p className="text-xs sm:text-sm font-medium">Permissões Discord alteradas</p>
+                                <div className="flex gap-2 self-end sm:self-auto">
                                   <Button variant="ghost" size="sm" onClick={() => discardDiscordDraft(role.id)}>
                                     <X className="h-4 w-4 mr-1" /> Descartar
                                   </Button>
@@ -602,9 +602,9 @@ const RolesPage = () => {
                       {/* ===== Panel Permissions Tab ===== */}
                       <TabsContent value="panel" className="px-4 pb-4">
                         {panelDirty && (
-                          <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 mb-4">
-                            <p className="text-sm font-medium">Permissões do painel alteradas</p>
-                            <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 sm:px-4 py-2.5 mb-4">
+                            <p className="text-xs sm:text-sm font-medium">Permissões do painel alteradas</p>
+                            <div className="flex gap-2 self-end sm:self-auto">
                               <Button variant="ghost" size="sm" onClick={() => discardDraft(role.id)}>
                                 <X className="h-4 w-4 mr-1" /> Descartar
                               </Button>

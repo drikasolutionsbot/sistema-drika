@@ -331,8 +331,8 @@ const ECloudPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="monitor">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted/50 border border-border rounded-xl p-1 w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-muted/50 border border-border rounded-xl p-1 flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
             <TabsTrigger value="monitor" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-3 sm:px-5 text-xs sm:text-sm">
               Monitor
             </TabsTrigger>

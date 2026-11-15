@@ -214,16 +214,16 @@ const StorePage = () => {
         <div className="absolute top-[30%] left-[60%] w-[30%] h-[30%] bg-blue-500/15 rounded-full blur-[120px] opacity-60" />
       </div>
 
-      <div className="space-y-6 animate-fade-in relative z-0">
-        <div className="relative rounded-[24px] overflow-hidden p-6 pb-5 border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl">
+      <div className="space-y-4 sm:space-y-6 animate-fade-in relative z-0">
+        <div className="relative rounded-2xl sm:rounded-[24px] overflow-hidden p-4 sm:p-6 pb-4 sm:pb-5 border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-emerald-500/10" />
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-primary/10 border border-primary/20 shadow-[0_0_20px_rgba(var(--primary),0.15)]">
-              <Package className="h-7 w-7 text-primary" />
+          <div className="relative z-10 flex items-center gap-3 sm:gap-4">
+            <div className="flex h-11 w-11 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-xl sm:rounded-[18px] bg-primary/10 border border-primary/20 shadow-[0_0_20px_rgba(var(--primary),0.15)]">
+              <Package className="h-5 w-5 sm:h-7 sm:w-7 text-primary" />
             </div>
-            <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight text-white/95">Loja</h1>
-              <p className="text-sm text-muted-foreground/80 font-medium">
+            <div className="min-w-0">
+              <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white/95">Loja</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground/80 font-medium truncate">
                 Configure a loja da <strong>{tenant?.name || "..."}</strong>.
               </p>
             </div>
@@ -231,19 +231,19 @@ const StorePage = () => {
         </div>
 
       <Tabs defaultValue="products">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl w-max min-w-full sm:w-auto p-1.5 h-auto">
-            <TabsTrigger value="products" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Produtos</TabsTrigger>
-            <TabsTrigger value="categories" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Categorias</TabsTrigger>
-            <TabsTrigger value="general" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
-            <TabsTrigger value="cart" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Carrinho</TabsTrigger>
-            <TabsTrigger value="checkout" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Checkout</TabsTrigger>
-            <TabsTrigger value="coupons" className="rounded-xl px-4 py-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Cupons</TabsTrigger>
+        <div>
+          <TabsList className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start p-1.5 h-auto">
+            <TabsTrigger value="products" className="rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Produtos</TabsTrigger>
+            <TabsTrigger value="categories" className="rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Categorias</TabsTrigger>
+            <TabsTrigger value="general" className="rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Geral</TabsTrigger>
+            <TabsTrigger value="cart" className="rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Carrinho</TabsTrigger>
+            <TabsTrigger value="checkout" className="rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Checkout</TabsTrigger>
+            <TabsTrigger value="coupons" className="rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[0_0_15px_rgba(var(--primary),0.2)]">Cupons</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="products" className="mt-4">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden h-[calc(100vh-180px)] min-h-[600px] shadow-2xl relative">
+          <div className="rounded-2xl sm:rounded-[24px] border border-white/10 bg-white/[0.03] backdrop-blur-2xl overflow-hidden min-h-[480px] lg:h-[calc(100vh-180px)] lg:min-h-[600px] shadow-2xl relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3" />
             <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] h-full relative z-10">
               {/* Em mobile, esconde a lista quando um produto está selecionado */}

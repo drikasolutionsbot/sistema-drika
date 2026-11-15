@@ -267,26 +267,26 @@ const TicketsPage = () => {
 
       {/* Top-level Tabs: Tickets | Configuração */}
       <Tabs defaultValue="tickets">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
-            <TabsTrigger value="tickets" className="gap-1.5">
+        <div>
+          <TabsList className="bg-muted flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
+            <TabsTrigger value="tickets" className="gap-1.5 text-xs sm:text-sm">
               <Ticket className="h-3.5 w-3.5" />
               Tickets
             </TabsTrigger>
-            <TabsTrigger value="config" className="gap-1.5">
+            <TabsTrigger value="config" className="gap-1.5 text-xs sm:text-sm">
               <Settings className="h-3.5 w-3.5" />
               Configuração
             </TabsTrigger>
-            <TabsTrigger value="categories" className="gap-1.5">
+            <TabsTrigger value="categories" className="gap-1.5 text-xs sm:text-sm">
               <Tag className="h-3.5 w-3.5" />
               Categorias
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="tickets" className="space-y-6 mt-4">
+        <TabsContent value="tickets" className="space-y-5 sm:space-y-6 mt-4">
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {(["open", "in_progress", "delivered", "closed"] as const).map((status) => {
               const sc = statusConfig[status];
               const Icon = sc.icon;
@@ -295,16 +295,16 @@ const TicketsPage = () => {
               const gradientClass = `from-${colorPrefix}-500/10`;
 
               return (
-                <div key={status} className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
+                <div key={status} className="relative overflow-hidden rounded-2xl border border-white/5 bg-card/40 backdrop-blur-sm p-3.5 sm:p-5 group/stat shadow-sm hover:shadow hover:bg-background/60 transition-all cursor-default">
                   <div className={`absolute inset-0 bg-gradient-to-tr ${gradientClass} to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500`} />
-                  <div className="relative z-10 flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex items-center justify-center h-10 w-10 rounded-xl border shadow-inner ${sc.badgeCls}`}>
+                  <div className="relative z-10 flex flex-col gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div className={`flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl border shadow-inner shrink-0 ${sc.badgeCls}`}>
                         <Icon className="h-4 w-4" />
                       </div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover/stat:text-foreground transition-colors">{sc.label}</p>
                     </div>
-                    <p className="text-3xl font-black tracking-tighter text-foreground">{counts[status]}</p>
+                    <p className="text-2xl sm:text-3xl font-black tracking-tighter text-foreground">{counts[status]}</p>
                   </div>
                 </div>
               );
@@ -324,8 +324,8 @@ const TicketsPage = () => {
 
           {/* Status Tabs */}
           <Tabs defaultValue="all">
-            <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-              <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+            <div>
+              <TabsList className="bg-muted flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
                 <TabsTrigger value="all" className="text-xs sm:text-sm">Todos ({counts.all})</TabsTrigger>
                 <TabsTrigger value="open" className="text-xs sm:text-sm">Abertos ({counts.open})</TabsTrigger>
                 <TabsTrigger value="in_progress" className="text-xs sm:text-sm">Andamento ({counts.in_progress})</TabsTrigger>

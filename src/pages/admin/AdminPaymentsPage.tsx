@@ -18,8 +18,8 @@ const AdminPaymentsPage = () => {
       </div>
 
       <Tabs defaultValue="payments" className="space-y-6">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-card border border-border w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-card border border-border flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start h-auto p-1">
             <TabsTrigger value="payments" className="gap-2">
               <CreditCard className="h-4 w-4" />
               Pagamentos

@@ -616,8 +616,8 @@ const DashboardPage = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted/50 border border-border w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-muted/50 border border-border flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
             <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-background text-xs sm:text-sm">
               <Eye className="h-4 w-4" /> {t.dashboard.overviewTab}
             </TabsTrigger>

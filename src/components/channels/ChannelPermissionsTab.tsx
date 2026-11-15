@@ -257,8 +257,8 @@ const ChannelPermissionsTab = ({
   return (
     <div className="space-y-5">
       {/* Channel selector */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex-1 min-w-[250px] max-w-md">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+        <div className="w-full sm:flex-1 sm:min-w-[250px] max-w-md">
           <Select value={selectedChannel || undefined} onValueChange={setSelectedChannel}>
             <SelectTrigger className="h-10">
               <div className="flex items-center gap-2">
@@ -293,11 +293,11 @@ const ChannelPermissionsTab = ({
 
       {/* Save bar */}
       {hasChanges && (
-        <div className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-md px-5 py-3">
-          <p className="text-sm text-foreground font-medium">
+        <div className="sticky top-0 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-md px-4 sm:px-5 py-3">
+          <p className="text-xs sm:text-sm text-foreground font-medium">
             Alterações em #{selectedChannelName} não salvas
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 self-end sm:self-auto">
             <Button variant="ghost" size="sm" onClick={() => setDraft(JSON.parse(JSON.stringify(originalDraft)))}>
               <X className="h-4 w-4 mr-1.5" /> Descartar
             </Button>

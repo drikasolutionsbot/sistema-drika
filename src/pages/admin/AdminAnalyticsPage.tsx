@@ -184,7 +184,7 @@ const AdminAnalyticsPage = () => {
 
       {/* Charts */}
       <Tabs defaultValue="growth" className="space-y-4">
-        <TabsList className="bg-card border border-border">
+        <TabsList className="bg-card border border-border flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start h-auto p-1">
           <TabsTrigger value="growth">Crescimento</TabsTrigger>
           <TabsTrigger value="mrr">MRR</TabsTrigger>
           <TabsTrigger value="churn">Churn</TabsTrigger>

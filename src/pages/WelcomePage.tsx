@@ -508,12 +508,12 @@ const WelcomePage = () => {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-card/50 border border-border/50">
-          <TabsTrigger value="welcome" className="gap-2"><UserPlus className="h-4 w-4" /> Boas-Vindas</TabsTrigger>
-          <TabsTrigger value="dm" className="gap-2"><MessageSquare className="h-4 w-4" /> DM</TabsTrigger>
-          <TabsTrigger value="goodbye" className="gap-2"><LogOut className="h-4 w-4" /> Despedida</TabsTrigger>
-          <TabsTrigger value="autorole" className="gap-2"><Shield className="h-4 w-4" /> Auto Role</TabsTrigger>
-          <TabsTrigger value="variables" className="gap-2"><Sparkles className="h-4 w-4" /> Variáveis</TabsTrigger>
+        <TabsList className="bg-card/50 border border-border/50 flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start h-auto p-1">
+          <TabsTrigger value="welcome" className="gap-1.5 text-xs sm:text-sm"><UserPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Boas-Vindas</TabsTrigger>
+          <TabsTrigger value="dm" className="gap-1.5 text-xs sm:text-sm"><MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> DM</TabsTrigger>
+          <TabsTrigger value="goodbye" className="gap-1.5 text-xs sm:text-sm"><LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Despedida</TabsTrigger>
+          <TabsTrigger value="autorole" className="gap-1.5 text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Auto Role</TabsTrigger>
+          <TabsTrigger value="variables" className="gap-1.5 text-xs sm:text-sm"><Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Variáveis</TabsTrigger>
         </TabsList>
 
         {/* Welcome Tab */}

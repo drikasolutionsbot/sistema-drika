@@ -279,7 +279,7 @@ const AdminGlobalMarketplacePage = () => {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start h-auto p-1">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
           <TabsTrigger value="approved">Aprovados</TabsTrigger>
           <TabsTrigger value="rejected">Rejeitados</TabsTrigger>

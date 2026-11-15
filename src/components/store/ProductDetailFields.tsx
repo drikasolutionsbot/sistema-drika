@@ -623,7 +623,7 @@ const FieldExpandedContent = ({
   return (
     <div className="border-t border-border p-4">
       <Tabs defaultValue="geral">
-        <TabsList className="bg-muted mb-4">
+        <TabsList className="bg-muted mb-4 flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start h-auto p-1">
           <TabsTrigger value="geral">Geral</TabsTrigger>
           <TabsTrigger value="estoque">Estoque ({stockCount})</TabsTrigger>
           <TabsTrigger value="mensagens">Mensagens Automáticas</TabsTrigger>

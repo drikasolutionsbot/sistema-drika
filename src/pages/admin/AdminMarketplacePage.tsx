@@ -407,8 +407,8 @@ const AdminMarketplacePage = () => {
       </div>
 
       <Tabs defaultValue="available">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-muted flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
             <TabsTrigger value="available" className="text-xs sm:text-sm">Disponíveis ({available.length})</TabsTrigger>
             <TabsTrigger value="sold" className="text-xs sm:text-sm">
               <ShoppingBag className="h-3.5 w-3.5 mr-1" />

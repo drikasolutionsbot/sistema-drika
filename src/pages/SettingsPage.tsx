@@ -37,25 +37,25 @@ const SettingsPage = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header with gradient bg */}
-      <div className="relative rounded-2xl overflow-hidden p-6 pb-4">
+      <div className="relative rounded-2xl overflow-hidden p-4 sm:p-6 pb-4">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/5" />
         <div className="absolute inset-0 border border-primary/10 rounded-2xl" />
         <div className="relative">
-          <h1 className="font-display text-2xl font-bold">Configurações</h1>
-          <p className="text-muted-foreground text-sm mt-1">Personalize seu painel</p>
+          <h1 className="font-display text-xl sm:text-2xl font-bold">Configurações</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Personalize seu painel</p>
         </div>
 
-        <Tabs value={currentTab} onValueChange={(v) => { const sp = new URLSearchParams(searchParams); sp.set("tab", v); sp.delete("section"); setSearchParams(sp, { replace: true }); }} className="relative mt-5">
-          <div className="overflow-x-auto -mx-6 px-6 scrollbar-none">
-            <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-auto gap-1 w-max min-w-full sm:w-auto">
-              <TabsTrigger value="profile" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <User className="h-4 w-4" /> Perfil
+        <Tabs value={currentTab} onValueChange={(v) => { const sp = new URLSearchParams(searchParams); sp.set("tab", v); sp.delete("section"); setSearchParams(sp, { replace: true }); }} className="relative mt-4 sm:mt-5">
+          <div>
+            <TabsList className="bg-muted/60 backdrop-blur-sm border border-border/50 p-1 h-auto flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
+              <TabsTrigger value="profile" className="gap-1.5 sm:gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
+                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Perfil
               </TabsTrigger>
-              <TabsTrigger value="discord" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <DiscordIcon className="h-4 w-4 text-[#5865F2]" /> Discord & Token
+              <TabsTrigger value="discord" className="gap-1.5 sm:gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
+                <DiscordIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#5865F2]" /> Discord & Token
               </TabsTrigger>
-              <TabsTrigger value="gateways" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <Plug className="h-4 w-4" /> Gateways
+              <TabsTrigger value="gateways" className="gap-1.5 sm:gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
+                <Plug className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Gateways
                 {planAccess.optedInSplitWallet ? (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                     Split Ativo
@@ -66,14 +66,14 @@ const SettingsPage = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="wallet" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <Wallet className="h-4 w-4" /> Carteira
+              <TabsTrigger value="wallet" className="gap-1.5 sm:gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
+                <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Carteira
               </TabsTrigger>
-              <TabsTrigger value="plan" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <Crown className="h-4 w-4" /> Plano
+              <TabsTrigger value="plan" className="gap-1.5 sm:gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
+                <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Plano
               </TabsTrigger>
-              <TabsTrigger value="advanced" className="gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                <HardDrive className="h-4 w-4" /> Avançado
+              <TabsTrigger value="advanced" className="gap-1.5 sm:gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm">
+                <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Avançado
               </TabsTrigger>
             </TabsList>
           </div>

@@ -184,7 +184,7 @@ const SettingsProfileTab = ({ tenant, tenantId }: Props) => {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
             <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-primary/5 p-4 text-center group/stat hover:bg-primary/10 transition-colors shadow-sm">
               <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent opacity-0 group-hover/stat:opacity-100 transition-opacity" />
               <div className="relative z-10">

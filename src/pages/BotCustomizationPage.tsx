@@ -210,14 +210,14 @@ const BotCustomizationPage = () => {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-3xl font-bold text-foreground tracking-tight">Personalização</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Personalização</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm">
           Configure a identidade visual do <strong className="text-foreground">{botName}</strong> no Discord.
         </p>
       </div>
 
       {/* Hero Card - Discord Profile Style */}
-      <div className="relative rounded-[24px] overflow-hidden border border-border/50 bg-card shadow-xl min-h-[340px] group transition-all duration-300 hover:border-primary/30">
+      <div className="relative rounded-2xl sm:rounded-[24px] overflow-hidden border border-border/50 bg-card shadow-xl min-h-[290px] sm:min-h-[340px] group transition-all duration-300 hover:border-primary/30">
         {/* Banner background (preview tem prioridade) */}
         {(bannerPreview || effectiveBanner) ? (
           <div className="absolute inset-0">
@@ -325,9 +325,9 @@ const BotCustomizationPage = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 px-2 text-center items-center">
             {/* Name */}
-            <h2 className="text-3xl font-display font-bold text-foreground drop-shadow-xl flex items-center gap-2">
+            <h2 className="text-xl sm:text-3xl font-display font-bold text-foreground drop-shadow-xl flex flex-wrap items-center justify-center gap-2">
               {botName}
               <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-primary/30 text-[10px] px-2 py-0 h-5">BOT</Badge>
             </h2>

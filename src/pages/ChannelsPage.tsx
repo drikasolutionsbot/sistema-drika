@@ -505,17 +505,17 @@ const ChannelsPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="mapping" className="gap-2">
+        <TabsList className="flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start h-auto p-1">
+          <TabsTrigger value="mapping" className="gap-1.5 text-xs sm:text-sm">
             <Hash className="h-3.5 w-3.5" /> Mapeamento
           </TabsTrigger>
-          <TabsTrigger value="permissions" className="gap-2">
+          <TabsTrigger value="permissions" className="gap-1.5 text-xs sm:text-sm">
             <Shield className="h-3.5 w-3.5" /> Permissões
           </TabsTrigger>
-          <TabsTrigger value="embeds" className="gap-2">
+          <TabsTrigger value="embeds" className="gap-1.5 text-xs sm:text-sm">
             <LayoutTemplate className="h-3.5 w-3.5" /> Personalização de Embed
           </TabsTrigger>
-          <TabsTrigger value="restock" className="gap-2">
+          <TabsTrigger value="restock" className="gap-1.5 text-xs sm:text-sm">
             <PackagePlus className="h-3.5 w-3.5" /> Restock
           </TabsTrigger>
         </TabsList>
@@ -535,9 +535,9 @@ const ChannelsPage = () => {
 
           {/* Save bar */}
           {hasChanges && (
-            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 backdrop-blur-xl px-5 py-3 shadow-lg shadow-primary/5 animate-fade-in">
-              <p className="text-sm text-primary font-bold">Você tem alterações não salvas</p>
-              <div className="flex gap-2">
+            <div className="sticky top-0 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-xl border border-primary/30 bg-primary/10 backdrop-blur-xl px-4 sm:px-5 py-3 shadow-lg shadow-primary/5 animate-fade-in">
+              <p className="text-xs sm:text-sm text-primary font-bold">Você tem alterações não salvas</p>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 <Button variant="ghost" size="sm" onClick={() => {
                   const initial: Record<string, string> = {};
                   configs.forEach(c => { if (c.discord_channel_id) initial[c.channel_key] = c.discord_channel_id; });

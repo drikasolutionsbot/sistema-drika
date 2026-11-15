@@ -683,7 +683,7 @@ export const AdminLayout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-[100dvh] bg-background">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 flex-col border-r border-sidebar-border bg-sidebar shrink-0">
         <SidebarContent location={location} {...sidebarProps} />
@@ -813,7 +813,7 @@ export const AdminLayout = () => {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6">
           <Outlet />
         </main>
       </div>

@@ -261,7 +261,7 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 min-w-[240px]">
+          <div className="flex flex-col gap-3 w-full sm:w-auto sm:min-w-[240px]">
             {tenant.plan_started_at && tenant.plan_expires_at && (
               <>
                 <div className="flex justify-between text-xs font-medium">

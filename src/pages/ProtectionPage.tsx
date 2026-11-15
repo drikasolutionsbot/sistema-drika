@@ -525,8 +525,8 @@ const ProtectionPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="modules">
-        <div className="overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="bg-muted w-max min-w-full sm:w-auto">
+        <div>
+          <TabsList className="bg-muted flex flex-wrap sm:inline-flex gap-1 w-full sm:w-auto justify-start">
             <TabsTrigger value="modules" className="text-xs sm:text-sm">Módulos ({MODULES.length})</TabsTrigger>
             <TabsTrigger value="whitelist" className="text-xs sm:text-sm">Whitelist ({whitelist.length})</TabsTrigger>
             <TabsTrigger value="logs" className="text-xs sm:text-sm">Logs ({logs.length})</TabsTrigger>

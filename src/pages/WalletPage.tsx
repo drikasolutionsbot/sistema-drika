@@ -589,31 +589,31 @@ export default function WalletPage() {
 
   if (!loading && planAccess.canUseOwnGateways && !hasResidualBalance) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-6">
-        <div className="max-w-3xl w-full space-y-6">
-          <div className="relative w-full overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[#0b1324] to-[#070b14] p-7 sm:p-8 shadow-2xl text-center space-y-5">
+      <div className="py-3 sm:py-8 flex flex-col items-center justify-center sm:px-2">
+        <div className="max-w-3xl w-full space-y-5">
+          <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-[#0b1324] to-[#070b14] p-5 sm:p-8 shadow-2xl text-center space-y-4 sm:space-y-5">
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="mx-auto h-14 w-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-              <ShieldCheck className="h-7 w-7 text-emerald-400" />
+            <div className="mx-auto h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-400" />
             </div>
             <div className="space-y-2 relative z-10 max-w-xl mx-auto">
-              <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-0.5">
+              <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] sm:text-xs px-3 py-0.5">
                 Plano Pago Ativo • Taxa 0% por Padrão
               </Badge>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
                 Carteira de Split desativada nesta conta
               </h1>
-              <p className="text-sm text-slate-300 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                 Por padrão no seu plano pago, suas vendas vão direto para{" "}
                 <strong className="text-white">suas próprias Gateways</strong> com{" "}
                 <strong className="text-emerald-400">0% de taxa</strong>. Mas se você preferir, pode ativar abaixo o{" "}
                 <strong className="text-white">Sistema de Carteira & Split Global</strong> por escolha própria.
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1 relative z-10">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 pt-1 relative z-10">
               <Button
                 onClick={() => navigate("/settings?tab=gateways")}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
               >
                 <CreditCard className="h-4 w-4" />
                 Configurar Minhas Gateways (0%)
@@ -621,7 +621,7 @@ export default function WalletPage() {
               <Button
                 variant="outline"
                 onClick={() => navigate("/dashboard")}
-                className="border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800"
+                className="w-full sm:w-auto border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800"
               >
                 Voltar para Visão Geral
               </Button>
@@ -1082,8 +1082,8 @@ export default function WalletPage() {
                 </div>
 
                 {/* Filter controls */}
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="relative min-w-[200px]">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                  <div className="relative w-full sm:w-auto sm:min-w-[200px]">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                     <Input
                       placeholder="Buscar transação ou chave..."

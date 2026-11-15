@@ -359,19 +359,19 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
           <Input placeholder={t.topbar.search} className="w-64 bg-muted pl-9 border-none focus-visible:ring-primary" />
         </div>
       </div>
-      <div className="flex items-center gap-1.5 md:gap-3">
+      <div className="flex items-center gap-1 sm:gap-1.5 md:gap-3 shrink-0">
         {/* Wallet Balance Button: visível no plano Free/Expirado ou se houver saldo residual > 0 */}
         {(!planAccess.canUseOwnGateways || (walletBalanceCents ?? 0) > 0) && (
           <>
             <button
               onClick={() => navigate("/wallet")}
-              className="flex items-center gap-2 h-8 md:h-9 px-2.5 md:px-3 rounded-full border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 cursor-pointer shadow-sm group shrink-0"
+              className="flex items-center gap-1.5 md:gap-2 h-8 md:h-9 px-2 md:px-3 rounded-full border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 cursor-pointer shadow-sm group shrink-0"
               title={planAccess.canUseOwnGateways ? "Saldo Residual da Carteira • Sacar para seu PIX" : "Minha Carteira • Ver Saldo & Extrato"}
             >
               <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
                 <Wallet className="h-3.5 w-3.5" />
               </div>
-              <span className="text-xs font-bold font-mono text-emerald-300 whitespace-nowrap">
+              <span className="text-[11px] sm:text-xs font-bold font-mono text-emerald-300 whitespace-nowrap">
                 {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((walletBalanceCents || 0) / 100)}
               </span>
             </button>

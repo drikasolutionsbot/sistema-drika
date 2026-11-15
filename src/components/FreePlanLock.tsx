@@ -17,7 +17,7 @@ const FEATURES = [
 
 const FreePlanLock = ({ feature }: FreePlanLockProps) => {
   return (
-    <div className="relative min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 animate-fade-in">
+    <div className="relative min-h-[60dvh] py-4 sm:py-8 flex items-center justify-center px-2 sm:px-4 animate-fade-in">
       {/* Glow background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] animate-pulse" />
@@ -28,7 +28,7 @@ const FreePlanLock = ({ feature }: FreePlanLockProps) => {
       </div>
 
       <div className="relative max-w-xl w-full">
-        <div className="relative rounded-3xl border border-primary/20 bg-card/60 backdrop-blur-2xl p-8 md:p-10 shadow-2xl overflow-hidden animate-scale-in">
+        <div className="relative rounded-3xl border border-primary/20 bg-card/60 backdrop-blur-2xl p-5 sm:p-8 md:p-10 shadow-2xl overflow-hidden animate-scale-in">
           {/* Top gradient bar */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
 

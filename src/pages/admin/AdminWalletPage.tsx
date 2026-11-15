@@ -1715,8 +1715,8 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                   </CardDescription>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="relative min-w-[220px]">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                  <div className="relative w-full sm:w-auto sm:min-w-[220px]">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                     <Input
                       placeholder="Buscar por loja ou chave PIX..."

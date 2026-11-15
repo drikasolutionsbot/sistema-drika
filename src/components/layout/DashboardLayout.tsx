@@ -107,7 +107,7 @@ export const DashboardLayout = () => {
     <>
       <ProUpgradeModal />
       <WalletAnnouncementModal />
-      <div className="flex h-screen overflow-hidden bg-background">
+      <div className="flex h-[100dvh] overflow-hidden bg-background">
         {/* Desktop sidebar */}
         <div className="hidden lg:block">
           <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
@@ -120,18 +120,18 @@ export const DashboardLayout = () => {
           </SheetContent>
         </Sheet>
 
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           <TopBar onToggleSidebar={toggleSidebar} />
 
           {/* Banner de Tolerância de 2 Dias (48 horas) */}
           {planAccess.isInGracePeriod && (
-            <div className="mx-4 mt-3 md:mx-6 p-3.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-black/40 text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-center gap-3">
+            <div className="mx-3 mt-3 md:mx-6 p-3.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-black/40 text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
                 <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/30 shrink-0">
                   <AlertTriangle className="h-5 w-5 text-amber-400 animate-pulse" />
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-white flex items-center gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                     Plano Expirado — Período de Tolerância ({planAccess.graceHoursRemaining}h restantes)
                   </p>
                   <p className="text-xs text-amber-200/80 leading-relaxed">
@@ -141,7 +141,7 @@ export const DashboardLayout = () => {
               </div>
               <Button
                 size="sm"
-                className="bg-amber-500 hover:bg-amber-600 text-black font-bold shrink-0 text-xs px-3.5 py-1.5 h-8 shadow-md"
+                className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-black font-bold shrink-0 text-xs px-3.5 py-1.5 h-8 shadow-md"
                 onClick={() => {
                   sessionStorage.setItem("open_upgrade_modal", "true");
                   window.dispatchEvent(new Event("storage"));
@@ -154,13 +154,13 @@ export const DashboardLayout = () => {
 
           {/* Banner de Plano Expirado há mais de 2 dias (Modo Free / Split Ativo) */}
           {planAccess.isGraceExpired && (
-            <div className="mx-4 mt-3 md:mx-6 p-3.5 rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 via-[#07152b] to-black/40 text-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-center gap-3">
+            <div className="mx-3 mt-3 md:mx-6 p-3.5 rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 via-[#07152b] to-black/40 text-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
                 <div className="p-2 rounded-lg bg-sky-500/20 border border-sky-500/30 shrink-0">
                   <Info className="h-5 w-5 text-sky-400" />
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-white">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-bold text-white">
                     Sua loja está operando no Modo Free (Split & Carteira)
                   </p>
                   <p className="text-xs text-sky-200/80 leading-relaxed">
@@ -170,7 +170,7 @@ export const DashboardLayout = () => {
               </div>
               <Button
                 size="sm"
-                className="bg-sky-500 hover:bg-sky-600 text-black font-bold shrink-0 text-xs px-3.5 py-1.5 h-8 shadow-md"
+                className="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-black font-bold shrink-0 text-xs px-3.5 py-1.5 h-8 shadow-md"
                 onClick={() => {
                   sessionStorage.setItem("open_upgrade_modal", "true");
                   window.dispatchEvent(new Event("storage"));
@@ -180,7 +180,7 @@ export const DashboardLayout = () => {
               </Button>
             </div>
           )}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6">
             <ErrorBoundary key={location.pathname}>
               {isFree && loadingConfig ? (
                 <div className="flex items-center justify-center h-full">
