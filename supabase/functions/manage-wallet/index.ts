@@ -218,6 +218,160 @@ async function notifyAdminsDiscordWithdrawal(opts: {
   }
 }
 
+// ─── SAQUE 100% AUTOMÁTICO ───────────────────────────────────────────────
+// Erros de CHAVE PIX (inválida/inexistente) => rejeita e devolve o saldo com observação ao cliente.
+// Erros de GATEWAY (credencial, saldo, indisponibilidade, desconhecido) => mantém pendente + DM às donas.
+function isPixKeyError(message: string): boolean {
+  const m = (message || "").toLowerCase();
+  const infra = /credenc|credential|oauth|unauthor|forbidden|\b401\b|\b403\b|api[- ]?key|client[_ ]?id|client[_ ]?secret|saldo|balance|insufficient|mtls|certific|timeout|timed out|econn|network|fetch failed|\b5\d\d\b|gateway_not|not supported|incomplete|precisa de|limite|limit|already_processing/;
+  if (infra.test(m)) return false;
+  return /chave|pix ?key|pixkey|favorecid|destinat|benefici|\bcpf\b|\bcnpj\b|telefone|e-?mail|\bdict\b|inv[aá]lid|invalid|n[aã]o encontrad|not found|n[aã]o existe|does not exist/.test(m);
+}
+
+async function pickCentralWithdrawProvider(supabase: any): Promise<string> {
+  const { data: lc } = await supabase
+    .from("landing_config")
+    .select("misticpay_active, misticpay_client_id, efi_active, efi_client_id")
+    .limit(1)
+    .maybeSingle();
+  if ((lc as any)?.misticpay_active !== false && (lc as any)?.misticpay_client_id) return "misticpay";
+  if ((lc as any)?.efi_active && (lc as any)?.efi_client_id) return "efi";
+  return "misticpay";
+}
+
+const ADMIN_DISCORD_IDS = ["821558032554917928", "340146018689482762"];
+
+async function dmAdmins(embed: any, panelUrl: string) {
+  const botToken = Deno.env.get("DISCORD_BOT_TOKEN");
+  if (!botToken) {
+    console.warn("[dmAdmins] DISCORD_BOT_TOKEN ausente");
+    return;
+  }
+  const components = [{
+    type: 1,
+    components: [{ type: 2, style: 5, label: "Abrir Carteira no Painel", url: panelUrl, emoji: { name: "⚡" } }],
+  }];
+  for (const recipientId of ADMIN_DISCORD_IDS) {
+    try {
+      const chan = await fetch("https://discord.com/api/v10/users/@me/channels", {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient_id: recipientId }),
+      });
+      if (!chan.ok) continue;
+      const c = await chan.json();
+      if (!c?.id) continue;
+      await fetch(`https://discord.com/api/v10/channels/${c.id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [embed], components }),
+      });
+    } catch (e) {
+      console.error(`[dmAdmins] Erro ao enviar DM para ${recipientId}:`, e);
+    }
+  }
+}
+
+async function autoProcessWithdrawal(
+  supabase: any,
+  txId: string,
+  ctx: { tenantName: string; pixKey: string; pixKeyType: string; panelBase: string },
+): Promise<{ status: "completed" | "pending" | "rejected"; message: string; payment_id?: string }> {
+  const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const panelUrl = `${ctx.panelBase.replace(/\/$/, "")}/admin/carteira`;
+
+  const { data: tx } = await supabase
+    .from("wallet_transactions")
+    .select("id, tenant_id, amount_cents, net_amount_cents, pix_key, pix_key_type, provider, description, status")
+    .eq("id", txId)
+    .maybeSingle();
+
+  if (!tx || tx.status !== "pending") {
+    return { status: "pending", message: "Saque registrado." };
+  }
+
+  const amountToSend = tx.net_amount_cents && tx.net_amount_cents > 0 ? tx.net_amount_cents : tx.amount_cents;
+  const providerKey = tx.provider || (await pickCentralWithdrawProvider(supabase));
+
+  let errMsg = "";
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/wallet-pix-withdraw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+      body: JSON.stringify({
+        tenant_id: tx.tenant_id,
+        amount_cents: amountToSend,
+        pix_key: tx.pix_key,
+        pix_key_type: tx.pix_key_type || ctx.pixKeyType || "aleatoria",
+        provider_key: providerKey,
+        description: `Saque automático - ${tx.description || "Saque carteira"}`,
+        existing_tx_id: tx.id,
+      }),
+      signal: AbortSignal.timeout(50000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && !data?.error) {
+      // Idempotente: garante liberação do saldo bloqueado e conclusão
+      await supabase.rpc("approve_wallet_withdrawal", {
+        _tx_id: tx.id,
+        _admin_notes: "Saque PIX automático processado via gateway",
+      });
+      return { status: "completed", message: "Saque enviado! O PIX foi processado automaticamente.", payment_id: data?.payment_id };
+    }
+    errMsg = String(data?.message || data?.error || `HTTP ${res.status}`);
+  } catch (e: any) {
+    errMsg = String(e?.message || e || "erro desconhecido");
+  }
+
+  console.error(`[auto-withdraw] tx ${txId} falhou: ${errMsg}`);
+
+  // ── Erro de chave PIX: rejeita e devolve saldo com observação ao cliente ──
+  if (isPixKeyError(errMsg)) {
+    const reason = "Saque recusado automaticamente: a chave PIX informada parece estar incorreta ou inválida. Confira a chave e solicite o saque novamente. O valor foi devolvido ao seu saldo.";
+    const { data: rej } = await supabase.rpc("reject_wallet_withdrawal", {
+      _tx_id: tx.id,
+      _rejection_reason: reason,
+    });
+    if (rej && rej.success !== false) {
+      await dmAdmins({
+        title: "⚠️ SAQUE REJEITADO AUTOMATICAMENTE (CHAVE PIX)",
+        description: `O saque da loja **${ctx.tenantName}** foi rejeitado e o saldo devolvido porque a gateway indicou problema na chave PIX.`,
+        color: 0xef4444,
+        fields: [
+          { name: "🏪 Loja", value: ctx.tenantName, inline: true },
+          { name: "💵 Valor", value: brl(amountToSend), inline: true },
+          { name: "🔑 Chave PIX", value: `\`${tx.pix_key}\` (${String(tx.pix_key_type || ctx.pixKeyType).toUpperCase()})`, inline: false },
+          { name: "🧾 Erro da gateway", value: "```" + errMsg.slice(0, 500) + "```", inline: false },
+          { name: "🆔 Transação", value: `\`${tx.id}\``, inline: false },
+        ],
+        timestamp: new Date().toISOString(),
+      }, panelUrl);
+      return { status: "rejected", message: reason };
+    }
+  }
+
+  // ── Erro de gateway (ou rejeição falhou): permanece pendente + DM com o erro ──
+  await dmAdmins({
+    title: "🚨 ERRO NO SAQUE AUTOMÁTICO — AÇÃO NECESSÁRIA",
+    description: `O saque da loja **${ctx.tenantName}** NÃO foi pago automaticamente e permanece **pendente** no painel.\n\n⚠️ Antes de reprocessar, confira no extrato da gateway se o PIX realmente não saiu, para evitar pagamento duplicado.`,
+    color: 0xf59e0b,
+    fields: [
+      { name: "🏪 Loja", value: ctx.tenantName, inline: true },
+      { name: "💵 Líquido a pagar", value: brl(amountToSend), inline: true },
+      { name: "🔑 Chave PIX", value: `\`${tx.pix_key}\` (${String(tx.pix_key_type || ctx.pixKeyType).toUpperCase()})`, inline: false },
+      { name: "🧾 Erro", value: "```" + errMsg.slice(0, 700) + "```", inline: false },
+      { name: "🆔 Transação", value: `\`${tx.id}\``, inline: false },
+    ],
+    footer: { text: "DRIKA HUB • Saques Automáticos" },
+    timestamp: new Date().toISOString(),
+  }, panelUrl);
+
+  return {
+    status: "pending",
+    message: "Saque solicitado. Houve uma instabilidade ao processar o PIX; nossa equipe já foi avisada e fará o envio em breve.",
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -414,7 +568,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // ─── Disparar notificação Discord para os dois perfis de donas/administradoras (@drikastore e @saradinha_) ───
+      // ─── Saque 100% automático: paga na hora; só avisa as donas por DM se houver erro ───
+      let autoResult: { status: string; message: string; payment_id?: string } = {
+        status: "pending",
+        message: "Saque registrado.",
+      };
       try {
         const { data: tenantRow } = await supabase
           .from("tenants")
@@ -428,22 +586,28 @@ Deno.serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
-        await notifyAdminsDiscordWithdrawal({
-          tenantName: tenantRow?.name || "Loja Lojista",
-          amountCents: rpcRes.amount_cents || amount_cents,
-          feeCents: rpcRes.fee_cents || 0,
-          netCents: rpcRes.net_amount_cents || (amount_cents - (rpcRes.fee_cents || 0)),
-          pixKey: pix_key.trim(),
-          pixKeyType: pix_key_type || "aleatoria",
-          txId: rpcRes.tx_id || "tx-" + Date.now(),
-          isFree: Boolean(rpcRes.is_free),
-          systemUrl: lCfg?.system_url || "https://drikahub.com",
-        });
-      } catch (notifErr) {
-        console.error("[manage-wallet] Erro ao enviar notificação Discord:", notifErr);
+        if (rpcRes.tx_id) {
+          autoResult = await autoProcessWithdrawal(supabase, rpcRes.tx_id, {
+            tenantName: tenantRow?.name || "Loja Lojista",
+            pixKey: pix_key.trim(),
+            pixKeyType: pix_key_type || "aleatoria",
+            panelBase: lCfg?.system_url || "https://drikahub.com",
+          });
+        }
+      } catch (autoErr) {
+        console.error("[manage-wallet] Erro no saque automático:", autoErr);
+        autoResult = {
+          status: "pending",
+          message: "Saque solicitado. Nossa equipe foi avisada e fará o envio em breve.",
+        };
       }
 
-      return new Response(JSON.stringify(rpcRes), {
+      return new Response(JSON.stringify({
+        ...rpcRes,
+        auto_status: autoResult.status,
+        auto_message: autoResult.message,
+        payment_id: autoResult.payment_id,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

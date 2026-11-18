@@ -464,10 +464,23 @@ export default function WalletPage() {
       }
       if (data?.error) throw new Error(data.error);
 
-      toast({
-        title: "Solicitação de saque enviada!",
-        description: `Saque de ${formatBRL(parsedAmountCents)} solicitado para ${effectivePixKey.trim()}. Aguardando aprovação manual.`,
-      });
+      if (data?.auto_status === "completed") {
+        toast({
+          title: "Saque enviado!",
+          description: `${formatBRL(parsedAmountCents)} enviado via PIX para ${effectivePixKey.trim()}.`,
+        });
+      } else if (data?.auto_status === "rejected") {
+        toast({
+          title: "Saque recusado",
+          description: data?.auto_message || "A chave PIX parece estar incorreta. O valor foi devolvido ao seu saldo.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Saque solicitado",
+          description: data?.auto_message || `Saque de ${formatBRL(parsedAmountCents)} solicitado para ${effectivePixKey.trim()}.`,
+        });
+      }
 
       setWithdrawModalOpen(false);
       setWithdrawAmount("");

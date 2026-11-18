@@ -396,6 +396,47 @@ Deno.serve(async (req) => {
       txId = tx.id;
     }
 
+    // ANTI DUPLO-PAGAMENTO: trava atômica da transação antes de chamar a gateway.
+    // Só quem conseguir marcar payment_id = PROCESSING-<ts> (de NULL) pode pagar.
+    let claimMarker: string | null = null;
+    if (body.existing_tx_id) {
+      const marker = `PROCESSING-${Date.now()}`;
+      const { data: claimed } = await supabase
+        .from("wallet_transactions")
+        .update({ payment_id: marker })
+        .eq("id", txId)
+        .eq("status", "pending")
+        .is("payment_id", null)
+        .select("id");
+      if (!claimed || claimed.length === 0) {
+        // Permite retomar apenas travas antigas (> 3 min) deixadas por uma queda
+        const { data: cur } = await supabase
+          .from("wallet_transactions")
+          .select("payment_id, status")
+          .eq("id", txId)
+          .maybeSingle();
+        const m = /^PROCESSING-(\d+)$/.exec(String((cur as any)?.payment_id || ""));
+        const stale = Boolean(m) && (cur as any)?.status === "pending" && Date.now() - Number(m![1]) > 3 * 60 * 1000;
+        if (!stale) {
+          return new Response(JSON.stringify({ error: "already_processing", message: "Este saque já está sendo processado ou já foi concluído." }), {
+            status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: reclaimed } = await supabase
+          .from("wallet_transactions")
+          .update({ payment_id: marker })
+          .eq("id", txId)
+          .eq("payment_id", (cur as any).payment_id)
+          .select("id");
+        if (!reclaimed || reclaimed.length === 0) {
+          return new Response(JSON.stringify({ error: "already_processing", message: "Este saque já está sendo processado." }), {
+            status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+      claimMarker = marker;
+    }
+
     // Dispatch to gateway
     let result: { payment_id: string; status: string };
     try {
@@ -431,6 +472,14 @@ Deno.serve(async (req) => {
         throw new Error(`Provider ${provider_key} not supported for PIX OUT`);
       }
     } catch (gatewayErr: any) {
+      // Libera a trava para permitir nova tentativa (o saque continua pendente)
+      if (claimMarker && txId) {
+        await supabase
+          .from("wallet_transactions")
+          .update({ payment_id: null })
+          .eq("id", txId)
+          .eq("payment_id", claimMarker);
+      }
       if (!body.existing_tx_id && txId) {
         await supabase
           .from("wallet_transactions")
