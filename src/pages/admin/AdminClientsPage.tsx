@@ -397,19 +397,18 @@ const AdminClientsPage = () => {
   const handleGenerateToken = async (tenantId: string) => {
     setGeneratingToken(tenantId);
     try {
-      // Auto-revoke any existing active tokens before generating a new one
+      // Remove any existing tokens for this tenant so only 1 token exists per client
       const { data: existingTokens } = await supabase
         .from("access_tokens")
         .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("revoked", false);
+        .eq("tenant_id", tenantId);
 
       if (existingTokens && existingTokens.length > 0) {
-        const { error: revokeError } = await supabase
+        const { error: deleteError } = await supabase
           .from("access_tokens")
-          .update({ revoked: true })
+          .delete()
           .in("id", existingTokens.map((t) => t.id));
-        if (revokeError) throw revokeError;
+        if (deleteError) throw deleteError;
       }
 
       const { data, error } = await supabase
@@ -431,7 +430,7 @@ const AdminClientsPage = () => {
       toast({
         title: "Novo token gerado!",
         description: existingTokens && existingTokens.length > 0
-          ? `${existingTokens.length} token(s) anterior(es) foram revogados automaticamente.`
+          ? `Token anterior substituído com sucesso.`
           : "Token criado com sucesso.",
       });
       fetchTokens(tenantId);
@@ -444,12 +443,12 @@ const AdminClientsPage = () => {
   const handleRevokeToken = async (tokenId: string, tenantId: string) => {
     const { error } = await supabase
       .from("access_tokens")
-      .update({ revoked: true })
+      .delete()
       .eq("id", tokenId);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Token revogado" });
+      toast({ title: "Token removido" });
       fetchTokens(tenantId);
     }
   };

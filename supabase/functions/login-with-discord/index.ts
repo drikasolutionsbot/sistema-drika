@@ -199,15 +199,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Get or create access token (mantém o mesmo token ativo e renova validade por 365 dias) ---
-    const { data: existingToken } = await admin
+    // --- Get or create access token (mantém apenas 1 token ativo por loja e renova validade por 365 dias) ---
+    const { data: activeTokens } = await admin
       .from("access_tokens")
-      .select("id, token, expires_at, revoked")
+      .select("id, token, expires_at, revoked, last_used_at, created_at")
       .eq("tenant_id", tenantId)
       .eq("revoked", false)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("last_used_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+
+    const existingToken = activeTokens?.[0] || null;
+    if (activeTokens && activeTokens.length > 1) {
+      const extraIds = activeTokens.slice(1).map((t: any) => t.id);
+      await admin.from("access_tokens").delete().in("id", extraIds);
+    }
 
     let token = existingToken?.token as string | undefined;
     const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
@@ -218,6 +223,7 @@ Deno.serve(async (req) => {
         .update({ expires_at: expiresAt, last_used_at: new Date().toISOString() })
         .eq("id", existingToken.id);
     } else {
+      await admin.from("access_tokens").delete().eq("tenant_id", tenantId);
       const { data: newToken, error: tokenErr } = await admin
         .from("access_tokens")
         .insert({
