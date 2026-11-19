@@ -487,12 +487,14 @@ serve(async (req) => {
         activeProvider = allowedProviders.find((p: any) => p.api_key_encrypted) || null;
       }
 
-      if (!activeProvider) {
-        throw new Error("A sua loja está no Plano Pago (isenção de taxas), mas ainda não possui nenhuma gateway própria ativa em Configurações > Gateways. Ative ao menos uma gateway (Mercado Pago, Efí, PushinPay, etc.) para receber os pagamentos diretamente na sua conta.");
+      if (!activeProvider && !tenant?.pix_key) {
+        throw new Error("A sua loja está no Plano Pago (isenção de taxas), mas ainda não possui nenhuma gateway própria ou Chave PIX Estática ativa em Configurações > Gateways. Ative ao menos uma gateway (Mercado Pago, Efí, PushinPay, etc.) ou cadastre uma Chave PIX Estática para receber os pagamentos diretamente na sua conta.");
       }
 
-      activeProvider.is_central = false;
-      activeProvider.is_split = false;
+      if (activeProvider) {
+        activeProvider.is_central = false;
+        activeProvider.is_split = false;
+      }
     }
     const amount = amount_cents ? amount_cents / 100 : undefined;
     const webhookBaseUrl = `${supabaseUrl}/functions/v1/payment-webhook`;

@@ -1,4 +1,4 @@
-import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key, Settings2, Wallet, Lock, Crown, ArrowRight, Sparkles } from "lucide-react";
+import { CreditCard, Check, AlertCircle, Copy, Loader2, CheckCircle2, XCircle, ExternalLink, Eye, EyeOff, Zap, Upload, ShieldCheck, Key, Settings2, Wallet, Lock, Crown, ArrowRight, Sparkles, QrCode, HelpCircle, ChevronDown, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import * as forge from "node-forge";
 import abacatePayIcon from "@/assets/abacatepay-icon.png";
@@ -10,6 +10,7 @@ import stripeIcon from "@/assets/stripe-icon.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -21,10 +22,19 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import WebhookLogsPanel from "@/components/payments/WebhookLogsPanel";
 import { GatewayTutorialDialog } from "@/components/payments/GatewayTutorialDialog";
 import { SplitWalletToggleCard } from "@/components/payments/SplitWalletToggleCard";
+import PixGeneratorDialog from "@/components/pix/PixGeneratorDialog";
 import { GraduationCap } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import type { TranslationKeys } from "@/i18n/translations/pt-BR";
 import { motion, AnimatePresence } from "framer-motion";
+
+const PIX_KEY_TYPES = [
+  { value: "cpf", label: "CPF" },
+  { value: "cnpj", label: "CNPJ" },
+  { value: "email", label: "E-mail" },
+  { value: "telefone", label: "Telefone" },
+  { value: "aleatoria", label: "Chave Aleatória" },
+];
 
 const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || "iwotvdfxppjwasywrbmw";
 
@@ -138,11 +148,109 @@ interface PaymentProvider {
 }
 
 const PaymentsPage = () => {
-  const { tenant, tenantId, planAccess } = useTenant();
+  const { tenant, tenantId, planAccess, refetch: refetchTenant } = useTenant();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   const allProviders = buildProviders(t);
   const [selectedProviderKey, setSelectedProviderKey] = useState<string | null>(null);
+
+  // Static PIX state
+  const pixStorageKey = tenantId ? `draft:${tenantId}:pix-config` : null;
+  const pixInitialized = useRef(false);
+  const [pixKey, setPixKey] = useState("");
+  const [pixKeyType, setPixKeyType] = useState("");
+  const [savingPix, setSavingPix] = useState(false);
+  const [editingPix, setEditingPix] = useState(false);
+
+  useEffect(() => {
+    if (!tenant || pixInitialized.current) return;
+    pixInitialized.current = true;
+    try {
+      const saved = pixStorageKey ? localStorage.getItem(pixStorageKey) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setPixKey(parsed.pixKey || "");
+        setPixKeyType(parsed.pixKeyType || "");
+      } else {
+        setPixKey(tenant.pix_key || "");
+        setPixKeyType(tenant.pix_key_type || "");
+      }
+    } catch {
+      setPixKey(tenant.pix_key || "");
+      setPixKeyType(tenant.pix_key_type || "");
+    }
+    setEditingPix(false);
+  }, [tenant?.pix_key, tenant?.pix_key_type, pixStorageKey]);
+
+  useEffect(() => {
+    if (!pixStorageKey || !pixInitialized.current) return;
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(pixStorageKey, JSON.stringify({ pixKey, pixKeyType })); } catch {}
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [pixKey, pixKeyType, pixStorageKey]);
+
+  const clearPixDraft = useCallback(() => {
+    if (pixStorageKey) localStorage.removeItem(pixStorageKey);
+  }, [pixStorageKey]);
+
+  const handleSavePix = async () => {
+    if (!tenantId) return;
+    setSavingPix(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-tenant", {
+        body: {
+          tenant_id: tenantId,
+          updates: {
+            pix_key: pixKey.trim() || null,
+            pix_key_type: pixKeyType || null,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await refetchTenant();
+      clearPixDraft();
+      setEditingPix(false);
+      toast({ title: "Chave PIX Estática salva com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar Chave PIX", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingPix(false);
+    }
+  };
+
+  const handleDisablePix = async () => {
+    if (!tenantId) return;
+    setSavingPix(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-tenant", {
+        body: {
+          tenant_id: tenantId,
+          updates: { pix_key: null, pix_key_type: null },
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPixKey("");
+      setPixKeyType("");
+      clearPixDraft();
+      setEditingPix(false);
+      await refetchTenant();
+      toast({ title: "Chave PIX Estática desativada" });
+    } catch (err: any) {
+      toast({ title: "Erro ao desativar", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingPix(false);
+    }
+  };
+
+  const copyPixKey = () => {
+    if (tenant?.pix_key) {
+      navigator.clipboard.writeText(tenant.pix_key);
+      toast({ title: "Chave PIX copiada!" });
+    }
+  };
 
   // Fetch platform-level gateway settings (which are visible to clients)
   const { data: platformGwSettings = [] } = useQuery<{ key: string; enabled: boolean; visible: boolean }[]>({
@@ -198,11 +306,17 @@ const PaymentsPage = () => {
   
   // Set default selected if none selected
   useEffect(() => {
-    if (!selectedProviderKey && configs.length > 0) {
+    if (!selectedProviderKey && !isLoading) {
       const active = configs.find(c => c.active);
-      setSelectedProviderKey(active ? active.provider_key : "mercadopago");
+      if (active) {
+        setSelectedProviderKey(active.provider_key);
+      } else if (tenant?.pix_key) {
+        setSelectedProviderKey("static_pix");
+      } else {
+        setSelectedProviderKey("mercadopago");
+      }
     }
-  }, [configs, selectedProviderKey]);
+  }, [configs, isLoading, selectedProviderKey, tenant?.pix_key]);
 
   const handleSave = async (providerKey: string, apiKey: string, secretKey: string, extra?: { efi_cert_pem?: string; efi_key_pem?: string; efi_pix_key?: string; stripe_webhook_secret?: string }) => {
     if (!tenantId) return;
@@ -478,11 +592,255 @@ const PaymentsPage = () => {
                 </motion.div>
               );
             })}
+
+            {/* Card: Chave PIX Estática */}
+            {(() => {
+              const isStaticActive = Boolean(tenant?.pix_key);
+              const isStaticSelected = selectedProviderKey === "static_pix";
+              return (
+                <motion.div
+                  key="static_pix"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedProviderKey("static_pix")}
+                  className={`
+                    group relative cursor-pointer overflow-hidden rounded-xl border p-4 transition-all duration-300
+                    flex flex-col items-center text-center gap-3 h-full
+                    ${isStaticSelected ? "bg-card border-primary/50 shadow-md" : "bg-background hover:bg-card border-border"}
+                    group-hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]
+                  `}
+                >
+                  {/* Status Indicator */}
+                  <div className="absolute top-3 right-3">
+                    <div className={`h-2.5 w-2.5 rounded-full ${isStaticActive ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-muted-foreground/30"}`} />
+                  </div>
+
+                  {/* Icon */}
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center p-2 mb-1 bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                    <QrCode className="h-6 w-6" />
+                  </div>
+
+                  <span className={`font-medium transition-colors ${isStaticSelected ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>
+                    Chave PIX Estática
+                  </span>
+
+                  {isStaticSelected && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute inset-0 rounded-xl border-2 border-primary pointer-events-none"
+                      initial={false}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                </motion.div>
+              );
+            })()}
           </div>
 
           {/* Área de Configuração */}
           <AnimatePresence mode="wait">
-            {selectedProvider && (
+            {selectedProviderKey === "static_pix" ? (
+              <motion.div
+                key="static_pix"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/60 backdrop-blur-xl shadow-xl p-6 sm:p-8 group">
+                  <div className="absolute -top-12 -right-12 w-48 h-48 bg-gradient-to-br from-pink-500/20 to-purple-500/20 rounded-full blur-[60px] pointer-events-none transition-opacity duration-700 opacity-50 group-hover:opacity-100" />
+
+                  <div className="relative z-10 space-y-6">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/50">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-center h-16 w-16 rounded-xl shadow-inner border bg-pink-500/10 border-pink-500/20 text-pink-400 shrink-0">
+                          <QrCode className="h-8 w-8" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="text-xl font-semibold tracking-tight text-foreground">Chave PIX Estática</h3>
+                            <Badge
+                              variant={tenant?.pix_key ? "default" : "secondary"}
+                              className={tenant?.pix_key ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/20" : ""}
+                            >
+                              {tenant?.pix_key ? t.paymentsPage.active : t.paymentsPage.inactive}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Gera QR Code e PIX Copia e Cola usando diretamente sua chave PIX pessoal ou empresarial, com aprovação manual.
+                          </p>
+                        </div>
+                      </div>
+
+                      {tenant?.pix_key && (
+                        <PixGeneratorDialog
+                          trigger={
+                            <Button variant="outline" size="sm" className="bg-background/50 shadow-sm hover:shadow transition-all shrink-0">
+                              <QrCode className="h-4 w-4 mr-2 text-primary" /> Testar QR Code
+                            </Button>
+                          }
+                        />
+                      )}
+                    </div>
+
+                    {/* Aviso caso exista alguma gateway dinâmica ativa simultaneamente */}
+                    {configs.some(c => c.active) && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+                        <div className="flex items-start gap-2.5">
+                          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                          <span>
+                            Você possui gateway(s) automática(s) ativa(s) (<strong>{configs.filter(c => c.active).map(c => c.provider_key).join(", ")}</strong>). Enquanto uma gateway automática estiver ativa, ela terá prioridade sobre o PIX Estático.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Como funciona (Accordion) */}
+                    <details className="group/details rounded-xl border border-border/50 bg-background/50 hover:bg-background/80 transition-colors overflow-hidden shadow-sm">
+                      <summary className="flex items-center gap-2 px-5 py-3.5 cursor-pointer select-none text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                        <HelpCircle className="h-4 w-4 text-primary shrink-0" />
+                        Como funciona o PIX Estático?
+                        <ChevronDown className="h-4 w-4 ml-auto transition-transform group-open/details:rotate-180" />
+                      </summary>
+                      <div className="px-5 pb-5 space-y-3.5 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/50 pt-4 bg-muted/20">
+                        <p>
+                          Com o <span className="text-foreground font-semibold">PIX Estático</span>, um QR Code é gerado para cada pedido usando sua chave PIX. O cliente escaneia e paga normalmente direto para sua conta.
+                        </p>
+                        <div className="flex items-start gap-2.5">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                          <p><span className="text-foreground font-semibold">Entregas automáticas</span> — o estoque é enviado assim que você aprovar o pagamento.</p>
+                        </div>
+                        <div className="flex items-start gap-2.5">
+                          <Shield className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                          <p><span className="text-foreground font-semibold">Aprovação manual</span> — a confirmação do pagamento é feita manualmente pela aba <span className="text-foreground font-semibold">Aprovações</span> ou pelo botão no Discord.</p>
+                        </div>
+                        <div className="flex items-start gap-2.5">
+                          <Zap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <p><span className="text-foreground font-semibold">Quer aprovação 100% automática?</span> — ative uma gateway como Mercado Pago, Efí, PushinPay, MisticPay ou AbacatePay.</p>
+                        </div>
+                      </div>
+                    </details>
+
+                    {/* Active PIX display or Edit/Create form */}
+                    {tenant?.pix_key && tenant?.pix_key_type && !editingPix ? (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-5 py-4 shadow-sm">
+                          <div className="p-2 rounded-full bg-emerald-500/20 shrink-0">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-emerald-400">Chave PIX Estática ativa</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {PIX_KEY_TYPES.find(k => k.value === tenant.pix_key_type)?.label || tenant.pix_key_type}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-background/50 border border-border/50 px-5 py-4 shadow-sm">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Chave cadastrada</p>
+                          <div className="flex items-center gap-3">
+                            <p className="font-mono text-sm sm:text-base text-foreground font-medium flex-1 truncate bg-muted/50 px-3 py-1.5 rounded-md border border-border/50">
+                              {tenant.pix_key}
+                            </p>
+                            <Button type="button" size="icon" variant="secondary" onClick={copyPixKey} title="Copiar" className="h-9 w-9 shrink-0 shadow-sm hover:shadow">
+                              <Copy className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3 pt-2">
+                          <Button
+                            onClick={() => {
+                              setPixKey(tenant.pix_key || "");
+                              setPixKeyType(tenant.pix_key_type || "");
+                              setEditingPix(true);
+                            }}
+                            variant="outline"
+                            className="bg-background/50 shadow-sm hover:shadow transition-all"
+                          >
+                            Editar chave
+                          </Button>
+                          <Button
+                            onClick={handleDisablePix}
+                            disabled={savingPix}
+                            variant="outline"
+                            className="border-red-500/30 text-red-400 hover:bg-red-500/10 shadow-sm"
+                          >
+                            {savingPix ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Desativar
+                          </Button>
+                          <PixGeneratorDialog
+                            trigger={
+                              <Button variant="outline" className="bg-background/50 shadow-sm hover:shadow transition-all">
+                                <QrCode className="h-4 w-4 mr-2 text-primary" /> Testar QR Code
+                              </Button>
+                            }
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="grid gap-5 sm:grid-cols-2 bg-background/30 p-5 rounded-xl border border-border/50 shadow-sm">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de Chave</Label>
+                            <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                              <SelectTrigger className="bg-background/80 border-border/60 focus:ring-primary/20 shadow-sm h-11">
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PIX_KEY_TYPES.map(k => (
+                                  <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Chave PIX</Label>
+                            <Input
+                              value={pixKey}
+                              onChange={e => setPixKey(e.target.value)}
+                              placeholder={
+                                pixKeyType === "cpf" ? "000.000.000-00" :
+                                pixKeyType === "cnpj" ? "00.000.000/0000-00" :
+                                pixKeyType === "email" ? "email@exemplo.com" :
+                                pixKeyType === "telefone" ? "+5511999999999" :
+                                "Cole sua chave PIX"
+                              }
+                              className="bg-background/80 border-border/60 font-mono text-sm focus:ring-primary/20 shadow-sm h-11"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3 pt-2">
+                          <Button
+                            onClick={handleSavePix}
+                            disabled={savingPix || !pixKey.trim() || !pixKeyType}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20 transition-all h-11 px-6"
+                          >
+                            {savingPix ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                            Salvar Chave PIX Estática
+                          </Button>
+                          {editingPix && (
+                            <Button
+                              onClick={() => {
+                                setPixKey(tenant?.pix_key || "");
+                                setPixKeyType(tenant?.pix_key_type || "");
+                                setEditingPix(false);
+                              }}
+                              variant="outline"
+                              className="h-11 shadow-sm"
+                            >
+                              Cancelar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ) : selectedProvider ? (
               <motion.div
                 key={selectedProvider.key}
                 initial={{ opacity: 0, y: 15 }}
@@ -498,7 +856,7 @@ const PaymentsPage = () => {
                   onToggle={handleToggle}
                 />
               </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
         </div>
       )}

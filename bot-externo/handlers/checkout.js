@@ -820,8 +820,8 @@ async function goToPayment(interaction, tenant, orderId) {
         labelTotal: "VALOR A PAGAR"
       });
     } else {
-      // Check if platform Split mode is active: if active, never allow static PIX
-      const splitActive = await isSplitWalletActive();
+      // Check if Split mode is active for this tenant: if active, never allow static PIX
+      const splitActive = await isSplitWalletActive(tenant.id);
       if (splitActive) {
         return updateLoadingOrSend({
           embeds: [
@@ -833,11 +833,19 @@ async function goToPayment(interaction, tenant, orderId) {
         });
       }
 
-      // Static PIX (only allowed when split mode is INACTIVE)
-      if (!tenant.pix_key) {
+      // Fetch fresh pix_key from tenant in case it was recently updated in dashboard
+      const { data: freshTenant } = await supabase
+        .from("tenants")
+        .select("name, pix_key")
+        .eq("id", tenant.id)
+        .maybeSingle();
+      const activePixKey = freshTenant?.pix_key || tenant.pix_key;
+
+      // Static PIX (allowed for Paid Plan tenants when no dynamic gateway is active)
+      if (!activePixKey) {
         return updateLoadingOrSend({ embeds: [new EmbedBuilder().setTitle("❌ Erro").setDescription("Nenhum método de pagamento configurado.").setColor(0xED4245)] });
       }
-      brcode = generateStaticBRCode(tenant.pix_key, tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
+      brcode = generateStaticBRCode(activePixKey, freshTenant?.name || tenant.name || "Loja", amountBRL, `PED${order.order_number}`);
       await updateOrderStatus(order.id, "pending_payment", { payment_provider: "static_pix", pix_brcode: brcode });
 
       const storeConfig = await getStoreConfig(tenant.id);

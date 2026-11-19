@@ -300,8 +300,39 @@ async function getTicketById(ticketId) {
 }
 
 // ── Split Wallet Helper ──
-async function isSplitWalletActive() {
+async function isSplitWalletActive(tenantId = null) {
   try {
+    if (tenantId) {
+      const { data: tenantRow } = await supabase
+        .from("tenants")
+        .select("plan, plan_expires_at, use_split_wallet")
+        .eq("id", tenantId)
+        .maybeSingle();
+
+      if (tenantRow) {
+        const now = new Date();
+        const GRACE_PERIOD_MS = 2 * 24 * 60 * 60 * 1000;
+        const planKey = String(tenantRow.plan || "free").toLowerCase().trim();
+        const isPaid = planKey === "pro" || planKey === "master";
+        let canUseOwnGateways = false;
+        if (isPaid) {
+          if (!tenantRow.plan_expires_at) {
+            canUseOwnGateways = true;
+          } else {
+            const expiry = new Date(tenantRow.plan_expires_at);
+            const graceEnd = new Date(expiry.getTime() + GRACE_PERIOD_MS);
+            canUseOwnGateways = now <= graceEnd;
+          }
+        }
+        if (tenantRow.use_split_wallet) {
+          canUseOwnGateways = false;
+        }
+        if (canUseOwnGateways) {
+          return false; // Loja em plano pago usando gateways próprias / PIX estático
+        }
+      }
+    }
+
     const { data: splitRow } = await supabase
       .from("platform_gateway_settings")
       .select("enabled")
