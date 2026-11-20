@@ -145,25 +145,9 @@ export const GRACE_PERIOD_MS = GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000; // 48h
 
 export function evaluatePlanAccess(
   tenant?: { plan?: string | null; plan_expires_at?: string | null; use_split_wallet?: boolean | null } | null,
-  isSystemFree = false
+  _isSystemFree = false
 ): PlanAccessStatus {
   const optedIn = Boolean(tenant?.use_split_wallet);
-
-  if (isSystemFree) {
-    return {
-      isFree: false,
-      isPaid: true,
-      isExpired: false,
-      isInGracePeriod: false,
-      isGraceExpired: false,
-      canUseOwnGateways: !optedIn,
-      usesSplitWallet: optedIn,
-      optedInSplitWallet: optedIn,
-      graceHoursRemaining: 0,
-      daysExpired: 0,
-      graceEnd: null,
-    };
-  }
 
   if (!tenant) {
     return {

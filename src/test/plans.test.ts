@@ -43,4 +43,13 @@ describe("evaluatePlanAccess", () => {
     expect(expRes.usesSplitWallet).toBe(true);
     expect(expRes.optedInSplitWallet).toBe(false);
   });
+
+  it("mantém cliente Free com Carteira & Split obrigatórios mesmo quando isSystemFree=true", () => {
+    const freeRes = evaluatePlanAccess({ plan: "free", plan_expires_at: null, use_split_wallet: false }, true);
+    expect(freeRes.isFree).toBe(true);
+    expect(freeRes.isPaid).toBe(false);
+    expect(freeRes.canUseOwnGateways).toBe(false);
+    expect(freeRes.usesSplitWallet).toBe(true);
+    expect(freeRes.optedInSplitWallet).toBe(false);
+  });
 });
