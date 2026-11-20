@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,13 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    const { action, tenant_id, provider_key, api_key, secret_key, provider_id, efi_cert_pem, efi_key_pem, efi_pix_key, stripe_webhook_secret, enabled } = await req.json();
+    const body = await req.json();
+    const { action, tenant_id, provider_key, api_key, secret_key, provider_id, efi_cert_pem, efi_key_pem, efi_pix_key, stripe_webhook_secret, enabled } = body;
     if (!tenant_id) throw new Error("Missing tenant_id");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const { response: authErr } = await requireTenantAccess(req, supabase, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
 
     if (action === "list") {
       const { data, error } = await supabase

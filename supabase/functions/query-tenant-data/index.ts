@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +32,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { tenant_id, table, select, order_by, ascending, limit: queryLimit, filters } = await req.json();
+    const body = await req.json();
+    const { tenant_id, table, select, order_by, ascending, limit: queryLimit, filters } = body;
 
     if (!tenant_id || !table) {
       return new Response(JSON.stringify({ error: "tenant_id and table are required" }), {
@@ -47,66 +49,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate access - either via auth header (Supabase Auth) or token session
-    const authHeader = req.headers.get("authorization");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Try to validate via Supabase Auth
-    let authorized = false;
-
-    if (authHeader && authHeader !== `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`) {
-      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: { user } } = await userClient.auth.getUser();
-      if (user) {
-        // Check user has role in this tenant
-        const { data: role } = await admin
-          .from("user_roles")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("tenant_id", tenant_id)
-          .limit(1)
-          .maybeSingle();
-        
-        if (role) authorized = true;
-
-        // Also check super_admin
-        if (!authorized) {
-          const { data: superAdmin } = await admin
-            .from("user_roles")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("role", "super_admin")
-            .limit(1)
-            .maybeSingle();
-          if (superAdmin) authorized = true;
-        }
-      }
-    }
-
-    // If not authorized via Supabase Auth, check access_token in body
-    if (!authorized) {
-      // For token-session users, validate that the tenant exists
-      // The token was already validated at login, and tenant_id comes from the session
-      const { data: tenant } = await admin
-        .from("tenants")
-        .select("id")
-        .eq("id", tenant_id)
-        .maybeSingle();
-      
-      if (tenant) authorized = true;
-    }
-
-    if (!authorized) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { response: authErr } = await requireTenantAccess(req, admin, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
 
     // Build query
     let query: any = admin

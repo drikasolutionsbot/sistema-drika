@@ -1,5 +1,6 @@
 ﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,10 +22,13 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const { auth, response: authErr } = await requireTenantAccess(req, supabase, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
+
     // Resolve tenant guild and use external bot token Ãºnico
     const { data: tenantInfo } = await supabase
       .from("tenants")
-      .select("discord_guild_id")
+      .select("discord_guild_id, owner_discord_id")
       .eq("id", tenant_id)
       .single();
 
@@ -128,6 +132,20 @@ serve(async (req) => {
         if (!guildRes.ok) {
           if (guildRes.status === 404 || guildRes.status === 403) {
             throw new Error("O bot nÃ£o estÃ¡ neste servidor. Adicione o bot primeiro.");
+          }
+        } else {
+          const guildData = await guildRes.json().catch(() => null);
+          const ownerDiscordId = tenantInfo?.owner_discord_id ? String(tenantInfo.owner_discord_id).trim() : null;
+          if (ownerDiscordId && !auth.isSuperAdmin && !appearedAfterDashboardInvite) {
+            const isGuildOwner = guildData?.owner_id && String(guildData.owner_id) === ownerDiscordId;
+            if (!isGuildOwner) {
+              const memberRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${ownerDiscordId}`, {
+                headers: { Authorization: `Bot ${tenantBotToken}` },
+              });
+              if (!memberRes.ok) {
+                throw new Error("O proprietÃ¡rio desta loja nÃ£o pertence ao servidor Discord informado.");
+              }
+            }
           }
         }
       }

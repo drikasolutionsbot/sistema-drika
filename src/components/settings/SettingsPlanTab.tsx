@@ -45,7 +45,12 @@ const SettingsPlanTab = ({ tenant, tenantId, refetchTenant }: Props) => {
 
   // Fetch prices from landing_config
   useEffect(() => {
-    supabase.from("landing_config").select("*").limit(1).single().then(({ data }) => {
+    supabase
+      .from("landing_config")
+      .select("pro_price_cents, master_price_cents, pro_quarterly_price_cents, pro_semiannual_price_cents, master_quarterly_price_cents, master_semiannual_price_cents")
+      .limit(1)
+      .single()
+      .then(({ data }) => {
       if (data) {
         if (data.pro_price_cents) setProPriceCents(data.pro_price_cents);
         if (data.master_price_cents) setMasterPriceCents(data.master_price_cents);

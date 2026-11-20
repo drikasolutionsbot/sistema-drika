@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,12 +14,16 @@ serve(async (req) => {
   }
 
   try {
-    const { tenant_id } = await req.json();
+    const body = await req.json();
+    const { tenant_id } = body;
     if (!tenant_id) throw new Error("Missing tenant_id");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const { response: authErr } = await requireTenantAccess(req, supabase, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
 
     const { data, error } = await supabase
       .from("tenants")
@@ -27,6 +32,7 @@ serve(async (req) => {
       .single();
 
     if (error) throw error;
+    delete (data as any).bot_token_encrypted;
 
     // Se o plano pago expirou há mais de 2 dias (tolerância de 48h esgotada), reverte para Free
     if (data.plan && data.plan !== "free" && data.plan_expires_at) {

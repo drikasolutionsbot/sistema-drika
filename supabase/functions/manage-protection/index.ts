@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, tenant_id } = body;
     if (!tenant_id) throw new Error("tenant_id required");
+
+    const { response: authErr } = await requireTenantAccess(req, supabase, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
 
     const json = (data: any) => new Response(JSON.stringify(data), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

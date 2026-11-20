@@ -279,15 +279,28 @@ async function syncGuildOwners() {
         const ownerId = owner?.user?.id || guild.ownerId;
         const ownerUsername = owner?.user?.username || owner?.user?.tag || null;
 
-        if (ownerId && (tenant.owner_discord_id !== ownerId || (ownerUsername && tenant.owner_discord_username !== ownerUsername))) {
-          await supabase
-            .from("tenants")
-            .update({
-              owner_discord_id: ownerId,
-              owner_discord_username: ownerUsername,
-            })
-            .eq("id", tenant.id);
-          console.log(`[DISCORD-OWNER] Sincronizado: ${tenant.name} -> @${ownerUsername} (${ownerId})`);
+        // SEGURANÇA: nunca sobrescreve um owner_discord_id já definido com outro usuário.
+        // Apenas preenche quando a loja ainda não tinha owner_discord_id registrado,
+        // ou atualiza o username caso o próprio dono original tenha mudado de nick.
+        if (ownerId) {
+          if (!tenant.owner_discord_id) {
+            await supabase
+              .from("tenants")
+              .update({
+                owner_discord_id: ownerId,
+                owner_discord_username: ownerUsername,
+              })
+              .eq("id", tenant.id);
+            console.log(`[DISCORD-OWNER] Definido dono inicial: ${tenant.name} -> @${ownerUsername} (${ownerId})`);
+          } else if (tenant.owner_discord_id === ownerId && ownerUsername && tenant.owner_discord_username !== ownerUsername) {
+            await supabase
+              .from("tenants")
+              .update({
+                owner_discord_username: ownerUsername,
+              })
+              .eq("id", tenant.id);
+            console.log(`[DISCORD-OWNER] Username atualizado: ${tenant.name} -> @${ownerUsername}`);
+          }
         }
       } catch (err) {
         // ignora erro silenciosamente

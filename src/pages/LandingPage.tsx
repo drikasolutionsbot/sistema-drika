@@ -502,9 +502,14 @@ const LandingPage = () => {
   } | null>(null);
 
   useEffect(() => {
-    supabase.from("landing_config").select("*").limit(1).single().then(({ data }) => {
-      if (data) setLandingConfig(data as any);
-    });
+    supabase
+      .from("landing_config")
+      .select("stat_servers, stat_servers_label, stat_sales, stat_sales_label, stat_products, stat_products_label, video_url, pushinpay_active, pro_price_cents, pro_quarterly_price_cents, pro_semiannual_price_cents, master_price_cents, master_quarterly_price_cents, master_semiannual_price_cents, pro_plan_name, master_plan_name, show_pro_plan, show_master_plan, show_trial, is_free_system")
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data) setLandingConfig(data as any);
+      });
   }, []);
 
   const handleOpenPayment = (plan: "pro" | "master", cycle: "monthly" | "quarterly" | "semiannual") => {

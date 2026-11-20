@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,8 +22,12 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const { action, tenant_id, ...params } = await req.json();
+    const body = await req.json();
+    const { action, tenant_id, ...params } = body;
     if (!tenant_id) throw new Error("Missing tenant_id");
+
+    const { response: authErr } = await requireTenantAccess(req, supabase, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
 
     // Get guild_id from tenant and always use external bot token
     const { data: tenant, error: tenantErr } = await supabase

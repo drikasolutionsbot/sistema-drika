@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireTenantAccess } from "../_shared/tenant-auth.ts";
 import { bgBase64 } from "./bg.ts";
 
 const corsHeaders = {
@@ -267,7 +268,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { action, tenant_id, product_id, field_id, field, items, stock_item_id } = await req.json();
+    const body = await req.json();
+    const { action, tenant_id, product_id, field_id, field, items, stock_item_id } = body;
 
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id obrigatÃ³rio" }), {
@@ -275,6 +277,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { response: authErr } = await requireTenantAccess(req, supabase, tenant_id, body, corsHeaders);
+    if (authErr) return authErr;
 
     // COUNT fields grouped by product_id (for all products of tenant)
     if (action === "count_by_product") {

@@ -70,10 +70,9 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
           body: { tenant_id: tokenSession.tenant_id },
         });
 
-        let result: Tenant;
         if (!error && data && !data.error) {
           const activeToken = data.access_token || tokenSession.token || null;
-          result = {
+          const result: Tenant = {
             ...data,
             token: activeToken,
             access_token: activeToken,
@@ -86,43 +85,22 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               token: activeToken,
             });
           }
+          setTenant(result);
+          setLoading(false);
+          return result;
         } else {
-          result = {
-            id: tokenSession.tenant_id,
-            name: tokenSession.tenant_name || "Loja",
-            token: tokenSession.token || null,
-            access_token: tokenSession.token || null,
-            discord_guild_id: null,
-            logo_url: null,
-            primary_color: "#FF69B4",
-            secondary_color: "#FFD700",
-            plan: "free",
-            plan_started_at: null,
-            plan_expires_at: null,
-            pix_key: null,
-            pix_key_type: null,
-            bot_token_encrypted: null,
-            bot_client_id: null,
-            bot_prefix: null,
-            bot_status: null,
-            bot_status_interval: null,
-            bot_name: null,
-            bot_avatar_url: null,
-            banner_url: null,
-            ecloud_custom_url: null,
-            verify_enabled: null,
-            verify_redirect_url: null,
-            verify_role_id: null,
-            referral_code: null,
-            referred_by_tenant_id: null,
-            referral_credits_cents: 0,
-            affiliate_active: false,
-            use_split_wallet: false,
-          };
+          // Token foi rotacionado, revogado ou não autorizado: limpa a sessão de token inválida
+          clearTokenSession();
+          if (!user) {
+            setTenant(null);
+            setLoading(false);
+            if (window.location.pathname !== "/login" && window.location.pathname !== "/") {
+              window.location.href = "/login";
+            }
+            return null;
+          }
+          // Se o usuário estiver logado via Discord (user), continua abaixo para carregar/sincronizar o novo token
         }
-        setTenant(result);
-        setLoading(false);
-        return result;
       } catch {}
     }
 
