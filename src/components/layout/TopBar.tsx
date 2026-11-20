@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { getPlanInfo, isPaidPlan, formatPlanLabel, formatPlanLabelWithIcon } from "@/lib/plans";
+import { clearTokenSession } from "@/lib/tokenSession";
 import { useLanguage, languageLabels, languageFlags, type Language } from "@/i18n/LanguageContext";
 
 interface TopBarProps {
@@ -343,7 +344,7 @@ export const TopBar = ({ onToggleSidebar }: TopBarProps) => {
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem("token_session");
+    clearTokenSession();
     try { await signOut(); } catch (_) {}
     window.location.href = "/login";
   };

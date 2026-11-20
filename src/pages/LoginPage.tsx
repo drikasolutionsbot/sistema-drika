@@ -9,6 +9,7 @@ import TermsModal from "@/components/TermsModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { languageFlags, languageLabels, type Language } from "@/i18n/LanguageContext";
+import { saveTokenSession, clearTokenSession } from "@/lib/tokenSession";
 
 // Discord SVG icon
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -50,7 +51,7 @@ const LoginPage = () => {
     setValidating(true);
     try {
       if (user) await signOut();
-      localStorage.removeItem("token_session");
+      clearTokenSession();
       Object.keys(sessionStorage).forEach((k) => {
         if (k.startsWith("drika_wallet_split_popup_v1")) sessionStorage.removeItem(k);
       });
@@ -65,11 +66,11 @@ const LoginPage = () => {
         toast({ title: t.login.invalidToken, description: data?.error || error?.message, variant: "destructive" });
         setValidating(false);
       } else {
-        localStorage.setItem("token_session", JSON.stringify({
+        saveTokenSession({
           tenant_id: data.tenant_id,
           tenant_name: data.tenant_name,
           token: token.trim(),
-        }));
+        });
         toast({ title: `👋 ${t.login.welcome}, ${data.tenant_name}!`, description: t.login.panelLoaded, variant: "success" as any });
         navigate("/dashboard", { replace: true });
       }

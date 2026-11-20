@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import drikaLogo from "@/assets/DRIKA_HUB_SEM_FUNDO.png";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { clearTokenSession } from "@/lib/tokenSession";
 
 type PlanKey = "pro" | "master";
 
@@ -83,7 +84,7 @@ const PlanExpiredPage = () => {
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem("token_session");
+    clearTokenSession();
     try { await signOut(); } catch {}
     window.location.href = "/login";
   };

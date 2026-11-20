@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo, ReactNode } fr
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { evaluatePlanAccess, type PlanAccessStatus } from "@/lib/plans";
+import { getTokenSession, saveTokenSession, clearTokenSession } from "@/lib/tokenSession";
 
 interface Tenant {
   id: string;
@@ -61,86 +62,108 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const fetchTenant = async (isRefetch = false): Promise<Tenant | null> => {
     if (!isRefetch) setLoading(true);
 
-    // Check token session first - use stored data directly (no RLS needed)
-    const tokenSessionStr = localStorage.getItem("token_session");
-    if (tokenSessionStr) {
+    // Check token session first (localStorage + 365-day cookie fallback)
+    const tokenSession = getTokenSession();
+    if (tokenSession?.tenant_id) {
       try {
-        const tokenSession = JSON.parse(tokenSessionStr);
-        if (tokenSession.tenant_id) {
-          const { data, error } = await supabase.functions.invoke("get-tenant", {
-            body: { tenant_id: tokenSession.tenant_id },
-          });
+        const { data, error } = await supabase.functions.invoke("get-tenant", {
+          body: { tenant_id: tokenSession.tenant_id },
+        });
 
-          let result: Tenant;
-          if (!error && data && !data.error) {
-            const activeToken = data.access_token || tokenSession.token || null;
-            result = {
-              ...data,
+        let result: Tenant;
+        if (!error && data && !data.error) {
+          const activeToken = data.access_token || tokenSession.token || null;
+          result = {
+            ...data,
+            token: activeToken,
+            access_token: activeToken,
+          } as Tenant;
+          // Mantém o token_session sempre sincronizado no localStorage e no cookie de 365 dias
+          if (activeToken) {
+            saveTokenSession({
+              tenant_id: data.id || tokenSession.tenant_id,
+              tenant_name: data.name || tokenSession.tenant_name || "Loja",
               token: activeToken,
-              access_token: activeToken,
-            } as Tenant;
-            // Mantém o token_session sempre sincronizado e persistido no localStorage
-            if (activeToken) {
-              localStorage.setItem("token_session", JSON.stringify({
-                tenant_id: data.id || tokenSession.tenant_id,
-                tenant_name: data.name || tokenSession.tenant_name || "Loja",
-                token: activeToken,
-              }));
-            }
-          } else {
-            result = {
-              id: tokenSession.tenant_id,
-              name: tokenSession.tenant_name || "Loja",
-              token: tokenSession.token || null,
-              access_token: tokenSession.token || null,
-              discord_guild_id: null,
-              logo_url: null,
-              primary_color: "#FF69B4",
-              secondary_color: "#FFD700",
-              plan: "free",
-              plan_started_at: null,
-              plan_expires_at: null,
-              pix_key: null,
-              pix_key_type: null,
-              bot_token_encrypted: null,
-              bot_client_id: null,
-              bot_prefix: null,
-              bot_status: null,
-              bot_status_interval: null,
-              bot_name: null,
-              bot_avatar_url: null,
-              banner_url: null,
-              ecloud_custom_url: null,
-              verify_enabled: null,
-              verify_redirect_url: null,
-              verify_role_id: null,
-              referral_code: null,
-              referred_by_tenant_id: null,
-              referral_credits_cents: 0,
-              affiliate_active: false,
-              use_split_wallet: false,
-            };
+            });
           }
-          setTenant(result);
-          setLoading(false);
-          return result;
+        } else {
+          result = {
+            id: tokenSession.tenant_id,
+            name: tokenSession.tenant_name || "Loja",
+            token: tokenSession.token || null,
+            access_token: tokenSession.token || null,
+            discord_guild_id: null,
+            logo_url: null,
+            primary_color: "#FF69B4",
+            secondary_color: "#FFD700",
+            plan: "free",
+            plan_started_at: null,
+            plan_expires_at: null,
+            pix_key: null,
+            pix_key_type: null,
+            bot_token_encrypted: null,
+            bot_client_id: null,
+            bot_prefix: null,
+            bot_status: null,
+            bot_status_interval: null,
+            bot_name: null,
+            bot_avatar_url: null,
+            banner_url: null,
+            ecloud_custom_url: null,
+            verify_enabled: null,
+            verify_redirect_url: null,
+            verify_role_id: null,
+            referral_code: null,
+            referred_by_tenant_id: null,
+            referral_credits_cents: 0,
+            affiliate_active: false,
+            use_split_wallet: false,
+          };
         }
+        setTenant(result);
+        setLoading(false);
+        return result;
       } catch {}
     }
 
     if (!user) { setTenant(null); setLoading(false); return null; }
 
     // Get user's first tenant via user_roles
+    let resolvedTenantId: string | null = null;
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("tenant_id")
       .eq("user_id", user.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (roleData?.tenant_id) {
+    resolvedTenantId = roleData?.tenant_id || null;
+
+    // Fallback: se o usuário está autenticado via Discord mas não tinha token_session salvo,
+    // recupera/vincula a loja automaticamente via login-with-discord
+    if (!resolvedTenantId && user.app_metadata?.provider === "discord") {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const { data: discordLoginData } = await supabase.functions.invoke("login-with-discord", {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        });
+        if (discordLoginData?.tenant_id) {
+          resolvedTenantId = discordLoginData.tenant_id;
+          if (discordLoginData.token) {
+            saveTokenSession({
+              tenant_id: discordLoginData.tenant_id,
+              tenant_name: discordLoginData.tenant_name || "Loja",
+              token: discordLoginData.token,
+            });
+          }
+        }
+      } catch {}
+    }
+
+    if (resolvedTenantId) {
       const { data: fnData, error: fnErr } = await supabase.functions.invoke("get-tenant", {
-        body: { tenant_id: roleData.tenant_id },
+        body: { tenant_id: resolvedTenantId },
       });
 
       let result: Tenant | null = null;
@@ -150,20 +173,19 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
           token: fnData.access_token || null,
           access_token: fnData.access_token || null,
         } as Tenant;
-        // Persiste token_session automaticamente para usuários logados via Discord/Auth
-        // para que nunca percam a sessão após inatividade mesmo se o JWT expirar
+        // Persiste token_session automaticamente no localStorage + cookie 365 dias
         if (fnData.access_token) {
-          localStorage.setItem("token_session", JSON.stringify({
+          saveTokenSession({
             tenant_id: fnData.id,
             tenant_name: fnData.name || "Loja",
             token: fnData.access_token,
-          }));
+          });
         }
       } else {
         const { data } = await supabase
           .from("tenants")
           .select("*")
-          .eq("id", roleData.tenant_id)
+          .eq("id", resolvedTenantId)
           .single();
         result = (data as Tenant | null);
       }

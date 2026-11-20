@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Outlet, Navigate, Link, useLocation } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { clearTokenSession } from "@/lib/tokenSession";
 import {
   LayoutDashboard, CreditCard, Users, LogOut, Headphones, Globe, Bell,
   Crown, UserPlus, Inbox, CheckCircle, BarChart3, ClipboardList, Shield,
@@ -228,7 +229,7 @@ const SidebarContent = ({
         )}
         <button
           onClick={async () => {
-            localStorage.removeItem("token_session");
+            clearTokenSession();
             try { await signOut(); } catch (_) {}
             window.location.href = "/login";
           }}

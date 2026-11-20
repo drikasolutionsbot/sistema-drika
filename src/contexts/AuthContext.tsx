@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { getTokenSession } from "@/lib/tokenSession";
 
 interface AuthContextType {
   session: Session | null;
@@ -23,6 +24,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let initialResolved = false;
 
+    // Sincroniza cookie <-> localStorage já no boot
+    getTokenSession();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       setSession(currentSession);
       if (currentSession?.provider_token) {
@@ -37,11 +41,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     supabase.auth.getSession().then(async ({ data: { session: restoredSession }, error }) => {
       initialResolved = true;
-      if (error) {
+      if (error || !restoredSession) {
         // Se o refresh_token do Supabase expirou/falhou mas o cliente tem token_session,
         // limpamos apenas a sessão Auth quebrada para não enviar JWT expirado nas Edge Functions
-        const hasTokenSession = !!localStorage.getItem("token_session");
-        if (hasTokenSession) {
+        const hasTokenSession = !!getTokenSession();
+        if (error && hasTokenSession) {
           try {
             await supabase.auth.signOut({ scope: "local" });
           } catch {}

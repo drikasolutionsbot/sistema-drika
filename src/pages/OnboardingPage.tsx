@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getTokenSession, saveTokenSession } from "@/lib/tokenSession";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
@@ -37,7 +38,7 @@ const OnboardingPage = () => {
   const [serverName, setServerName] = useState("");
 
   useEffect(() => {
-    const tokenSession = localStorage.getItem("token_session");
+    const tokenSession = getTokenSession();
     if (tokenSession) {
       navigate("/dashboard", { replace: true });
       return;
@@ -70,12 +71,12 @@ const OnboardingPage = () => {
             return;
           }
 
-          // Save token session
-          localStorage.setItem("token_session", JSON.stringify({
+          // Save token session (localStorage + 365-day cookie)
+          saveTokenSession({
             tenant_id: data.tenant_id,
             tenant_name: data.tenant_name,
             token: data.token,
-          }));
+          });
 
           if (data.is_new) {
             // New user — show server setup

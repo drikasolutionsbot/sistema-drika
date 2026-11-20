@@ -65,13 +65,14 @@ import TranscriptPage from "./pages/TranscriptPage";
 import DmTemplatesPage from "./pages/DmTemplatesPage";
 import WalletPage from "./pages/WalletPage";
 import AdminWalletPage from "./pages/admin/AdminWalletPage";
+import { getTokenSession } from "@/lib/tokenSession";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const tokenSession = localStorage.getItem("token_session");
-  if (loading) return <div className="flex h-screen items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
+  const tokenSession = getTokenSession();
+  if (loading && !tokenSession) return <div className="flex h-screen items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   if (!user && !tokenSession) {
     const isAdminRoute = window.location.pathname.startsWith("/admin");
     return <Navigate to={isAdminRoute ? "/admin/login" : "/login"} replace />;
@@ -80,10 +81,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const tokenSession = localStorage.getItem("token_session");
-  const forceSwitch = new URLSearchParams(window.location.search).get("switch") === "1";
+  const tokenSession = getTokenSession();
+  const params = new URLSearchParams(window.location.search);
+  const forceSwitch = params.get("switch") === "1" || params.get("landing") === "1";
+  if (!forceSwitch && tokenSession) return <Navigate to="/dashboard" replace />;
   if (loading) return null;
-  if (!forceSwitch && (tokenSession || user)) return <Navigate to="/dashboard" replace />;
+  if (!forceSwitch && user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
 
@@ -91,7 +94,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
-    <Route path="/signup" element={<SignupPage />} />
+    <Route path="/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
     <Route path="/termos" element={<TermsPage />} />
     <Route path="/taxas" element={<TermsPage />} />
     <Route path="/privacidade" element={<PrivacyPage />} />
@@ -99,7 +102,7 @@ const AppRoutes = () => (
     <Route path="/verify/:slug" element={<VerifyRedirectPage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />
     <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-    <Route path="/" element={<LandingPage />} />
+    <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
     <Route path="/preview" element={<PreviewPage />} />
     <Route path="/transcript/:channelId" element={<TranscriptPage />} />
     <Route path="/transcript" element={<TranscriptPage />} />
