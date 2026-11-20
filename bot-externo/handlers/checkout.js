@@ -1628,8 +1628,38 @@ async function copyDelivered(interaction, tenant, orderId) {
     .order("delivered_at", { ascending: false }).limit(10);
 
   if (!items?.length) return interaction.editReply({ content: "❌ Nenhum conteúdo entregue encontrado." });
-  const content = items.map((i) => i.content).join("\n");
-  return interaction.editReply({ content: `📋 **Produto entregue:**\n\`\`\`\n${content}\n\`\`\`` });
+
+  const TXT_PREFIX = "__TXT_FILE__:";
+  const files = [];
+  const plainLines = [];
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const raw = String(items[idx].content || "");
+    if (raw.startsWith(TXT_PREFIX)) {
+      try {
+        const parsed = JSON.parse(raw.slice(TXT_PREFIX.length));
+        if (parsed && typeof parsed.content === "string") {
+          const fname = String(parsed.filename || `arquivo-${idx + 1}.txt`).replace(/[^a-zA-Z0-9._-]/g, "_");
+          files.push(new AttachmentBuilder(Buffer.from(parsed.content, "utf-8"), { name: fname.endsWith(".txt") ? fname : `${fname}.txt` }));
+          continue;
+        }
+      } catch {}
+    }
+    plainLines.push(raw);
+  }
+
+  if (files.length > 0 && plainLines.length === 0) {
+    return interaction.editReply({
+      content: "📄 **Arquivo(s) TXT entregue(s):**",
+      files,
+    });
+  }
+
+  const content = plainLines.join("\n");
+  return interaction.editReply({
+    content: `📋 **Produto entregue:**\n\`\`\`\n${content.slice(0, 1850)}\n\`\`\``,
+    files: files.length > 0 ? files : undefined,
+  });
 }
 
 // ── View Variations ──

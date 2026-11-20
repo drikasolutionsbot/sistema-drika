@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Plus, Loader2, Trash2, Search, RefreshCw, Copy, Check } from "lucide-react";
+import { Package, Plus, Loader2, Trash2, Search, RefreshCw, Copy, Check, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
-import { AddStockModal } from "./AddStockModal";
+import { AddStockModal, parseTxtStockItem } from "./AddStockModal";
 
 interface StockItem {
   id: string;
@@ -29,7 +30,8 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopyItem = (item: StockItem) => {
-    navigator.clipboard.writeText(item.content);
+    const parsed = parseTxtStockItem(item.content);
+    navigator.clipboard.writeText(parsed.content);
     setCopiedId(item.id);
     setTimeout(() => setCopiedId(null), 1500);
   };
@@ -171,13 +173,25 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
             </div>
           ) : (
             <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border divide-y divide-border">
-              {filteredItems.map((item) => (
+              {filteredItems.map((item) => {
+                const parsed = parseTxtStockItem(item.content);
+                return (
                 <div
                   key={item.id}
                   className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors group"
                 >
-                  <div className="flex-1 min-w-0 mr-2">
-                    <p className="text-sm font-mono truncate">{item.content}</p>
+                  <div className="flex-1 min-w-0 mr-2 flex items-center gap-2">
+                    {parsed.isTxtFile ? (
+                      <>
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-medium truncate">{parsed.filename}</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                          Arquivo TXT • {Math.max(1, Math.ceil(parsed.size / 1024))} KB
+                        </Badge>
+                      </>
+                    ) : (
+                      <p className="text-sm font-mono truncate">{item.content}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <Button
@@ -207,7 +221,8 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

@@ -1955,7 +1955,17 @@ serve(async (req: Request) => {
           return respondImmediate(interaction, tr(L, "delivered_not_found"));
         }
 
-        const content = items.map((i: any) => i.content).join("\n");
+        const TXT_PREFIX = "__TXT_FILE__:";
+        const content = items.map((i: any) => {
+          const raw = String(i?.content ?? "");
+          if (raw.startsWith(TXT_PREFIX)) {
+            try {
+              const p = JSON.parse(raw.slice(TXT_PREFIX.length));
+              if (p && typeof p.content === "string") return p.content;
+            } catch {}
+          }
+          return raw;
+        }).join("\n").slice(0, 1850);
         return respondImmediate(interaction, trf(L, "delivered_copy_response", { content }));
       }
 

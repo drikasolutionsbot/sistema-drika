@@ -375,30 +375,85 @@ serve(async (req) => {
 
       // 6b. Send stock content + .txt file (auto-delivery)
       if (isAutoDelivery && stockItems.length > 0) {
-        const stockContent = stockItems.map((item: any) => item.content).join("\n");
+        const TXT_PREFIX = "__TXT_FILE__:";
+        const parsedStock = stockItems.map((item: any, idx: number) => {
+          const raw = String(item?.content ?? "");
+          if (raw.startsWith(TXT_PREFIX)) {
+            try {
+              const p = JSON.parse(raw.slice(TXT_PREFIX.length));
+              if (p && typeof p.content === "string") {
+                return {
+                  isTxtFile: true,
+                  filename: String(p.filename || `arquivo-${idx + 1}.txt`),
+                  content: p.content,
+                };
+              }
+            } catch {}
+          }
+          return {
+            isTxtFile: false,
+            filename: `${order.id}.txt`,
+            content: raw,
+          };
+        });
 
-        // Send stock content as plain text only if within Discord's 2000-char limit
-        if (stockContent.length <= 1900) {
+        const txtFileItems = parsedStock.filter((i: any) => i.isTxtFile);
+        const plainItems = parsedStock.filter((i: any) => !i.isTxtFile);
+
+        // 1) Se houver itens comuns (texto/linhas), envia texto + .txt padrão
+        if (plainItems.length > 0) {
+          const stockContent = plainItems.map((item: any) => item.content).join("\n");
+
+          if (stockContent.length <= 1900) {
+            await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ content: stockContent }),
+            });
+          }
+
+          const blob = new Blob([stockContent], { type: "text/plain" });
+          const formData = new FormData();
+          formData.append("files[0]", blob, `${order.id}.txt`);
+          formData.append("payload_json", JSON.stringify({
+            attachments: [{ id: 0, filename: `${order.id}.txt`, description: tr(lang, "delivered_attachment_description") }],
+          }));
+
           await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
             method: "POST",
-            headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ content: stockContent }),
+            headers: { Authorization: `Bot ${botToken}` },
+            body: formData,
           });
         }
 
-        // Send .txt file attachment
-        const blob = new Blob([stockContent], { type: "text/plain" });
-        const formData = new FormData();
-        formData.append("files[0]", blob, `${order.id}.txt`);
-        formData.append("payload_json", JSON.stringify({
-          attachments: [{ id: 0, filename: `${order.id}.txt`, description: tr(lang, "delivered_attachment_description") }],
-        }));
+        // 2) Se houver arquivos .txt enviados via "Upload de Arquivo", envia o(s) próprio(s) arquivo(s) .txt sem converter em texto no chat
+        if (txtFileItems.length > 0) {
+          // Discord aceita até 10 anexos por mensagem
+          for (let batchStart = 0; batchStart < txtFileItems.length; batchStart += 10) {
+            const batch = txtFileItems.slice(batchStart, batchStart + 10);
+            const formData = new FormData();
+            const attachmentsMeta = batch.map((fileItem: any, idx: number) => {
+              const safeName = (fileItem.filename || `arquivo-${idx + 1}.txt`).replace(/[^a-zA-Z0-9._-]/g, "_");
+              const finalName = safeName.toLowerCase().endsWith(".txt") ? safeName : `${safeName}.txt`;
+              const blob = new Blob([fileItem.content], { type: "text/plain; charset=utf-8" });
+              formData.append(`files[${idx}]`, blob, finalName);
+              return {
+                id: idx,
+                filename: finalName,
+                description: tr(lang, "delivered_attachment_description"),
+              };
+            });
+            formData.append("payload_json", JSON.stringify({
+              attachments: attachmentsMeta,
+            }));
 
-        await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${botToken}` },
-          body: formData,
-        });
+            await fetch(`${DISCORD_API}/channels/${dmChannelId}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bot ${botToken}` },
+              body: formData,
+            });
+          }
+        }
       }
 
       // 6c. Send "Entrega Realizada" embed with action buttons
@@ -656,7 +711,19 @@ serve(async (req) => {
         if (tenant?.logo_url) deliveryLogEmbed.thumbnail = { url: tenant.logo_url };
 
         if (isAutoDelivery && stockItems.length > 0) {
-          const stockContent = stockItems.map((item: any) => item.content).join("\n");
+          const TXT_PREFIX = "__TXT_FILE__:";
+          const stockContent = stockItems.map((item: any) => {
+            const raw = String(item?.content ?? "");
+            if (raw.startsWith(TXT_PREFIX)) {
+              try {
+                const p = JSON.parse(raw.slice(TXT_PREFIX.length));
+                if (p && typeof p.content === "string") {
+                  return `=== ${p.filename || "arquivo.txt"} ===\n${p.content}`;
+                }
+              } catch {}
+            }
+            return raw;
+          }).join("\n");
           const blob = new Blob([stockContent], { type: "text/plain" });
           const logFormData = new FormData();
           logFormData.append("files[0]", blob, `pedido-${order.order_number}.txt`);

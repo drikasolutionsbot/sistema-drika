@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
-import { FileText, Plus, Loader2 } from "lucide-react";
+import { FileText, Plus, Loader2, Trash2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -12,6 +13,44 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+
+export const TXT_FILE_PREFIX = "__TXT_FILE__:";
+
+export interface TxtStockPayload {
+  filename: string;
+  content: string;
+  size?: number;
+}
+
+export function serializeTxtStockItem(payload: TxtStockPayload): string {
+  return `${TXT_FILE_PREFIX}${JSON.stringify({
+    filename: payload.filename || "arquivo.txt",
+    content: payload.content,
+    size: payload.size ?? payload.content.length,
+  })}`;
+}
+
+export function parseTxtStockItem(raw: string): { isTxtFile: boolean; filename: string; content: string; size: number } {
+  if (typeof raw === "string" && raw.startsWith(TXT_FILE_PREFIX)) {
+    try {
+      const parsed = JSON.parse(raw.slice(TXT_FILE_PREFIX.length));
+      if (parsed && typeof parsed.content === "string") {
+        return {
+          isTxtFile: true,
+          filename: String(parsed.filename || "arquivo.txt"),
+          content: parsed.content,
+          size: Number(parsed.size ?? parsed.content.length),
+        };
+      }
+    } catch {}
+  }
+  return {
+    isTxtFile: false,
+    filename: "",
+    content: raw || "",
+    size: (raw || "").length,
+  };
+}
 
 interface AddStockModalProps {
   open: boolean;
@@ -34,10 +73,12 @@ export const AddStockModal = ({
   const [singleItem, setSingleItem] = useState("");
   const [batchContent, setBatchContent] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<TxtStockPayload[]>([]);
+  const [copiesPerFile, setCopiesPerFile] = useState(1);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const addItems = async (items: string[]) => {
-    const filtered = items.map((i) => i.trim()).filter(Boolean);
+  const addItems = async (items: string[], customSuccessMsg?: string) => {
+    const filtered = items.filter((i) => i.trim().length > 0);
     if (filtered.length === 0) {
       toast({ title: "Nenhum item para adicionar", variant: "destructive" });
       return;
@@ -58,7 +99,9 @@ export const AddStockModal = ({
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast({ title: `${data?.count || filtered.length} item(ns) adicionado(s)! ✅` });
+      toast({ title: customSuccessMsg || `${data?.count || filtered.length} item(ns) adicionado(s)! ✅` });
+      setUploadedFiles([]);
+      setCopiesPerFile(1);
       onAdded();
     } catch (err: any) {
       toast({ title: "Erro ao adicionar", description: err.message, variant: "destructive" });
@@ -68,36 +111,65 @@ export const AddStockModal = ({
   };
 
   const handleSingleAdd = () => {
-    addItems([singleItem]);
+    addItems([singleItem.trim()]);
     setSingleItem("");
   };
 
   const handleBatchAdd = () => {
-    const items = batchContent.split("\n");
+    const items = batchContent.split("\n").map((i) => i.trim()).filter(Boolean);
     addItems(items);
     setBatchContent("");
   };
 
-  const handleFileUpload = (file: File) => {
-    if (!file.name.endsWith(".txt")) {
+  const handleFilesSelected = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    const validTxtFiles = files.filter((f) => f.name.toLowerCase().endsWith(".txt"));
+    if (validTxtFiles.length === 0) {
       toast({ title: "Formato inválido", description: "Selecione um arquivo .txt", variant: "destructive" });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split("\n");
-      addItems(lines);
-    };
-    reader.readAsText(file);
+    const loaded: TxtStockPayload[] = [];
+    for (const file of validTxtFiles) {
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(String(e.target?.result ?? ""));
+        reader.onerror = () => reject(new Error(`Falha ao ler ${file.name}`));
+        reader.readAsText(file);
+      });
+      loaded.push({
+        filename: file.name,
+        content: text,
+        size: file.size || text.length,
+      });
+    }
+
+    setUploadedFiles((prev) => [...prev, ...loaded]);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleSaveTxtFiles = async () => {
+    if (uploadedFiles.length === 0) return;
+    const copies = Math.max(1, Math.min(500, Number(copiesPerFile) || 1));
+    const itemsToSave: string[] = [];
+    for (const f of uploadedFiles) {
+      const serialized = serializeTxtStockItem(f);
+      for (let i = 0; i < copies; i++) {
+        itemsToSave.push(serialized);
+      }
+    }
+    await addItems(
+      itemsToSave,
+      `${itemsToSave.length} arquivo(s) TXT salvo(s) no estoque para envio na venda! ✅`
+    );
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileUpload(file);
+    if (e.dataTransfer.files?.length) {
+      void handleFilesSelected(e.dataTransfer.files);
+    }
   };
 
   return (
@@ -130,7 +202,7 @@ export const AddStockModal = ({
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
                 onClick={() => fileRef.current?.click()}
-                className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors ${
+                className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors ${
                   dragOver ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/40"
                 }`}
               >
@@ -140,18 +212,97 @@ export const AddStockModal = ({
                   <p className="text-xs text-muted-foreground mt-1">
                     Arraste um arquivo .txt ou clique para selecionar
                   </p>
+                  <p className="text-[11px] text-emerald-400/90 mt-1.5 font-medium">
+                    O arquivo .txt inteiro ficará salvo e será enviado como anexo .txt ao cliente na venda.
+                  </p>
                 </div>
                 <input
                   ref={fileRef}
                   type="file"
                   accept=".txt"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file);
+                    if (e.target.files?.length) {
+                      void handleFilesSelected(e.target.files);
+                    }
                   }}
                 />
               </div>
+
+              {uploadedFiles.length > 0 && (
+                <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                      {uploadedFiles.length} arquivo(s) .txt carregado(s)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setUploadedFiles([])}
+                      className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      Limpar lista
+                    </button>
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                    {uploadedFiles.map((file, idx) => (
+                      <div
+                        key={`${file.filename}-${idx}`}
+                        className="flex items-center justify-between rounded-lg bg-card border border-border px-3 py-2 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                          <span className="font-medium truncate">{file.filename}</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            ({Math.max(1, Math.ceil((file.size || file.content.length) / 1024))} KB)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUploadedFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-muted-foreground hover:text-destructive p-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="space-y-0.5">
+                      <Label className="text-xs font-semibold">Unidades no estoque por arquivo</Label>
+                      <p className="text-[10px] text-muted-foreground">
+                        Quantas vendas poderão receber este arquivo .txt
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={copiesPerFile}
+                      onChange={(e) => setCopiesPerFile(Math.max(1, Math.min(500, parseInt(e.target.value, 10) || 1)))}
+                      className="w-24 h-8 bg-card border-border text-center text-xs font-bold"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleSaveTxtFiles}
+                    disabled={adding}
+                    className="w-full gap-2"
+                  >
+                    {adding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4" />
+                        Salvar {uploadedFiles.length * copiesPerFile} Arquivo(s) TXT no Estoque
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </TabsContent>
 
             {/* Manual add tab */}

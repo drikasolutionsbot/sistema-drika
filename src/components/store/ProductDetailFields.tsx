@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
 import { EmojiPicker } from "./EmojiPicker";
-import { AddStockModal } from "./AddStockModal";
+import { AddStockModal, parseTxtStockItem } from "./AddStockModal";
 import { ProductFeeExplainer } from "./ProductFeeExplainer";
 
 interface AutoMessage {
@@ -431,13 +431,24 @@ const FieldEstoqueTab = ({
           </div>
         ) : (
           <div className="max-h-[300px] overflow-y-auto rounded-lg border border-border divide-y divide-border">
-            {filteredItems.map((item) => (
+            {filteredItems.map((item) => {
+              const parsed = parseTxtStockItem(item.content);
+              return (
               <div
                 key={item.id}
                 className="flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors group"
               >
-                <div className="flex-1 min-w-0 mr-2">
-                  <p className="text-sm font-mono truncate">{item.content}</p>
+                <div className="flex-1 min-w-0 mr-2 flex items-center gap-2">
+                  {parsed.isTxtFile ? (
+                    <>
+                      <span className="text-xs font-semibold text-primary">📄 {parsed.filename}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        (Arquivo TXT • {Math.max(1, Math.ceil(parsed.size / 1024))} KB)
+                      </span>
+                    </>
+                  ) : (
+                    <p className="text-sm font-mono truncate">{item.content}</p>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -453,7 +464,8 @@ const FieldEstoqueTab = ({
                   )}
                 </Button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
