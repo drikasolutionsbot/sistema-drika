@@ -180,6 +180,62 @@ function mapMisticPixKeyType(t: string): string {
   return "CHAVE_ALEATORIA";
 }
 
+function normalizeMisticPixKey(key: string, mappedType: string): string {
+  const trimmed = (key || "").trim();
+  if (mappedType === "TELEFONE") {
+    const digits = trimmed.replace(/\D/g, "");
+    if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+      return digits.slice(2);
+    }
+    return digits || trimmed;
+  }
+  if (mappedType === "CPF" || mappedType === "CNPJ") {
+    return trimmed.replace(/\D/g, "") || trimmed;
+  }
+  return trimmed;
+}
+
+async function checkMisticPayWithdrawalState(opts: {
+  clientId: string;
+  clientSecret: string;
+  transactionId: string;
+}): Promise<{ state: string; detail?: string }> {
+  const basicAuth = btoa(`${opts.clientId}:${opts.clientSecret}`);
+  for (const waitMs of [1800, 2200]) {
+    await new Promise((r) => setTimeout(r, waitMs));
+    try {
+      const checkRes = await fetch("https://api.misticpay.com/api/transactions/check", {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${basicAuth}`,
+          ci: opts.clientId,
+          cs: opts.clientSecret,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ transactionId: opts.transactionId }),
+      });
+      if (!checkRes.ok) continue;
+      const checkData = await checkRes.json().catch(() => null);
+      const tx = checkData?.transaction ?? checkData?.data ?? checkData ?? {};
+      const state = String(tx.transactionState || tx.status || "").toUpperCase();
+      if (!state) continue;
+      if (["FALHA", "FAILED", "CANCELADO", "CANCELED", "RECUSADO", "ESTORNADO", "ERRO"].includes(state)) {
+        const benName = tx?.beneficiary?.name;
+        const detail = benName === null
+          ? `MisticPay recusou o PIX (${state}): verifique se a chave PIX ou tipo estão corretos ou se a gateway está instável.`
+          : `MisticPay retornou falha na transferência (${state}).`;
+        return { state, detail };
+      }
+      if (["COMPLETO", "COMPLETED", "PAID", "APROVADO", "CONCLUIDO"].includes(state)) {
+        return { state };
+      }
+    } catch {
+      // ignore transient check failure
+    }
+  }
+  return { state: "QUEUED" };
+}
+
 async function withdrawViaMisticPay(opts: {
   clientId: string;
   clientSecret: string;
@@ -189,6 +245,9 @@ async function withdrawViaMisticPay(opts: {
   description?: string;
 }): Promise<{ payment_id: string; status: string }> {
   const basicAuth = btoa(`${opts.clientId}:${opts.clientSecret}`);
+  const mappedType = mapMisticPixKeyType(opts.destinationKeyType);
+  const normalizedKey = normalizeMisticPixKey(opts.destinationKey, mappedType);
+
   const res = await fetch("https://api.misticpay.com/api/transactions/withdraw", {
     method: "POST",
     headers: {
@@ -199,8 +258,8 @@ async function withdrawViaMisticPay(opts: {
     },
     body: JSON.stringify({
       amount: Number((opts.amountCents / 100).toFixed(2)),
-      pixKey: opts.destinationKey,
-      pixKeyType: mapMisticPixKeyType(opts.destinationKeyType),
+      pixKey: normalizedKey,
+      pixKeyType: mappedType,
       description: opts.description || "Saque carteira",
     }),
   });
@@ -211,9 +270,29 @@ async function withdrawViaMisticPay(opts: {
     throw new Error(body?.message || body?.error || `MisticPay ${res.status}: ${text.slice(0, 200)}`);
   }
   const d = body?.data ?? body ?? {};
+  const txId = d.transactionId ?? d.id ?? d.jobId;
+  const initialStatus = String(d.status || d.transactionState || "QUEUED").toUpperCase();
+
+  // MisticPay enfileira o saque assincronamente (HTTP 202 QUEUED) e valida a chave DICT ~1.2s depois.
+  // Verificamos o status logo após o enfileiramento para não marcar "completed" em caso de FALHA imediata.
+  if (d.transactionId && ["QUEUED", "PENDING", "PENDENTE", "PROCESSANDO"].includes(initialStatus)) {
+    const settled = await checkMisticPayWithdrawalState({
+      clientId: opts.clientId,
+      clientSecret: opts.clientSecret,
+      transactionId: String(d.transactionId),
+    });
+    if (settled.detail) {
+      throw new Error(settled.detail);
+    }
+    return {
+      payment_id: String(d.transactionId),
+      status: settled.state || initialStatus,
+    };
+  }
+
   return {
-    payment_id: String(d.transactionId ?? d.id ?? d.jobId ?? crypto.randomUUID()),
-    status: d.status || d.transactionState || "QUEUED",
+    payment_id: String(txId ?? crypto.randomUUID()),
+    status: initialStatus,
   };
 }
 
@@ -472,21 +551,37 @@ Deno.serve(async (req) => {
         throw new Error(`Provider ${provider_key} not supported for PIX OUT`);
       }
     } catch (gatewayErr: any) {
-      // Libera a trava para permitir nova tentativa (o saque continua pendente)
+      const errMessage = String(gatewayErr?.message || gatewayErr || "Erro desconhecido na gateway");
+      // Libera a trava para permitir nova tentativa (o saque continua pendente) e registra o erro no banco
       if (claimMarker && txId) {
+        const { data: curRow } = await supabase
+          .from("wallet_transactions")
+          .select("retry_count")
+          .eq("id", txId)
+          .maybeSingle();
         await supabase
           .from("wallet_transactions")
-          .update({ payment_id: null })
+          .update({
+            payment_id: null,
+            last_error: errMessage.slice(0, 500),
+            last_attempt_at: new Date().toISOString(),
+            retry_count: ((curRow as any)?.retry_count || 0) + 1,
+          } as any)
           .eq("id", txId)
           .eq("payment_id", claimMarker);
       }
       if (!body.existing_tx_id && txId) {
         await supabase
           .from("wallet_transactions")
-          .update({ status: "rejected", description: `Falhou: ${gatewayErr.message}`.slice(0, 250) })
+          .update({
+            status: "rejected",
+            description: `Falhou: ${errMessage}`.slice(0, 250),
+            last_error: errMessage.slice(0, 500),
+            last_attempt_at: new Date().toISOString(),
+          } as any)
           .eq("id", txId);
       }
-      return new Response(JSON.stringify({ error: "gateway_error", message: gatewayErr.message }), {
+      return new Response(JSON.stringify({ error: "gateway_error", message: errMessage }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

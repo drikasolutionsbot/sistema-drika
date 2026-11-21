@@ -294,6 +294,8 @@ async function autoProcessWithdrawal(
   const providerKey = tx.provider || (await pickCentralWithdrawProvider(supabase));
 
   let errMsg = "";
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 45000);
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/wallet-pix-withdraw`, {
       method: "POST",
@@ -307,7 +309,7 @@ async function autoProcessWithdrawal(
         description: `Saque automático - ${tx.description || "Saque carteira"}`,
         existing_tx_id: tx.id,
       }),
-      signal: AbortSignal.timeout(50000),
+      signal: controller.signal,
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && !data?.error) {
@@ -321,9 +323,21 @@ async function autoProcessWithdrawal(
     errMsg = String(data?.message || data?.error || `HTTP ${res.status}`);
   } catch (e: any) {
     errMsg = String(e?.message || e || "erro desconhecido");
+  } finally {
+    clearTimeout(timeoutHandle);
   }
 
   console.error(`[auto-withdraw] tx ${txId} falhou: ${errMsg}`);
+
+  // Garante que o último erro e horário da tentativa fiquem registrados no banco (visível no painel admin)
+  await supabase
+    .from("wallet_transactions")
+    .update({
+      last_error: errMsg.slice(0, 500),
+      last_attempt_at: new Date().toISOString(),
+    } as any)
+    .eq("id", tx.id)
+    .eq("status", "pending");
 
   // ── Erro de chave PIX: rejeita e devolve saldo com observação ao cliente ──
   if (isPixKeyError(errMsg)) {
@@ -406,7 +420,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token);
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token || body?._auth_token);
       if (!accessCheck.authorized) {
         return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado à carteira" }), {
           status: 403,
@@ -538,7 +552,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token);
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token || body?._auth_token);
       if (!accessCheck.authorized) {
         return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado para solicitar saque nesta loja" }), {
           status: 403,
@@ -1219,6 +1233,65 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, updated }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ─── 10. Reprocess Pending Withdrawals Automatically (cron / admin) ───
+    if (action === "retry_pending_withdrawals" || action === "admin_retry_pending_withdrawals") {
+      if (action === "retry_pending_withdrawals") {
+        const authRes = await verifySuperAdminOrServiceRole(req, supabase);
+        if (!authRes.authorized) {
+          return new Response(
+            JSON.stringify({ error: authRes.error || "Acesso negado" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      const force = Boolean(body?.force);
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+
+      let q = supabase
+        .from("wallet_transactions")
+        .select("id, tenant_id, pix_key, pix_key_type, last_attempt_at, retry_count, tenants(name)")
+        .eq("type", "withdrawal")
+        .eq("status", "pending")
+        .is("payment_id", null)
+        .lt("retry_count", 24)
+        .order("created_at", { ascending: true })
+        .limit(5);
+
+      if (!force) {
+        q = q.or(`last_attempt_at.is.null,last_attempt_at.lt.${twoMinAgo}`);
+      }
+
+      const { data: pendingRows, error: qErr } = await q;
+      if (qErr) throw new Error(qErr.message);
+
+      const { data: lCfg } = await supabase
+        .from("landing_config")
+        .select("system_url")
+        .limit(1)
+        .maybeSingle();
+
+      const results: any[] = [];
+      for (const row of pendingRows || []) {
+        const r = await autoProcessWithdrawal(supabase, row.id, {
+          tenantName: (row as any)?.tenants?.name || "Loja Lojista",
+          pixKey: row.pix_key || "",
+          pixKeyType: row.pix_key_type || "aleatoria",
+          panelBase: lCfg?.system_url || "https://drikahub.com",
+        });
+        results.push({ id: row.id, ...r });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processed: results.length,
+          results,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(JSON.stringify({ error: "Ação não reconhecida" }), {

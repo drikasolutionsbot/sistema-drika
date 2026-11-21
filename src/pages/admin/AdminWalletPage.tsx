@@ -108,6 +108,9 @@ interface WithdrawalItem {
   payment_id?: string | null;
   rejection_reason: string | null;
   admin_notes: string | null;
+  last_error?: string | null;
+  last_attempt_at?: string | null;
+  retry_count?: number | null;
   created_at: string;
   completed_at: string | null;
   tenants?: {
@@ -1041,7 +1044,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     setSelectedTx(w);
     setSelectedReceipt(w);
     setWithdrawalModalTab(initialTab);
-    setGatewayErrorAlert(null);
+    setGatewayErrorAlert(w.last_error || null);
     setAdminNotes(w.admin_notes || "");
     setApproveModalOpen(true);
   };
@@ -1492,21 +1495,58 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
               </div>
             </div>
             {pendingCount > 0 && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  setActiveTab("withdrawals");
-                  setWithdrawalStatusFilter("pending");
-                  const firstPending = withdrawals.find((w) => w.status === "pending");
-                  if (firstPending) {
-                    handleOpenWithdrawalDetails(firstPending, "info");
-                  }
-                }}
-                className="mt-3 w-full bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
-              >
-                <Eye className="h-4 w-4" />
-                Revisar e Aprovar Saques ({pendingCount})
-              </Button>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <Button
+                  size="sm"
+                  disabled={processingAction}
+                  onClick={async () => {
+                    setProcessingAction(true);
+                    try {
+                      const res = await supabase.functions.invoke("manage-wallet", {
+                        body: { action: "admin_retry_pending_withdrawals", force: true },
+                      });
+                      if (res.error) throw res.error;
+                      const results = res.data?.results || [];
+                      const paid = results.filter((r: any) => r.status === "completed").length;
+                      const rejected = results.filter((r: any) => r.status === "rejected").length;
+                      const stillPending = results.filter((r: any) => r.status === "pending").length;
+                      toast({
+                        title: paid > 0 ? `${paid} saque(s) pago(s) automaticamente! ✅` : "Reprocessamento concluído",
+                        description: `Pagos: ${paid} • Rejeitados (chave PIX): ${rejected} • Pendentes: ${stillPending}`,
+                        variant: paid === 0 && stillPending > 0 ? "destructive" : "default",
+                      });
+                      await loadData(true);
+                    } catch (e: any) {
+                      toast({
+                        title: "Erro ao reprocessar saques",
+                        description: e?.message || "Falha ao chamar gateway",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setProcessingAction(false);
+                    }
+                  }}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+                >
+                  <Zap className="h-4 w-4" />
+                  Pagar Automático Agora
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setActiveTab("withdrawals");
+                    setWithdrawalStatusFilter("pending");
+                    const firstPending = withdrawals.find((w) => w.status === "pending");
+                    if (firstPending) {
+                      handleOpenWithdrawalDetails(firstPending, "info");
+                    }
+                  }}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
+                >
+                  <Eye className="h-4 w-4" />
+                  Revisar ({pendingCount})
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -1876,19 +1916,29 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                             </td>
 
                             {/* Status */}
-                            <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <td className="py-3.5 px-4 text-center">
                               {w.status === "pending" && (
-                                <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] gap-1">
-                                  <Clock className="h-3 w-3" /> Aguardando
-                                </Badge>
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] gap-1 whitespace-nowrap">
+                                    <Clock className="h-3 w-3" /> Aguardando
+                                  </Badge>
+                                  {w.last_error && (
+                                    <span
+                                      className="text-[10px] text-rose-400/90 max-w-[180px] truncate block"
+                                      title={w.last_error}
+                                    >
+                                      {w.last_error}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                               {w.status === "completed" && (
-                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px]">
+                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] whitespace-nowrap">
                                   Concluído
                                 </Badge>
                               )}
                               {w.status === "rejected" && (
-                                <Badge className="bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[11px]">
+                                <Badge className="bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[11px] whitespace-nowrap">
                                   Rejeitado
                                 </Badge>
                               )}

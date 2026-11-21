@@ -258,6 +258,34 @@ client.on(Events.ClientReady, async () => {
   // Primeira checagem após 15 segundos do bot online, depois a cada 30 minutos
   setTimeout(checkSubscriptionReminders, 15_000);
   setInterval(checkSubscriptionReminders, 30 * 60 * 1000);
+
+  // ── Reprocessamento automático de saques pendentes (caso a gateway tenha ficado em manutenção/instável) ──
+  const retryPendingWithdrawals = async () => {
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL?.replace(/^"|"$/g, "").trim() || "https://iwotvdfxppjwasywrbmw.supabase.co";
+      const srk = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/^"|"$/g, "").trim();
+      if (!srk) return;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/manage-wallet`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${srk}`,
+        },
+        body: JSON.stringify({ action: "retry_pending_withdrawals" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if ((data?.processed || 0) > 0) {
+          console.log(`[AUTO-WITHDRAW] Reprocessamento automático executou ${data.processed} saque(s):`, JSON.stringify(data.results));
+        }
+      }
+    } catch (e) {
+      console.error("[AUTO-WITHDRAW] Erro no reprocessamento automático de saques:", e.message);
+    }
+  };
+  setTimeout(retryPendingWithdrawals, 25_000);
+  setInterval(retryPendingWithdrawals, 5 * 60 * 1000);
 });
 // â”€â”€ SincronizaÃ§Ã£o automÃ¡tica do Dono do Discord por Guild â”€â”€
 async function syncGuildOwners() {
