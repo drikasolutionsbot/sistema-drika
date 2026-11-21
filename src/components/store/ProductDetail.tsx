@@ -51,9 +51,10 @@ interface ProductDetailProps {
   onSave: (product: Product) => Promise<boolean>;
   onDelete: (productId: string) => void;
   categories?: Category[];
+  onProductUpdated?: (updates: Partial<Product>) => void;
 }
 
-export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = [] }: ProductDetailProps) => {
+export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = [], onProductUpdated }: ProductDetailProps) => {
   const { tenantId } = useTenant();
   const [edited, setEdited] = useState<Product>({ ...product });
   const [dirty, setDirty] = useState(false);
@@ -273,8 +274,12 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
             <TabsContent value="estoque" className="mt-0">
               <ProductDetailStock
                 productId={product.id}
+                productName={edited.name}
                 infiniteStock={Boolean(edited.infinite_stock)}
-                onInfiniteStockChange={(infinite) => setEdited((prev) => ({ ...prev, infinite_stock: infinite }))}
+                onInfiniteStockChange={(infinite) => {
+                  setEdited((prev) => ({ ...prev, infinite_stock: infinite }));
+                  onProductUpdated?.({ infinite_stock: infinite });
+                }}
               />
             </TabsContent>
 

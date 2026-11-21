@@ -13,19 +13,22 @@ interface StockItem {
   id: string;
   content: string;
   created_at: string;
+  is_infinite?: boolean;
 }
 
 interface ProductDetailStockProps {
   productId: string;
+  productName?: string;
   infiniteStock?: boolean;
   onInfiniteStockChange?: (infinite: boolean) => void;
 }
 
-export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock, onInfiniteStockChange }: ProductDetailStockProps) => {
+export const ProductDetailStock = ({ productId, productName, infiniteStock: propInfiniteStock, onInfiniteStockChange }: ProductDetailStockProps) => {
   const { tenantId } = useTenant();
   const [stockCount, setStockCount] = useState(0);
   const [infiniteStock, setInfiniteStock] = useState<boolean>(Boolean(propInfiniteStock));
   const [togglingInfinite, setTogglingInfinite] = useState(false);
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
@@ -104,6 +107,35 @@ export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock
     fetchStock();
   }, [fetchStock]);
 
+  const handleToggleItemInfinite = async (item: StockItem) => {
+    if (!tenantId) return;
+    const nextVal = !item.is_infinite;
+    setTogglingItemId(item.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "toggle_item_infinite",
+          tenant_id: tenantId,
+          stock_item_id: item.id,
+          infinite_stock: nextVal,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setStockItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_infinite: nextVal } : i)));
+      toast({
+        title: nextVal ? "Item marcado como Estoque Infinito (∞)! ✅" : "Item voltou ao estoque normal",
+        description: nextVal
+          ? "Este item/arquivo específico será enviado em todas as vendas sem ser removido do estoque."
+          : "Este item será consumido após ser entregue em uma venda.",
+      });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar item", description: e.message, variant: "destructive" });
+    } finally {
+      setTogglingItemId(null);
+    }
+  };
+
   const handleDeleteItem = async (itemId: string) => {
     if (!tenantId) return;
     setDeletingId(itemId);
@@ -143,12 +175,17 @@ export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock
     ? stockItems.filter((i) => i.content.toLowerCase().includes(search.toLowerCase()))
     : stockItems;
 
+  const hasAnyInfiniteItem = stockItems.some((i) => i.is_infinite);
+  const isEffectiveInfinite = infiniteStock || hasAnyInfiniteItem;
+
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-bold">Estoque Geral</h3>
+        <h3 className="text-lg font-bold">
+          Estoque do Produto{productName ? `: "${productName}"` : ""}
+        </h3>
         <p className="text-sm text-muted-foreground">
-          Gerencie o estoque do produto. As variedades configuram a quantidade enviada por entrega.
+          Configure o estoque somente deste produto (ou marque itens específicos como infinitos na lista abaixo).
         </p>
       </div>
 
@@ -165,16 +202,18 @@ export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock
                 <InfinityIcon className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-foreground">Estoque Infinito (∞)</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-bold text-foreground">
+                    Estoque Infinito (∞) neste produto{productName ? ` (${productName})` : ""}
+                  </p>
                   {infiniteStock && (
                     <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                      Ativo
+                      Ativo só neste produto
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  O estoque nunca acaba. Os arquivos .txt ou itens cadastrados abaixo serão enviados em todas as vendas sem esgotar.
+                  Afeta <strong>somente este produto</strong> (os demais produtos da loja continuam normais). Você também pode clicar no botão <strong>∞</strong> ao lado de um item específico abaixo.
                 </p>
               </div>
             </div>
@@ -189,19 +228,19 @@ export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock
           <div className="flex items-center justify-between rounded-xl bg-muted p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                {infiniteStock ? (
+                {isEffectiveInfinite ? (
                   <InfinityIcon className="h-6 w-6 text-emerald-400" />
                 ) : (
                   <Package className="h-6 w-6 text-primary" />
                 )}
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Estoque disponível</p>
-                {infiniteStock ? (
+                <p className="text-sm font-medium text-muted-foreground">Estoque disponível deste produto</p>
+                {isEffectiveInfinite ? (
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold text-emerald-400">∞</p>
                     <span className="text-xs font-normal text-muted-foreground">
-                      Infinito ({stockCount} {stockCount === 1 ? "item/arquivo fixo" : "itens/arquivos fixos"})
+                      Infinito ({stockCount} {stockCount === 1 ? "item/arquivo cadastrado" : "itens/arquivos cadastrados"})
                     </span>
                   </div>
                 ) : (
@@ -278,8 +317,32 @@ export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock
                     ) : (
                       <p className="text-sm font-mono truncate">{item.content}</p>
                     )}
+                    {(item.is_infinite || infiniteStock) && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                        ∞ Infinito
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant={item.is_infinite ? "default" : "outline"}
+                      size="sm"
+                      className={`h-7 px-2 text-[11px] gap-1 ${
+                        item.is_infinite
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => handleToggleItemInfinite(item)}
+                      disabled={togglingItemId === item.id}
+                      title="Ativar/Desativar Estoque Infinito somente neste item"
+                    >
+                      {togglingItemId === item.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <InfinityIcon className="h-3.5 w-3.5" />
+                      )}
+                      <span>{item.is_infinite ? "Infinito" : "Tornar ∞"}</span>
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

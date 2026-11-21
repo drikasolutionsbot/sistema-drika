@@ -26,6 +26,7 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  infinite_stock?: boolean;
   category_id?: string | null;
   enable_credits?: boolean;
   show_stock?: boolean;
@@ -98,6 +99,7 @@ const StorePage = () => {
           icon_url: product.icon_url,
           banner_url: product.banner_url,
           auto_delivery: product.auto_delivery,
+          infinite_stock: Boolean(product.infinite_stock),
           category_id: product.category_id,
           enable_credits: product.enable_credits,
           show_stock: product.show_stock,
@@ -174,6 +176,32 @@ const StorePage = () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setSelectedProduct(data as Product);
     }
+  };
+
+  const handleToggleInfiniteProduct = async (product: Product) => {
+    if (!tenantId) return;
+    const nextInfinite = !product.infinite_stock;
+    const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+      body: {
+        action: "set_infinite_stock",
+        tenant_id: tenantId,
+        product_id: product.id,
+        infinite_stock: nextInfinite,
+      },
+    });
+    if (error || data?.error) {
+      toast({ title: "Erro ao atualizar estoque infinito", description: error?.message || data?.error, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: nextInfinite
+        ? `Estoque Infinito (∞) ativado em "${product.name}"! ✅`
+        : `Estoque Infinito desativado em "${product.name}"`,
+    });
+    if (selectedProduct?.id === product.id) {
+      setSelectedProduct({ ...selectedProduct, infinite_stock: nextInfinite });
+    }
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
   };
 
   const handleMove = async (product: Product, direction: "up" | "down") => {
@@ -261,6 +289,7 @@ const StorePage = () => {
                   onCategoryChange={setSelectedCategoryId}
                   fieldCounts={fieldCounts}
                   onDuplicate={handleDuplicateProduct}
+                  onToggleInfinite={handleToggleInfiniteProduct}
                   onMoveUp={(p) => handleMove(p, "up")}
                   onMoveDown={(p) => handleMove(p, "down")}
                 />
@@ -275,6 +304,10 @@ const StorePage = () => {
                     onSave={handleSave}
                     onDelete={handleDelete}
                     categories={categories}
+                    onProductUpdated={(updates) => {
+                      setSelectedProduct((prev) => (prev ? { ...prev, ...updates } : prev));
+                      queryClient.invalidateQueries({ queryKey: ["products"] });
+                    }}
                   />
                 ) : (
                   <div className="hidden lg:flex flex-col items-center justify-center h-full text-muted-foreground p-12">

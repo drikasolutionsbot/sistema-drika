@@ -1,4 +1,4 @@
-import { Search, Plus, Package, Filter, MoreVertical, Copy, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Plus, Package, Filter, MoreVertical, Copy, ArrowUp, ArrowDown, Infinity as InfinityIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,7 @@ interface ProductListProps {
   onCategoryChange?: (id: string | null) => void;
   fieldCounts?: Record<string, number>;
   onDuplicate?: (product: Product) => void;
+  onToggleInfinite?: (product: Product) => void;
   onMoveUp?: (product: Product) => void;
   onMoveDown?: (product: Product) => void;
 }
@@ -67,6 +68,7 @@ export const ProductList = ({
   onCategoryChange,
   fieldCounts = {},
   onDuplicate,
+  onToggleInfinite,
   onMoveUp,
   onMoveDown,
 }: ProductListProps) => {
@@ -196,6 +198,10 @@ export const ProductList = ({
                           Mover para baixo
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onToggleInfinite?.(product)}>
+                          <InfinityIcon className="mr-2 h-4 w-4 text-emerald-400" />
+                          {isInfinite ? "Desativar Estoque Infinito" : "Ativar Estoque Infinito (∞)"}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onDuplicate?.(product)}>
                           <Copy className="mr-2 h-4 w-4" />
                           Duplicar produto

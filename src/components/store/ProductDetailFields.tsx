@@ -222,10 +222,37 @@ const FieldEstoqueTab = ({
   const [togglingInfinite, setTogglingInfinite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [stockItems, setStockItems] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
+  const [stockItems, setStockItems] = useState<Array<{ id: string; content: string; created_at: string; is_infinite?: boolean }>>([]);
   const [stockSearch, setStockSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingItemId, setTogglingItemId] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+
+  const handleToggleItemInfinite = async (item: { id: string; is_infinite?: boolean }) => {
+    if (!tenantId) return;
+    const nextVal = !item.is_infinite;
+    setTogglingItemId(item.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "toggle_item_infinite",
+          tenant_id: tenantId,
+          stock_item_id: item.id,
+          infinite_stock: nextVal,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setStockItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_infinite: nextVal } : i)));
+      toast({
+        title: nextVal ? "Item marcado como Estoque Infinito (∞)! ✅" : "Item voltou ao estoque normal",
+      });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar item", description: e.message, variant: "destructive" });
+    } finally {
+      setTogglingItemId(null);
+    }
+  };
 
   const fetchStock = useCallback(async () => {
     if (!tenantId || !field.product_id) return;
@@ -259,16 +286,17 @@ const FieldEstoqueTab = ({
           action: "set_infinite_stock",
           tenant_id: tenantId,
           product_id: field.product_id,
+          field_id: field.id,
           infinite_stock: checked,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({
-        title: checked ? "Estoque Infinito (∞) ativado! ✅" : "Estoque Infinito desativado",
+        title: checked ? `Estoque Infinito (∞) ativado em "${field.name}"! ✅` : `Estoque Infinito desativado em "${field.name}"`,
         description: checked
-          ? "O estoque deste produto nunca acabará e os itens/arquivos TXT serão reenviados a cada venda."
-          : "O produto voltou ao consumo normal de estoque por venda.",
+          ? "Somente esta variedade terá estoque infinito (as outras variedades continuam normais)."
+          : "Esta variedade voltou ao consumo normal de estoque por venda.",
       });
     } catch (e: any) {
       setInfiniteStock(!checked);
@@ -340,10 +368,10 @@ const FieldEstoqueTab = ({
           <div className="space-y-0.5">
             <p className="text-sm font-bold flex items-center gap-1.5 text-emerald-400">
               <InfinityIcon className="h-4 w-4" />
-              Estoque Infinito (∞)
+              Estoque Infinito (∞) somente na variedade "{field.name}"
             </p>
             <p className="text-xs text-muted-foreground">
-              O estoque nunca acaba. Os arquivos .txt ou itens cadastrados serão reenviados em todas as vendas sem esgotar.
+              Afeta apenas esta variedade específica. Os arquivos .txt ou itens desta variedade serão reenviados em todas as vendas sem esgotar.
             </p>
           </div>
           <Switch
@@ -502,20 +530,45 @@ const FieldEstoqueTab = ({
                   ) : (
                     <p className="text-sm font-mono truncate">{item.content}</p>
                   )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-                  onClick={() => handleDeleteItem(item.id)}
-                  disabled={deletingId === item.id}
-                >
-                  {deletingId === item.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
+                  {(item.is_infinite || infiniteStock) && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-emerald-500/40 text-emerald-400 bg-emerald-500/10 shrink-0">
+                      ∞ Infinito
+                    </span>
                   )}
-                </Button>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant={item.is_infinite ? "default" : "outline"}
+                    size="sm"
+                    className={`h-7 px-2 text-[11px] gap-1 ${
+                      item.is_infinite
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={() => handleToggleItemInfinite(item)}
+                    disabled={togglingItemId === item.id}
+                  >
+                    {togglingItemId === item.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <InfinityIcon className="h-3.5 w-3.5" />
+                    )}
+                    <span>{item.is_infinite ? "Infinito" : "Tornar ∞"}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                    onClick={() => handleDeleteItem(item.id)}
+                    disabled={deletingId === item.id}
+                  >
+                    {deletingId === item.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
               </div>
               );
             })}

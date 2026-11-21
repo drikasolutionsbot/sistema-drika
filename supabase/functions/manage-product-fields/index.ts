@@ -387,23 +387,33 @@ Deno.serve(async (req) => {
         });
       }
       const resolvedFieldId = field_id || null;
+      const itemIsInfinite = typeof infinite_stock === "boolean" ? infinite_stock : false;
       const rows = items.map((content: string) => ({
         product_id,
         tenant_id,
         content,
         field_id: resolvedFieldId,
+        is_infinite: itemIsInfinite,
       }));
       const { data, error } = await supabase
         .from("product_stock_items")
         .insert(rows)
         .select();
       if (error) throw error;
-      if (typeof infinite_stock === "boolean") {
-        await supabase
-          .from("products")
-          .update({ infinite_stock, updated_at: new Date().toISOString() })
-          .eq("id", product_id)
-          .eq("tenant_id", tenant_id);
+      if (typeof infinite_stock === "boolean" && infinite_stock) {
+        if (resolvedFieldId) {
+          await supabase
+            .from("product_fields")
+            .update({ infinite_stock: true, updated_at: new Date().toISOString() })
+            .eq("id", resolvedFieldId)
+            .eq("tenant_id", tenant_id);
+        } else {
+          await supabase
+            .from("products")
+            .update({ infinite_stock: true, updated_at: new Date().toISOString() })
+            .eq("id", product_id)
+            .eq("tenant_id", tenant_id);
+        }
       }
       // Sync stock count and Discord embeds
       await syncStockAndEmbed(supabase, product_id, tenant_id);
@@ -415,7 +425,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SET INFINITE STOCK flag on product
+    // SET INFINITE STOCK flag on specific product OR specific variation (field_id)
     if (action === "set_infinite_stock") {
       if (!product_id) {
         return new Response(JSON.stringify({ error: "product_id obrigatÃ³rio" }), {
@@ -424,14 +434,48 @@ Deno.serve(async (req) => {
         });
       }
       const nextInfinite = Boolean(infinite_stock);
-      const { error } = await supabase
-        .from("products")
-        .update({ infinite_stock: nextInfinite, updated_at: new Date().toISOString() })
-        .eq("id", product_id)
-        .eq("tenant_id", tenant_id);
-      if (error) throw error;
+      if (field_id) {
+        const { error } = await supabase
+          .from("product_fields")
+          .update({ infinite_stock: nextInfinite, updated_at: new Date().toISOString() })
+          .eq("id", field_id)
+          .eq("tenant_id", tenant_id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("products")
+          .update({ infinite_stock: nextInfinite, updated_at: new Date().toISOString() })
+          .eq("id", product_id)
+          .eq("tenant_id", tenant_id);
+        if (error) throw error;
+      }
       await syncStockAndEmbed(supabase, product_id, tenant_id);
-      return new Response(JSON.stringify({ success: true, infinite_stock: nextInfinite }), {
+      return new Response(JSON.stringify({ success: true, infinite_stock: nextInfinite, field_id: field_id || null }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // TOGGLE INFINITE STOCK on a single specific stock item
+    if (action === "toggle_item_infinite") {
+      if (!stock_item_id) {
+        return new Response(JSON.stringify({ error: "stock_item_id obrigatÃ³rio" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const nextInfinite = Boolean(infinite_stock);
+      const { data: updatedItem, error } = await supabase
+        .from("product_stock_items")
+        .update({ is_infinite: nextInfinite })
+        .eq("id", stock_item_id)
+        .eq("tenant_id", tenant_id)
+        .select("id, product_id, is_infinite")
+        .single();
+      if (error) throw error;
+      if (updatedItem?.product_id) {
+        await syncStockAndEmbed(supabase, updatedItem.product_id, tenant_id);
+      }
+      return new Response(JSON.stringify({ success: true, item: updatedItem }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -446,7 +490,7 @@ Deno.serve(async (req) => {
       }
       let query = supabase
         .from("product_stock_items")
-        .select("id, content, created_at")
+        .select("id, content, created_at, is_infinite")
         .eq("product_id", product_id)
         .eq("tenant_id", tenant_id)
         .eq("delivered", false)
@@ -459,7 +503,7 @@ Deno.serve(async (req) => {
         // General stock tab: show items with no field (unassigned) OR all items
         query = query.is("field_id", null);
       }
-      const [{ data, error }, { data: prodData }] = await Promise.all([
+      const [{ data, error }, { data: prodData }, { data: fieldData }] = await Promise.all([
         query,
         supabase
           .from("products")
@@ -467,12 +511,25 @@ Deno.serve(async (req) => {
           .eq("id", product_id)
           .eq("tenant_id", tenant_id)
           .maybeSingle(),
+        field_id
+          ? supabase
+              .from("product_fields")
+              .select("infinite_stock")
+              .eq("id", field_id)
+              .eq("tenant_id", tenant_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
       if (error) throw error;
+      const resolvedInfinite = field_id
+        ? Boolean(fieldData?.infinite_stock || prodData?.infinite_stock)
+        : Boolean(prodData?.infinite_stock);
       return new Response(JSON.stringify({
         stock: data?.length || 0,
         items: data || [],
-        infinite_stock: Boolean(prodData?.infinite_stock),
+        infinite_stock: resolvedInfinite,
+        product_infinite_stock: Boolean(prodData?.infinite_stock),
+        field_infinite_stock: Boolean(fieldData?.infinite_stock),
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
