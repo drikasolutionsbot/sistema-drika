@@ -32,6 +32,7 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  infinite_stock?: boolean;
   category_id?: string | null;
   enable_credits?: boolean;
   show_stock?: boolean;
@@ -270,7 +271,11 @@ export const ProductDetail = ({ product, onBack, onSave, onDelete, categories = 
             </TabsContent>
 
             <TabsContent value="estoque" className="mt-0">
-              <ProductDetailStock productId={product.id} />
+              <ProductDetailStock
+                productId={product.id}
+                infiniteStock={Boolean(edited.infinite_stock)}
+                onInfiniteStockChange={(infinite) => setEdited((prev) => ({ ...prev, infinite_stock: infinite }))}
+              />
             </TabsContent>
 
             <TabsContent value="cupons" className="mt-0">

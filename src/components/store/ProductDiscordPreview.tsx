@@ -41,6 +41,7 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  infinite_stock?: boolean;
   category_id?: string | null;
   button_style?: DiscordButtonStyle;
 }
@@ -80,7 +81,7 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
   const sideColor = embedColor || cfg.color || "#2B2D31";
   const bgStyle = cfg.bg_style || "default";
 
-  const { data: realStockCount = product.stock ?? 0 } = useQuery({
+  const { data: stockQueryData } = useQuery({
     queryKey: ["product-discord-preview-stock", tenantId, product.id],
     enabled: Boolean(tenantId && product.id),
     queryFn: async () => {
@@ -93,9 +94,15 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
       });
 
       if (error) throw error;
-      return Number(data?.stock ?? 0);
+      return {
+        stock: Number(data?.stock ?? 0),
+        infinite_stock: Boolean(data?.infinite_stock),
+      };
     },
   });
+
+  const isInfiniteStock = Boolean(product.infinite_stock ?? stockQueryData?.infinite_stock);
+  const realStockCount = isInfiniteStock ? "∞" : (stockQueryData?.stock ?? product.stock ?? 0);
 
   const embedBgMap: Record<string, string> = {
     default: "#2f3136",

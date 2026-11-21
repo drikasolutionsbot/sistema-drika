@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
-import { FileText, Plus, Loader2, Trash2, CheckCircle2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { FileText, Plus, Loader2, Trash2, CheckCircle2, Infinity as InfinityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -58,6 +59,7 @@ interface AddStockModalProps {
   productId: string;
   tenantId: string;
   fieldId?: string;
+  initialInfiniteStock?: boolean;
   onAdded: () => void;
 }
 
@@ -67,6 +69,7 @@ export const AddStockModal = ({
   productId,
   tenantId,
   fieldId,
+  initialInfiniteStock = false,
   onAdded,
 }: AddStockModalProps) => {
   const [adding, setAdding] = useState(false);
@@ -75,7 +78,12 @@ export const AddStockModal = ({
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<TxtStockPayload[]>([]);
   const [copiesPerFile, setCopiesPerFile] = useState(1);
+  const [infiniteStock, setInfiniteStock] = useState<boolean>(initialInfiniteStock);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setInfiniteStock(initialInfiniteStock);
+  }, [initialInfiniteStock, open]);
 
   const addItems = async (items: string[], customSuccessMsg?: string) => {
     const filtered = items.filter((i) => i.trim().length > 0);
@@ -93,6 +101,7 @@ export const AddStockModal = ({
           product_id: productId,
           field_id: fieldId || null,
           items: filtered,
+          infinite_stock: infiniteStock,
         },
       });
 
@@ -150,7 +159,7 @@ export const AddStockModal = ({
 
   const handleSaveTxtFiles = async () => {
     if (uploadedFiles.length === 0) return;
-    const copies = Math.max(1, Math.min(500, Number(copiesPerFile) || 1));
+    const copies = infiniteStock ? 1 : Math.max(1, Math.min(500, Number(copiesPerFile) || 1));
     const itemsToSave: string[] = [];
     for (const f of uploadedFiles) {
       const serialized = serializeTxtStockItem(f);
@@ -160,7 +169,9 @@ export const AddStockModal = ({
     }
     await addItems(
       itemsToSave,
-      `${itemsToSave.length} arquivo(s) TXT salvo(s) no estoque para envio na venda! ✅`
+      infiniteStock
+        ? `Arquivo(s) TXT salvo(s) com Estoque Infinito (∞)! ✅`
+        : `${itemsToSave.length} arquivo(s) TXT salvo(s) no estoque para envio na venda! ✅`
     );
   };
 
@@ -270,22 +281,40 @@ export const AddStockModal = ({
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center justify-between gap-3">
                     <div className="space-y-0.5">
-                      <Label className="text-xs font-semibold">Unidades no estoque por arquivo</Label>
+                      <Label className="text-xs font-bold flex items-center gap-1.5 text-emerald-400">
+                        <InfinityIcon className="h-3.5 w-3.5" />
+                        Estoque Infinito (∞)
+                      </Label>
                       <p className="text-[10px] text-muted-foreground">
-                        Quantas vendas poderão receber este arquivo .txt
+                        Envia este arquivo .txt em todas as vendas sem nunca esgotar o estoque
                       </p>
                     </div>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={500}
-                      value={copiesPerFile}
-                      onChange={(e) => setCopiesPerFile(Math.max(1, Math.min(500, parseInt(e.target.value, 10) || 1)))}
-                      className="w-24 h-8 bg-card border-border text-center text-xs font-bold"
+                    <Switch
+                      checked={infiniteStock}
+                      onCheckedChange={setInfiniteStock}
                     />
                   </div>
+
+                  {!infiniteStock && (
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs font-semibold">Unidades no estoque por arquivo</Label>
+                        <p className="text-[10px] text-muted-foreground">
+                          Quantas vendas poderão receber este arquivo .txt
+                        </p>
+                      </div>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={500}
+                        value={copiesPerFile}
+                        onChange={(e) => setCopiesPerFile(Math.max(1, Math.min(500, parseInt(e.target.value, 10) || 1)))}
+                        className="w-24 h-8 bg-card border-border text-center text-xs font-bold"
+                      />
+                    </div>
+                  )}
 
                   <Button
                     onClick={handleSaveTxtFiles}
@@ -297,7 +326,9 @@ export const AddStockModal = ({
                     ) : (
                       <>
                         <FileText className="h-4 w-4" />
-                        Salvar {uploadedFiles.length * copiesPerFile} Arquivo(s) TXT no Estoque
+                        {infiniteStock
+                          ? `Salvar Arquivo(s) TXT com Estoque Infinito (∞)`
+                          : `Salvar ${uploadedFiles.length * copiesPerFile} Arquivo(s) TXT no Estoque`}
                       </>
                     )}
                   </Button>
@@ -315,6 +346,18 @@ export const AddStockModal = ({
                   placeholder="Digite o item aqui..."
                   className="bg-muted border-border min-h-[80px] resize-none"
                 />
+              </div>
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5 text-emerald-400">
+                    <InfinityIcon className="h-3.5 w-3.5" />
+                    Estoque Infinito (∞)
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Envia este item em todas as vendas sem nunca esgotar
+                  </p>
+                </div>
+                <Switch checked={infiniteStock} onCheckedChange={setInfiniteStock} />
               </div>
               <Button
                 onClick={handleSingleAdd}
@@ -338,6 +381,18 @@ export const AddStockModal = ({
                 <p className="text-[11px] text-muted-foreground">
                   Cada linha será tratada como um item individual do estoque
                 </p>
+              </div>
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5 text-emerald-400">
+                    <InfinityIcon className="h-3.5 w-3.5" />
+                    Estoque Infinito (∞)
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Mantém os itens no estoque sem esgotar após as vendas
+                  </p>
+                </div>
+                <Switch checked={infiniteStock} onCheckedChange={setInfiniteStock} />
               </div>
               <Button
                 onClick={handleBatchAdd}

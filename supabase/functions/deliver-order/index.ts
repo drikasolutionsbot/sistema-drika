@@ -220,9 +220,9 @@ serve(async (req) => {
 
         if (stockErr) throw new Error(`Stock consumption error: ${stockErr.message}`);
 
-        if (items && items.length > 0) {
+        if ((items && items.length > 0) || product?.infinite_stock) {
           stockConsumed = true;
-          stockItems = items;
+          stockItems = items || [];
 
           // Immediately mark order delivered so crash/timeout later never re-consumes stock
           await supabase

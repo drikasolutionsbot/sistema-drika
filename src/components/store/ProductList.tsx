@@ -30,6 +30,7 @@ interface Product {
   price_cents: number;
   compare_price_cents?: number | null;
   stock: number | null;
+  infinite_stock?: boolean;
   active: boolean;
   description: string | null;
   category_id?: string | null;
@@ -133,7 +134,8 @@ export const ProductList = ({
         ) : (
           <div className="p-2 space-y-0.5">
             {filtered.map((product) => {
-              const hasStock = product.stock !== null && product.stock > 0;
+              const isInfinite = Boolean(product.infinite_stock);
+              const hasStock = isInfinite || (product.stock !== null && product.stock > 0);
               const variationCount = fieldCounts[product.id] ?? 0;
 
               return (
@@ -168,7 +170,7 @@ export const ProductList = ({
                       ) : null}
                       {hasStock ? (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                          Em estoque
+                          {isInfinite ? "Estoque ∞" : "Em estoque"}
                         </Badge>
                       ) : null}
                     </div>

@@ -346,7 +346,8 @@ async function startCheckout(interaction, tenant, productId) {
 
   // ── Check stock before proceeding ──
   const embedConfig = getProductEmbedConfig(product);
-  const checkStock = product.auto_delivery || embedConfig.show_stock_field !== false;
+  const isInfiniteStock = Boolean(product.infinite_stock);
+  const checkStock = !isInfiniteStock && (product.auto_delivery || embedConfig.show_stock_field !== false);
 
   if (checkStock) {
     if (fields.length > 0) {
@@ -377,13 +378,13 @@ async function startCheckout(interaction, tenant, productId) {
     // Get stock counts per field
     const stockMap = {};
     for (const f of fields) {
-      stockMap[f.id] = await countStock(product.id, tenant.id, f.id);
+      stockMap[f.id] = isInfiniteStock ? "∞" : await countStock(product.id, tenant.id, f.id);
     }
 
     const options = fields.slice(0, 25).map((f) => ({
       label: f.name,
       value: `buy_field:${productId}:${f.id}`,
-      description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${stockMap[f.id] || 0}`,
+      description: `Preço: ${formatBRL(f.price_cents)} | Estoque: ${isInfiniteStock ? "∞" : (stockMap[f.id] || 0)}`,
     }));
 
     const autoDelivery = product.auto_delivery ? "⚡ **Entrega Automática!**\n\n" : "";
@@ -419,7 +420,7 @@ async function selectVariation(interaction, tenant, productId, fieldId) {
 
   // Check stock for this specific field
   const embedConfig = getProductEmbedConfig(product);
-  const checkStock = product.auto_delivery || embedConfig.show_stock_field !== false;
+  const checkStock = !product.infinite_stock && (product.auto_delivery || embedConfig.show_stock_field !== false);
 
   if (checkStock) {
     const sc = await countStock(product.id, tenant.id, fieldId);
@@ -522,8 +523,10 @@ async function processPurchase(interaction, tenant, product, priceCents, fieldId
 
   // Stock count
   let stockCount = "∞";
-  const sc = await countStock(product.id, tenant.id, fieldId);
-  if (sc !== null) stockCount = String(sc);
+  if (!product.infinite_stock) {
+    const sc = await countStock(product.id, tenant.id, fieldId);
+    if (sc !== null) stockCount = String(sc);
+  }
 
   // Build checkout embed
   const descLines = [];
@@ -1403,12 +1406,12 @@ async function handleMarkDeliveredModal(interaction, tenant, orderId) {
     try {
       const { data: prod } = await supabase
         .from("products")
-        .select("stock, auto_delivery")
+        .select("stock, auto_delivery, infinite_stock")
         .eq("id", order.product_id)
         .single();
 
-      // Only decrement for manual delivery products (auto_delivery uses product_stock_items)
-      if (prod && !prod.auto_delivery) {
+      // Only decrement for manual delivery products without infinite_stock (auto_delivery uses product_stock_items)
+      if (prod && !prod.auto_delivery && !prod.infinite_stock) {
         const newStock = Math.max(0, (prod.stock || 0) - 1);
         await supabase
           .from("products")

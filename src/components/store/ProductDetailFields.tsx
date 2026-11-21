@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, ChevronUp, ChevronDown, Package, Loader2, Copy, GripVertical, Trash2 } from "lucide-react";
+import { Plus, Search, ChevronUp, ChevronDown, Package, Loader2, Copy, GripVertical, Trash2, Infinity as InfinityIcon } from "lucide-react";
 import TrashIcon from "@/components/ui/trash-icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -218,6 +218,8 @@ const FieldEstoqueTab = ({
   onStockChange?: (count: number) => void;
 }) => {
   const [stockCount, setStockCount] = useState(0);
+  const [infiniteStock, setInfiniteStock] = useState(false);
+  const [togglingInfinite, setTogglingInfinite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [stockItems, setStockItems] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
@@ -236,6 +238,9 @@ const FieldEstoqueTab = ({
         const count = data?.stock || 0;
         setStockCount(count);
         setStockItems(data?.items || []);
+        if (typeof data?.infinite_stock === "boolean") {
+          setInfiniteStock(data.infinite_stock);
+        }
         onStockChange?.(count);
       }
     } catch (e) {
@@ -243,6 +248,35 @@ const FieldEstoqueTab = ({
     }
     setLoading(false);
   }, [tenantId, field.product_id]);
+
+  const handleToggleInfiniteStock = async (checked: boolean) => {
+    if (!tenantId) return;
+    setTogglingInfinite(true);
+    setInfiniteStock(checked);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "set_infinite_stock",
+          tenant_id: tenantId,
+          product_id: field.product_id,
+          infinite_stock: checked,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: checked ? "Estoque Infinito (∞) ativado! ✅" : "Estoque Infinito desativado",
+        description: checked
+          ? "O estoque deste produto nunca acabará e os itens/arquivos TXT serão reenviados a cada venda."
+          : "O produto voltou ao consumo normal de estoque por venda.",
+      });
+    } catch (e: any) {
+      setInfiniteStock(!checked);
+      toast({ title: "Erro ao alterar Estoque Infinito", description: e.message, variant: "destructive" });
+    } finally {
+      setTogglingInfinite(false);
+    }
+  };
 
   useEffect(() => {
     fetchStock();
@@ -300,6 +334,23 @@ const FieldEstoqueTab = ({
         <div className="flex items-center gap-2">
           <div className="w-0.5 h-5 bg-foreground rounded-full" />
           <h4 className="text-sm font-bold">Controle de Estoque</h4>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5">
+          <div className="space-y-0.5">
+            <p className="text-sm font-bold flex items-center gap-1.5 text-emerald-400">
+              <InfinityIcon className="h-4 w-4" />
+              Estoque Infinito (∞)
+            </p>
+            <p className="text-xs text-muted-foreground">
+              O estoque nunca acaba. Os arquivos .txt ou itens cadastrados serão reenviados em todas as vendas sem esgotar.
+            </p>
+          </div>
+          <Switch
+            checked={infiniteStock}
+            disabled={togglingInfinite}
+            onCheckedChange={handleToggleInfiniteStock}
+          />
         </div>
 
         <div className="flex items-center justify-between">
@@ -391,7 +442,9 @@ const FieldEstoqueTab = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-0.5 h-5 bg-foreground rounded-full" />
-            <h4 className="text-sm font-bold">Estoque ({stockCount})</h4>
+            <h4 className="text-sm font-bold">
+              Estoque ({infiniteStock ? `∞ • ${stockCount} fixo(s)` : stockCount})
+            </h4>
           </div>
           <div className="flex gap-2">
             {stockCount > 0 && (
@@ -485,6 +538,7 @@ const FieldEstoqueTab = ({
           productId={field.product_id}
           tenantId={tenantId}
           fieldId={field.id}
+          initialInfiniteStock={infiniteStock}
           onAdded={() => {
             fetchStock();
             setAddModalOpen(false);

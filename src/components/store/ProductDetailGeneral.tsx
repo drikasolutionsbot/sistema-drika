@@ -4,7 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ProductImageUpload } from "./ProductImageUpload";
 import { useTenant } from "@/contexts/TenantContext";
-import { List, Zap, Shield, Wallet, Languages } from "lucide-react";
+import { List, Zap, Shield, Wallet, Languages, Infinity as InfinityIcon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,7 @@ interface Product {
   icon_url?: string | null;
   banner_url?: string | null;
   auto_delivery?: boolean;
+  infinite_stock?: boolean;
   category_id?: string | null;
   enable_credits?: boolean;
   show_stock?: boolean;
@@ -237,6 +239,25 @@ export const ProductDetailGeneral = ({ product, onChange, categories = [] }: Pro
             <Zap className="h-5 w-5 text-foreground" />
             <span className="text-xs font-semibold text-foreground">{t.productGeneral.automatic}</span>
           </button>
+        </div>
+
+        {/* Infinite Stock option */}
+        <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 mt-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0">
+              <InfinityIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Estoque Infinito (∞)</p>
+              <p className="text-xs text-muted-foreground">
+                O estoque nunca esgota. Os itens ou arquivos .txt cadastrados no estoque serão entregues em todas as vendas sem acabar.
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={Boolean(product.infinite_stock)}
+            onCheckedChange={(checked) => onChange({ infinite_stock: checked })}
+          />
         </div>
       </section>
 

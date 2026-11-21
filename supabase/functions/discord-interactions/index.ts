@@ -1235,40 +1235,43 @@ serve(async (req: Request) => {
           .order("sort_order", { ascending: true });
 
         // â”€â”€ Stock check: block purchase if stock is 0 â”€â”€
-        if (fields && fields.length > 0) {
-          const fieldIds = fields.map((f: any) => f.id);
-          const { count: totalFieldStock } = await supabase
-            .from("product_stock_items")
-            .select("id", { count: "exact", head: true })
-            .in("field_id", fieldIds)
-            .eq("tenant_id", tenantId)
-            .eq("delivered", false);
+        const isInfiniteStock = Boolean(product.infinite_stock);
+        if (!isInfiniteStock) {
+          if (fields && fields.length > 0) {
+            const fieldIds = fields.map((f: any) => f.id);
+            const { count: totalFieldStock } = await supabase
+              .from("product_stock_items")
+              .select("id", { count: "exact", head: true })
+              .in("field_id", fieldIds)
+              .eq("tenant_id", tenantId)
+              .eq("delivered", false);
 
-          // Also check general stock (field_id IS NULL)
-          const { count: generalStock } = await supabase
-            .from("product_stock_items")
-            .select("id", { count: "exact", head: true })
-            .eq("product_id", product.id)
-            .eq("tenant_id", tenantId)
-            .is("field_id", null)
-            .eq("delivered", false);
+            // Also check general stock (field_id IS NULL)
+            const { count: generalStock } = await supabase
+              .from("product_stock_items")
+              .select("id", { count: "exact", head: true })
+              .eq("product_id", product.id)
+              .eq("tenant_id", tenantId)
+              .is("field_id", null)
+              .eq("delivered", false);
 
-          const combinedStock = (totalFieldStock || 0) + (generalStock || 0);
-          if (combinedStock <= 0) {
-            await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
-            return ok();
-          }
-        } else {
-          const { count: productStock } = await supabase
-            .from("product_stock_items")
-            .select("id", { count: "exact", head: true })
-            .eq("product_id", product.id)
-            .eq("tenant_id", tenantId)
-            .eq("delivered", false);
+            const combinedStock = (totalFieldStock || 0) + (generalStock || 0);
+            if (combinedStock <= 0) {
+              await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
+              return ok();
+            }
+          } else {
+            const { count: productStock } = await supabase
+              .from("product_stock_items")
+              .select("id", { count: "exact", head: true })
+              .eq("product_id", product.id)
+              .eq("tenant_id", tenantId)
+              .eq("delivered", false);
 
-          if (productStock !== null && productStock <= 0) {
-            await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
-            return ok();
+            if (productStock !== null && productStock <= 0) {
+              await editFollowup(interaction, botToken, tr(Lproduct, "product_out_of_stock"));
+              return ok();
+            }
           }
         }
 
@@ -1289,9 +1292,11 @@ serve(async (req: Request) => {
             }
           }
 
-          const availableFields = product.auto_delivery ? fields.filter((f: any) => (stockMap[f.id] || 0) > 0) : fields;
+          const availableFields = (product.auto_delivery && !isInfiniteStock)
+            ? fields.filter((f: any) => (stockMap[f.id] || 0) > 0)
+            : fields;
 
-          if (availableFields.length === 0 && product.auto_delivery) {
+          if (availableFields.length === 0 && product.auto_delivery && !isInfiniteStock) {
             await editFollowup(interaction, botToken, {
               content: "",
               embeds: [{
@@ -1307,7 +1312,7 @@ serve(async (req: Request) => {
           const options = availableFields.map((f: any) => {
             const stock = stockMap[f.id] || 0;
             let desc = `Valor: ${formatMoney(f.price_cents, product.currency)}`;
-            if (product.auto_delivery) desc += ` | Estoque: ${stock}`;
+            if (product.auto_delivery || isInfiniteStock) desc += ` | Estoque: ${isInfiniteStock ? "∞" : stock}`;
 
             return {
               label: f.name,
@@ -1384,7 +1389,7 @@ serve(async (req: Request) => {
         if (!field) { await editFollowup(interaction, botToken, tr(Lproduct, "variation_not_found")); return ok(); }
 
         // ── Stock check for this variation (respecting isolation & delivery_quantity) ──
-        if (product.auto_delivery) {
+        if (product.auto_delivery && !product.infinite_stock) {
           const requiredPerUnit = Math.max(1, Math.min(500, Number(field.delivery_quantity ?? product.delivery_quantity ?? 1)));
           const { count: fieldStock } = await supabase
             .from("product_stock_items")
@@ -3409,12 +3414,12 @@ async function getOrderStockAvailability(
 
   const { data: prod } = await supabase
     .from("products")
-    .select("auto_delivery, delivery_quantity")
+    .select("auto_delivery, delivery_quantity, infinite_stock")
     .eq("id", order.product_id)
     .maybeSingle();
 
-  if (!prod?.auto_delivery) {
-    return { autoDelivery: false, availableUnits: 999999, rawStock: 999999, perUnitQty: 1 };
+  if (!prod?.auto_delivery || prod?.infinite_stock) {
+    return { autoDelivery: Boolean(prod?.auto_delivery), availableUnits: 999999, rawStock: 999999, perUnitQty: 1 };
   }
 
   let perUnitQty = Number(prod.delivery_quantity ?? 1);
@@ -3621,23 +3626,25 @@ async function processPurchase(
 
   // Get stock count
   let stockCount = "âˆž";
-  if (fieldId) {
-    const { count } = await supabase
-      .from("product_stock_items")
-      .select("id", { count: "exact", head: true })
-      .eq("field_id", fieldId)
-      .eq("tenant_id", tenantId)
-      .eq("delivered", false);
-    if (count !== null) stockCount = String(count);
-  } else {
-    // Count actual stock items for the product (global pool)
-    const { count } = await supabase
-      .from("product_stock_items")
-      .select("id", { count: "exact", head: true })
-      .eq("product_id", product.id)
-      .eq("tenant_id", tenantId)
-      .eq("delivered", false);
-    if (count !== null) stockCount = String(count);
+  if (!product.infinite_stock) {
+    if (fieldId) {
+      const { count } = await supabase
+        .from("product_stock_items")
+        .select("id", { count: "exact", head: true })
+        .eq("field_id", fieldId)
+        .eq("tenant_id", tenantId)
+        .eq("delivered", false);
+      if (count !== null) stockCount = String(count);
+    } else {
+      // Count actual stock items for the product (global pool)
+      const { count } = await supabase
+        .from("product_stock_items")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", product.id)
+        .eq("tenant_id", tenantId)
+        .eq("delivered", false);
+      if (count !== null) stockCount = String(count);
+    }
   }
 
   // Build description from product description

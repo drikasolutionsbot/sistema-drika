@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Plus, Loader2, Trash2, Search, RefreshCw, Copy, Check, FileText } from "lucide-react";
+import { Package, Plus, Loader2, Trash2, Search, RefreshCw, Copy, Check, FileText, Infinity as InfinityIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "@/hooks/use-toast";
@@ -16,11 +17,15 @@ interface StockItem {
 
 interface ProductDetailStockProps {
   productId: string;
+  infiniteStock?: boolean;
+  onInfiniteStockChange?: (infinite: boolean) => void;
 }
 
-export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
+export const ProductDetailStock = ({ productId, infiniteStock: propInfiniteStock, onInfiniteStockChange }: ProductDetailStockProps) => {
   const { tenantId } = useTenant();
   const [stockCount, setStockCount] = useState(0);
+  const [infiniteStock, setInfiniteStock] = useState<boolean>(Boolean(propInfiniteStock));
+  const [togglingInfinite, setTogglingInfinite] = useState(false);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
@@ -28,6 +33,43 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof propInfiniteStock === "boolean") {
+      setInfiniteStock(propInfiniteStock);
+    }
+  }, [propInfiniteStock]);
+
+  const handleToggleInfiniteStock = async (checked: boolean) => {
+    if (!tenantId) return;
+    setTogglingInfinite(true);
+    setInfiniteStock(checked);
+    onInfiniteStockChange?.(checked);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-product-fields", {
+        body: {
+          action: "set_infinite_stock",
+          tenant_id: tenantId,
+          product_id: productId,
+          infinite_stock: checked,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: checked ? "Estoque Infinito (∞) ativado! ✅" : "Estoque Infinito desativado",
+        description: checked
+          ? "O estoque nunca se esgotará e os itens/arquivos TXT serão reenviados a cada venda."
+          : "O produto voltou a consumir 1 unidade do estoque por venda.",
+      });
+    } catch (e: any) {
+      setInfiniteStock(!checked);
+      onInfiniteStockChange?.(!checked);
+      toast({ title: "Erro ao alterar Estoque Infinito", description: e.message, variant: "destructive" });
+    } finally {
+      setTogglingInfinite(false);
+    }
+  };
 
   const handleCopyItem = (item: StockItem) => {
     const parsed = parseTxtStockItem(item.content);
@@ -47,6 +89,10 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
       if (data && !data.error) {
         setStockCount(data.stock || 0);
         setStockItems(data.items || []);
+        if (typeof data.infinite_stock === "boolean") {
+          setInfiniteStock(data.infinite_stock);
+          onInfiniteStockChange?.(data.infinite_stock);
+        }
       }
     } catch (e: any) {
       console.error("Erro ao buscar estoque:", e);
@@ -112,15 +158,55 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
         </div>
       ) : (
         <>
+          {/* Infinite Stock toggle card */}
+          <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+                <InfinityIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-foreground">Estoque Infinito (∞)</p>
+                  {infiniteStock && (
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                      Ativo
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O estoque nunca acaba. Os arquivos .txt ou itens cadastrados abaixo serão enviados em todas as vendas sem esgotar.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={infiniteStock}
+              disabled={togglingInfinite}
+              onCheckedChange={handleToggleInfiniteStock}
+            />
+          </div>
+
           {/* Stock counter card */}
           <div className="flex items-center justify-between rounded-xl bg-muted p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Package className="h-6 w-6 text-primary" />
+                {infiniteStock ? (
+                  <InfinityIcon className="h-6 w-6 text-emerald-400" />
+                ) : (
+                  <Package className="h-6 w-6 text-primary" />
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Estoque disponível</p>
-                <p className="text-3xl font-bold">{stockCount} <span className="text-sm font-normal text-muted-foreground">itens</span></p>
+                {infiniteStock ? (
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-bold text-emerald-400">∞</p>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      Infinito ({stockCount} {stockCount === 1 ? "item/arquivo fixo" : "itens/arquivos fixos"})
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-3xl font-bold">{stockCount} <span className="text-sm font-normal text-muted-foreground">itens</span></p>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
@@ -245,6 +331,7 @@ export const ProductDetailStock = ({ productId }: ProductDetailStockProps) => {
           onOpenChange={setAddModalOpen}
           productId={productId}
           tenantId={tenantId}
+          initialInfiniteStock={infiniteStock}
           onAdded={() => {
             fetchStock();
             setAddModalOpen(false);

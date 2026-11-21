@@ -256,6 +256,7 @@ async function buildProductPayload(
   }
 
   // Stock count
+  const isInfiniteStock = Boolean(product.infinite_stock);
   const { count: realStockCount } = await supabase
     .from("product_stock_items")
     .select("id", { count: "exact", head: true })
@@ -268,14 +269,14 @@ async function buildProductPayload(
     const stockLabel = localizedOrCustom(embedConfig.stock_label, lang, "stock_label");
     embed.fields.push({
       name: stockLabel,
-      value: `\`${realStockCount ?? 0}\``,
+      value: isInfiniteStock ? "`∞`" : `\`${realStockCount ?? 0}\``,
       inline: true,
     });
   }
 
   // Footer
   if (embedConfig.show_footer !== false) {
-    const stock = realStockCount ?? 0;
+    const stock = isInfiniteStock ? 999999 : (realStockCount ?? 0);
     const localeMap: Record<Lang, string> = { "pt-BR": "pt-BR", en: "en-US", de: "de-DE" };
     const dateStr = new Date().toLocaleString(localeMap[lang]);
     let footerText: string;
@@ -371,9 +372,11 @@ async function buildProductPayload(
 
     const currency = (product.currency || "BRL").toUpperCase();
     const localeMap: Record<string, string> = { BRL: "pt-BR", USD: "en-US", EUR: "de-DE" };
-    const availableFields = product.auto_delivery ? fields.filter((f: any) => (stockMap[f.id] || 0) > 0) : fields;
+    const availableFields = (product.auto_delivery && !isInfiniteStock)
+      ? fields.filter((f: any) => (stockMap[f.id] || 0) > 0)
+      : fields;
 
-    if (availableFields.length === 0 && product.auto_delivery) {
+    if (availableFields.length === 0 && product.auto_delivery && !isInfiniteStock) {
       finalComponents = [
         {
           type: 1, // ActionRow
@@ -399,8 +402,8 @@ async function buildProductPayload(
         
         const stock = stockMap[f.id] || 0;
         let desc = `Valor: ${formattedPrice}`;
-        if (product.auto_delivery) {
-          desc += ` | Estoque: ${stock}`;
+        if (product.auto_delivery || isInfiniteStock) {
+          desc += ` | Estoque: ${isInfiniteStock ? "∞" : stock}`;
         }
 
         return {
