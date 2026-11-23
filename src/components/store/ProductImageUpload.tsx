@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { uploadTenantAsset } from "@/lib/uploadTenantAsset";
 import imageCompression from "browser-image-compression";
 
 interface ProductImageUploadProps {
@@ -67,29 +67,12 @@ export const ProductImageUpload = ({
         }
 
         const path = `${tenantId}/products/${productId}/${aspect}-${Date.now()}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("tenant-assets")
-          .upload(path, fileToUpload, { upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        // Delete old file if it exists
-        if (currentUrl && currentUrl.includes("/tenant-assets/")) {
-          const oldPath = currentUrl.split("/tenant-assets/")[1]?.split("?")[0];
-          if (oldPath) {
-            await supabase.storage.from("tenant-assets").remove([oldPath]).catch(console.error);
-          }
-        }
-
-        const { data: publicData } = supabase.storage
-          .from("tenant-assets")
-          .getPublicUrl(path);
-
-        const cdnUrl = import.meta.env.VITE_CDN_URL;
-        const finalUrl = cdnUrl 
-          ? publicData.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
-          : publicData.publicUrl;
+        const finalUrl = await uploadTenantAsset({
+          tenantId,
+          path,
+          file: fileToUpload,
+          oldUrl: currentUrl,
+        });
 
         onUploaded(finalUrl);
         setDialogOpen(false);

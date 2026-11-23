@@ -9,6 +9,7 @@ import BannerCropModal from "@/components/customization/BannerCropModal";
 import { openUpgradeModal } from "@/components/ProUpgradeModal";
 import { isMaster } from "@/lib/plans";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadTenantAsset } from "@/lib/uploadTenantAsset";
 import { toast } from "@/hooks/use-toast";
 
 const BotCustomizationPage = () => {
@@ -85,39 +86,21 @@ const BotCustomizationPage = () => {
       const safeExt = extOk ? ext : "png";
       const path = `${tenantId}/bot-banner/${crypto.randomUUID()}.${safeExt}`;
 
-      // 1) Upload no Storage
+      // 1) Upload autenticado via Edge Function (evita erro de relógio/JWT expirado no Storage)
       stage = "upload";
-      const { error: upErr } = await supabase.storage
-        .from("tenant-assets")
-        .upload(path, file, {
-          upsert: true,
-          contentType: mimeOk ? file.type : `image/${safeExt === "jpg" ? "jpeg" : safeExt}`,
-        });
-      if (upErr) {
-        const msg = (upErr.message || "").toLowerCase();
-        if (msg.includes("exceeded") || msg.includes("size")) {
-          throw new Error(`Arquivo excede o limite do servidor (${MAX_BANNER_MB}MB).`);
-        }
-        if (msg.includes("mime") || msg.includes("type")) {
-          throw new Error("Tipo de arquivo não permitido pelo servidor. Use JPG, PNG, WebP ou GIF.");
-        }
-        if (msg.includes("permission") || msg.includes("not authorized") || msg.includes("rls")) {
-          throw new Error("Sem permissão para enviar no storage. Verifique seu login.");
-        }
-        throw new Error(`Falha no upload: ${upErr.message}`);
-      }
-
-      // 2) URL pública
-      stage = "publicUrl";
-      const { data: pub } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      if (!pub?.publicUrl) {
-        throw new Error("Não foi possível gerar a URL pública da capa.");
-      }
+      const contentType = mimeOk ? file.type : `image/${safeExt === "jpg" ? "jpeg" : safeExt}`;
+      const uploadedUrl = await uploadTenantAsset({
+        tenantId,
+        path,
+        file,
+        contentType,
+        useCdn: false,
+      });
 
       // 3) Atualizar tenant via edge function
       stage = "update";
       const { data, error } = await supabase.functions.invoke("update-tenant", {
-        body: { tenant_id: tenantId, updates: { bot_banner_url: pub.publicUrl } },
+        body: { tenant_id: tenantId, updates: { bot_banner_url: uploadedUrl } },
       });
 
       // Tratar rate-limit do Discord (429) — edge function ainda salvou a URL no DB

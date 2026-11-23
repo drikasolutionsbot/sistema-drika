@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { uploadTenantAsset } from "@/lib/uploadTenantAsset";
 import { Loader2, Bot, Upload, Lock, Crown, ImageIcon, X, AlertTriangle, Clock, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,16 +151,17 @@ const EditBotProfileModal = ({ open, onOpenChange, tenant, tenantId, refetchTena
     const setUploading = kind === "avatar" ? setUploadingAvatar : setUploadingBanner;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const ext = file.name.split(".").pop() || "png";
       const subdir = kind === "avatar" ? "bot-avatar" : "bot-banner";
       const path = `${tenantId}/${subdir}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("tenant-assets")
-        .upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      if (kind === "avatar") setBotAvatarUrl(data.publicUrl);
-      else setBotBannerUrl(data.publicUrl);
+      const publicUrl = await uploadTenantAsset({
+        tenantId,
+        path,
+        file,
+        useCdn: false,
+      });
+      if (kind === "avatar") setBotAvatarUrl(publicUrl);
+      else setBotBannerUrl(publicUrl);
     } catch (err: any) {
       toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
     } finally {

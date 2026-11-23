@@ -10,24 +10,145 @@ const NEW_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const rawKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || NEW_ANON_KEY;
 const SUPABASE_PUBLISHABLE_KEY = SUPABASE_URL.includes("iwotvdfxppjwasywrbmw") && rawKey.includes("iwotvdfxppjwasywrbmw") ? rawKey : NEW_ANON_KEY;
 
-// Injeta automaticamente _auth_token (da sessão do lojista) nas chamadas para Edge Functions (/functions/v1/)
-const authenticatedFetch: typeof fetch = async (input, init) => {
+function decodeJwtExp(token: string): number | null {
   try {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    if (url.includes("/functions/v1/") && init?.body && typeof init.body === "string") {
-      const tokenSession = getTokenSession();
-      if (tokenSession?.token) {
-        const parsed = JSON.parse(init.body);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && !parsed._auth_token) {
-          parsed._auth_token = tokenSession.token;
-          init = { ...init, body: JSON.stringify(parsed) };
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(padded));
+    return typeof payload?.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function findSupabaseAuthStorageKey(): string | null {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && /^sb-.*-auth-token$/.test(k)) return k;
+    }
+  } catch {}
+  return null;
+}
+
+let refreshInFlight: Promise<{ accessToken: string | null; clearedStaleSession: boolean }> | null = null;
+
+async function refreshOrRecoverExpiredJwt(): Promise<{ accessToken: string | null; clearedStaleSession: boolean }> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const storageKey = findSupabaseAuthStorageKey();
+      const rawSession = storageKey ? localStorage.getItem(storageKey) : null;
+      const parsed = rawSession ? JSON.parse(rawSession) : null;
+      const refreshToken = parsed?.refresh_token;
+
+      if (refreshToken) {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (res.ok) {
+          const fresh = await res.json();
+          if (fresh?.access_token && storageKey) {
+            const nextSession = {
+              ...parsed,
+              ...fresh,
+              expires_at: Math.floor(Date.now() / 1000) + Number(fresh.expires_in || 3600),
+            };
+            localStorage.setItem(storageKey, JSON.stringify(nextSession));
+            return { accessToken: fresh.access_token as string, clearedStaleSession: false };
+          }
         }
+      }
+
+      // If refresh failed and we have an active store token session, clear dead Auth JWT so anon + _auth_token works
+      if (getTokenSession()?.token && storageKey) {
+        localStorage.removeItem(storageKey);
+        return { accessToken: null, clearedStaleSession: true };
+      }
+    } catch {
+      // ignore
+    } finally {
+      refreshInFlight = null;
+    }
+    return { accessToken: null, clearedStaleSession: false };
+  })();
+
+  return refreshInFlight;
+}
+
+// Injeta automaticamente _auth_token (da sessão do lojista) nas chamadas para Edge Functions (/functions/v1/)
+// e renova/limpa automaticamente JWTs expirados (inclusive por divergência de relógio no PC do usuário)
+const authenticatedFetch: typeof fetch = async (input, init) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+  // Never intercept Supabase Auth endpoints themselves
+  if (url.includes("/auth/v1/")) {
+    return fetch(input, init);
+  }
+
+  let nextInit: RequestInit = init ? { ...init } : {};
+  const tokenSession = getTokenSession();
+
+  try {
+    if (url.includes("/functions/v1/") && nextInit.body && typeof nextInit.body === "string" && tokenSession?.token) {
+      const parsed = JSON.parse(nextInit.body);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && !parsed._auth_token) {
+        parsed._auth_token = tokenSession.token;
+        nextInit.body = JSON.stringify(parsed);
       }
     }
   } catch {
-    // prossegue com fetch original se o body não for JSON
+    // prossegue com body original se não for JSON
   }
-  return fetch(input, init);
+
+  const headers = new Headers(nextInit.headers || (input instanceof Request ? input.headers : undefined));
+  const authHeader = headers.get("Authorization") || "";
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const isUserJwt = Boolean(bearerToken && bearerToken !== SUPABASE_PUBLISHABLE_KEY && bearerToken.startsWith("eyJ"));
+
+  if (isUserJwt) {
+    const exp = decodeJwtExp(bearerToken);
+    if (exp !== null && exp * 1000 < Date.now() + 15_000) {
+      const recovered = await refreshOrRecoverExpiredJwt();
+      if (recovered.accessToken) {
+        headers.set("Authorization", `Bearer ${recovered.accessToken}`);
+      } else if (recovered.clearedStaleSession || tokenSession?.token) {
+        headers.set("Authorization", `Bearer ${SUPABASE_PUBLISHABLE_KEY}`);
+      }
+    }
+  }
+
+  nextInit.headers = headers;
+  const response = await fetch(input, nextInit);
+
+  // If server clock is ahead of client clock, server may still reject a token with "exp" claim timestamp check failed
+  if (isUserJwt && !response.ok && (response.status === 400 || response.status === 401 || response.status === 403)) {
+    const errText = await response.clone().text().catch(() => "");
+    if (/claim timestamp check failed|jwt expired|invalid jwt/i.test(errText)) {
+      const recovered = await refreshOrRecoverExpiredJwt();
+      if (recovered.accessToken) {
+        const retryHeaders = new Headers(headers);
+        retryHeaders.set("Authorization", `Bearer ${recovered.accessToken}`);
+        return fetch(input, { ...nextInit, headers: retryHeaders });
+      }
+      if (recovered.clearedStaleSession || tokenSession?.token) {
+        const retryHeaders = new Headers(headers);
+        retryHeaders.set("Authorization", `Bearer ${SUPABASE_PUBLISHABLE_KEY}`);
+        return fetch(input, { ...nextInit, headers: retryHeaders });
+      }
+    }
+  }
+
+  return response;
 };
 
 // Import the supabase client like this:

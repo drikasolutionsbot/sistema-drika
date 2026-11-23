@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Palette, Type, FileText, Image as ImageIcon, Info, Upload, X, Link, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GiveawayEmbedConfig as EmbedConfig } from "./GiveawayEmbedPreview";
-import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { uploadTenantAsset } from "@/lib/uploadTenantAsset";
 import { toast } from "@/hooks/use-toast";
 
 interface GiveawayEmbedConfigProps {
@@ -78,23 +78,19 @@ export function ImageUploadField({
       }
       setUploading(true);
       try {
+        if (!tenantId) throw new Error("Loja não identificada");
         // Compress before upload (skips GIFs)
         const toUpload = await compressImage(file);
         const ext = toUpload.name.split(".").pop() || "webp";
         const path = `${tenantId}/giveaways/${fieldKey}-${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from("tenant-assets").upload(path, toUpload, { upsert: true });
-        if (error) throw error;
-
-        // Delete old file if it exists
-        if (value && value.includes("/tenant-assets/")) {
-          const oldPath = value.split("/tenant-assets/")[1]?.split("?")[0];
-          if (oldPath) {
-            await supabase.storage.from("tenant-assets").remove([oldPath]).catch(console.error);
-          }
-        }
-
-        const { data: publicData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-        onChangeUrl(publicData.publicUrl);
+        const finalUrl = await uploadTenantAsset({
+          tenantId,
+          path,
+          file: toUpload,
+          oldUrl: value,
+          useCdn: false,
+        });
+        onChangeUrl(finalUrl);
         toast({ title: "Imagem enviada! ✅" });
       } catch (err: any) {
         toast({ title: "Erro no upload", description: err.message, variant: "destructive" });

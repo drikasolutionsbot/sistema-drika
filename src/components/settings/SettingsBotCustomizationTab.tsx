@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadTenantAsset } from "@/lib/uploadTenantAsset";
 import { toast } from "@/hooks/use-toast";
 
 interface Props {
@@ -29,17 +30,13 @@ const SettingsBotCustomizationTab = ({ tenant, tenantId, refetchTenant }: Props)
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      const ext = file.name.split(".").pop() || "png";
       const path = `${tenantId}/bot-avatar/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("tenant-assets")
-        .upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      const cdnUrl = import.meta.env.VITE_CDN_URL;
-      const finalUrl = cdnUrl 
-        ? data.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
-        : data.publicUrl;
+      const finalUrl = await uploadTenantAsset({
+        tenantId,
+        path,
+        file,
+      });
       setBotAvatarUrl(finalUrl);
       toast({ title: "Avatar enviado!" });
     } catch (err: any) {

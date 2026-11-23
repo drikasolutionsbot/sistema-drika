@@ -2,8 +2,8 @@ import { useRef, useState } from "react";
 import { Upload, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { uploadTenantAsset } from "@/lib/uploadTenantAsset";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
 
@@ -57,25 +57,12 @@ const ImageUploadField = ({ label, value, onChange, folder = "embeds", maxSizeKB
       }
 
       const path = `${tenantId}/${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("tenant-assets")
-        .upload(path, fileToUpload, { upsert: true });
-      if (error) throw error;
-      
-      // Delete old file if it exists and is hosted on our Supabase bucket
-      if (value && value.includes("/tenant-assets/")) {
-        const oldPath = value.split("/tenant-assets/")[1]?.split("?")[0];
-        if (oldPath) {
-          await supabase.storage.from("tenant-assets").remove([oldPath]).catch(console.error);
-        }
-      }
-
-      const { data } = supabase.storage.from("tenant-assets").getPublicUrl(path);
-      
-      const cdnUrl = import.meta.env.VITE_CDN_URL;
-      const finalUrl = cdnUrl 
-        ? data.publicUrl.replace(import.meta.env.VITE_SUPABASE_URL, cdnUrl)
-        : data.publicUrl;
+      const finalUrl = await uploadTenantAsset({
+        tenantId,
+        path,
+        file: fileToUpload,
+        oldUrl: value,
+      });
 
       onChange(finalUrl);
       toast.success("Imagem enviada com sucesso!");
