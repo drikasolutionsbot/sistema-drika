@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
+import { formatPlanLabel } from "@/lib/plans";
 
 interface NavItem {
   label: string;
@@ -418,7 +419,7 @@ export const AdminLayout = () => {
     const [paymentsRes, tenantsRes, withdrawalsRes] = await Promise.all([
       (supabase as any)
         .from("subscription_payments")
-        .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
+        .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, metadata, tenants:tenant_id(name)")
         .order("created_at", { ascending: false })
         .limit(20),
       (supabase as any)
@@ -460,7 +461,7 @@ export const AdminLayout = () => {
       if (p.status === "paid") {
         notifs.push({
           id: `pay-${p.id}`,
-          title: "🎉 Plano Pro ativado",
+          title: `🎉 Plano ${formatPlanLabel(p.plan, p.metadata?.cycle)} ativado`,
           desc: `${tenantName} — R$ ${(p.amount_cents / 100).toFixed(2)}`,
           time: timeAgo(p.paid_at || p.created_at),
           read: readIds.has(`pay-${p.id}`),
@@ -482,7 +483,7 @@ export const AdminLayout = () => {
       notifs.push({
         id: `tenant-${t.id}`,
         title: "👤 Nova loja criada",
-        desc: `${t.name} — plano ${t.plan || "free"}`,
+        desc: `${t.name} — plano ${formatPlanLabel(t.plan)}`,
         time: timeAgo(t.created_at),
         read: readIds.has(`tenant-${t.id}`),
         type: "new_tenant",
@@ -547,7 +548,7 @@ export const AdminLayout = () => {
         (payload: any) => {
           const row = payload.new;
           if (row?.status === "paid") {
-            toast.success("🎉 Plano Pro ativado!", { description: `Tenant ${row.tenant_id}` });
+            toast.success(`🎉 Plano ${formatPlanLabel(row.plan, row.metadata?.cycle)} ativado!`, { description: `Tenant ${row.tenant_id}` });
           }
           fetchNotifications();
         }
@@ -557,7 +558,7 @@ export const AdminLayout = () => {
         { event: "INSERT", schema: "public", table: "tenants" },
         (payload: any) => {
           const row = payload.new;
-          toast.info(`👤 Nova loja: ${row.name}`, { description: `Plano: ${row.plan || "free"}` });
+          toast.info(`👤 Nova loja: ${row.name}`, { description: `Plano: ${formatPlanLabel(row.plan)}` });
           fetchNotifications();
         }
       )

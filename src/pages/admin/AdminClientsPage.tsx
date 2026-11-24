@@ -20,7 +20,8 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import { PLANS, isPaidPlan, formatPlanLabel, formatPlanLabelWithIcon, getCycleDays } from "@/lib/plans";
+import { classifyTenantPlan, PLANS, PLAN_VISUALS, isPaidPlan, formatPlanLabel, formatPlanLabelWithIcon, getCycleDays } from "@/lib/plans";
+import { fetchAllRows } from "@/lib/supabasePagination";
 
 const DiscordIcon = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -29,7 +30,8 @@ const DiscordIcon = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
 );
 
 const getPlanBadgeClass = (plan: string) => {
-  return PLANS.find((p) => p.value === plan)?.color || PLANS[0].color;
+  const key = (plan || "free").toLowerCase().trim() as keyof typeof PLAN_VISUALS;
+  return PLAN_VISUALS[key]?.badgeClass || PLAN_VISUALS.free.badgeClass;
 };
 
 const AdminClientsPage = () => {
@@ -175,12 +177,18 @@ const AdminClientsPage = () => {
   };
 
   const fetchTenants = useCallback(async () => {
-    const { data } = await supabase
-      .from("tenants")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setTenants(data || []);
-    setLoading(false);
+    try {
+      const data = await fetchAllRows<any>((from, to) =>
+        supabase
+          .from("tenants")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, to)
+      );
+      setTenants(data);
+    } finally {
+      setLoading(false);
+    }
 
     // Fetch all guilds where the bot is connected to display server name + icon + member count
     try {
@@ -222,14 +230,25 @@ const AdminClientsPage = () => {
       t.whatsapp?.includes(q) ||
       t.registration_ip?.toLowerCase().includes(q) ||
       t.id?.includes(q);
-    const matchesPlan = planFilter === "all" || (t.plan || "free") === planFilter;
+    const matchesPlan =
+      planFilter === "all" || classifyTenantPlan(t).effectivePlan === planFilter;
     return matchesSearch && matchesPlan;
   });
 
-  const planStats = PLANS.map((p) => ({
-    ...p,
-    count: tenants.filter((t) => (t.plan || "free") === p.value).length,
-  }));
+  const planStats = [
+    ...PLANS.map((p) => ({
+      value: p.value,
+      label: p.label,
+      color: p.color,
+      count: tenants.filter((t) => classifyTenantPlan(t).effectivePlan === p.value).length,
+    })),
+    {
+      value: PLAN_VISUALS.expired.key,
+      label: PLAN_VISUALS.expired.label,
+      color: PLAN_VISUALS.expired.badgeClass,
+      count: tenants.filter((t) => classifyTenantPlan(t).effectivePlan === "expired").length,
+    },
+  ];
 
   const handleCreateTenant = async () => {
     if (!newTenantName.trim()) return;
@@ -805,7 +824,7 @@ const AdminClientsPage = () => {
                 const now = new Date();
                 const startDate = tenant.plan_started_at ? new Date(tenant.plan_started_at) : null;
                 const expiryDate = tenant.plan_expires_at ? new Date(tenant.plan_expires_at) : null;
-                const isExpired = hasPlanExpiration && expiryDate ? expiryDate < now : false;
+                const { isExpired } = classifyTenantPlan(tenant, now.getTime());
 
                 const diffMs = expiryDate ? expiryDate.getTime() - now.getTime() : 0;
                 const daysLeft = hasPlanExpiration

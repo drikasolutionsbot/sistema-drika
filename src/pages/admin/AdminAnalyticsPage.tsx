@@ -9,143 +9,64 @@ import {
 import {
   TrendingUp, TrendingDown, Users, DollarSign, UserMinus, Activity,
 } from "lucide-react";
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, parseISO, differenceInDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
-
-interface Tenant {
-  id: string;
-  name: string;
-  plan: string | null;
-  created_at: string;
-}
-
-interface Payment {
-  id: string;
-  tenant_id: string;
-  amount_cents: number;
-  status: string;
-  plan: string;
-  paid_at: string | null;
-  created_at: string;
-}
-
-const COLORS = ["hsl(330, 100%, 71%)", "hsl(270, 80%, 65%)", "hsl(200, 80%, 60%)", "hsl(45, 90%, 60%)", "hsl(150, 60%, 50%)"];
+import { fetchAllRows } from "@/lib/supabasePagination";
+import {
+  computeAdminAnalytics,
+  type AdminSubscriptionPaymentRecord,
+  type AdminTenantRecord,
+} from "@/lib/adminStats";
 
 const AdminAnalyticsPage = () => {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [tenants, setTenants] = useState<AdminTenantRecord[]>([]);
+  const [payments, setPayments] = useState<AdminSubscriptionPaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [months] = useState(12);
 
   useEffect(() => {
-    const fetch = async () => {
-      const [t, p] = await Promise.all([
-        (supabase as any).from("tenants").select("id, name, plan, created_at").order("created_at"),
-        (supabase as any).from("subscription_payments").select("id, tenant_id, amount_cents, status, plan, paid_at, created_at").eq("status", "paid").order("paid_at"),
-      ]);
-      setTenants(t.data || []);
-      setPayments(p.data || []);
-      setLoading(false);
+    const fetchAll = async () => {
+      try {
+        const [allTenants, allPayments] = await Promise.all([
+          fetchAllRows<AdminTenantRecord>((from, to) =>
+            (supabase as any)
+              .from("tenants")
+              .select("id, name, plan, plan_cycle, plan_expires_at, created_at")
+              .order("created_at")
+              .range(from, to)
+          ),
+          fetchAllRows<AdminSubscriptionPaymentRecord>((from, to) =>
+            (supabase as any)
+              .from("subscription_payments")
+              .select("id, tenant_id, amount_cents, status, plan, paid_at, created_at, period_start, period_end, payer_name, payer_email, metadata")
+              .eq("status", "paid")
+              .order("created_at")
+              .range(from, to)
+          ),
+        ]);
+        setTenants(allTenants);
+        setPayments(allPayments);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetch();
+    fetchAll();
   }, []);
 
-  const monthRange = useMemo(() => {
-    const end = endOfMonth(new Date());
-    const start = startOfMonth(subMonths(end, months - 1));
-    return eachMonthOfInterval({ start, end });
-  }, [months]);
+  const { growthData, mrrData, churnData, planDist, kpis } = useMemo(
+    () => computeAdminAnalytics({ tenants, payments, months }),
+    [tenants, payments, months]
+  );
 
-  // — Client growth (cumulative)
-  const growthData = useMemo(() => {
-    let cumulative = 0;
-    return monthRange.map((m) => {
-      const key = format(m, "yyyy-MM");
-      const newInMonth = tenants.filter((t) => format(parseISO(t.created_at), "yyyy-MM") === key).length;
-      cumulative += newInMonth;
-      return {
-        month: format(m, "MMM yy", { locale: ptBR }),
-        novos: newInMonth,
-        total: cumulative,
-      };
-    });
-  }, [tenants, monthRange]);
-
-  // — MRR (Monthly Recurring Revenue)
-  const mrrData = useMemo(() => {
-    return monthRange.map((m) => {
-      const key = format(m, "yyyy-MM");
-      const monthPayments = payments.filter(
-        (p) => p.paid_at && format(parseISO(p.paid_at), "yyyy-MM") === key
-      );
-      const totalCents = monthPayments.reduce((sum, p) => sum + p.amount_cents, 0);
-      return {
-        month: format(m, "MMM yy", { locale: ptBR }),
-        mrr: totalCents / 100,
-        count: monthPayments.length,
-      };
-    });
-  }, [payments, monthRange]);
-
-  // — Churn rate estimate (tenants that downgraded to free or have no recent payment)
-  const churnData = useMemo(() => {
-    return monthRange.map((m) => {
-      const key = format(m, "yyyy-MM");
-      const monthEnd = endOfMonth(m);
-
-      // Tenants that existed before this month
-      const existingBefore = tenants.filter(
-        (t) => parseISO(t.created_at) < startOfMonth(m)
-      ).length;
-
-      if (existingBefore === 0) return { month: format(m, "MMM yy", { locale: ptBR }), churn: 0 };
-
-      // "Churned" = tenants created before this month that have no payment in this month
-      // and had at least one payment before
-      const tenantsWithPaymentBefore = new Set(
-        payments
-          .filter((p) => p.paid_at && parseISO(p.paid_at) < startOfMonth(m))
-          .map((p) => p.tenant_id)
-      );
-
-      const tenantsWithPaymentThisMonth = new Set(
-        payments
-          .filter((p) => p.paid_at && format(parseISO(p.paid_at), "yyyy-MM") === key)
-          .map((p) => p.tenant_id)
-      );
-
-      let churned = 0;
-      tenantsWithPaymentBefore.forEach((tid) => {
-        if (!tenantsWithPaymentThisMonth.has(tid)) churned++;
-      });
-
-      const rate = tenantsWithPaymentBefore.size > 0 ? (churned / tenantsWithPaymentBefore.size) * 100 : 0;
-
-      return {
-        month: format(m, "MMM yy", { locale: ptBR }),
-        churn: Math.round(rate * 10) / 10,
-        churned,
-      };
-    });
-  }, [tenants, payments, monthRange]);
-
-  // — Plan distribution
-  const planDist = useMemo(() => {
-    const map: Record<string, number> = {};
-    tenants.forEach((t) => {
-      const plan = t.plan || "free";
-      map[plan] = (map[plan] || 0) + 1;
-    });
-    return Object.entries(map).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
-  }, [tenants]);
-
-  // — KPI cards
-  const totalClients = tenants.length;
-  const currentMRR = mrrData.length > 0 ? mrrData[mrrData.length - 1].mrr : 0;
-  const prevMRR = mrrData.length > 1 ? mrrData[mrrData.length - 2].mrr : 0;
-  const mrrGrowth = prevMRR > 0 ? ((currentMRR - prevMRR) / prevMRR) * 100 : 0;
-  const currentChurn = churnData.length > 0 ? churnData[churnData.length - 1].churn : 0;
-  const newThisMonth = growthData.length > 0 ? growthData[growthData.length - 1].novos : 0;
+  const {
+    totalClients,
+    paidActiveClients,
+    currentMRR,
+    mrrGrowth,
+    currentChurn,
+    currentChurnedCount,
+    newThisMonth,
+    avgTicketCents,
+    paidPaymentsCount,
+  } = kpis;
 
   if (loading) {
     return (
@@ -164,7 +85,13 @@ const AdminAnalyticsPage = () => {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Total de Clientes" value={totalClients.toString()} icon={Users} subtitle={`+${newThisMonth} este mês`} trend="up" />
+        <KpiCard
+          title="Total de Clientes"
+          value={totalClients.toString()}
+          icon={Users}
+          subtitle={`+${newThisMonth} este mês · ${paidActiveClients} pagos ativos`}
+          trend="up"
+        />
         <KpiCard
           title="MRR Atual"
           value={`R$ ${currentMRR.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
@@ -172,12 +99,18 @@ const AdminAnalyticsPage = () => {
           subtitle={`${mrrGrowth >= 0 ? "+" : ""}${mrrGrowth.toFixed(1)}% vs mês anterior`}
           trend={mrrGrowth >= 0 ? "up" : "down"}
         />
-        <KpiCard title="Churn Rate" value={`${currentChurn}%`} icon={UserMinus} subtitle="Mês atual" trend={currentChurn > 5 ? "down" : "up"} />
+        <KpiCard
+          title="Churn Rate"
+          value={`${currentChurn}%`}
+          icon={UserMinus}
+          subtitle={currentChurnedCount > 0 ? `${currentChurnedCount} não renovado(s) no mês` : "Mês atual"}
+          trend={currentChurn > 5 ? "down" : "up"}
+        />
         <KpiCard
           title="Ticket Médio"
-          value={`R$ ${payments.length > 0 ? (payments.reduce((s, p) => s + p.amount_cents, 0) / payments.length / 100).toFixed(2) : "0.00"}`}
+          value={`R$ ${(avgTicketCents / 100).toFixed(2)}`}
           icon={Activity}
-          subtitle="Média por pagamento"
+          subtitle={`Média em ${paidPaymentsCount} pagamentos`}
           trend="up"
         />
       </div>
@@ -223,7 +156,7 @@ const AdminAnalyticsPage = () => {
         <TabsContent value="mrr">
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">Receita Mensal Recorrente (MRR)</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Receita Mensal Recorrente (MRR) vs Faturado</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-80">
@@ -240,9 +173,11 @@ const AdminAnalyticsPage = () => {
                     <YAxis tick={{ fill: "hsl(0 0% 60%)", fontSize: 12 }} tickFormatter={(v) => `R$${v}`} />
                     <RechartsTooltip
                       contentStyle={{ background: "hsl(0 0% 10%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 8, color: "#fff" }}
-                      formatter={(value: number) => [`R$ ${value.toFixed(2)}`, "MRR"]}
+                      formatter={(value: number, name: string) => [`R$ ${value.toFixed(2)}`, name]}
                     />
-                    <Bar dataKey="mrr" name="MRR" fill="url(#gradMRR)" radius={[6, 6, 0, 0]} barSize={32} />
+                    <Legend />
+                    <Bar dataKey="mrr" name="MRR (Mensalizado)" fill="url(#gradMRR)" radius={[6, 6, 0, 0]} barSize={24} />
+                    <Bar dataKey="revenue" name="Faturado no mês" fill="hsl(200, 80%, 60%)" radius={[6, 6, 0, 0]} barSize={24} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -270,7 +205,10 @@ const AdminAnalyticsPage = () => {
                     <YAxis tick={{ fill: "hsl(0 0% 60%)", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                     <RechartsTooltip
                       contentStyle={{ background: "hsl(0 0% 10%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 8, color: "#fff" }}
-                      formatter={(value: number) => [`${value}%`, "Churn"]}
+                      formatter={(value: number, _name: string, props: any) => [
+                        `${value}% (${props?.payload?.churned ?? 0}/${props?.payload?.base ?? 0})`,
+                        "Churn",
+                      ]}
                     />
                     <Area type="monotone" dataKey="churn" name="Churn %" stroke="hsl(0, 80%, 60%)" fill="url(#gradChurn)" strokeWidth={2} />
                   </AreaChart>
@@ -285,8 +223,8 @@ const AdminAnalyticsPage = () => {
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">Distribuição de Planos</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-80 flex items-center justify-center">
+            <CardContent className="space-y-4">
+              <div className="h-72 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -299,13 +237,30 @@ const AdminAnalyticsPage = () => {
                       dataKey="value"
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
-                      {planDist.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      {planDist.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
                       ))}
                     </Pie>
-                    <RechartsTooltip contentStyle={{ background: "hsl(0 0% 10%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 8, color: "#fff" }} />
+                    <RechartsTooltip
+                      contentStyle={{ background: "hsl(0 0% 10%)", border: "1px solid hsl(0 0% 20%)", borderRadius: 8, color: "#fff" }}
+                      formatter={(value: number, name: string) => [`${value} clientes`, name]}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {planDist.map((p) => (
+                  <div key={p.key} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                    <span className="text-sm">{p.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground">{p.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {p.value} clientes ({totalClients > 0 ? Math.round((p.value / totalClients) * 100) : 0}%)
+                      </p>
+                    </div>
+                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

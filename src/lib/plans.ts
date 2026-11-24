@@ -263,3 +263,110 @@ export function evaluatePlanAccess(
     graceEnd: new Date(graceEndTime),
   };
 }
+
+export interface PlanVisualMeta {
+  key: PlanKey;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  hexColor: string;
+  badgeClass: string;
+}
+
+export const PLAN_VISUALS: Record<PlanKey, PlanVisualMeta> = {
+  free: {
+    key: "free",
+    label: "Drika Solutions Free",
+    shortLabel: "Free",
+    icon: "🎁",
+    hexColor: "#6b7280",
+    badgeClass: "text-muted-foreground bg-muted/50 border-border",
+  },
+  pro: {
+    key: "pro",
+    label: "Drika Solutions Básico",
+    shortLabel: "Básico",
+    icon: "💎",
+    hexColor: "#06b6d4",
+    badgeClass: "text-cyan-400 bg-cyan-500/15 border-cyan-500/35 shadow-[0_0_12px_rgba(6,182,212,0.12)]",
+  },
+  master: {
+    key: "master",
+    label: "Drika Solutions Master",
+    shortLabel: "Master",
+    icon: "👑",
+    hexColor: "#f59e0b",
+    badgeClass: "text-amber-400 bg-amber-500/15 border-amber-500/35 shadow-[0_0_12px_rgba(245,158,11,0.12)]",
+  },
+  expired: {
+    key: "expired",
+    label: "Plano Expirado",
+    shortLabel: "Expirado",
+    icon: "⏰",
+    hexColor: "#ef4444",
+    badgeClass: "text-red-400 bg-red-500/15 border-red-500/35",
+  },
+};
+
+export interface PlanClassification {
+  /** Plano efetivo para estatísticas e filtros do painel administrativo */
+  effectivePlan: PlanKey;
+  /** Plano bruto salvo na coluna tenants.plan */
+  originalPlan: PlanKey;
+  /** True quando é um plano pago (Básico ou Master) dentro da validade ou vitalício */
+  isActivePaid: boolean;
+  /** True quando o plano pago venceu ou está marcado como expired */
+  isExpired: boolean;
+}
+
+/**
+ * Classifica o plano de um tenant para estatísticas administrativas.
+ * Contas Free mantêm status Free mesmo após o trial de 4 dias (plan_expires_at passado);
+ * apenas planos pagos (pro/master) com plan_expires_at vencido ou plan="expired" contam como "expired".
+ */
+export function classifyTenantPlan(
+  tenant?: { plan?: string | null; plan_expires_at?: string | null } | null,
+  nowMs = Date.now()
+): PlanClassification {
+  const raw = (tenant?.plan || "free").toLowerCase().trim();
+  const originalPlan: PlanKey =
+    raw === "pro" || raw === "master" || raw === "expired" ? raw : "free";
+
+  if (originalPlan === "expired") {
+    return {
+      effectivePlan: "expired",
+      originalPlan,
+      isActivePaid: false,
+      isExpired: true,
+    };
+  }
+
+  if (originalPlan === "free") {
+    return {
+      effectivePlan: "free",
+      originalPlan,
+      isActivePaid: false,
+      isExpired: false,
+    };
+  }
+
+  if (tenant?.plan_expires_at) {
+    const expiryMs = new Date(tenant.plan_expires_at).getTime();
+    if (!Number.isNaN(expiryMs) && expiryMs < nowMs) {
+      return {
+        effectivePlan: "expired",
+        originalPlan,
+        isActivePaid: false,
+        isExpired: true,
+      };
+    }
+  }
+
+  return {
+    effectivePlan: originalPlan,
+    originalPlan,
+    isActivePaid: true,
+    isExpired: false,
+  };
+}
+

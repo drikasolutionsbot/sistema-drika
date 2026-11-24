@@ -1,40 +1,47 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Users, Store, CreditCard, DollarSign, TrendingUp, ShoppingCart, Crown, ArrowUpRight, ArrowDownRight, Server, Bot } from "lucide-react";
-import { format, subDays, startOfMonth } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { fetchAllRows } from "@/lib/supabasePagination";
+import { formatPlanLabel } from "@/lib/plans";
+import {
+  computeAdminDashboardStats,
+  type AdminDashboardStatsSummary,
+  type AdminSubscriptionPaymentRecord,
+  type AdminTenantRecord,
+  type PlanDistributionItem,
+} from "@/lib/adminStats";
 
-const PLAN_COLORS: Record<string, string> = {
-  free: "#6b7280",
-  pro: "#10b981",
-};
-
-const PLAN_ICONS: Record<string, string> = {
-  free: "🆓",
-  pro: "⚡",
-};
-
-const STATUS_MAP: Record<string, string> = {
-  paid: "paid",
-  pending: "pending_payment",
+const SUB_STATUS_BADGE: Record<string, { label: string; className: string }> = {
+  paid: { label: "Pago", className: "text-emerald-500 bg-emerald-500/10 border-emerald-500" },
+  pending: { label: "Pendente", className: "text-yellow-500 bg-yellow-500/10 border-yellow-500" },
+  expired: { label: "Expirado", className: "text-muted-foreground bg-muted/50 border-border" },
+  canceled: { label: "Cancelado", className: "text-red-500 bg-red-500/10 border-red-500" },
+  refunded: { label: "Reembolsado", className: "text-purple-500 bg-purple-500/10 border-purple-500" },
+  error: { label: "Erro", className: "text-red-500 bg-red-500/10 border-red-500" },
 };
 
 const AdminDashboardPage = () => {
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<AdminDashboardStatsSummary>({
     tenants: 0,
+    paidActiveTenants: 0,
+    proActiveTenants: 0,
+    masterActiveTenants: 0,
+    freeTenants: 0,
+    expiredPaidTenants: 0,
     subscriptions: 0,
+    paidSubs: 0,
+    pendingSubs: 0,
     subsThisMonth: 0,
     subsLastMonth: 0,
     revenue: 0,
     revenueThisMonth: 0,
     revenueLastMonth: 0,
-    paidSubs: 0,
     totalBots: 0,
-    activeBots: 0,
+    activeBots: null,
   });
-  const [planDistribution, setPlanDistribution] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [planDistribution, setPlanDistribution] = useState<PlanDistributionItem[]>([]);
   const [revenueChart, setRevenueChart] = useState<{ date: string; revenue: number }[]>([]);
   const [recentSubs, setRecentSubs] = useState<any[]>([]);
   const [topTenants, setTopTenants] = useState<{ name: string; revenue: number; payments: number }[]>([]);
@@ -42,95 +49,49 @@ const AdminDashboardPage = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const now = new Date();
-      const monthStart = startOfMonth(now).toISOString();
-      const lastMonthStart = startOfMonth(subDays(startOfMonth(now), 1)).toISOString();
+      try {
+        const [tenants, subs, recentRes, guildRes] = await Promise.all([
+          fetchAllRows<AdminTenantRecord>((from, to) =>
+            supabase
+              .from("tenants")
+              .select("id, name, plan, plan_expires_at, discord_guild_id")
+              .range(from, to)
+          ),
+          fetchAllRows<AdminSubscriptionPaymentRecord>((from, to) =>
+            supabase
+              .from("subscription_payments")
+              .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, payer_name, payer_email, metadata")
+              .range(from, to)
+          ),
+          supabase
+            .from("subscription_payments")
+            .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, payer_name, metadata, tenants:tenant_id(name)")
+            .order("created_at", { ascending: false })
+            .limit(8),
+          supabase.functions
+            .invoke("discord-guild-info", { body: { action: "list_bot_guilds" } })
+            .catch(() => ({ data: null, error: true })),
+        ]);
 
-      const [tenantsRes, subsRes, recentRes] = await Promise.all([
-        supabase.from("tenants").select("id, name, plan, discord_guild_id"),
-        supabase.from("subscription_payments").select("id, tenant_id, plan, status, amount_cents, paid_at, created_at"),
-        supabase.from("subscription_payments")
-          .select("id, tenant_id, plan, status, amount_cents, paid_at, created_at, tenants:tenant_id(name)")
-          .order("created_at", { ascending: false })
-          .limit(8),
-      ]);
+        const connectedGuildIds = guildRes?.data?.guilds
+          ? new Set<string>(Object.keys(guildRes.data.guilds))
+          : null;
 
-      const tenants = tenantsRes.data || [];
-      const subs = subsRes.data || [];
-      
-      const totalBots = tenants.filter(t => t.discord_guild_id).length;
-      // Por enquanto, simulamos os ativos como sendo o total ou um número próximo.
-      const activeBots = totalBots > 0 ? Math.max(1, Math.floor(totalBots * 0.8)) : 0;
+        const computed = computeAdminDashboardStats({
+          tenants,
+          subs,
+          connectedGuildIds,
+          now: new Date(),
+        });
 
-      // Plan distribution
-      const planCounts: Record<string, number> = {};
-      tenants.forEach((t) => {
-        const p = t.plan || "free";
-        planCounts[p] = (planCounts[p] || 0) + 1;
-      });
-      setPlanDistribution(
-        Object.entries(planCounts).map(([name, value]) => ({
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          value,
-          color: PLAN_COLORS[name] || PLAN_COLORS.free,
-        }))
-      );
-
-      // Revenue chart (last 30 days) - based on subscription_payments
-      const last30 = subDays(now, 30);
-      const dailyMap: Record<string, number> = {};
-      for (let i = 0; i < 30; i++) {
-        const d = format(subDays(now, 29 - i), "dd/MM");
-        dailyMap[d] = 0;
+        setStats(computed.stats);
+        setPlanDistribution(computed.planDistribution);
+        setRevenueChart(computed.revenueChart);
+        setTopTenants(computed.topTenants);
+        setRecentSubs(recentRes.data || []);
+      } finally {
+        setLoading(false);
       }
-      subs.forEach((s) => {
-        if (s.status === "paid" && s.paid_at && new Date(s.paid_at) >= last30) {
-          const d = format(new Date(s.paid_at), "dd/MM");
-          if (dailyMap[d] !== undefined) dailyMap[d] += s.amount_cents / 100;
-        }
-      });
-      setRevenueChart(Object.entries(dailyMap).map(([date, revenue]) => ({ date, revenue })));
-
-      // Top tenants by subscription revenue
-      const tenantRevMap: Record<string, { name: string; revenue: number; payments: number }> = {};
-      subs.forEach((s) => {
-        if (s.status === "paid") {
-          if (!tenantRevMap[s.tenant_id]) {
-            const t = tenants.find((t) => t.id === s.tenant_id);
-            tenantRevMap[s.tenant_id] = { name: t?.name || "Desconhecido", revenue: 0, payments: 0 };
-          }
-          tenantRevMap[s.tenant_id].revenue += s.amount_cents;
-          tenantRevMap[s.tenant_id].payments += 1;
-        }
-      });
-      setTopTenants(
-        Object.values(tenantRevMap)
-          .sort((a, b) => b.revenue - a.revenue)
-          .slice(0, 5)
-      );
-
-      // Monthly stats
-      const paidSubs = subs.filter((s) => s.status === "paid");
-      const thisMonthSubs = subs.filter((s) => s.created_at >= monthStart);
-      const lastMonthSubs = subs.filter((s) => s.created_at >= lastMonthStart && s.created_at < monthStart);
-      const revenueThisMonth = thisMonthSubs.filter((s) => s.status === "paid").reduce((sum, s) => sum + s.amount_cents, 0);
-      const revenueLastMonth = lastMonthSubs.filter((s) => s.status === "paid").reduce((sum, s) => sum + s.amount_cents, 0);
-
-      setStats({
-        tenants: tenants.length,
-        subscriptions: subs.length,
-        subsThisMonth: thisMonthSubs.length,
-        subsLastMonth: lastMonthSubs.length,
-        revenue: paidSubs.reduce((sum, s) => sum + s.amount_cents, 0),
-        revenueThisMonth,
-        revenueLastMonth,
-        paidSubs: paidSubs.length,
-        totalBots,
-        activeBots,
-      });
-
-      setRecentSubs(recentRes.data || []);
-      setLoading(false);
     };
     fetchAll();
   }, []);
@@ -143,10 +104,38 @@ const AdminDashboardPage = () => {
     : stats.subsThisMonth > 0 ? "100" : "0";
 
   const cards = [
-    { title: "Total de Clientes", value: stats.tenants, icon: Users, color: "text-primary", change: null },
-    { title: "Assinaturas do Mês", value: stats.subsThisMonth, icon: ShoppingCart, color: "text-blue-400", change: `${Number(subsGrowth) >= 0 ? "+" : ""}${subsGrowth}%` },
-    { title: "Receita do Mês", value: `R$ ${(stats.revenueThisMonth / 100).toFixed(2)}`, icon: DollarSign, color: "text-emerald-400", change: `${Number(revenueGrowth) >= 0 ? "+" : ""}${revenueGrowth}%` },
-    { title: "Receita Total", value: `R$ ${(stats.revenue / 100).toFixed(2)}`, icon: TrendingUp, color: "text-amber-400", change: `${stats.paidSubs} pagos` },
+    {
+      title: "Total de Clientes",
+      value: stats.tenants,
+      icon: Users,
+      color: "text-primary",
+      change: null,
+      subtitle: `${stats.paidActiveTenants} em planos pagos ativos`,
+    },
+    {
+      title: "Assinaturas Pagas (Mês)",
+      value: stats.subsThisMonth,
+      icon: ShoppingCart,
+      color: "text-blue-400",
+      change: `${Number(subsGrowth) >= 0 ? "+" : ""}${subsGrowth}%`,
+      subtitle: null,
+    },
+    {
+      title: "Receita do Mês",
+      value: `R$ ${(stats.revenueThisMonth / 100).toFixed(2)}`,
+      icon: DollarSign,
+      color: "text-emerald-400",
+      change: `${Number(revenueGrowth) >= 0 ? "+" : ""}${revenueGrowth}%`,
+      subtitle: null,
+    },
+    {
+      title: "Receita Total",
+      value: `R$ ${(stats.revenue / 100).toFixed(2)}`,
+      icon: TrendingUp,
+      color: "text-amber-400",
+      change: null,
+      subtitle: `${stats.paidSubs} pagamentos confirmados`,
+    },
   ];
 
   return (
@@ -175,6 +164,9 @@ const AdminDashboardPage = () => {
                   {card.change.startsWith("+") ? <ArrowUpRight className="h-3 w-3" /> : card.change.startsWith("-") ? <ArrowDownRight className="h-3 w-3" /> : null}
                   {card.change} vs mês anterior
                 </p>
+              )}
+              {card.subtitle && !loading && (
+                <p className="text-xs mt-1 text-muted-foreground">{card.subtitle}</p>
               )}
             </CardContent>
           </Card>
@@ -253,11 +245,13 @@ const AdminDashboardPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-2 mt-2">
               {planDistribution.map((p) => (
-                <div key={p.name} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-                  <span className="text-sm">{PLAN_ICONS[p.name.toLowerCase()] || "📦"}</span>
+                <div key={p.key} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                  <span className="text-sm">{p.icon}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-foreground">{p.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{p.value} clientes</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {p.value} clientes ({stats.tenants > 0 ? Math.round((p.value / stats.tenants) * 100) : 0}%)
+                    </p>
                   </div>
                   <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
                 </div>
@@ -319,7 +313,9 @@ const AdminDashboardPage = () => {
                     <Bot className="h-4 w-4 text-emerald-400" />
                     <span className="text-sm font-medium">Bots ativos</span>
                   </div>
-                  <p className="text-2xl font-bold text-white tracking-tight">{loading ? "..." : stats.activeBots}</p>
+                  <p className="text-2xl font-bold text-white tracking-tight">
+                    {loading ? "..." : stats.activeBots !== null ? stats.activeBots : "—"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -343,15 +339,21 @@ const AdminDashboardPage = () => {
             ) : (
               <div className="space-y-2">
                 {recentSubs.map((s) => {
-                  const tenantName = (s.tenants as any)?.name || "Cliente";
+                  const tenantName = (s.tenants as any)?.name || s.payer_name || "Novo Assinante";
+                  const statusMeta = SUB_STATUS_BADGE[s.status] || {
+                    label: s.status,
+                    className: "text-muted-foreground bg-muted/50 border-border",
+                  };
                   return (
                     <div key={s.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">Plano {s.plan?.charAt(0).toUpperCase() + s.plan?.slice(1)}</p>
+                        <p className="text-sm font-medium truncate">Plano {formatPlanLabel(s.plan, s.metadata?.cycle)}</p>
                         <p className="text-xs text-muted-foreground">{tenantName}</p>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
-                        <StatusBadge status={STATUS_MAP[s.status] || s.status} />
+                        <span className={`inline-flex shrink-0 items-center rounded-md border px-2 py-[2px] text-xs font-medium cursor-default ${statusMeta.className}`}>
+                          {statusMeta.label}
+                        </span>
                         <span className="text-sm font-mono font-medium">R$ {(s.amount_cents / 100).toFixed(2)}</span>
                       </div>
                     </div>
@@ -401,21 +403,36 @@ const AdminDashboardPage = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <Users className="h-3.5 w-3.5" /> Clientes
+            <Crown className="h-3.5 w-3.5" /> Planos Pagos Ativos
           </div>
-          <p className="text-xl font-bold">{loading ? "..." : stats.tenants}</p>
+          <p className="text-xl font-bold">{loading ? "..." : stats.paidActiveTenants}</p>
+          {!loading && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {stats.proActiveTenants} Básico · {stats.masterActiveTenants} Master
+            </p>
+          )}
         </Card>
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <CreditCard className="h-3.5 w-3.5" /> Total Assinaturas
+            <Users className="h-3.5 w-3.5" /> Planos Expirados
           </div>
-          <p className="text-xl font-bold">{loading ? "..." : stats.subscriptions}</p>
+          <p className="text-xl font-bold">{loading ? "..." : stats.expiredPaidTenants}</p>
+          {!loading && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {stats.freeTenants} no Free
+            </p>
+          )}
         </Card>
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <Crown className="h-3.5 w-3.5" /> Pagos
+            <CreditCard className="h-3.5 w-3.5" /> Pagamentos Confirmados
           </div>
           <p className="text-xl font-bold">{loading ? "..." : stats.paidSubs}</p>
+          {!loading && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {stats.pendingSubs} pendentes · {stats.subscriptions} total
+            </p>
+          )}
         </Card>
         <Card className="bg-card border-border p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">

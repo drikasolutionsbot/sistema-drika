@@ -10,6 +10,8 @@ import { Search, Filter, DollarSign, CreditCard, Crown, Clock, CheckCircle2, XCi
 import { format } from "date-fns";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { toast } from "@/hooks/use-toast";
+import { fetchAllRows } from "@/lib/supabasePagination";
+import { formatPlanLabel, isPaidPlan, PLAN_VISUALS } from "@/lib/plans";
 
 interface SubscriptionPayment {
   id: string;
@@ -39,11 +41,11 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; cl
 };
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
-  free: { label: "Free", color: "bg-muted text-muted-foreground" },
+  free: { label: PLAN_VISUALS.free.shortLabel, color: "bg-muted text-muted-foreground" },
+  pro: { label: PLAN_VISUALS.pro.shortLabel, color: "bg-cyan-500/15 text-cyan-400" },
+  master: { label: PLAN_VISUALS.master.shortLabel, color: "bg-amber-500/15 text-amber-400" },
   starter: { label: "Starter", color: "bg-blue-500/10 text-blue-500" },
-  pro: { label: "Pro", color: "bg-emerald-500/10 text-emerald-500" },
-  business: { label: "Business", color: "bg-amber-500/10 text-amber-500" },
-  master: { label: "Master", color: "bg-purple-500/10 text-purple-500" },
+  business: { label: "Business", color: "bg-purple-500/10 text-purple-500" },
 };
 
 const SubscriptionPaymentsTab = () => {
@@ -56,19 +58,34 @@ const SubscriptionPaymentsTab = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPayments = useCallback(async () => {
-    const [paymentsRes, tenantsRes] = await Promise.all([
-      supabase.from("subscription_payments").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("tenants").select("id, name"),
-    ]);
+    try {
+      const [paymentsData, tenantsData] = await Promise.all([
+        fetchAllRows<any>((from, to) =>
+          supabase
+            .from("subscription_payments")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .range(from, to)
+        ),
+        fetchAllRows<{ id: string; name: string }>((from, to) =>
+          supabase.from("tenants").select("id, name").range(from, to)
+        ),
+      ]);
 
-    const tenantMap = new Map((tenantsRes.data || []).map((t: any) => [t.id, t.name]));
-    const enriched = (paymentsRes.data || []).map((p: any) => ({
-      ...p,
-      tenant_name: tenantMap.get(p.tenant_id) || (p.tenant_id === "00000000-0000-0000-0000-000000000000" ? "Novo Assinante" : "Desconhecido"),
-    }));
+      const tenantMap = new Map(tenantsData.map((t) => [t.id, t.name]));
+      const enriched = paymentsData.map((p: any) => ({
+        ...p,
+        tenant_name:
+          tenantMap.get(p.tenant_id) ||
+          (p.tenant_id === "00000000-0000-0000-0000-000000000000"
+            ? p.payer_name || "Novo Assinante"
+            : p.payer_name || "Desconhecido"),
+      }));
 
-    setPayments(enriched);
-    setLoading(false);
+      setPayments(enriched);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -232,11 +249,12 @@ const SubscriptionPaymentsTab = () => {
     );
   };
 
-  const renderPlan = (plan: string) => {
+  const renderPlan = (plan: string, cycle?: string | null) => {
     const config = PLAN_LABELS[plan] || PLAN_LABELS.free;
+    const label = isPaidPlan(plan) ? formatPlanLabel(plan, cycle) : config.label;
     return (
       <Badge variant="secondary" className={`${config.color} border-none font-semibold`}>
-        {config.label}
+        {label}
       </Badge>
     );
   };
@@ -245,7 +263,7 @@ const SubscriptionPaymentsTab = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard title="Total de Pagamentos" value={String(filtered.length)} icon={CreditCard} />
-        <StatCard title="Pagos" value={String(paidCount)} icon={CheckCircle2} change={payments.length > 0 ? `${((paidCount / payments.length) * 100).toFixed(0)}%` : "0%"} changeType="positive" />
+        <StatCard title="Pagos" value={String(paidCount)} icon={CheckCircle2} change={filtered.length > 0 ? `${((paidCount / filtered.length) * 100).toFixed(0)}%` : "0%"} changeType="positive" />
         <StatCard title="Pendentes" value={String(pendingCount)} icon={Clock} />
         <StatCard title="Receita Assinaturas" value={`R$ ${(totalRevenue / 100).toFixed(2)}`} icon={DollarSign} />
       </div>
@@ -276,10 +294,9 @@ const SubscriptionPaymentsTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os planos</SelectItem>
-            <SelectItem value="starter">Starter</SelectItem>
-            <SelectItem value="pro">Pro</SelectItem>
-            <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="pro">Básico</SelectItem>
             <SelectItem value="master">Master</SelectItem>
+            <SelectItem value="free">Free</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing}>
@@ -336,7 +353,7 @@ const SubscriptionPaymentsTab = () => {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{renderPlan(payment.plan)}</TableCell>
+                        <TableCell>{renderPlan(payment.plan, payment.metadata?.cycle)}</TableCell>
                         <TableCell className="font-mono font-medium">R$ {(payment.amount_cents / 100).toFixed(2)}</TableCell>
                         <TableCell>{renderStatus(payment.status)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground capitalize">{payment.payment_provider}</TableCell>

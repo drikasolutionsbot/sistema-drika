@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluatePlanAccess } from "@/lib/plans";
+import { classifyTenantPlan, evaluatePlanAccess } from "@/lib/plans";
 
 describe("evaluatePlanAccess", () => {
   it("mantém gateways próprias (0% taxa) por padrão para planos pagos ativos", () => {
@@ -53,3 +53,76 @@ describe("evaluatePlanAccess", () => {
     expect(freeRes.optedInSplitWallet).toBe(false);
   });
 });
+
+describe("classifyTenantPlan", () => {
+  const now = new Date("2026-11-24T12:00:00Z").getTime();
+
+  it("mantém clientes Free como Free mesmo com trial plan_expires_at no passado", () => {
+    const res = classifyTenantPlan(
+      { plan: "free", plan_expires_at: "2026-10-01T00:00:00Z" },
+      now
+    );
+    expect(res.effectivePlan).toBe("free");
+    expect(res.originalPlan).toBe("free");
+    expect(res.isActivePaid).toBe(false);
+    expect(res.isExpired).toBe(false);
+  });
+
+  it("classifica planos pagos ativos (Básico e Master) corretamente", () => {
+    const proRes = classifyTenantPlan(
+      { plan: "pro", plan_expires_at: "2026-12-10T00:00:00Z" },
+      now
+    );
+    expect(proRes).toEqual({
+      effectivePlan: "pro",
+      originalPlan: "pro",
+      isActivePaid: true,
+      isExpired: false,
+    });
+
+    const masterLifetime = classifyTenantPlan(
+      { plan: "master", plan_expires_at: null },
+      now
+    );
+    expect(masterLifetime).toEqual({
+      effectivePlan: "master",
+      originalPlan: "master",
+      isActivePaid: true,
+      isExpired: false,
+    });
+  });
+
+  it("classifica planos pagos com plan_expires_at vencido como expired", () => {
+    const expiredPro = classifyTenantPlan(
+      { plan: "pro", plan_expires_at: "2026-11-20T00:00:00Z" },
+      now
+    );
+    expect(expiredPro).toEqual({
+      effectivePlan: "expired",
+      originalPlan: "pro",
+      isActivePaid: false,
+      isExpired: true,
+    });
+
+    const expiredMaster = classifyTenantPlan(
+      { plan: "master", plan_expires_at: "2026-11-23T23:59:59Z" },
+      now
+    );
+    expect(expiredMaster.effectivePlan).toBe("expired");
+    expect(expiredMaster.originalPlan).toBe("master");
+    expect(expiredMaster.isActivePaid).toBe(false);
+    expect(expiredMaster.isExpired).toBe(true);
+  });
+
+  it("reconhece plan='expired' explícito e valores desconhecidos como free", () => {
+    expect(classifyTenantPlan({ plan: "expired", plan_expires_at: null }, now)).toEqual({
+      effectivePlan: "expired",
+      originalPlan: "expired",
+      isActivePaid: false,
+      isExpired: true,
+    });
+
+    expect(classifyTenantPlan({ plan: null, plan_expires_at: null }, now).effectivePlan).toBe("free");
+  });
+});
+
