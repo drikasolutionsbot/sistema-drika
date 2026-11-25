@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { SplitWalletToggleCard } from "@/components/payments/SplitWalletToggleCard";
+import { isPixCopiaEColaPayload } from "@/lib/withdrawalStatus";
 import {
   Wallet,
   ArrowUpRight,
@@ -424,6 +425,16 @@ export default function WalletPage() {
       return;
     }
 
+    if (isPixCopiaEColaPayload(effectivePixKey)) {
+      toast({
+        title: "Chave PIX inválida (Copia e Cola detectado)",
+        description:
+          "Você colou um QR Code PIX Copia e Cola (000201...). Informe apenas a sua chave PIX (CPF, CNPJ, E-mail, Telefone ou Chave Aleatória).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmittingWithdraw(true);
     try {
       // If client didn't have a registered PIX key and wants to save it as default
@@ -474,6 +485,13 @@ export default function WalletPage() {
         toast({
           title: "Saque enviado!",
           description: `${formatBRL(parsedAmountCents)} enviado via PIX para ${effectivePixKey.trim()}.`,
+        });
+      } else if (data?.auto_status === "processing") {
+        toast({
+          title: "Saque em processamento na gateway",
+          description:
+            data?.auto_message ||
+            `Saque de ${formatBRL(parsedAmountCents)} enviado ao banco. Assim que o PIX confirmar (ou se houver falha), o status será atualizado automaticamente.`,
         });
       } else if (data?.auto_status === "rejected") {
         toast({

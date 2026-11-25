@@ -259,6 +259,45 @@ function normalizeMisticPixKey(key: string, mappedType: string): string {
   return trimmed;
 }
 
+const TERMINAL_PAID_STATES = new Set([
+  "COMPLETO",
+  "COMPLETED",
+  "PAID",
+  "APROVADO",
+  "APROVADA",
+  "CONCLUIDO",
+  "CONCLUIDA",
+]);
+
+const TERMINAL_FAILED_STATES = new Set([
+  "FALHA",
+  "FALHOU",
+  "FAILED",
+  "FAIL",
+  "CANCELADO",
+  "CANCELADA",
+  "CANCELED",
+  "CANCELLED",
+  "RECUSADO",
+  "RECUSADA",
+  "ESTORNADO",
+  "ESTORNADA",
+  "REVERTED",
+  "REJEITADO",
+  "REJEITADA",
+  "REJECTED",
+  "ERRO",
+  "ERROR",
+]);
+
+function isTerminalPaidState(state?: string | null): boolean {
+  return TERMINAL_PAID_STATES.has(String(state || "").trim().toUpperCase());
+}
+
+function isTerminalFailedState(state?: string | null): boolean {
+  return TERMINAL_FAILED_STATES.has(String(state || "").trim().toUpperCase());
+}
+
 async function checkMisticPayWithdrawalState(opts: {
   clientId: string;
   clientSecret: string;
@@ -268,7 +307,7 @@ async function checkMisticPayWithdrawalState(opts: {
   let latestState = "QUEUED";
   let latestRecipient: RecipientInfo | undefined;
 
-  for (const waitMs of [1800, 2200]) {
+  for (const waitMs of [2000, 2500, 3000, 3500]) {
     await new Promise((r) => setTimeout(r, waitMs));
     try {
       const checkRes = await fetch("https://api.misticpay.com/api/transactions/check", {
@@ -289,15 +328,14 @@ async function checkMisticPayWithdrawalState(opts: {
 
       if (!state) continue;
       latestState = state;
-      if (["FALHA", "FAILED", "CANCELADO", "CANCELED", "RECUSADO", "ESTORNADO", "ERRO"].includes(state)) {
+      if (isTerminalFailedState(state)) {
         const benName = tx?.beneficiary?.name;
         const detail = benName === null
           ? `MisticPay recusou o PIX (${state}): verifique se a chave PIX ou tipo estão corretos ou se a gateway está instável.`
           : `MisticPay retornou falha na transferência (${state}).`;
         return { state, detail, recipient: latestRecipient };
       }
-      if (["COMPLETO", "COMPLETED", "PAID", "APROVADO", "CONCLUIDO", "CONCLUIDA"].includes(state)) {
-        // Se já concluiu e temos o nome do recebedor, retorna imediatamente; senão tenta mais uma leitura rápida
+      if (isTerminalPaidState(state)) {
         if (latestRecipient?.name) {
           return { state, recipient: latestRecipient };
         }
@@ -456,6 +494,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "missing_params" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (/^000201/i.test(pix_key.trim())) {
+      return new Response(
+        JSON.stringify({
+          error: "invalid_pix_key",
+          message: "Chave PIX inválida: foi colado um código PIX Copia e Cola em vez da chave PIX.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // 1. Prioriza SEMPRE a Gateway Central da Plataforma (landing_config) para saques da Carteira Split
@@ -671,16 +719,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Save payment_id and mark transaction completed.
+    // Save payment_id and ONLY mark completed when gateway confirms terminal PAID state.
+    // If still QUEUED / PENDING / PROCESSANDO / EM_PROCESSAMENTO, keep status = 'processing'
+    // with payment_id saved to prevent duplicate payouts while awaiting webhook or reconciliation.
+    const confirmedPaid =
+      provider_key === "misticpay"
+        ? isTerminalPaidState(result.status)
+        : !["QUEUED", "PENDING", "PENDENTE", "PROCESSANDO", "PROCESSING", "EM_PROCESSAMENTO"].includes(
+            String(result.status || "").toUpperCase()
+          );
+
     if (txId) {
-      await supabase.rpc("approve_wallet_withdrawal", {
-        _tx_id: txId,
-        _admin_notes: "Saque PIX processado via gateway",
-      });
-      await supabase
-        .from("wallet_transactions")
-        .update({ payment_id: result.payment_id })
-        .eq("id", txId);
+      if (confirmedPaid) {
+        await supabase.rpc("approve_wallet_withdrawal", {
+          _tx_id: txId,
+          _admin_notes: "Saque PIX processado via gateway",
+        });
+        await supabase
+          .from("wallet_transactions")
+          .update({ payment_id: result.payment_id })
+          .eq("id", txId);
+      } else {
+        await supabase
+          .from("wallet_transactions")
+          .update({
+            status: "processing",
+            payment_id: result.payment_id,
+            last_error: null,
+            last_attempt_at: new Date().toISOString(),
+            admin_notes: `Enfileirado na gateway (${result.status}) — aguardando liquidação`,
+          } as any)
+          .eq("id", txId);
+      }
 
       if (result.recipient) {
         try {
@@ -700,7 +770,7 @@ Deno.serve(async (req) => {
           console.warn("[wallet-pix-withdraw] non-blocking recipient persist error:", recErr);
         }
       }
-    } else {
+    } else if (confirmedPaid) {
       const { data: w } = await supabase
         .from("wallets").select("total_withdrawn_cents").eq("tenant_id", tenant_id).maybeSingle();
       if (w) {
@@ -716,7 +786,9 @@ Deno.serve(async (req) => {
         ok: true,
         tx_id: txId,
         payment_id: result.payment_id,
-        status: result.status,
+        status: confirmedPaid ? result.status : "processing",
+        gateway_state: result.status,
+        pending_confirmation: !confirmedPaid,
         recipient: result.recipient || null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

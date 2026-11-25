@@ -482,11 +482,27 @@ async function handleMisticPay(body: any, tenantId: string, supabase: any) {
     const e2e = verifiedTx?.endToEndId || verifiedTx?.end_to_end_id || data?.endToEndId;
     if (e2e) patch.end_to_end_id = String(e2e).trim();
 
-    if (wTx.status === "pending" && ["COMPLETO", "COMPLETED", "PAID", "APROVADO", "CONCLUIDO", "CONCLUIDA"].includes(verifiedState)) {
-      await supabase.rpc("approve_wallet_withdrawal", {
-        _tx_id: wTx.id,
-        _admin_notes: "Saque PIX confirmado via webhook MisticPay",
-      });
+    if (["COMPLETO", "COMPLETED", "PAID", "APROVADO", "APROVADA", "CONCLUIDO", "CONCLUIDA"].includes(verifiedState)) {
+      if (wTx.status === "pending" || wTx.status === "processing") {
+        await supabase.rpc("approve_wallet_withdrawal", {
+          _tx_id: wTx.id,
+          _admin_notes: "Saque PIX confirmado via webhook MisticPay",
+        });
+      }
+    } else if (["FALHA", "FALHOU", "FAILED", "FAIL", "CANCELADO", "CANCELADA", "CANCELED", "CANCELLED", "RECUSADO", "RECUSADA", "ESTORNADO", "ESTORNADA", "REVERTED", "REJEITADO", "REJEITADA", "REJECTED", "ERRO", "ERROR"].includes(verifiedState)) {
+      const failReason = `PIX recusado/falhou na MisticPay (${verifiedState}) — saldo estornado automaticamente`;
+      if (wTx.status === "pending" || wTx.status === "processing") {
+        await supabase.rpc("reject_wallet_withdrawal", {
+          _tx_id: wTx.id,
+          _rejection_reason: failReason,
+        });
+      } else if (wTx.status === "completed") {
+        // Permite correção segura se um webhook posterior (ou "Reenviar Webhook") confirmar FALHA
+        await supabase.rpc("refund_failed_completed_withdrawal", {
+          _tx_id: wTx.id,
+          _rejection_reason: failReason,
+        });
+      }
     }
 
     if (Object.keys(patch).length > 0) {

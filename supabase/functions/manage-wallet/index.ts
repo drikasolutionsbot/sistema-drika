@@ -125,6 +125,70 @@ function cleanOptionalText(val: unknown): string | null {
   return s.length > 0 ? s : null;
 }
 
+const MISTIC_TERMINAL_PAID_STATES = new Set([
+  "COMPLETO",
+  "COMPLETED",
+  "PAID",
+  "APROVADO",
+  "APROVADA",
+  "CONCLUIDO",
+  "CONCLUIDA",
+  "SETTLED",
+  "EFFECTED",
+]);
+
+const MISTIC_TERMINAL_FAILED_STATES = new Set([
+  "FALHA",
+  "FALHOU",
+  "FAILED",
+  "FAIL",
+  "CANCELADO",
+  "CANCELADA",
+  "CANCELED",
+  "CANCELLED",
+  "RECUSADO",
+  "RECUSADA",
+  "ESTORNADO",
+  "ESTORNADA",
+  "REVERTED",
+  "REJEITADO",
+  "REJEITADA",
+  "REJECTED",
+  "ERRO",
+  "ERROR",
+]);
+
+function normalizeGatewayState(state: unknown): string {
+  return String(state || "").trim().toUpperCase();
+}
+
+function isTerminalPaidState(state: unknown): boolean {
+  return MISTIC_TERMINAL_PAID_STATES.has(normalizeGatewayState(state));
+}
+
+function isTerminalFailedState(state: unknown): boolean {
+  return MISTIC_TERMINAL_FAILED_STATES.has(normalizeGatewayState(state));
+}
+
+function classifyMisticPayAuditState(
+  state: unknown,
+  statusCode: number | null
+): "confirmed_paid" | "gateway_failed" | "still_processing" | "unknown" {
+  if (!statusCode || statusCode >= 400) return "unknown";
+  const s = normalizeGatewayState(state);
+  if (!s) return "unknown";
+  if (isTerminalPaidState(s)) return "confirmed_paid";
+  if (isTerminalFailedState(s)) return "gateway_failed";
+  if (["QUEUED", "PENDING", "PENDENTE", "PROCESSANDO", "PROCESSING", "EM_PROCESSAMENTO", "CREATED"].includes(s)) {
+    return "still_processing";
+  }
+  return "unknown";
+}
+
+function isPixCopiaEColaPayload(pixKey: unknown): boolean {
+  return /^000201/i.test(String(pixKey || "").trim());
+}
+
 async function fetchMisticPayCentralCreds(
   supabase: any
 ): Promise<{ ci: string; cs: string } | null> {
@@ -464,7 +528,7 @@ async function autoProcessWithdrawal(
   supabase: any,
   txId: string,
   ctx: { tenantName: string; pixKey: string; pixKeyType: string; panelBase: string },
-): Promise<{ status: "completed" | "pending" | "rejected"; message: string; payment_id?: string }> {
+): Promise<{ status: "completed" | "processing" | "pending" | "rejected"; message: string; payment_id?: string }> {
   const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const panelUrl = `${ctx.panelBase.replace(/\/$/, "")}/admin/carteira`;
 
@@ -476,6 +540,16 @@ async function autoProcessWithdrawal(
 
   if (!tx || tx.status !== "pending") {
     return { status: "pending", message: "Saque registrado." };
+  }
+
+  if (isPixCopiaEColaPayload(tx.pix_key || ctx.pixKey)) {
+    const reason =
+      "Saque recusado automaticamente: foi informado um código PIX Copia e Cola (QR Code) em vez de uma chave PIX válida (CPF, CNPJ, E-mail, Telefone ou Aleatória). O valor foi devolvido ao seu saldo.";
+    await supabase.rpc("reject_wallet_withdrawal", {
+      _tx_id: tx.id,
+      _rejection_reason: reason,
+    });
+    return { status: "rejected", message: reason };
   }
 
   const amountToSend = tx.net_amount_cents && tx.net_amount_cents > 0 ? tx.net_amount_cents : tx.amount_cents;
@@ -501,11 +575,6 @@ async function autoProcessWithdrawal(
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && !data?.error) {
-      // Idempotente: garante liberação do saldo bloqueado e conclusão
-      await supabase.rpc("approve_wallet_withdrawal", {
-        _tx_id: tx.id,
-        _admin_notes: "Saque PIX automático processado via gateway",
-      });
       if (data?.recipient) {
         await saveWithdrawalRecipientPatch(supabase, tx.id, {
           recipient_name: cleanOptionalText(data.recipient.name),
@@ -515,7 +584,32 @@ async function autoProcessWithdrawal(
           end_to_end_id: cleanOptionalText(data.recipient.end_to_end_id),
         });
       }
-      return { status: "completed", message: "Saque enviado! O PIX foi processado automaticamente.", payment_id: data?.payment_id };
+
+      const confirmedPaid = !data?.pending_confirmation && isTerminalPaidState(data?.status);
+      if (confirmedPaid) {
+        // Só conclui se a gateway confirmou estado terminal pago (COMPLETO)
+        await supabase.rpc("approve_wallet_withdrawal", {
+          _tx_id: tx.id,
+          _admin_notes: "Saque PIX automático confirmado pela gateway",
+        });
+        return { status: "completed", message: "Saque enviado! O PIX foi processado automaticamente.", payment_id: data?.payment_id };
+      }
+
+      await supabase
+        .from("wallet_transactions")
+        .update({
+          status: "processing",
+          ...(data?.payment_id ? { payment_id: String(data.payment_id) } : {}),
+          last_error: null,
+        } as any)
+        .eq("id", tx.id)
+        .in("status", ["pending", "processing"]);
+
+      return {
+        status: "processing",
+        message: "Saque enviado para processamento bancário. Será concluído ou estornado automaticamente assim que o banco confirmar.",
+        payment_id: data?.payment_id,
+      };
     }
     errMsg = String(data?.message || data?.error || `HTTP ${res.status}`);
   } catch (e: any) {
@@ -750,6 +844,18 @@ Deno.serve(async (req) => {
         });
       }
 
+      if (isPixCopiaEColaPayload(pix_key)) {
+        return new Response(
+          JSON.stringify({
+            error: "Você colou um código PIX Copia e Cola (QR Code). Informe apenas sua chave PIX (CPF, CNPJ, E-mail, Telefone ou Chave Aleatória).",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
       const accessCheck = await verifyTenantAccessOrSuperAdmin(req, supabase, tenant_id, body?.token || body?._auth_token);
       if (!accessCheck.authorized) {
         return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado para solicitar saque nesta loja" }), {
@@ -863,11 +969,11 @@ Deno.serve(async (req) => {
       // Lucro Líquido Real da plataforma após deduzir os custos de gateway de cada saque aprovado
       const netProfitCents = Math.max(0, totalFeesCollectedCents - gatewayWithdrawalCostCents);
 
-      // Pending withdrawals count & sum
+      // Pending & processing withdrawals count & sum
       const { data: pendingTxs } = await supabase
         .from("wallet_transactions")
         .select("amount_cents, net_amount_cents")
-        .eq("status", "pending")
+        .in("status", ["pending", "processing"])
         .eq("type", "withdrawal");
 
       let pendingAmountCents = 0;
@@ -1013,6 +1119,13 @@ Deno.serve(async (req) => {
         });
       }
 
+      if (tx.status === "processing") {
+        return new Response(
+          JSON.stringify({ error: "Este saque já está em processamento na gateway aguardando confirmação bancária." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       if (tx.status !== "pending") {
         return new Response(JSON.stringify({ error: `Transação já foi ${tx.status}` }), {
           status: 400,
@@ -1065,6 +1178,16 @@ Deno.serve(async (req) => {
         });
       }
 
+      if (isPixCopiaEColaPayload(tx.pix_key)) {
+        return new Response(
+          JSON.stringify({
+            error: "O cliente informou um código PIX Copia e Cola (QR Code) em vez de chave PIX. Rejeite este saque para devolver o saldo ao cliente.",
+            can_manual_approve: false,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       let providerKey = tx.provider || "misticpay";
       let pixResult: any = null;
       try {
@@ -1112,7 +1235,45 @@ Deno.serve(async (req) => {
         );
       }
 
-      // 4. Atomically release locked balance and complete transaction
+      if (pixResult?.recipient) {
+        await saveWithdrawalRecipientPatch(supabase, tx_id, {
+          recipient_name: cleanOptionalText(pixResult.recipient.name),
+          recipient_document: cleanOptionalText(pixResult.recipient.document),
+          recipient_bank: cleanOptionalText(pixResult.recipient.bank_name),
+          recipient_ispb: cleanOptionalText(pixResult.recipient.ispb),
+          end_to_end_id: cleanOptionalText(pixResult.recipient.end_to_end_id),
+        });
+      }
+
+      const confirmedPaid = !pixResult?.pending_confirmation && isTerminalPaidState(pixResult?.status);
+      if (!confirmedPaid) {
+        await supabase
+          .from("wallet_transactions")
+          .update({
+            status: "processing",
+            ...(pixResult?.payment_id ? { payment_id: String(pixResult.payment_id) } : {}),
+            last_error: null,
+          } as any)
+          .eq("id", tx_id)
+          .in("status", ["pending", "processing"]);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            tx_id,
+            pix_payment_id: pixResult?.payment_id,
+            amount_sent_cents: amountToSendCents,
+            pix_key: tx.pix_key,
+            status: "processing",
+            pending_confirmation: true,
+            gateway_state: pixResult?.gateway_state || pixResult?.status || "QUEUED",
+            recipient: pixResult?.recipient || null,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 4. Atomically release locked balance and complete transaction (apenas após confirmação terminal da gateway)
       await supabase.rpc("approve_wallet_withdrawal", {
         _tx_id: tx_id,
         _admin_notes: admin_notes
@@ -1127,16 +1288,6 @@ Deno.serve(async (req) => {
             payment_id: pixResult.payment_id,
           })
           .eq("id", tx_id);
-      }
-
-      if (pixResult?.recipient) {
-        await saveWithdrawalRecipientPatch(supabase, tx_id, {
-          recipient_name: cleanOptionalText(pixResult.recipient.name),
-          recipient_document: cleanOptionalText(pixResult.recipient.document),
-          recipient_bank: cleanOptionalText(pixResult.recipient.bank_name),
-          recipient_ispb: cleanOptionalText(pixResult.recipient.ispb),
-          end_to_end_id: cleanOptionalText(pixResult.recipient.end_to_end_id),
-        });
       }
 
       return new Response(
@@ -1520,7 +1671,234 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─── 10. Reprocess Pending Withdrawals Automatically (cron / admin) ───
+    // ─── 10. Admin: Audit MisticPay Withdrawals vs Database ───
+    if (action === "admin_audit_misticpay_withdrawals") {
+      const limit = Math.min(Math.max(Number(body?.limit) || 100, 1), 150);
+      const creds = await fetchMisticPayCentralCreds(supabase);
+      if (!creds) {
+        return new Response(
+          JSON.stringify({ error: "Credenciais da MisticPay central não configuradas em landing_config" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: rows, error: rowsErr } = await supabase
+        .from("wallet_transactions")
+        .select(
+          "id, tenant_id, amount_cents, fee_cents, net_amount_cents, pix_key, pix_key_type, payment_id, provider, status, description, created_at, completed_at, recipient_name, tenants(name)"
+        )
+        .eq("type", "withdrawal")
+        .in("status", ["completed", "processing"])
+        .not("payment_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (rowsErr) {
+        return new Response(JSON.stringify({ error: rowsErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const candidates = (rows || []).filter((r: any) => {
+        const pid = String(r.payment_id || "");
+        if (!pid || pid.startsWith("MANUAL-") || pid.startsWith("PROCESSING-")) return false;
+        const prov = String(r.provider || "").toLowerCase();
+        if (prov && prov !== "misticpay" && prov !== "mistic_pay") return false;
+        return true;
+      });
+
+      const items: any[] = [];
+      let confirmed_paid = 0;
+      let gateway_failed = 0;
+      let still_processing = 0;
+      let unknown = 0;
+      let total_failed_net_cents = 0;
+
+      for (let i = 0; i < candidates.length; i += 3) {
+        const chunk = candidates.slice(i, i + 3);
+        const checkedChunk = await Promise.all(
+          chunk.map(async (r: any) => {
+            const checkRes = await fetchMisticPayTransactionDetails(creds, String(r.payment_id), 1);
+            const auditStatus = classifyMisticPayAuditState(checkRes.state, checkRes.statusCode);
+            if (auditStatus === "confirmed_paid" && !r.recipient_name && checkRes.details) {
+              await saveWithdrawalRecipientPatch(supabase, r.id, checkRes.details);
+            }
+            return { row: r, checkRes, auditStatus };
+          })
+        );
+
+        for (const entry of checkedChunk) {
+          const { row: r, checkRes, auditStatus } = entry;
+          if (auditStatus === "confirmed_paid") confirmed_paid += 1;
+          else if (auditStatus === "gateway_failed") {
+            gateway_failed += 1;
+            total_failed_net_cents += Number(r.net_amount_cents || r.amount_cents || 0);
+          } else if (auditStatus === "still_processing") still_processing += 1;
+          else unknown += 1;
+
+          items.push({
+            id: r.id,
+            tenant_id: r.tenant_id,
+            tenant_name: (r as any)?.tenants?.name || "Loja",
+            amount_cents: r.amount_cents,
+            net_amount_cents: r.net_amount_cents,
+            fee_cents: r.fee_cents,
+            pix_key: r.pix_key,
+            pix_key_type: r.pix_key_type,
+            payment_id: r.payment_id,
+            db_status: r.status,
+            gateway_state: checkRes.state,
+            gateway_status_code: checkRes.statusCode,
+            audit_status: auditStatus,
+            gateway_reason: checkRes.reason || null,
+            created_at: r.created_at,
+            completed_at: r.completed_at,
+            beneficiary_name: checkRes.details?.recipient_name || r.recipient_name || null,
+          });
+        }
+      }
+
+      const priority: Record<string, number> = {
+        gateway_failed: 0,
+        still_processing: 1,
+        unknown: 2,
+        confirmed_paid: 3,
+      };
+      items.sort((a, b) => (priority[a.audit_status] ?? 9) - (priority[b.audit_status] ?? 9));
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          summary: {
+            total_checked: items.length,
+            confirmed_paid,
+            gateway_failed,
+            still_processing,
+            unknown,
+            total_failed_net_cents,
+          },
+          items,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─── 11. Admin: Safe Refund of Failed Completed/Processing Withdrawal ───
+    if (action === "admin_refund_failed_withdrawal") {
+      const { tx_id, rejection_reason, force } = body;
+      if (!tx_id) {
+        return new Response(JSON.stringify({ error: "tx_id obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: tx, error: txErr } = await supabase
+        .from("wallet_transactions")
+        .select("id, tenant_id, type, status, amount_cents, net_amount_cents, payment_id, provider")
+        .eq("id", tx_id)
+        .maybeSingle();
+
+      if (txErr || !tx) {
+        return new Response(JSON.stringify({ error: "Transação não encontrada" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (tx.type !== "withdrawal") {
+        return new Response(JSON.stringify({ error: "Transação não é um saque" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (tx.status === "rejected") {
+        return new Response(JSON.stringify({ error: "Este saque já foi rejeitado e estornado anteriormente" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pid = String(tx.payment_id || "");
+      const hasMisticId = Boolean(pid && !pid.startsWith("MANUAL-") && !pid.startsWith("PROCESSING-"));
+      let gatewayState: string | null = null;
+
+      if (hasMisticId) {
+        const creds = await fetchMisticPayCentralCreds(supabase);
+        if (!creds) {
+          return new Response(
+            JSON.stringify({ error: "Credenciais da MisticPay não encontradas para validar o estorno" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const checkRes = await fetchMisticPayTransactionDetails(creds, pid, 2);
+        gatewayState = checkRes.state;
+
+        if (isTerminalPaidState(checkRes.state)) {
+          return new Response(
+            JSON.stringify({
+              error: `A MisticPay confirma que este PIX foi CONCLUÍDO (${checkRes.state}). Estorno bloqueado para evitar duplicidade.`,
+              gateway_state: checkRes.state,
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!isTerminalFailedState(checkRes.state) && !force) {
+          return new Response(
+            JSON.stringify({
+              error: `A MisticPay reportou status '${checkRes.state || checkRes.reason || "desconhecido"}' (HTTP ${checkRes.statusCode ?? "?"}). Apenas saques com FALHA confirmada podem ser estornados automaticamente.`,
+              gateway_state: checkRes.state,
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else if (tx.status === "completed" && !force) {
+        return new Response(
+          JSON.stringify({ error: "Saque concluído sem ID MisticPay válido (ex.: aprovação manual)." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const reason =
+        cleanOptionalText(rejection_reason) ||
+        `Estorno administrativo: transferência PIX falhou na MisticPay (${gatewayState || "FALHA"}). O saldo foi devolvido para a carteira.`;
+
+      const rpcName =
+        tx.status === "completed" ? "refund_failed_completed_withdrawal" : "reject_wallet_withdrawal";
+      const { data: rpcData, error: rpcErr } = await supabase.rpc(rpcName, {
+        _tx_id: tx_id,
+        _rejection_reason: reason,
+      });
+
+      if (rpcErr) {
+        return new Response(JSON.stringify({ error: rpcErr.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (rpcData && rpcData.success === false) {
+        return new Response(JSON.stringify({ error: rpcData.error || "Erro ao estornar saque" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          ...(rpcData || {}),
+          success: true,
+          gateway_state: gatewayState,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─── 12. Reprocess Pending & Reconcile Processing Withdrawals (cron / admin) ───
     if (action === "retry_pending_withdrawals" || action === "admin_retry_pending_withdrawals") {
       if (action === "retry_pending_withdrawals") {
         const authRes = await verifySuperAdminOrServiceRole(req, supabase);
@@ -1535,6 +1913,92 @@ Deno.serve(async (req) => {
       const force = Boolean(body?.force);
       const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
 
+      const { data: lCfg } = await supabase
+        .from("landing_config")
+        .select("system_url")
+        .limit(1)
+        .maybeSingle();
+
+      const panelUrl = `${String(lCfg?.system_url || "https://drikahub.com").replace(/\/$/, "")}/admin/carteira`;
+
+      // Fase 1: Reconciliar saques em status "processing" consultando /api/transactions/check na MisticPay
+      const reconciledResults: any[] = [];
+      const { data: processingRows } = await supabase
+        .from("wallet_transactions")
+        .select("id, tenant_id, amount_cents, net_amount_cents, pix_key, pix_key_type, payment_id, provider, created_at, tenants(name)")
+        .eq("type", "withdrawal")
+        .eq("status", "processing")
+        .not("payment_id", "is", null)
+        .order("created_at", { ascending: true })
+        .limit(20);
+
+      const misticProcessing = (processingRows || []).filter((r: any) => {
+        const pid = String(r.payment_id || "");
+        if (!pid || pid.startsWith("MANUAL-") || pid.startsWith("PROCESSING-")) return false;
+        const prov = String(r.provider || "").toLowerCase();
+        return !prov || prov === "misticpay" || prov === "mistic_pay";
+      });
+
+      if (misticProcessing.length > 0) {
+        const creds = await fetchMisticPayCentralCreds(supabase);
+        if (creds) {
+          for (const row of misticProcessing) {
+            const checkRes = await fetchMisticPayTransactionDetails(creds, String(row.payment_id), 1);
+            if (isTerminalPaidState(checkRes.state)) {
+              await supabase.rpc("approve_wallet_withdrawal", {
+                _tx_id: row.id,
+                _admin_notes: `Saque PIX confirmado automaticamente via conciliação (${checkRes.state})`,
+              });
+              if (checkRes.details) {
+                await saveWithdrawalRecipientPatch(supabase, row.id, checkRes.details);
+              }
+              reconciledResults.push({
+                id: row.id,
+                status: "completed",
+                reconciled_from: "processing",
+                gateway_state: checkRes.state,
+              });
+            } else if (isTerminalFailedState(checkRes.state)) {
+              const reason = `Transferência PIX falhou na gateway (${checkRes.state}). O valor foi devolvido automaticamente ao seu saldo.`;
+              const { data: rej } = await supabase.rpc("reject_wallet_withdrawal", {
+                _tx_id: row.id,
+                _rejection_reason: reason,
+              });
+              if (rej && rej.success !== false) {
+                const brl = (c: number) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const sendCents = row.net_amount_cents && row.net_amount_cents > 0 ? row.net_amount_cents : row.amount_cents;
+                await dmAdmins({
+                  title: "⚠️ SAQUE FALHOU NO BANCO — ESTORNADO AUTOMATICAMENTE",
+                  description: `O saque da loja **${(row as any)?.tenants?.name || "Loja Lojista"}** entrou em processamento mas retornou **${checkRes.state}** na MisticPay. O saldo foi devolvido ao cliente automaticamente.`,
+                  color: 0xef4444,
+                  fields: [
+                    { name: "🏪 Loja", value: (row as any)?.tenants?.name || "Loja Lojista", inline: true },
+                    { name: "💵 Líquido", value: brl(sendCents), inline: true },
+                    { name: "🔑 Chave PIX", value: `\`${row.pix_key}\``, inline: false },
+                    { name: "🆔 Gateway ID", value: `\`${row.payment_id}\``, inline: false },
+                  ],
+                  timestamp: new Date().toISOString(),
+                }, panelUrl);
+              }
+              reconciledResults.push({
+                id: row.id,
+                status: "rejected",
+                reconciled_from: "processing",
+                gateway_state: checkRes.state,
+              });
+            } else {
+              reconciledResults.push({
+                id: row.id,
+                status: "processing",
+                reconciled_from: "processing",
+                gateway_state: checkRes.state || "PENDING",
+              });
+            }
+          }
+        }
+      }
+
+      // Fase 2: Reprocessar saques em "pending" ainda sem payment_id
       let q = supabase
         .from("wallet_transactions")
         .select("id, tenant_id, pix_key, pix_key_type, last_attempt_at, retry_count, tenants(name)")
@@ -1552,12 +2016,6 @@ Deno.serve(async (req) => {
       const { data: pendingRows, error: qErr } = await q;
       if (qErr) throw new Error(qErr.message);
 
-      const { data: lCfg } = await supabase
-        .from("landing_config")
-        .select("system_url")
-        .limit(1)
-        .maybeSingle();
-
       const results: any[] = [];
       for (const row of pendingRows || []) {
         const r = await autoProcessWithdrawal(supabase, row.id, {
@@ -1569,11 +2027,14 @@ Deno.serve(async (req) => {
         results.push({ id: row.id, ...r });
       }
 
+      const allResults = [...reconciledResults, ...results];
       return new Response(
         JSON.stringify({
           success: true,
-          processed: results.length,
-          results,
+          processed: allResults.length,
+          reconciled_processing: reconciledResults.length,
+          retried_pending: results.length,
+          results: allResults,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

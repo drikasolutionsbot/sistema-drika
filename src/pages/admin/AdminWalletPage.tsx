@@ -102,7 +102,7 @@ interface WithdrawalItem {
   fee_cents: number;
   net_amount_cents: number;
   description: string | null;
-  status: "pending" | "completed" | "rejected";
+  status: "pending" | "processing" | "completed" | "rejected";
   pix_key: string | null;
   pix_key_type: string | null;
   payment_id?: string | null;
@@ -435,6 +435,134 @@ export default function AdminWalletPage() {
   const [withdrawalModalTab, setWithdrawalModalTab] = useState<"info" | "receipt">("info");
   const [syncingRecipientId, setSyncingRecipientId] = useState<string | null>(null);
   const [recipientSyncNote, setRecipientSyncNote] = useState<string | null>(null);
+  const [auditingMisticPay, setAuditingMisticPay] = useState(false);
+  const [refundingAuditTxId, setRefundingAuditTxId] = useState<string | null>(null);
+  const [misticAuditResult, setMisticAuditResult] = useState<{
+    summary: {
+      total_checked: number;
+      confirmed_paid: number;
+      gateway_failed: number;
+      still_processing: number;
+      unknown: number;
+      total_failed_net_cents: number;
+    };
+    items: Array<{
+      id: string;
+      tenant_id: string;
+      tenant_name: string;
+      amount_cents: number;
+      net_amount_cents: number;
+      fee_cents: number;
+      pix_key: string | null;
+      pix_key_type: string | null;
+      payment_id: string | null;
+      db_status: string;
+      gateway_state: string | null;
+      gateway_status_code: number | null;
+      audit_status: "confirmed_paid" | "gateway_failed" | "still_processing" | "unknown";
+      gateway_reason: string | null;
+      created_at: string;
+      completed_at: string | null;
+      beneficiary_name: string | null;
+    }>;
+  } | null>(null);
+
+  const handleAuditMisticPay = async () => {
+    setAuditingMisticPay(true);
+    try {
+      const res = await supabase.functions.invoke("manage-wallet", {
+        body: { action: "admin_audit_misticpay_withdrawals", limit: 100 },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+
+      const summary = res.data?.summary || {
+        total_checked: 0,
+        confirmed_paid: 0,
+        gateway_failed: 0,
+        still_processing: 0,
+        unknown: 0,
+        total_failed_net_cents: 0,
+      };
+      const items = res.data?.items || [];
+      setMisticAuditResult({ summary, items });
+
+      toast({
+        title:
+          summary.gateway_failed > 0
+            ? `${summary.gateway_failed} saque(s) com FALHA na MisticPay!`
+            : "Auditoria MisticPay concluída",
+        description: `Verificados: ${summary.total_checked} • Pagos: ${summary.confirmed_paid} • Falhou na gateway: ${summary.gateway_failed} • Processando: ${summary.still_processing}`,
+        variant: summary.gateway_failed > 0 ? "destructive" : "default",
+      });
+
+      if (summary.confirmed_paid > 0) {
+        loadData(true, true);
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao auditar MisticPay",
+        description: err?.message || "Não foi possível consultar os saques na MisticPay",
+        variant: "destructive",
+      });
+    } finally {
+      setAuditingMisticPay(false);
+    }
+  };
+
+  const handleRefundFailedWithdrawal = async (txId: string, gatewayState?: string | null) => {
+    setRefundingAuditTxId(txId);
+    try {
+      const res = await supabase.functions.invoke("manage-wallet", {
+        body: {
+          action: "admin_refund_failed_withdrawal",
+          tx_id: txId,
+          rejection_reason: `Estorno automático após auditoria: transferência PIX falhou na MisticPay (${gatewayState || "FALHA"}). O saldo foi devolvido à carteira.`,
+        },
+      });
+      if (res.error) {
+        let msg = res.error.message;
+        try {
+          const errBody = await res.error.context?.json();
+          if (errBody?.error) msg = errBody.error;
+        } catch { /* fallback */ }
+        throw new Error(msg);
+      }
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast({
+        title: "Saldo estornado para a loja!",
+        description: `${formatBRL(res.data?.refunded_cents || 0)} devolvido para a carteira do cliente e saque marcado como rejeitado.`,
+      });
+
+      setMisticAuditResult((prev) => {
+        if (!prev) return prev;
+        const removed = prev.items.find((it) => it.id === txId);
+        const remaining = prev.items.filter((it) => it.id !== txId);
+        return {
+          items: remaining,
+          summary: {
+            ...prev.summary,
+            gateway_failed: Math.max(0, prev.summary.gateway_failed - 1),
+            total_failed_net_cents: Math.max(
+              0,
+              prev.summary.total_failed_net_cents - (removed?.net_amount_cents || removed?.amount_cents || 0)
+            ),
+          },
+        };
+      });
+
+      await loadData(true);
+    } catch (err: any) {
+      toast({
+        title: "Não foi possível estornar o saque",
+        description: err?.message || "Erro ao processar estorno",
+        variant: "destructive",
+      });
+    } finally {
+      setRefundingAuditTxId(null);
+    }
+  };
 
   const handleRefreshMisticBalance = async () => {
     setLoadingMisticBalance(true);
@@ -771,10 +899,17 @@ export default function AdminWalletPage() {
         throw new Error(res.data.message || res.data.error);
       }
 
+      const isProcessingGateway = !manual && res.data?.status === "processing";
       toast({
-        title: manual ? "Saque aprovado manualmente!" : "Saque aprovado e PIX enviado!",
+        title: manual
+          ? "Saque aprovado manualmente!"
+          : isProcessingGateway
+          ? "PIX enviado para processamento!"
+          : "Saque aprovado e PIX enviado!",
         description: manual
           ? `O saque de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi registrado como concluído.`
+          : isProcessingGateway
+          ? `A MisticPay recebeu o envio de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} (${res.data?.gateway_state || "QUEUED"}) e concluirá ou estornará automaticamente assim que o banco confirmar.`
           : `O PIX de ${formatBRL(selectedTx.net_amount_cents || selectedTx.amount_cents)} foi transferido com sucesso pela Gateway Central.`,
       });
 
@@ -1578,11 +1713,12 @@ export default function AdminWalletPage() {
                       if (res.error) throw res.error;
                       const results = res.data?.results || [];
                       const paid = results.filter((r: any) => r.status === "completed").length;
+                      const inProcessing = results.filter((r: any) => r.status === "processing").length;
                       const rejected = results.filter((r: any) => r.status === "rejected").length;
                       const stillPending = results.filter((r: any) => r.status === "pending").length;
                       toast({
-                        title: paid > 0 ? `${paid} saque(s) pago(s) automaticamente! ✅` : "Reprocessamento concluído",
-                        description: `Pagos: ${paid} • Rejeitados (chave PIX): ${rejected} • Pendentes: ${stillPending}`,
+                        title: paid > 0 ? `${paid} saque(s) pago(s) automaticamente! ✅` : "Conciliação e reprocessamento concluídos",
+                        description: `Pagos: ${paid} • Processando PIX: ${inProcessing} • Rejeitados/Estornados: ${rejected} • Pendentes: ${stillPending}`,
                         variant: paid === 0 && stillPending > 0 ? "destructive" : "default",
                       });
                       await loadData(true);
@@ -1599,16 +1735,19 @@ export default function AdminWalletPage() {
                   className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
                 >
                   <Zap className="h-4 w-4" />
-                  Pagar Automático Agora
+                  Pagar / Conciliar Agora
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => {
                     setActiveTab("withdrawals");
-                    setWithdrawalStatusFilter("pending");
-                    const firstPending = withdrawals.find((w) => w.status === "pending");
-                    if (firstPending) {
-                      handleOpenWithdrawalDetails(firstPending, "info");
+                    const hasPending = withdrawals.some((w) => w.status === "pending");
+                    setWithdrawalStatusFilter(hasPending ? "pending" : "processing");
+                    const firstTarget =
+                      withdrawals.find((w) => w.status === "pending") ||
+                      withdrawals.find((w) => w.status === "processing");
+                    if (firstTarget) {
+                      handleOpenWithdrawalDetails(firstTarget, "info");
                     }
                   }}
                   className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
@@ -1842,6 +1981,7 @@ export default function AdminWalletPage() {
                     </SelectTrigger>
                     <SelectContent className="border-slate-800 bg-[#0a0f1d] text-slate-200">
                       <SelectItem value="pending">Apenas Pendentes</SelectItem>
+                      <SelectItem value="processing">Processando (Gateway)</SelectItem>
                       <SelectItem value="completed">Concluídos</SelectItem>
                       <SelectItem value="rejected">Rejeitados</SelectItem>
                       <SelectItem value="all">Todos os Saques</SelectItem>
@@ -2010,6 +2150,11 @@ export default function AdminWalletPage() {
                                   )}
                                 </div>
                               )}
+                              {w.status === "processing" && (
+                                <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[11px] gap-1 whitespace-nowrap">
+                                  <RefreshCw className="h-3 w-3 animate-spin" /> Processando PIX
+                                </Badge>
+                              )}
                               {w.status === "completed" && (
                                 <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] whitespace-nowrap">
                                   Concluído
@@ -2049,6 +2194,18 @@ export default function AdminWalletPage() {
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-end gap-1">
+                                  {w.status === "processing" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenWithdrawalDetails(w, "info")}
+                                      className="h-7 gap-1 border-blue-500/30 bg-blue-950/30 text-blue-300 hover:bg-blue-950/60 text-[11px] px-2"
+                                      title="Ver detalhes e conciliar status na MisticPay"
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                      Conciliar
+                                    </Button>
+                                  )}
                                   {w.status === "completed" && (
                                     <>
                                       <Button
@@ -2205,20 +2362,161 @@ export default function AdminWalletPage() {
                     Histórico de Saques Aprovados & Comprovantes
                   </CardTitle>
                   <CardDescription className="text-slate-400 text-xs">
-                    Consulte todos os saques pagos via PIX, visualize os identificadores de rastreamento bancário e gere o comprovante oficial em PDF.
+                    Consulte todos os saques pagos via PIX, audite o status real na MisticPay e gere o comprovante oficial em PDF.
                   </CardDescription>
                 </div>
 
-                <div className="relative min-w-[260px]">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-                  <Input
-                    placeholder="Buscar por loja, chave PIX ou ID..."
-                    value={searchApprovedWithdrawals}
-                    onChange={(e) => setSearchApprovedWithdrawals(e.target.value)}
-                    className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
-                  />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={auditingMisticPay}
+                    onClick={handleAuditMisticPay}
+                    className="h-9 text-xs gap-1.5 border-amber-500/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 font-semibold whitespace-nowrap"
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", auditingMisticPay && "animate-spin")} />
+                    {auditingMisticPay ? "Auditando na MisticPay..." : "Auditar na MisticPay"}
+                  </Button>
+
+                  <div className="relative min-w-[260px]">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+                    <Input
+                      placeholder="Buscar por loja, chave PIX ou ID..."
+                      value={searchApprovedWithdrawals}
+                      onChange={(e) => setSearchApprovedWithdrawals(e.target.value)}
+                      className="pl-8 h-9 text-xs border-slate-800 bg-[#070b14] text-slate-200"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {misticAuditResult && (
+                <div className="mt-4 rounded-xl border border-slate-800 bg-[#070b14] p-3.5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-bold text-white flex items-center gap-1.5">
+                        <ShieldAlert className="h-4 w-4 text-amber-400" />
+                        Auditoria MisticPay ({misticAuditResult.summary.total_checked} saques verificados):
+                      </span>
+                      <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px]">
+                        {misticAuditResult.summary.confirmed_paid} Pagos (COMPLETO)
+                      </Badge>
+                      <Badge className={cn(
+                        "border text-[11px]",
+                        misticAuditResult.summary.gateway_failed > 0
+                          ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                          : "bg-slate-800 text-slate-300 border-slate-700"
+                      )}>
+                        {misticAuditResult.summary.gateway_failed} Falhou na Gateway
+                      </Badge>
+                      <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[11px]">
+                        {misticAuditResult.summary.still_processing} Em Processamento
+                      </Badge>
+                      {misticAuditResult.summary.unknown > 0 && (
+                        <Badge className="bg-slate-800 text-slate-400 border border-slate-700 text-[11px]">
+                          {misticAuditResult.summary.unknown} Sem Resposta
+                        </Badge>
+                      )}
+                      {misticAuditResult.summary.total_failed_net_cents > 0 && (
+                        <span className="text-rose-300 font-semibold">
+                          • Líquido p/ estorno: {formatBRL(misticAuditResult.summary.total_failed_net_cents)}
+                        </span>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setMisticAuditResult(null)}
+                      className="h-7 px-2 text-xs text-slate-400 hover:text-white"
+                    >
+                      Fechar
+                    </Button>
+                  </div>
+
+                  {misticAuditResult.items.filter((it) => it.audit_status !== "confirmed_paid").length === 0 ? (
+                    <div className="text-xs text-emerald-300 bg-emerald-950/20 border border-emerald-500/20 rounded-lg px-3 py-2">
+                      Nenhuma divergência encontrada: todos os saques verificados constam como pagos na MisticPay.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-slate-800/80">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#0a0f1d] text-[10px] uppercase text-slate-400 border-b border-slate-800">
+                          <tr>
+                            <th className="py-2 px-2.5">Loja</th>
+                            <th className="py-2 px-2.5">Chave PIX</th>
+                            <th className="py-2 px-2.5 text-right">Bruto / Líquido</th>
+                            <th className="py-2 px-2.5">Status Banco vs MisticPay</th>
+                            <th className="py-2 px-2.5 text-right">Ação Segura</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60">
+                          {misticAuditResult.items
+                            .filter((it) => it.audit_status !== "confirmed_paid")
+                            .map((it) => (
+                              <tr key={it.id} className="hover:bg-slate-900/40">
+                                <td className="py-2 px-2.5">
+                                  <div className="font-semibold text-white">{it.tenant_name}</div>
+                                  <div className="text-[10px] text-slate-500 font-mono">
+                                    TX: {it.id.slice(0, 8)} • GW: {it.payment_id?.slice(0, 12)}...
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 font-mono text-[11px] text-slate-300 max-w-[200px] truncate" title={it.pix_key || ""}>
+                                  {it.pix_key || "—"}
+                                </td>
+                                <td className="py-2 px-2.5 text-right whitespace-nowrap">
+                                  <div className="font-semibold text-white">{formatBRL(it.amount_cents)}</div>
+                                  <div className="text-[10px] text-slate-400">
+                                    Líq: {formatBRL(it.net_amount_cents || it.amount_cents - it.fee_cents)}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <Badge className="bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">
+                                      DB: {it.db_status}
+                                    </Badge>
+                                    <Badge
+                                      className={cn(
+                                        "text-[10px] border",
+                                        it.audit_status === "gateway_failed"
+                                          ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                                          : it.audit_status === "still_processing"
+                                          ? "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                                          : "bg-slate-800 text-slate-400 border-slate-700"
+                                      )}
+                                    >
+                                      MisticPay: {it.gateway_state || it.gateway_reason || "DESCONHECIDO"}
+                                    </Badge>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-right whitespace-nowrap">
+                                  {it.audit_status === "gateway_failed" ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={refundingAuditTxId === it.id}
+                                      onClick={() => handleRefundFailedWithdrawal(it.id, it.gateway_state)}
+                                      className="h-7 text-[11px] bg-rose-600 hover:bg-rose-700 text-white font-semibold px-2.5 gap-1"
+                                    >
+                                      <RefreshCw className={cn("h-3 w-3", refundingAuditTxId === it.id && "animate-spin")} />
+                                      Estornar Saldo p/ Cliente
+                                    </Button>
+                                  ) : (
+                                    <span className="text-[11px] text-slate-400">
+                                      {it.audit_status === "still_processing" ? "Aguardando banco" : "Conferir manualmente"}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardHeader>
 
             <CardContent className="p-0">
@@ -2894,12 +3192,16 @@ export default function AdminWalletPage() {
                     "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border",
                     selectedTx.status === "completed"
                       ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-400"
+                      : selectedTx.status === "processing"
+                      ? "border-blue-500/40 bg-blue-950/40 text-blue-400"
                       : selectedTx.status === "pending"
                       ? "border-amber-500/40 bg-amber-950/40 text-amber-400"
                       : "border-rose-500/40 bg-rose-950/40 text-rose-400"
                   )}>
                     {selectedTx.status === "completed" ? (
                       <CheckCircle2 className="h-4 w-4" />
+                    ) : selectedTx.status === "processing" ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
                     ) : selectedTx.status === "pending" ? (
                       <Clock className="h-4 w-4" />
                     ) : (
@@ -2916,11 +3218,19 @@ export default function AdminWalletPage() {
                         "text-[10px] font-semibold uppercase tracking-wider",
                         selectedTx.status === "completed"
                           ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          : selectedTx.status === "processing"
+                          ? "bg-blue-500/20 text-blue-300 border-blue-500/40"
                           : selectedTx.status === "pending"
                           ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
                           : "bg-rose-500/20 text-rose-300 border-rose-500/40"
                       )}>
-                        {selectedTx.status === "completed" ? "Transferência PIX Concluída" : selectedTx.status === "pending" ? "Aguardando Aprovação" : "Rejeitado"}
+                        {selectedTx.status === "completed"
+                          ? "Transferência PIX Concluída"
+                          : selectedTx.status === "processing"
+                          ? "Em Processamento Bancário"
+                          : selectedTx.status === "pending"
+                          ? "Aguardando Aprovação"
+                          : "Rejeitado"}
                       </Badge>
                       {selectedTx.payment_id && (
                         <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-mono">
@@ -3354,7 +3664,54 @@ export default function AdminWalletPage() {
                               Copiar Relatório Completo
                             </Button>
                           </>
-                        ) : (
+                        ) : selectedTx.status === "processing" ? (
+                          <div className="space-y-2">
+                            <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-3 text-xs text-blue-200 leading-relaxed">
+                              Este saque já foi enviado à gateway ({selectedTx.payment_id || "em fila"}) e aguarda confirmação bancária. Não dispare outro PIX para evitar duplicidade.
+                            </div>
+                            <Button
+                              type="button"
+                              disabled={processingAction}
+                              onClick={async () => {
+                                setProcessingAction(true);
+                                try {
+                                  const res = await supabase.functions.invoke("manage-wallet", {
+                                    body: { action: "admin_retry_pending_withdrawals", force: true },
+                                  });
+                                  if (res.error) throw res.error;
+                                  toast({
+                                    title: "Conciliação executada",
+                                    description: "Status consultado diretamente na gateway.",
+                                  });
+                                  await loadData(true);
+                                  setApproveModalOpen(false);
+                                } catch (e: any) {
+                                  toast({
+                                    title: "Erro ao conciliar status",
+                                    description: e?.message || "Falha ao consultar gateway",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setProcessingAction(false);
+                                }
+                              }}
+                              className="w-full h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-1.5"
+                            >
+                              <RefreshCw className={cn("h-3.5 w-3.5", processingAction && "animate-spin")} />
+                              Conciliar Status na Gateway
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={refundingAuditTxId === selectedTx.id}
+                              onClick={() => handleRefundFailedWithdrawal(selectedTx.id)}
+                              className="w-full h-8 text-xs border-rose-500/30 text-rose-400 hover:bg-rose-500/10 gap-1.5"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              Estornar Saldo (Valida na MisticPay)
+                            </Button>
+                          </div>
+                        ) : selectedTx.status === "completed" ? (
                           <div className="space-y-2">
                             <Button
                               type="button"
@@ -3385,6 +3742,21 @@ export default function AdminWalletPage() {
                                 {copiedReceiptText ? "Copiado!" : "Copiar Texto"}
                               </Button>
                             </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3 text-xs text-rose-200 leading-relaxed">
+                              Saque rejeitado/estornado: {selectedTx.rejection_reason || "Saldo devolvido à carteira da loja."}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleCopyWithdrawalReport(selectedTx)}
+                              className="w-full h-8 text-xs border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 gap-1.5"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              Copiar Relatório Completo
+                            </Button>
                           </div>
                         )}
                       </div>
