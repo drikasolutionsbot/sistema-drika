@@ -431,6 +431,75 @@ async function handleMisticPay(body: any, tenantId: string, supabase: any) {
 
   if (!transactionId) return { handled: false, reason: "No transactionId in webhook" };
 
+  if (["RETIRADA", "WITHDRAW", "WITHDRAWAL", "CASHOUT", "PIX_OUT"].includes(transactionType)) {
+    const { data: wTx } = await supabase
+      .from("wallet_transactions")
+      .select("id, status, payment_id")
+      .eq("payment_id", String(transactionId))
+      .eq("type", "withdrawal")
+      .maybeSingle();
+
+    if (!wTx) {
+      return { handled: false, reason: `Withdrawal not found for transactionId=${transactionId}` };
+    }
+
+    const cfg = await resolveGatewayCredentials(supabase, "misticpay", "central", { is_global: true }, true);
+    let verifiedTx: any = null;
+    if (cfg?.api_key_encrypted && cfg?.secret_key_encrypted) {
+      try {
+        const basicAuth = btoa(`${cfg.api_key_encrypted}:${cfg.secret_key_encrypted}`);
+        const checkRes = await fetch("https://api.misticpay.com/api/transactions/check", {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${basicAuth}`,
+            ci: cfg.api_key_encrypted,
+            cs: cfg.secret_key_encrypted,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ transactionId: String(transactionId) }),
+        });
+        if (checkRes.ok) {
+          const checkJson = await checkRes.json().catch(() => null);
+          verifiedTx = checkJson?.transaction ?? checkJson?.data ?? checkJson ?? null;
+        }
+      } catch { /* fallback safely */ }
+    }
+
+    if (!verifiedTx) {
+      return { handled: false, reason: `MisticPay withdrawal check failed for transactionId=${transactionId}` };
+    }
+
+    const verifiedState = String(verifiedTx?.transactionState || verifiedTx?.status || status).toUpperCase();
+    const ben = verifiedTx?.beneficiary && typeof verifiedTx.beneficiary === "object"
+      ? verifiedTx.beneficiary
+      : null;
+
+    const patch: Record<string, string> = {};
+    if (ben?.name) patch.recipient_name = String(ben.name).trim();
+    if (ben?.document) patch.recipient_document = String(ben.document).trim();
+    if (ben?.bankName) patch.recipient_bank = String(ben.bankName).trim();
+    if (ben?.ispb) patch.recipient_ispb = String(ben.ispb).trim();
+    const e2e = verifiedTx?.endToEndId || verifiedTx?.end_to_end_id || data?.endToEndId;
+    if (e2e) patch.end_to_end_id = String(e2e).trim();
+
+    if (wTx.status === "pending" && ["COMPLETO", "COMPLETED", "PAID", "APROVADO", "CONCLUIDO", "CONCLUIDA"].includes(verifiedState)) {
+      await supabase.rpc("approve_wallet_withdrawal", {
+        _tx_id: wTx.id,
+        _admin_notes: "Saque PIX confirmado via webhook MisticPay",
+      });
+    }
+
+    if (Object.keys(patch).length > 0) {
+      try {
+        await supabase.from("wallet_transactions").update(patch as any).eq("id", wTx.id);
+      } catch (err) {
+        console.warn("[payment-webhook] non-blocking recipient save error:", err);
+      }
+    }
+
+    return { handled: true, withdrawal_tx_id: wTx.id, payment_id: String(transactionId), state: verifiedState };
+  }
+
   if (transactionType && transactionType !== "DEPOSITO" && transactionType !== "CASHIN" && transactionType !== "PIX_IN") {
     return { handled: false, reason: `Not a deposit: ${transactionType}` };
   }

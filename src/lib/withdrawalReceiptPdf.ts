@@ -8,6 +8,11 @@ export interface WithdrawalReceiptData {
   id: string;
   tenant_id: string;
   store_name?: string;
+  recipient_name?: string | null;
+  recipient_document?: string | null;
+  recipient_bank?: string | null;
+  recipient_ispb?: string | null;
+  end_to_end_id?: string | null;
   amount_cents: number;
   net_amount_cents?: number;
   fee_cents?: number;
@@ -17,6 +22,67 @@ export interface WithdrawalReceiptData {
   admin_notes: string | null;
   created_at: string;
   completed_at: string | null;
+}
+
+/**
+ * Formata CPF/CNPJ do recebedor para exibição em comprovantes PIX
+ * aplicando mascaramento padrão BACEN/LGPD em CPFs (ex.: ***.456.789-**).
+ */
+export function formatRecipientDocument(doc?: string | null): string | null {
+  if (!doc) return null;
+  const clean = doc.trim();
+  if (!clean) return null;
+  if (clean.includes("*")) return clean;
+
+  const digits = clean.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return `***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`;
+  }
+  if (digits.length === 14) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+  }
+  return clean;
+}
+
+/**
+ * Resolve os dados de exibição do favorecido no comprovante PIX, priorizando o titular
+ * bancário retornado pela gateway e preservando o nome da loja na plataforma quando distinto.
+ */
+export function resolveWithdrawalRecipientDisplay(data: {
+  recipient_name?: string | null;
+  recipient_document?: string | null;
+  recipient_bank?: string | null;
+  recipient_ispb?: string | null;
+  store_name?: string | null;
+}): {
+  favorecidoName: string;
+  hasVerifiedRecipient: boolean;
+  storeSubName: string | null;
+  formattedDocument: string | null;
+  bankLabel: string | null;
+} {
+  const verifiedName = data.recipient_name?.trim() || null;
+  const storeName = data.store_name?.trim() || null;
+  const favorecidoName = verifiedName || storeName || "Lojista Drika Hub";
+  const storeSubName =
+    verifiedName && storeName && verifiedName.toLowerCase() !== storeName.toLowerCase()
+      ? storeName
+      : null;
+
+  const bank = data.recipient_bank?.trim() || null;
+  const ispb = data.recipient_ispb?.trim() || null;
+  const bankLabel =
+    bank && ispb && !bank.includes(ispb)
+      ? `${bank} (ISPB ${ispb})`
+      : bank || (ispb ? `ISPB ${ispb}` : null);
+
+  return {
+    favorecidoName,
+    hasVerifiedRecipient: Boolean(verifiedName),
+    storeSubName,
+    formattedDocument: formatRecipientDocument(data.recipient_document),
+    bankLabel,
+  };
 }
 
 const formatBRL = (cents: number) =>
@@ -223,6 +289,29 @@ export async function generateWithdrawalReceiptPDF(data: WithdrawalReceiptData):
   const requestedAtDate = data.created_at ? new Date(data.created_at) : new Date();
   const requestedAtStr = format(requestedAtDate, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR });
   const formattedPixKey = formatPixKeyDisplay(data.pix_key, data.pix_key_type);
+  const recipientDisplay = resolveWithdrawalRecipientDisplay(data);
+
+  const table1Body: [string, string][] = [
+    ["Favorecido / Destinatário", recipientDisplay.favorecidoName],
+  ];
+  if (recipientDisplay.formattedDocument) {
+    table1Body.push(["CPF / CNPJ do Favorecido", recipientDisplay.formattedDocument]);
+  }
+  if (recipientDisplay.bankLabel) {
+    table1Body.push(["Instituição de Destino", recipientDisplay.bankLabel]);
+  }
+  if (recipientDisplay.storeSubName) {
+    table1Body.push(["Loja na Plataforma", recipientDisplay.storeSubName]);
+  }
+  table1Body.push(
+    ["Chave PIX de Destino", formattedPixKey],
+    ["Tipo de Chave PIX", (data.pix_key_type || "PIX").toUpperCase()],
+    ["Origem dos Recursos", "Drika Hub Soluções Digitais (Caixa Central)"],
+    ["Gateway Processador", "MisticPay / SPI — Banco Central do Brasil"],
+    ["Data / Hora da Solicitação", requestedAtStr],
+    ["Data / Hora da Efetivação", completedAtStr],
+    ["Canal de Liquidação", "PIX Direto API Automatizado"]
+  );
 
   autoTable(doc, {
     startY: y,
@@ -236,19 +325,10 @@ export async function generateWithdrawalReceiptPDF(data: WithdrawalReceiptData):
       fontStyle: "bold",
       cellPadding: 3,
     },
-    body: [
-      ["Favorecido / Destinatário", data.store_name || "Lojista Drika Hub"],
-      ["Chave PIX de Destino", formattedPixKey],
-      ["Tipo de Chave PIX", (data.pix_key_type || "PIX").toUpperCase()],
-      ["Origem dos Recursos", "Drika Hub Soluções Digitais (Caixa Central)"],
-      ["Gateway Processador", "MisticPay / SPI — Banco Central do Brasil"],
-      ["Data / Hora da Solicitação", requestedAtStr],
-      ["Data / Hora da Efetivação", completedAtStr],
-      ["Canal de Liquidação", "PIX Direto API Automatizado"],
-    ],
+    body: table1Body,
     styles: {
       fontSize: 8,
-      cellPadding: 2.5,
+      cellPadding: 2.3,
       textColor: [51, 65, 85], // slate-700
       overflow: "linebreak",
     },
@@ -264,12 +344,17 @@ export async function generateWithdrawalReceiptPDF(data: WithdrawalReceiptData):
   const t1FinalY = (doc as any).lastAutoTable.finalY || y + 55;
 
   // ─── 4. SEÇÃO 2: RASTREABILIDADE TÉCNICA & AUDITORIA BANCÁRIA ───
-  const table2Body = [
+  const table2Body: [string, string][] = [
     ["ID da Liquidação PIX (Gateway)", data.payment_id || "Liquidado via Sistema Interno"],
+  ];
+  if (data.end_to_end_id) {
+    table2Body.push(["ID End-to-End (BACEN)", data.end_to_end_id]);
+  }
+  table2Body.push(
     ["ID da Transação no Sistema", data.id],
     ["Situação da Operação", "CONCLUÍDO E EFETIVADO (LIQUIDADO)"],
-    ["Protocolo de Rastreio Interno", `DH-WITHDRAW-${data.id.slice(0, 8).toUpperCase()}`],
-  ];
+    ["Protocolo de Rastreio Interno", `DH-WITHDRAW-${data.id.slice(0, 8).toUpperCase()}`]
+  );
 
   if (data.admin_notes) {
     table2Body.push(["Observações Administrativas", data.admin_notes]);
@@ -355,12 +440,14 @@ export async function generateWithdrawalReceiptPDF(data: WithdrawalReceiptData):
   );
 
   // ─── 7. DISPARAR DOWNLOAD AUTOMÁTICO ───
-  const safeStoreName = (data.store_name || "lojista")
+  const safeStoreName = (recipientDisplay.favorecidoName || data.store_name || "lojista")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "-")
-    .slice(0, 15);
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 20) || "lojista";
   const shortId = data.id.slice(0, 8);
   const fileDate = format(new Date(), "yyyyMMdd-HHmm");
   doc.save(`comprovante-saque-pix-${safeStoreName}-${shortId}-${fileDate}.pdf`);

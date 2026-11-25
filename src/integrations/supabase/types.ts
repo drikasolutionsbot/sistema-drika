@@ -2675,10 +2675,15 @@ export type Database = {
           completed_at: string | null
           created_at: string
           description: string | null
+          end_to_end_id?: string | null
           id: string
           payment_id: string | null
           pix_key: string | null
           provider: string | null
+          recipient_bank?: string | null
+          recipient_document?: string | null
+          recipient_ispb?: string | null
+          recipient_name?: string | null
           status: string
           tenant_id: string
           type: string
@@ -2688,10 +2693,15 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string | null
+          end_to_end_id?: string | null
           id?: string
           payment_id?: string | null
           pix_key?: string | null
           provider?: string | null
+          recipient_bank?: string | null
+          recipient_document?: string | null
+          recipient_ispb?: string | null
+          recipient_name?: string | null
           status?: string
           tenant_id: string
           type: string
@@ -2701,10 +2711,15 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           description?: string | null
+          end_to_end_id?: string | null
           id?: string
           payment_id?: string | null
           pix_key?: string | null
           provider?: string | null
+          recipient_bank?: string | null
+          recipient_document?: string | null
+          recipient_ispb?: string | null
+          recipient_name?: string | null
           status?: string
           tenant_id?: string
           type?: string

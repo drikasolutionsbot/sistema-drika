@@ -21,6 +21,55 @@ interface WithdrawBody {
   existing_tx_id?: string;
 }
 
+export interface RecipientInfo {
+  name: string | null;
+  document: string | null;
+  document_type: string | null;
+  bank_name: string | null;
+  ispb: string | null;
+  end_to_end_id: string | null;
+}
+
+function cleanOptionalText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const trimmed = String(value).trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function extractMisticRecipient(tx: any): RecipientInfo | undefined {
+  if (!tx || typeof tx !== "object") return undefined;
+  const ben = tx.beneficiary && typeof tx.beneficiary === "object" ? tx.beneficiary : null;
+  const name = cleanOptionalText(ben?.name);
+  const document = cleanOptionalText(ben?.document);
+  const document_type = cleanOptionalText(ben?.documentType)?.toLowerCase() || null;
+  const bank_name = cleanOptionalText(ben?.bankName);
+  const ispb = cleanOptionalText(ben?.ispb);
+  const end_to_end_id = cleanOptionalText(
+    tx.endToEndId ?? tx.end_to_end_id ?? tx.e2eId ?? tx.e2e
+  );
+
+  if (!name && !document && !bank_name && !ispb && !end_to_end_id) {
+    return undefined;
+  }
+
+  return { name, document, document_type, bank_name, ispb, end_to_end_id };
+}
+
+function mergeRecipientInfo(
+  primary?: RecipientInfo,
+  fallback?: RecipientInfo
+): RecipientInfo | undefined {
+  if (!primary && !fallback) return undefined;
+  return {
+    name: primary?.name ?? fallback?.name ?? null,
+    document: primary?.document ?? fallback?.document ?? null,
+    document_type: primary?.document_type ?? fallback?.document_type ?? null,
+    bank_name: primary?.bank_name ?? fallback?.bank_name ?? null,
+    ispb: primary?.ispb ?? fallback?.ispb ?? null,
+    end_to_end_id: primary?.end_to_end_id ?? fallback?.end_to_end_id ?? null,
+  };
+}
+
 function detectKeyType(key: string): string {
   const k = key.replace(/\D/g, "");
   if (/^\d{11}$/.test(k)) return "cpf";
@@ -42,7 +91,7 @@ async function withdrawViaEfi(opts: {
   amountBRL: number;
   description?: string;
   isCentral?: boolean;
-}): Promise<{ payment_id: string; status: string }> {
+}): Promise<{ payment_id: string; status: string; recipient?: RecipientInfo }> {
   const normalizedCert = opts.certPem.replace(/\r\n/g, "\n").trim();
   const normalizedKey = opts.keyPem.replace(/\r\n/g, "\n").trim();
   const fetchOpts: any = {
@@ -129,7 +178,22 @@ async function withdrawViaEfi(opts: {
     throw new Error(err.mensagem || err.detail || `Efí PIX send: ${sendRes.status}`);
   }
   const data = await sendRes.json();
-  return { payment_id: data.e2eId || idEnvio, status: data.status || "EM_PROCESSAMENTO" };
+  const e2eId = cleanOptionalText(data?.e2eId);
+  const favName = cleanOptionalText(data?.favorecido?.identificacao?.nome);
+  const favDoc = cleanOptionalText(data?.favorecido?.identificacao?.cpf || data?.favorecido?.identificacao?.cnpj);
+  const favBank = cleanOptionalText(data?.favorecido?.codigoBanco);
+  const recipient: RecipientInfo | undefined =
+    e2eId || favName || favDoc || favBank
+      ? {
+          name: favName,
+          document: favDoc,
+          document_type: favDoc ? (favDoc.replace(/\D/g, "").length === 14 ? "cnpj" : "cpf") : null,
+          bank_name: favBank,
+          ispb: null,
+          end_to_end_id: e2eId,
+        }
+      : undefined;
+  return { payment_id: e2eId || idEnvio, status: data.status || "EM_PROCESSAMENTO", recipient };
 }
 
 function mapLofyPixKeyType(t: string): string {
@@ -199,8 +263,11 @@ async function checkMisticPayWithdrawalState(opts: {
   clientId: string;
   clientSecret: string;
   transactionId: string;
-}): Promise<{ state: string; detail?: string }> {
+}): Promise<{ state: string; detail?: string; recipient?: RecipientInfo }> {
   const basicAuth = btoa(`${opts.clientId}:${opts.clientSecret}`);
+  let latestState = "QUEUED";
+  let latestRecipient: RecipientInfo | undefined;
+
   for (const waitMs of [1800, 2200]) {
     await new Promise((r) => setTimeout(r, waitMs));
     try {
@@ -218,22 +285,28 @@ async function checkMisticPayWithdrawalState(opts: {
       const checkData = await checkRes.json().catch(() => null);
       const tx = checkData?.transaction ?? checkData?.data ?? checkData ?? {};
       const state = String(tx.transactionState || tx.status || "").toUpperCase();
+      latestRecipient = mergeRecipientInfo(extractMisticRecipient(tx), latestRecipient);
+
       if (!state) continue;
+      latestState = state;
       if (["FALHA", "FAILED", "CANCELADO", "CANCELED", "RECUSADO", "ESTORNADO", "ERRO"].includes(state)) {
         const benName = tx?.beneficiary?.name;
         const detail = benName === null
           ? `MisticPay recusou o PIX (${state}): verifique se a chave PIX ou tipo estão corretos ou se a gateway está instável.`
           : `MisticPay retornou falha na transferência (${state}).`;
-        return { state, detail };
+        return { state, detail, recipient: latestRecipient };
       }
-      if (["COMPLETO", "COMPLETED", "PAID", "APROVADO", "CONCLUIDO"].includes(state)) {
-        return { state };
+      if (["COMPLETO", "COMPLETED", "PAID", "APROVADO", "CONCLUIDO", "CONCLUIDA"].includes(state)) {
+        // Se já concluiu e temos o nome do recebedor, retorna imediatamente; senão tenta mais uma leitura rápida
+        if (latestRecipient?.name) {
+          return { state, recipient: latestRecipient };
+        }
       }
     } catch {
       // ignore transient check failure
     }
   }
-  return { state: "QUEUED" };
+  return { state: latestState, recipient: latestRecipient };
 }
 
 async function withdrawViaMisticPay(opts: {
@@ -243,10 +316,21 @@ async function withdrawViaMisticPay(opts: {
   destinationKeyType: string;
   amountCents: number;
   description?: string;
-}): Promise<{ payment_id: string; status: string }> {
+  webhookUrl?: string;
+}): Promise<{ payment_id: string; status: string; recipient?: RecipientInfo }> {
   const basicAuth = btoa(`${opts.clientId}:${opts.clientSecret}`);
   const mappedType = mapMisticPixKeyType(opts.destinationKeyType);
   const normalizedKey = normalizeMisticPixKey(opts.destinationKey, mappedType);
+
+  const payload: Record<string, unknown> = {
+    amount: Number((opts.amountCents / 100).toFixed(2)),
+    pixKey: normalizedKey,
+    pixKeyType: mappedType,
+    description: opts.description || "Saque carteira",
+  };
+  if (opts.webhookUrl) {
+    payload.projectWebhook = opts.webhookUrl;
+  }
 
   const res = await fetch("https://api.misticpay.com/api/transactions/withdraw", {
     method: "POST",
@@ -256,12 +340,7 @@ async function withdrawViaMisticPay(opts: {
       cs: opts.clientSecret,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      amount: Number((opts.amountCents / 100).toFixed(2)),
-      pixKey: normalizedKey,
-      pixKeyType: mappedType,
-      description: opts.description || "Saque carteira",
-    }),
+    body: JSON.stringify(payload),
   });
   const text = await res.text();
   let body: any = {};
@@ -272,10 +351,12 @@ async function withdrawViaMisticPay(opts: {
   const d = body?.data ?? body ?? {};
   const txId = d.transactionId ?? d.id ?? d.jobId;
   const initialStatus = String(d.status || d.transactionState || "QUEUED").toUpperCase();
+  const initialRecipient = extractMisticRecipient(d);
 
   // MisticPay enfileira o saque assincronamente (HTTP 202 QUEUED) e valida a chave DICT ~1.2s depois.
-  // Verificamos o status logo após o enfileiramento para não marcar "completed" em caso de FALHA imediata.
-  if (d.transactionId && ["QUEUED", "PENDING", "PENDENTE", "PROCESSANDO"].includes(initialStatus)) {
+  // Verificamos o status logo após o enfileiramento para não marcar "completed" em caso de FALHA imediata
+  // e capturar o objeto beneficiary (nome, CPF/CNPJ, banco) retornado pelo SPI/BACEN.
+  if (d.transactionId && (!initialRecipient?.name || ["QUEUED", "PENDING", "PENDENTE", "PROCESSANDO"].includes(initialStatus))) {
     const settled = await checkMisticPayWithdrawalState({
       clientId: opts.clientId,
       clientSecret: opts.clientSecret,
@@ -287,12 +368,14 @@ async function withdrawViaMisticPay(opts: {
     return {
       payment_id: String(d.transactionId),
       status: settled.state || initialStatus,
+      recipient: mergeRecipientInfo(settled.recipient, initialRecipient),
     };
   }
 
   return {
     payment_id: String(txId ?? crypto.randomUUID()),
     status: initialStatus,
+    recipient: initialRecipient,
   };
 }
 
@@ -517,7 +600,7 @@ Deno.serve(async (req) => {
     }
 
     // Dispatch to gateway
-    let result: { payment_id: string; status: string };
+    let result: { payment_id: string; status: string; recipient?: RecipientInfo };
     try {
       if (provider_key === "efi") {
         if (!provider.efi_cert_pem || !provider.efi_key_pem || !provider.api_key_encrypted || !provider.secret_key_encrypted || !provider.efi_pix_key) {
@@ -539,6 +622,7 @@ Deno.serve(async (req) => {
         if (!provider.api_key_encrypted || !provider.secret_key_encrypted) {
           throw new Error("MisticPay precisa de Client ID (ci) e Client Secret (cs)");
         }
+        const webhookSeg = provider.is_central ? "central" : tenant_id;
         result = await withdrawViaMisticPay({
           clientId: provider.api_key_encrypted,
           clientSecret: provider.secret_key_encrypted,
@@ -546,6 +630,7 @@ Deno.serve(async (req) => {
           destinationKeyType: keyType,
           amountCents: amount_cents,
           description,
+          webhookUrl: `${SUPABASE_URL}/functions/v1/payment-webhook/misticpay/${webhookSeg}`,
         });
       } else {
         throw new Error(`Provider ${provider_key} not supported for PIX OUT`);
@@ -596,6 +681,25 @@ Deno.serve(async (req) => {
         .from("wallet_transactions")
         .update({ payment_id: result.payment_id })
         .eq("id", txId);
+
+      if (result.recipient) {
+        try {
+          const recipientPatch: Record<string, string> = {};
+          if (result.recipient.name) recipientPatch.recipient_name = result.recipient.name;
+          if (result.recipient.document) recipientPatch.recipient_document = result.recipient.document;
+          if (result.recipient.bank_name) recipientPatch.recipient_bank = result.recipient.bank_name;
+          if (result.recipient.ispb) recipientPatch.recipient_ispb = result.recipient.ispb;
+          if (result.recipient.end_to_end_id) recipientPatch.end_to_end_id = result.recipient.end_to_end_id;
+          if (Object.keys(recipientPatch).length > 0) {
+            await supabase
+              .from("wallet_transactions")
+              .update(recipientPatch as any)
+              .eq("id", txId);
+          }
+        } catch (recErr) {
+          console.warn("[wallet-pix-withdraw] non-blocking recipient persist error:", recErr);
+        }
+      }
     } else {
       const { data: w } = await supabase
         .from("wallets").select("total_withdrawn_cents").eq("tenant_id", tenant_id).maybeSingle();
@@ -607,9 +711,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, tx_id: txId, payment_id: result.payment_id, status: result.status }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        tx_id: txId,
+        payment_id: result.payment_id,
+        status: result.status,
+        recipient: result.recipient || null,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e: any) {
     console.error("[wallet-pix-withdraw] error", e);
     return new Response(JSON.stringify({ error: e.message || "unknown" }), {

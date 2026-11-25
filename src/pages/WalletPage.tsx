@@ -75,7 +75,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { generateWithdrawalReceiptPDF, formatPixKeyDisplay } from "@/lib/withdrawalReceiptPdf";
+import { generateWithdrawalReceiptPDF, formatPixKeyDisplay, resolveWithdrawalRecipientDisplay } from "@/lib/withdrawalReceiptPdf";
 import drikaBannerLogo from "@/assets/logo.png";
 
 interface WalletData {
@@ -100,6 +100,11 @@ interface WalletTx {
   pix_key_type: string | null;
   rejection_reason: string | null;
   payment_id?: string | null;
+  recipient_name?: string | null;
+  recipient_document?: string | null;
+  recipient_bank?: string | null;
+  recipient_ispb?: string | null;
+  end_to_end_id?: string | null;
   admin_notes?: string | null;
   reference_id?: string | null;
   created_at: string;
@@ -175,6 +180,7 @@ export default function WalletPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailModalTab, setDetailModalTab] = useState<"info" | "receipt">("info");
   const [copiedDetailText, setCopiedDetailText] = useState(false);
+  const [syncingRecipientId, setSyncingRecipientId] = useState<string | null>(null);
 
   // Dynamic Withdrawal Rules (Saque Mínimo + 1 Free/sem + R$ 1,00 extra)
   const [withdrawalRules, setWithdrawalRules] = useState<{
@@ -550,20 +556,65 @@ export default function WalletPage() {
     return digits.length >= 4 ? digits.slice(-4) : "7720";
   }, [tenantId]);
 
-  const handleDownloadReceipt = (tx: WalletTx) => {
-    generateWithdrawalReceiptPDF({
-      id: tx.id,
-      tenant_id: tx.tenant_id,
+  const syncWithdrawalRecipient = useCallback(async (tx: WalletTx): Promise<WalletTx> => {
+    if (
+      tx.type !== "withdrawal" ||
+      tx.status !== "completed" ||
+      tx.recipient_name ||
+      !tx.payment_id ||
+      tx.payment_id.startsWith("MANUAL-") ||
+      tx.payment_id.startsWith("PROCESSING-")
+    ) {
+      return tx;
+    }
+
+    setSyncingRecipientId(tx.id);
+    try {
+      const { data } = await supabase.functions.invoke("manage-wallet", {
+        body: { action: "sync_withdrawal_recipient", tx_id: tx.id, tenant_id: tenantId },
+      });
+      const rec = data?.recipient;
+      if (rec && (rec.recipient_name || rec.recipient_document || rec.recipient_bank || rec.end_to_end_id)) {
+        const updated: WalletTx = {
+          ...tx,
+          recipient_name: rec.recipient_name ?? tx.recipient_name ?? null,
+          recipient_document: rec.recipient_document ?? tx.recipient_document ?? null,
+          recipient_bank: rec.recipient_bank ?? tx.recipient_bank ?? null,
+          recipient_ispb: rec.recipient_ispb ?? tx.recipient_ispb ?? null,
+          end_to_end_id: rec.end_to_end_id ?? tx.end_to_end_id ?? null,
+        };
+        setTransactions((prev) => prev.map((item) => (item.id === tx.id ? updated : item)));
+        setSelectedDetailTx((prev) => (prev?.id === tx.id ? updated : prev));
+        return updated;
+      }
+    } catch {
+      // ignore gateway check errors cleanly
+    } finally {
+      setSyncingRecipientId((prev) => (prev === tx.id ? null : prev));
+    }
+    return tx;
+  }, [tenantId]);
+
+  const handleDownloadReceipt = async (tx: WalletTx) => {
+    const resolved = await syncWithdrawalRecipient(tx);
+    await generateWithdrawalReceiptPDF({
+      id: resolved.id,
+      tenant_id: resolved.tenant_id,
       store_name: accountHolderName,
-      amount_cents: tx.amount_cents,
-      net_amount_cents: tx.net_amount_cents || tx.amount_cents,
-      fee_cents: tx.fee_cents || 0,
-      pix_key: tx.pix_key,
-      pix_key_type: tx.pix_key_type,
-      payment_id: tx.payment_id || null,
-      admin_notes: tx.admin_notes || null,
-      created_at: tx.created_at,
-      completed_at: tx.completed_at || tx.created_at,
+      recipient_name: resolved.recipient_name,
+      recipient_document: resolved.recipient_document,
+      recipient_bank: resolved.recipient_bank,
+      recipient_ispb: resolved.recipient_ispb,
+      end_to_end_id: resolved.end_to_end_id,
+      amount_cents: resolved.amount_cents,
+      net_amount_cents: resolved.net_amount_cents || resolved.amount_cents,
+      fee_cents: resolved.fee_cents || 0,
+      pix_key: resolved.pix_key,
+      pix_key_type: resolved.pix_key_type,
+      payment_id: resolved.payment_id || null,
+      admin_notes: resolved.admin_notes || null,
+      created_at: resolved.created_at,
+      completed_at: resolved.completed_at || resolved.created_at,
     });
     toast({
       title: "Comprovante baixado!",
@@ -572,16 +623,21 @@ export default function WalletPage() {
   };
 
   const handleCopyReceiptText = (tx: WalletTx) => {
+    const recDisplay = resolveWithdrawalRecipientDisplay({ ...tx, store_name: accountHolderName });
     const text = [
       `📄 COMPROVANTE OFICIAL DE TRANSFERÊNCIA PIX — DRIKA HUB`,
       `Status: CONCLUÍDO / LIQUIDADO`,
       `Valor Líquido Transferido: ${formatBRL(tx.net_amount_cents || tx.amount_cents)}`,
-      `Favorecido / Loja: ${accountHolderName}`,
+      `Favorecido / Destinatário: ${recDisplay.favorecidoName}`,
+      recDisplay.formattedDocument ? `CPF / CNPJ: ${recDisplay.formattedDocument}` : null,
+      recDisplay.bankLabel ? `Instituição de Destino: ${recDisplay.bankLabel}` : null,
+      recDisplay.storeSubName ? `Loja / Conta: ${recDisplay.storeSubName}` : null,
       `Chave PIX de Destino: ${formatPixKeyDisplay(tx.pix_key, tx.pix_key_type)} (${(tx.pix_key_type || "PIX").toUpperCase()})`,
       `Origem dos Recursos: Drika Hub (Caixa Central)`,
       `Gateway Processador: MisticPay / PIX Automático`,
       `ID da Transação: ${tx.id}`,
       tx.payment_id ? `ID de Liquidação PIX: ${tx.payment_id}` : null,
+      tx.end_to_end_id ? `ID End-to-End (BACEN): ${tx.end_to_end_id}` : null,
       `Data da Solicitação: ${format(new Date(tx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}`,
       tx.completed_at ? `Data da Efetivação: ${format(new Date(tx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}` : null,
       `Autenticação Digital: ${tx.id.replace(/-/g, "").toUpperCase()}`,
@@ -1267,6 +1323,7 @@ export default function WalletPage() {
                                         setSelectedDetailTx(tx);
                                         setDetailModalTab("receipt");
                                         setDetailModalOpen(true);
+                                        void syncWithdrawalRecipient(tx);
                                       }}
                                       className="h-7 text-xs px-2.5 gap-1 border-pink-500/30 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:text-white"
                                       title="Ver Comprovante Oficial PIX"
@@ -1859,7 +1916,10 @@ export default function WalletPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setDetailModalTab("receipt")}
+                  onClick={() => {
+                    setDetailModalTab("receipt");
+                    if (selectedDetailTx) void syncWithdrawalRecipient(selectedDetailTx);
+                  }}
                   className={cn(
                     "h-8 text-xs font-semibold gap-1.5",
                     detailModalTab === "receipt"
@@ -1922,53 +1982,91 @@ export default function WalletPage() {
                   </div>
 
                   {/* Detalhes da Transferência */}
-                  <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
-                    <div className="bg-slate-100 px-4 py-2.5 font-bold text-slate-800 border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                      Dados da Transferência PIX
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">Favorecido / Loja:</span>
-                        <span className="font-bold text-slate-900">{accountHolderName}</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">Chave PIX de Destino:</span>
-                        <span className="font-mono font-bold text-slate-900">
-                          {formatPixKeyDisplay(selectedDetailTx.pix_key, selectedDetailTx.pix_key_type)}
-                        </span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">Tipo de Chave:</span>
-                        <span className="uppercase font-semibold text-slate-800">
-                          {selectedDetailTx.pix_key_type || "CPF"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">Origem dos Recursos:</span>
-                        <span className="font-semibold text-slate-800">Drika Hub (Caixa Central)</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">Gateway Processador:</span>
-                        <span className="font-semibold text-slate-800">MisticPay / PIX Automático</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">ID da Transação:</span>
-                        <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.id}</span>
-                      </div>
-                      {selectedDetailTx.payment_id && (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                          <span className="font-semibold text-slate-600">ID Liquidação PIX (Gateway):</span>
-                          <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.payment_id}</span>
+                  {(() => {
+                    const recDisplay = resolveWithdrawalRecipientDisplay({
+                      ...selectedDetailTx,
+                      store_name: accountHolderName,
+                    });
+                    return (
+                      <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
+                        <div className="bg-slate-100 px-4 py-2.5 font-bold text-slate-800 border-b border-slate-200 uppercase tracking-wider text-[11px] flex items-center justify-between gap-2">
+                          <span>Dados da Transferência PIX</span>
+                          {syncingRecipientId === selectedDetailTx.id && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium normal-case text-purple-600">
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                              Consultando destinatário...
+                            </span>
+                          )}
                         </div>
-                      )}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                        <span className="font-semibold text-slate-600">Data e Hora da Solicitação:</span>
-                        <span className="text-slate-800">
-                          {format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
-                        </span>
+                        <div className="divide-y divide-slate-100">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">Favorecido / Destinatário:</span>
+                            <span className="font-bold text-slate-900">{recDisplay.favorecidoName}</span>
+                          </div>
+                          {recDisplay.formattedDocument && (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                              <span className="font-semibold text-slate-600">CPF / CNPJ do Favorecido:</span>
+                              <span className="font-mono font-semibold text-slate-800">{recDisplay.formattedDocument}</span>
+                            </div>
+                          )}
+                          {recDisplay.bankLabel && (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                              <span className="font-semibold text-slate-600">Instituição de Destino:</span>
+                              <span className="font-semibold text-slate-800">{recDisplay.bankLabel}</span>
+                            </div>
+                          )}
+                          {recDisplay.storeSubName && (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                              <span className="font-semibold text-slate-600">Loja / Conta na Plataforma:</span>
+                              <span className="font-semibold text-slate-800">{recDisplay.storeSubName}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">Chave PIX de Destino:</span>
+                            <span className="font-mono font-bold text-slate-900">
+                              {formatPixKeyDisplay(selectedDetailTx.pix_key, selectedDetailTx.pix_key_type)}
+                            </span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">Tipo de Chave:</span>
+                            <span className="uppercase font-semibold text-slate-800">
+                              {selectedDetailTx.pix_key_type || "CPF"}
+                            </span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">Origem dos Recursos:</span>
+                            <span className="font-semibold text-slate-800">Drika Hub (Caixa Central)</span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">Gateway Processador:</span>
+                            <span className="font-semibold text-slate-800">MisticPay / PIX Automático</span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">ID da Transação:</span>
+                            <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.id}</span>
+                          </div>
+                          {selectedDetailTx.payment_id && (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                              <span className="font-semibold text-slate-600">ID Liquidação PIX (Gateway):</span>
+                              <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.payment_id}</span>
+                            </div>
+                          )}
+                          {selectedDetailTx.end_to_end_id && (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                              <span className="font-semibold text-slate-600">ID End-to-End (BACEN):</span>
+                              <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.end_to_end_id}</span>
+                            </div>
+                          )}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <span className="font-semibold text-slate-600">Data e Hora da Solicitação:</span>
+                            <span className="text-slate-800">
+                              {format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Rodapé de autenticação */}
                   <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center space-y-1">

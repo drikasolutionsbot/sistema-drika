@@ -45,7 +45,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { generateWithdrawalReceiptPDF } from "@/lib/withdrawalReceiptPdf";
+import { generateWithdrawalReceiptPDF, resolveWithdrawalRecipientDisplay } from "@/lib/withdrawalReceiptPdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,6 +106,11 @@ interface WithdrawalItem {
   pix_key: string | null;
   pix_key_type: string | null;
   payment_id?: string | null;
+  recipient_name?: string | null;
+  recipient_document?: string | null;
+  recipient_bank?: string | null;
+  recipient_ispb?: string | null;
+  end_to_end_id?: string | null;
   rejection_reason: string | null;
   admin_notes: string | null;
   last_error?: string | null;
@@ -428,6 +433,7 @@ export default function AdminWalletPage() {
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [copiedReceiptText, setCopiedReceiptText] = useState(false);
   const [withdrawalModalTab, setWithdrawalModalTab] = useState<"info" | "receipt">("info");
+  const [syncingRecipientId, setSyncingRecipientId] = useState<string | null>(null);
 
   const handleRefreshMisticBalance = async () => {
     setLoadingMisticBalance(true);
@@ -694,32 +700,39 @@ export default function AdminWalletPage() {
     const pctFee = Math.round(grossCents * (splitPercentFee / 100));
     const totalSplitFee = tx.source_deposit?.fee_cents ?? tx.source_order?.commission_cents ?? (fixedFee + pctFee);
     const netCredited = tx.source_deposit?.net_amount_cents || (grossCents - totalSplitFee);
+    const recDisplay = resolveWithdrawalRecipientDisplay({ ...tx, store_name: tx.tenants?.name });
 
-    const report = `--- COMPROVANTE & REVISÃO DE SAQUE ---
-Loja: ${tx.tenants?.name || "Loja"} (${tx.tenant_id})
-Data do Saque: ${format(new Date(tx.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
-Status: ${tx.status.toUpperCase()}
-
-PRODUTO & VENDA DE ORIGEM:
-Loja: ${tx.tenants?.name || "Loja"}
-Produto: ${tx.source_order?.product_name || "Venda Loja"}
-Pedido: #${tx.source_order?.order_number || tx.source_order?.id?.slice(0, 8) || "—"}
-Comprador Discord: ${tx.source_order?.discord_username ? `@${tx.source_order.discord_username}` : "—"}
-Entrada Bruta da Venda: ${formatBRL(grossCents)}
-Taxa Base Fixa (R$): ${formatBRL(fixedFee)}
-Taxa Split (${splitPercentFee}%): ${formatBRL(pctFee)}
-Total Taxas Retidas na Venda: ${formatBRL(totalSplitFee)}
-Crédito na Carteira: ${formatBRL(netCredited)}
-
-DADOS DO PAGAMENTO PIX:
-Bruto Solicitado: ${formatBRL(tx.amount_cents)}
-Taxa Saque Plataforma: ${formatBRL(tx.fee_cents)}
-LÍQUIDO A PAGAR: ${formatBRL(tx.net_amount_cents || tx.amount_cents - tx.fee_cents)}
-Chave PIX: ${tx.pix_key} (${tx.pix_key_type?.toUpperCase() || "PIX"})
-
-ID Saque: ${tx.id}
-ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—"}
---------------------------------------`;
+    const report = [
+      `--- COMPROVANTE & REVISÃO DE SAQUE ---`,
+      `Loja: ${tx.tenants?.name || "Loja"} (${tx.tenant_id})`,
+      `Favorecido / Destinatário: ${recDisplay.favorecidoName}`,
+      recDisplay.formattedDocument ? `CPF / CNPJ: ${recDisplay.formattedDocument}` : null,
+      recDisplay.bankLabel ? `Banco / Instituição: ${recDisplay.bankLabel}` : null,
+      `Data do Saque: ${format(new Date(tx.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}`,
+      `Status: ${tx.status.toUpperCase()}`,
+      ``,
+      `PRODUTO & VENDA DE ORIGEM:`,
+      `Loja: ${tx.tenants?.name || "Loja"}`,
+      `Produto: ${tx.source_order?.product_name || "Venda Loja"}`,
+      `Pedido: #${tx.source_order?.order_number || tx.source_order?.id?.slice(0, 8) || "—"}`,
+      `Comprador Discord: ${tx.source_order?.discord_username ? `@${tx.source_order.discord_username}` : "—"}`,
+      `Entrada Bruta da Venda: ${formatBRL(grossCents)}`,
+      `Taxa Base Fixa (R$): ${formatBRL(fixedFee)}`,
+      `Taxa Split (${splitPercentFee}%): ${formatBRL(pctFee)}`,
+      `Total Taxas Retidas na Venda: ${formatBRL(totalSplitFee)}`,
+      `Crédito na Carteira: ${formatBRL(netCredited)}`,
+      ``,
+      `DADOS DO PAGAMENTO PIX:`,
+      `Bruto Solicitado: ${formatBRL(tx.amount_cents)}`,
+      `Taxa Saque Plataforma: ${formatBRL(tx.fee_cents)}`,
+      `LÍQUIDO A PAGAR: ${formatBRL(tx.net_amount_cents || tx.amount_cents - tx.fee_cents)}`,
+      `Chave PIX: ${tx.pix_key} (${tx.pix_key_type?.toUpperCase() || "PIX"})`,
+      ``,
+      `ID Saque: ${tx.id}`,
+      `ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—"}`,
+      tx.end_to_end_id ? `ID End-to-End (BACEN): ${tx.end_to_end_id}` : null,
+      `--------------------------------------`,
+    ].filter((line): line is string => line !== null).join("\n");
     navigator.clipboard.writeText(report);
     toast({
       title: "Relatório de Revisão Copiado!",
@@ -994,25 +1007,70 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     };
   }, [approvedWithdrawals]);
 
+  const syncWithdrawalRecipient = useCallback(async (w: WithdrawalItem): Promise<WithdrawalItem> => {
+    if (
+      w.recipient_name ||
+      w.status !== "completed" ||
+      !w.payment_id ||
+      w.payment_id.startsWith("MANUAL-") ||
+      w.payment_id.startsWith("PROCESSING-")
+    ) {
+      return w;
+    }
+
+    setSyncingRecipientId(w.id);
+    try {
+      const { data } = await supabase.functions.invoke("manage-wallet", {
+        body: { action: "sync_withdrawal_recipient", tx_id: w.id },
+      });
+      const rec = data?.recipient;
+      if (rec && (rec.recipient_name || rec.recipient_document || rec.recipient_bank || rec.end_to_end_id)) {
+        const updated: WithdrawalItem = {
+          ...w,
+          recipient_name: rec.recipient_name ?? w.recipient_name ?? null,
+          recipient_document: rec.recipient_document ?? w.recipient_document ?? null,
+          recipient_bank: rec.recipient_bank ?? w.recipient_bank ?? null,
+          recipient_ispb: rec.recipient_ispb ?? w.recipient_ispb ?? null,
+          end_to_end_id: rec.end_to_end_id ?? w.end_to_end_id ?? null,
+        };
+        setWithdrawals((prev) => prev.map((item) => (item.id === w.id ? updated : item)));
+        setSelectedTx((prev) => (prev?.id === w.id ? updated : prev));
+        setSelectedReceipt((prev) => (prev?.id === w.id ? updated : prev));
+        return updated;
+      }
+    } catch {
+      // Fallback silencioso caso a gateway não responda na consulta pontual
+    } finally {
+      setSyncingRecipientId((prev) => (prev === w.id ? null : prev));
+    }
+    return w;
+  }, []);
+
   const handleDownloadReceiptPDF = async (w: WithdrawalItem) => {
     try {
+      const resolved = await syncWithdrawalRecipient(w);
       await generateWithdrawalReceiptPDF({
-        id: w.id,
-        tenant_id: w.tenant_id,
-        store_name: w.tenants?.name || "Lojista Drika Hub",
-        amount_cents: w.amount_cents,
-        net_amount_cents: w.net_amount_cents,
-        fee_cents: w.fee_cents,
-        pix_key: w.pix_key,
-        pix_key_type: w.pix_key_type,
-        payment_id: w.payment_id || null,
-        admin_notes: w.admin_notes,
-        created_at: w.created_at,
-        completed_at: w.completed_at,
+        id: resolved.id,
+        tenant_id: resolved.tenant_id,
+        store_name: resolved.tenants?.name || "Lojista Drika Hub",
+        recipient_name: resolved.recipient_name,
+        recipient_document: resolved.recipient_document,
+        recipient_bank: resolved.recipient_bank,
+        recipient_ispb: resolved.recipient_ispb,
+        end_to_end_id: resolved.end_to_end_id,
+        amount_cents: resolved.amount_cents,
+        net_amount_cents: resolved.net_amount_cents,
+        fee_cents: resolved.fee_cents,
+        pix_key: resolved.pix_key,
+        pix_key_type: resolved.pix_key_type,
+        payment_id: resolved.payment_id || null,
+        admin_notes: resolved.admin_notes,
+        created_at: resolved.created_at,
+        completed_at: resolved.completed_at,
       });
       toast({
         title: "Comprovante gerado com sucesso!",
-        description: `Download do PDF do saque #${w.id.slice(0, 8)} concluído.`,
+        description: `Download do PDF do saque #${resolved.id.slice(0, 8)} concluído.`,
       });
     } catch (err: any) {
       toast({
@@ -1047,6 +1105,7 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
     setGatewayErrorAlert(w.last_error || null);
     setAdminNotes(w.admin_notes || "");
     setApproveModalOpen(true);
+    void syncWithdrawalRecipient(w);
   };
 
   const handleOpenReceiptModal = (w: WithdrawalItem) => {
@@ -1056,20 +1115,25 @@ ID Gateway / Transação: ${tx.source_order?.payment_id || tx.payment_id || "—
 
   const handleCopyReceiptText = (w: WithdrawalItem) => {
     const net = w.net_amount_cents && w.net_amount_cents > 0 ? w.net_amount_cents : w.amount_cents;
-    const text = `
-=== COMPROVANTE DE TRANSFERÊNCIA PIX ===
-Plataforma: Drika Hub
-Status: CONCLUÍDO / PAGO
-Valor Transferido: ${formatBRL(net)}
-Favorecido: ${w.tenants?.name || "Lojista"}
-Chave PIX: ${w.pix_key || "N/A"} (${(w.pix_key_type || "PIX").toUpperCase()})
-ID da Transação: ${w.id}
-ID do PIX / Gateway: ${w.payment_id || "Liquidado via Sistema"}
-Data de Solicitação: ${format(new Date(w.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
-Data de Efetivação: ${w.completed_at ? format(new Date(w.completed_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : "N/A"}
-Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
-========================================
-`.trim();
+    const recDisplay = resolveWithdrawalRecipientDisplay({ ...w, store_name: w.tenants?.name });
+    const text = [
+      `=== COMPROVANTE DE TRANSFERÊNCIA PIX ===`,
+      `Plataforma: Drika Hub`,
+      `Status: CONCLUÍDO / PAGO`,
+      `Valor Transferido: ${formatBRL(net)}`,
+      `Favorecido / Destinatário: ${recDisplay.favorecidoName}`,
+      recDisplay.formattedDocument ? `CPF / CNPJ: ${recDisplay.formattedDocument}` : null,
+      recDisplay.bankLabel ? `Instituição de Destino: ${recDisplay.bankLabel}` : null,
+      recDisplay.storeSubName ? `Loja na Plataforma: ${recDisplay.storeSubName}` : null,
+      `Chave PIX: ${w.pix_key || "N/A"} (${(w.pix_key_type || "PIX").toUpperCase()})`,
+      `ID da Transação: ${w.id}`,
+      `ID do PIX / Gateway: ${w.payment_id || "Liquidado via Sistema"}`,
+      w.end_to_end_id ? `ID End-to-End (BACEN): ${w.end_to_end_id}` : null,
+      `Data de Solicitação: ${format(new Date(w.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}`,
+      `Data de Efetivação: ${w.completed_at ? format(new Date(w.completed_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : "N/A"}`,
+      `Observações: ${w.admin_notes || "Saque aprovado com sucesso"}`,
+      `========================================`,
+    ].filter(Boolean).join("\n");
 
     navigator.clipboard.writeText(text);
     setCopiedReceiptText(true);
@@ -1825,6 +1889,11 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                               <div className="font-semibold text-xs text-white">
                                 {w.tenants?.name || "Loja"}
                               </div>
+                              {w.recipient_name && (
+                                <div className="text-[11px] text-emerald-400 font-medium mt-0.5 truncate max-w-[200px]" title={w.recipient_name}>
+                                  Dest.: {w.recipient_name}
+                                </div>
+                              )}
                               <div className="text-[10px] text-slate-500 font-mono">
                                 ID: {w.tenant_id.slice(0, 8)}...
                               </div>
@@ -2199,6 +2268,12 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                                 <div className="font-semibold text-xs text-white">
                                   {w.tenants?.name || "Loja"}
                                 </div>
+                                {w.recipient_name && (
+                                  <div className="text-[11px] text-emerald-400 font-medium mt-0.5 truncate max-w-[200px]" title={w.recipient_name}>
+                                    Dest.: {w.recipient_name}
+                                    {w.recipient_bank ? ` • ${w.recipient_bank}` : ""}
+                                  </div>
+                                )}
                                 <div className="text-[10px] text-slate-500 font-mono">
                                   ID: {w.tenant_id.slice(0, 8)}...
                                 </div>
@@ -3354,49 +3429,91 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                       </div>
 
                       {/* Informações Bancárias (Favorecido & Origem) */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                        {/* Favorecido */}
-                        <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                            Dados do Favorecido (Destino)
-                          </span>
-                          <p className="font-bold text-white text-base">
-                            {selectedTx.tenants?.name || "Lojista Drika Hub"}
-                          </p>
-                          <div className="text-slate-300 space-y-1 pt-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-400">Chave PIX:</span>
-                              <span className="font-mono text-emerald-400 font-bold text-sm">
-                                {formatPixDisplay(selectedTx.pix_key, selectedTx.pix_key_type)}
-                              </span>
+                      {(() => {
+                        const recipientDisplay = resolveWithdrawalRecipientDisplay({
+                          ...selectedTx,
+                          store_name: selectedTx.tenants?.name,
+                        });
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            {/* Favorecido */}
+                            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                  Dados do Favorecido (Destino)
+                                </span>
+                                {syncingRecipientId === selectedTx.id ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-purple-300">
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                    Consultando MisticPay...
+                                  </span>
+                                ) : recipientDisplay.hasVerifiedRecipient ? (
+                                  <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] py-0 px-2">
+                                    Verificado SPI
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <p className="font-bold text-white text-base">
+                                {recipientDisplay.favorecidoName}
+                              </p>
+                              <div className="text-slate-300 space-y-1 pt-1">
+                                {recipientDisplay.formattedDocument && (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-slate-400">CPF / CNPJ:</span>
+                                    <span className="font-mono text-slate-200 font-semibold">
+                                      {recipientDisplay.formattedDocument}
+                                    </span>
+                                  </div>
+                                )}
+                                {recipientDisplay.bankLabel && (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-slate-400">Instituição:</span>
+                                    <span className="text-slate-200 font-semibold text-right">
+                                      {recipientDisplay.bankLabel}
+                                    </span>
+                                  </div>
+                                )}
+                                {recipientDisplay.storeSubName && (
+                                  <div className="flex items-center justify-between gap-2 text-slate-400">
+                                    <span>Loja na Plataforma:</span>
+                                    <span className="text-slate-300">{recipientDisplay.storeSubName}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-slate-400">Chave PIX:</span>
+                                  <span className="font-mono text-emerald-400 font-bold text-sm">
+                                    {formatPixDisplay(selectedTx.pix_key, selectedTx.pix_key_type)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-slate-400">
+                                  <span>Tipo de Chave:</span>
+                                  <span className="uppercase text-slate-200 font-semibold">{selectedTx.pix_key_type || "PIX"}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center justify-between text-slate-400">
-                              <span>Tipo de Chave:</span>
-                              <span className="uppercase text-slate-200 font-semibold">{selectedTx.pix_key_type || "PIX"}</span>
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Origem */}
-                        <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                            Origem dos Recursos (Pagador)
-                          </span>
-                          <p className="font-bold text-white text-base">
-                            Drika Hub Soluções Digitais
-                          </p>
-                          <div className="text-slate-300 space-y-1 pt-1">
-                            <div className="flex items-center justify-between text-slate-400">
-                              <span>Conta / Origem:</span>
-                              <span className="text-slate-200 font-medium">Caixa Central Drika Hub</span>
-                            </div>
-                            <div className="flex items-center justify-between text-slate-400">
-                              <span>Gateway Liquidante:</span>
-                              <span className="text-purple-400 font-semibold">MisticPay / SPI Banco Central</span>
+                            {/* Origem */}
+                            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                                Origem dos Recursos (Pagador)
+                              </span>
+                              <p className="font-bold text-white text-base">
+                                Drika Hub Soluções Digitais
+                              </p>
+                              <div className="text-slate-300 space-y-1 pt-1">
+                                <div className="flex items-center justify-between text-slate-400">
+                                  <span>Conta / Origem:</span>
+                                  <span className="text-slate-200 font-medium">Caixa Central Drika Hub</span>
+                                </div>
+                                <div className="flex items-center justify-between text-slate-400">
+                                  <span>Gateway Liquidante:</span>
+                                  <span className="text-purple-400 font-semibold">MisticPay / SPI Banco Central</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Identificadores e Auditoria */}
                       <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2.5">
@@ -3446,6 +3563,29 @@ Observações: ${w.admin_notes || "Saque aprovado com sucesso"}
                               )}
                             </div>
                           </div>
+
+                          {selectedTx.end_to_end_id && (
+                            <div className="flex items-center justify-between p-2 rounded-lg bg-[#0a0f1d] border border-slate-800/80">
+                              <span className="text-slate-400">ID End-to-End (BACEN):</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-emerald-300 text-xs font-bold">
+                                  {selectedTx.end_to_end_id}
+                                </span>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(selectedTx.end_to_end_id!);
+                                    toast({ title: "EndToEndId copiado!", description: selectedTx.end_to_end_id! });
+                                  }}
+                                  className="h-6 w-6 text-slate-400 hover:text-white"
+                                  title="Copiar EndToEndId"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between text-xs px-2 pt-1">
                             <span className="text-slate-400">Data e Hora da Solicitação:</span>

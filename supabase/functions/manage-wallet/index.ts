@@ -111,6 +111,140 @@ async function verifyTenantAccessOrSuperAdmin(
   return { authorized: true };
 }
 
+interface MisticRecipientDetails {
+  recipient_name: string | null;
+  recipient_document: string | null;
+  recipient_bank: string | null;
+  recipient_ispb: string | null;
+  end_to_end_id: string | null;
+}
+
+function cleanOptionalText(val: unknown): string | null {
+  if (val === null || val === undefined) return null;
+  const s = String(val).trim();
+  return s.length > 0 ? s : null;
+}
+
+async function fetchMisticPayCentralCreds(
+  supabase: any
+): Promise<{ ci: string; cs: string } | null> {
+  const { data: lc } = await supabase
+    .from("landing_config")
+    .select("misticpay_client_id, misticpay_client_secret")
+    .limit(1)
+    .maybeSingle();
+  const ci = cleanOptionalText((lc as any)?.misticpay_client_id);
+  const cs = cleanOptionalText((lc as any)?.misticpay_client_secret);
+  if (!ci || !cs) return null;
+  return { ci, cs };
+}
+
+async function fetchMisticPayTransactionDetails(
+  creds: { ci: string; cs: string },
+  transactionId: string
+): Promise<MisticRecipientDetails | null> {
+  try {
+    const basicAuth = btoa(`${creds.ci}:${creds.cs}`);
+    const res = await fetch("https://api.misticpay.com/api/transactions/check", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${basicAuth}`,
+        ci: creds.ci,
+        cs: creds.cs,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ transactionId }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json().catch(() => null);
+    const tx = json?.transaction ?? json?.data ?? json ?? {};
+    const ben = tx?.beneficiary && typeof tx.beneficiary === "object" ? tx.beneficiary : null;
+
+    const recipient_name = cleanOptionalText(ben?.name);
+    const recipient_document = cleanOptionalText(ben?.document);
+    const recipient_bank = cleanOptionalText(ben?.bankName);
+    const recipient_ispb = cleanOptionalText(ben?.ispb);
+    const end_to_end_id = cleanOptionalText(
+      tx?.endToEndId ?? tx?.end_to_end_id ?? tx?.e2eId ?? tx?.e2e
+    );
+
+    if (!recipient_name && !recipient_document && !recipient_bank && !recipient_ispb && !end_to_end_id) {
+      return null;
+    }
+
+    return { recipient_name, recipient_document, recipient_bank, recipient_ispb, end_to_end_id };
+  } catch {
+    return null;
+  }
+}
+
+async function saveWithdrawalRecipientPatch(
+  supabase: any,
+  txId: string,
+  details: Partial<MisticRecipientDetails> | null | undefined
+): Promise<void> {
+  if (!details) return;
+  const patch: Record<string, string> = {};
+  if (details.recipient_name) patch.recipient_name = details.recipient_name;
+  if (details.recipient_document) patch.recipient_document = details.recipient_document;
+  if (details.recipient_bank) patch.recipient_bank = details.recipient_bank;
+  if (details.recipient_ispb) patch.recipient_ispb = details.recipient_ispb;
+  if (details.end_to_end_id) patch.end_to_end_id = details.end_to_end_id;
+  if (Object.keys(patch).length === 0) return;
+
+  try {
+    await supabase
+      .from("wallet_transactions")
+      .update(patch as any)
+      .eq("id", txId);
+  } catch (err) {
+    console.warn("[manage-wallet] non-blocking recipient save error:", err);
+  }
+}
+
+async function enrichWithdrawalsWithRecipient(
+  supabase: any,
+  rows: any[],
+  maxSync = 8
+): Promise<any[]> {
+  if (!Array.isArray(rows) || rows.length === 0) return rows;
+
+  const candidates = rows
+    .filter(
+      (r) =>
+        r?.type === "withdrawal" &&
+        r?.status === "completed" &&
+        r?.payment_id &&
+        !String(r.payment_id).startsWith("MANUAL-") &&
+        !String(r.payment_id).startsWith("PROCESSING-") &&
+        !r?.recipient_name &&
+        (!r?.provider || r.provider === "misticpay")
+    )
+    .slice(0, maxSync);
+
+  if (candidates.length === 0) return rows;
+
+  const creds = await fetchMisticPayCentralCreds(supabase);
+  if (!creds) return rows;
+
+  const resolvedMap = new Map<string, MisticRecipientDetails>();
+  await Promise.allSettled(
+    candidates.map(async (row) => {
+      const details = await fetchMisticPayTransactionDetails(creds, String(row.payment_id));
+      if (details) {
+        resolvedMap.set(row.id, details);
+        await saveWithdrawalRecipientPatch(supabase, row.id, details);
+      }
+    })
+  );
+
+  if (resolvedMap.size === 0) return rows;
+  return rows.map((row) => {
+    const found = resolvedMap.get(row.id);
+    return found ? { ...row, ...found } : row;
+  });
+}
+
 // ─── Envia notificação rica no Discord (DM direta) para as donas/admins (@drikastore e @saradinha_) ───
 async function notifyAdminsDiscordWithdrawal(opts: {
   tenantName: string;
@@ -318,6 +452,15 @@ async function autoProcessWithdrawal(
         _tx_id: tx.id,
         _admin_notes: "Saque PIX automático processado via gateway",
       });
+      if (data?.recipient) {
+        await saveWithdrawalRecipientPatch(supabase, tx.id, {
+          recipient_name: cleanOptionalText(data.recipient.name),
+          recipient_document: cleanOptionalText(data.recipient.document),
+          recipient_bank: cleanOptionalText(data.recipient.bank_name),
+          recipient_ispb: cleanOptionalText(data.recipient.ispb),
+          end_to_end_id: cleanOptionalText(data.recipient.end_to_end_id),
+        });
+      }
       return { status: "completed", message: "Saque enviado! O PIX foi processado automaticamente.", payment_id: data?.payment_id };
     }
     errMsg = String(data?.message || data?.error || `HTTP ${res.status}`);
@@ -490,7 +633,8 @@ Deno.serve(async (req) => {
         };
       });
 
-      const combinedTxs = [...pendingTxs, ...(txs || [])].sort((a: any, b: any) =>
+      const hydratedTxs = await enrichWithdrawalsWithRecipient(supabase, txs || [], 5);
+      const combinedTxs = [...pendingTxs, ...hydratedTxs].sort((a: any, b: any) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
@@ -723,7 +867,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const withdrawals = data || [];
+      const withdrawals = await enrichWithdrawalsWithRecipient(supabase, data || [], 8);
       const tenantIds = Array.from(new Set(withdrawals.map((w: any) => w.tenant_id).filter(Boolean)));
 
       const ordersMap = new Map<string, any[]>();
@@ -931,6 +1075,16 @@ Deno.serve(async (req) => {
           .eq("id", tx_id);
       }
 
+      if (pixResult?.recipient) {
+        await saveWithdrawalRecipientPatch(supabase, tx_id, {
+          recipient_name: cleanOptionalText(pixResult.recipient.name),
+          recipient_document: cleanOptionalText(pixResult.recipient.document),
+          recipient_bank: cleanOptionalText(pixResult.recipient.bank_name),
+          recipient_ispb: cleanOptionalText(pixResult.recipient.ispb),
+          end_to_end_id: cleanOptionalText(pixResult.recipient.end_to_end_id),
+        });
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -939,7 +1093,77 @@ Deno.serve(async (req) => {
           amount_sent_cents: amountToSendCents,
           pix_key: tx.pix_key,
           status: "completed",
+          recipient: pixResult?.recipient || null,
         }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ─── 5b. Sync Withdrawal Recipient from MisticPay (/transactions/check) ───
+    if (action === "sync_withdrawal_recipient") {
+      const { tx_id } = body;
+      if (!tx_id) {
+        return new Response(JSON.stringify({ error: "tx_id obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: tx, error: txErr } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("id", tx_id)
+        .maybeSingle();
+
+      if (txErr || !tx) {
+        return new Response(JSON.stringify({ error: "Transação não encontrada" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const accessCheck = await verifyTenantAccessOrSuperAdmin(
+        req,
+        supabase,
+        tx.tenant_id,
+        body?.token || body?._auth_token
+      );
+      if (!accessCheck.authorized) {
+        return new Response(JSON.stringify({ error: accessCheck.error || "Acesso negado" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const existing: MisticRecipientDetails = {
+        recipient_name: cleanOptionalText((tx as any).recipient_name),
+        recipient_document: cleanOptionalText((tx as any).recipient_document),
+        recipient_bank: cleanOptionalText((tx as any).recipient_bank),
+        recipient_ispb: cleanOptionalText((tx as any).recipient_ispb),
+        end_to_end_id: cleanOptionalText((tx as any).end_to_end_id),
+      };
+
+      if (existing.recipient_name || !tx.payment_id || String(tx.payment_id).startsWith("MANUAL-") || String(tx.payment_id).startsWith("PROCESSING-")) {
+        return new Response(
+          JSON.stringify({ success: true, cached: Boolean(existing.recipient_name), recipient: existing }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const creds = await fetchMisticPayCentralCreds(supabase);
+      if (!creds) {
+        return new Response(JSON.stringify({ success: true, cached: false, recipient: existing }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const fetched = await fetchMisticPayTransactionDetails(creds, String(tx.payment_id));
+      if (fetched) {
+        await saveWithdrawalRecipientPatch(supabase, tx.id, fetched);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, synced: Boolean(fetched), recipient: fetched || existing }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
