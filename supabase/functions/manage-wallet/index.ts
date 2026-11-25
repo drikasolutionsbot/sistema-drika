@@ -141,41 +141,89 @@ async function fetchMisticPayCentralCreds(
 
 async function fetchMisticPayTransactionDetails(
   creds: { ci: string; cs: string },
-  transactionId: string
-): Promise<MisticRecipientDetails | null> {
-  try {
-    const basicAuth = btoa(`${creds.ci}:${creds.cs}`);
-    const res = await fetch("https://api.misticpay.com/api/transactions/check", {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${basicAuth}`,
-        ci: creds.ci,
-        cs: creds.cs,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ transactionId }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json().catch(() => null);
-    const tx = json?.transaction ?? json?.data ?? json ?? {};
-    const ben = tx?.beneficiary && typeof tx.beneficiary === "object" ? tx.beneficiary : null;
+  transactionId: string,
+  retries = 1
+): Promise<{
+  details: MisticRecipientDetails | null;
+  statusCode: number | null;
+  state: string | null;
+  reason?: string;
+}> {
+  const basicAuth = btoa(`${creds.ci}:${creds.cs}`);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch("https://api.misticpay.com/api/transactions/check", {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${basicAuth}`,
+          ci: creds.ci,
+          cs: creds.cs,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ transactionId }),
+      });
 
-    const recipient_name = cleanOptionalText(ben?.name);
-    const recipient_document = cleanOptionalText(ben?.document);
-    const recipient_bank = cleanOptionalText(ben?.bankName);
-    const recipient_ispb = cleanOptionalText(ben?.ispb);
-    const end_to_end_id = cleanOptionalText(
-      tx?.endToEndId ?? tx?.end_to_end_id ?? tx?.e2eId ?? tx?.e2e
-    );
+      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 400));
+        continue;
+      }
 
-    if (!recipient_name && !recipient_document && !recipient_bank && !recipient_ispb && !end_to_end_id) {
-      return null;
+      if (!res.ok) {
+        return { details: null, statusCode: res.status, state: null, reason: `HTTP ${res.status}` };
+      }
+
+      const json = await res.json().catch(() => null);
+      const tx = json?.transaction ?? json?.data ?? json ?? {};
+      const ben =
+        (tx?.beneficiary && typeof tx.beneficiary === "object" ? tx.beneficiary : null) ??
+        (json?.beneficiary && typeof json.beneficiary === "object" ? json.beneficiary : null) ??
+        (tx?.receiver && typeof tx.receiver === "object" ? tx.receiver : null) ??
+        (tx?.recipient && typeof tx.recipient === "object" ? tx.recipient : null) ??
+        null;
+
+      const state = cleanOptionalText(tx?.transactionState ?? tx?.status);
+      const recipient_name = cleanOptionalText(
+        ben?.name ?? ben?.fullName ?? ben?.holderName ?? tx?.beneficiaryName ?? tx?.receiverName
+      );
+      const recipient_document = cleanOptionalText(
+        ben?.document ?? ben?.cpfCnpj ?? ben?.cpf ?? ben?.cnpj
+      );
+      const recipient_bank = cleanOptionalText(
+        ben?.bankName ?? ben?.bank ?? ben?.institutionName ?? ben?.institution
+      );
+      const recipient_ispb = cleanOptionalText(ben?.ispb);
+      const end_to_end_id = cleanOptionalText(
+        tx?.endToEndId ?? tx?.end_to_end_id ?? tx?.e2eId ?? tx?.e2e ?? json?.endToEndId
+      );
+
+      if (!recipient_name && !recipient_document && !recipient_bank && !recipient_ispb && !end_to_end_id) {
+        return {
+          details: null,
+          statusCode: res.status,
+          state,
+          reason: "Gateway não retornou titular bancário (beneficiary null)",
+        };
+      }
+
+      return {
+        details: { recipient_name, recipient_document, recipient_bank, recipient_ispb, end_to_end_id },
+        statusCode: res.status,
+        state,
+      };
+    } catch (err: any) {
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 350));
+        continue;
+      }
+      return {
+        details: null,
+        statusCode: null,
+        state: null,
+        reason: err?.message || "Erro de rede",
+      };
     }
-
-    return { recipient_name, recipient_document, recipient_bank, recipient_ispb, end_to_end_id };
-  } catch {
-    return null;
   }
+  return { details: null, statusCode: null, state: null, reason: "Sem resposta" };
 }
 
 async function saveWithdrawalRecipientPatch(
@@ -218,7 +266,7 @@ async function enrichWithdrawalsWithRecipient(
         !String(r.payment_id).startsWith("MANUAL-") &&
         !String(r.payment_id).startsWith("PROCESSING-") &&
         !r?.recipient_name &&
-        (!r?.provider || r.provider === "misticpay")
+        (!r?.provider || r.provider === "misticpay" || r.provider === "mistic_pay")
     )
     .slice(0, maxSync);
 
@@ -228,15 +276,21 @@ async function enrichWithdrawalsWithRecipient(
   if (!creds) return rows;
 
   const resolvedMap = new Map<string, MisticRecipientDetails>();
-  await Promise.allSettled(
-    candidates.map(async (row) => {
-      const details = await fetchMisticPayTransactionDetails(creds, String(row.payment_id));
-      if (details) {
-        resolvedMap.set(row.id, details);
-        await saveWithdrawalRecipientPatch(supabase, row.id, details);
-      }
-    })
-  );
+  for (let i = 0; i < candidates.length; i += 3) {
+    const batch = candidates.slice(i, i + 3);
+    await Promise.allSettled(
+      batch.map(async (row) => {
+        const res = await fetchMisticPayTransactionDetails(creds, String(row.payment_id), 1);
+        if (res.details) {
+          resolvedMap.set(row.id, res.details);
+          await saveWithdrawalRecipientPatch(supabase, row.id, res.details);
+        }
+      })
+    );
+    if (i + 3 < candidates.length) {
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
 
   if (resolvedMap.size === 0) return rows;
   return rows.map((row) => {
@@ -1157,13 +1211,20 @@ Deno.serve(async (req) => {
         });
       }
 
-      const fetched = await fetchMisticPayTransactionDetails(creds, String(tx.payment_id));
-      if (fetched) {
-        await saveWithdrawalRecipientPatch(supabase, tx.id, fetched);
+      const checkRes = await fetchMisticPayTransactionDetails(creds, String(tx.payment_id), 2);
+      if (checkRes.details) {
+        await saveWithdrawalRecipientPatch(supabase, tx.id, checkRes.details);
       }
 
       return new Response(
-        JSON.stringify({ success: true, synced: Boolean(fetched), recipient: fetched || existing }),
+        JSON.stringify({
+          success: true,
+          synced: Boolean(checkRes.details),
+          gateway_state: checkRes.state,
+          gateway_status: checkRes.statusCode,
+          gateway_reason: checkRes.reason || null,
+          recipient: checkRes.details || existing,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

@@ -434,6 +434,7 @@ export default function AdminWalletPage() {
   const [copiedReceiptText, setCopiedReceiptText] = useState(false);
   const [withdrawalModalTab, setWithdrawalModalTab] = useState<"info" | "receipt">("info");
   const [syncingRecipientId, setSyncingRecipientId] = useState<string | null>(null);
+  const [recipientSyncNote, setRecipientSyncNote] = useState<string | null>(null);
 
   const handleRefreshMisticBalance = async () => {
     setLoadingMisticBalance(true);
@@ -1019,6 +1020,7 @@ export default function AdminWalletPage() {
     }
 
     setSyncingRecipientId(w.id);
+    setRecipientSyncNote(null);
     try {
       const { data } = await supabase.functions.invoke("manage-wallet", {
         body: { action: "sync_withdrawal_recipient", tx_id: w.id },
@@ -1037,6 +1039,9 @@ export default function AdminWalletPage() {
         setSelectedTx((prev) => (prev?.id === w.id ? updated : prev));
         setSelectedReceipt((prev) => (prev?.id === w.id ? updated : prev));
         return updated;
+      }
+      if (data?.gateway_reason) {
+        setRecipientSyncNote(String(data.gateway_reason));
       }
     } catch {
       // Fallback silencioso caso a gateway não responda na consulta pontual
@@ -1102,6 +1107,7 @@ export default function AdminWalletPage() {
     setSelectedTx(w);
     setSelectedReceipt(w);
     setWithdrawalModalTab(initialTab);
+    setRecipientSyncNote(null);
     setGatewayErrorAlert(w.last_error || null);
     setAdminNotes(w.admin_notes || "");
     setApproveModalOpen(true);
@@ -1864,18 +1870,18 @@ export default function AdminWalletPage() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#070b14]/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                       <tr>
-                        <th className="py-3 px-4">Loja / Solicitante</th>
-                        <th className="py-3 px-4">Origem / Venda Auditada</th>
-                        <th className="py-3 px-4">Data</th>
-                        <th className="py-3 px-4">Chave PIX</th>
-                        <th className="py-3 px-4 text-right">Bruto Solicitado</th>
-                        <th className="py-3 px-4 text-right">Taxa de Saque</th>
-                        <th className="py-3 px-4 text-right">Líquido a Pagar</th>
-                        <th className="py-3 px-4 text-center">Status</th>
-                        <th className="py-3 px-4 text-right">Ações</th>
+                        <th className="py-2.5 px-2.5">Loja / Solicitante</th>
+                        <th className="py-2.5 px-2.5">Origem / Venda</th>
+                        <th className="py-2.5 px-2.5">Data</th>
+                        <th className="py-2.5 px-2.5">Chave PIX</th>
+                        <th className="py-2.5 px-2.5 text-right">Bruto</th>
+                        <th className="py-2.5 px-2.5 text-right">Taxa</th>
+                        <th className="py-2.5 px-2.5 text-right">Líquido</th>
+                        <th className="py-2.5 px-2.5 text-center">Status</th>
+                        <th className="py-2.5 px-2.5 text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/40">
@@ -1885,12 +1891,12 @@ export default function AdminWalletPage() {
                         return (
                           <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
                             {/* Loja */}
-                            <td className="py-3.5 px-4">
-                              <div className="font-semibold text-xs text-white">
+                            <td className="py-2.5 px-2.5 max-w-[165px]">
+                              <div className="font-semibold text-xs text-white truncate" title={w.tenants?.name || "Loja"}>
                                 {w.tenants?.name || "Loja"}
                               </div>
                               {w.recipient_name && (
-                                <div className="text-[11px] text-emerald-400 font-medium mt-0.5 truncate max-w-[200px]" title={w.recipient_name}>
+                                <div className="text-[11px] text-emerald-400 font-medium mt-0.5 truncate" title={w.recipient_name}>
                                   Dest.: {w.recipient_name}
                                 </div>
                               )}
@@ -1905,20 +1911,20 @@ export default function AdminWalletPage() {
                             </td>
 
                             {/* Origem / Venda Auditada */}
-                            <td className="py-3.5 px-4">
+                            <td className="py-2.5 px-2.5 max-w-[175px]">
                               {w.source_order ? (
-                                <div className="space-y-1 max-w-[210px]">
+                                <div className="space-y-1">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="font-bold text-xs text-white truncate max-w-[130px]" title={w.source_order.product_name}>
+                                    <span className="font-bold text-xs text-white truncate max-w-[110px]" title={w.source_order.product_name}>
                                       {w.source_order.product_name}
                                     </span>
                                     <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] px-1.5 py-0 font-mono">
                                       #{w.source_order.order_number || w.source_order.id.slice(0, 6)}
                                     </Badge>
                                   </div>
-                                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 flex-wrap">
+                                  <div className="text-[10px] text-slate-400 flex items-center gap-1 flex-wrap">
                                     {w.source_order.discord_username && (
-                                      <span className="text-blue-300 font-mono bg-blue-500/10 px-1 py-0.2 rounded">
+                                      <span className="text-blue-300 font-mono bg-blue-500/10 px-1 py-0.2 rounded truncate max-w-[85px]">
                                         @{w.source_order.discord_username}
                                       </span>
                                     )}
@@ -1936,27 +1942,30 @@ export default function AdminWalletPage() {
                             </td>
 
                             {/* Data */}
-                            <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 text-xs text-slate-400 whitespace-nowrap">
                               {format(new Date(w.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </td>
 
                             {/* Chave PIX */}
-                            <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-xs font-semibold text-white bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+                            <td className="py-2.5 px-2.5">
+                              <div className="flex items-center gap-1">
+                                <span
+                                  className="font-mono text-[11px] font-semibold text-white bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800 max-w-[130px] xl:max-w-[160px] truncate block"
+                                  title={w.pix_key || ""}
+                                >
                                   {w.pix_key}
                                 </span>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleCopyPixKey(w.pix_key || "", w.id)}
-                                  className="h-7 w-7 text-slate-400 hover:text-white"
+                                  className="h-6 w-6 text-slate-400 hover:text-white shrink-0"
                                   title="Copiar Chave PIX"
                                 >
                                   {copiedKeyId === w.id ? (
-                                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                    <Check className="h-3 w-3 text-emerald-400" />
                                   ) : (
-                                    <Copy className="h-3.5 w-3.5" />
+                                    <Copy className="h-3 w-3" />
                                   )}
                                 </Button>
                               </div>
@@ -1968,24 +1977,24 @@ export default function AdminWalletPage() {
                             </td>
 
                             {/* Bruto */}
-                            <td className="py-3.5 px-4 text-right text-xs font-medium text-slate-300 whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 text-right text-xs font-medium text-slate-300 whitespace-nowrap">
                               {formatBRL(w.amount_cents)}
                             </td>
 
                             {/* Taxa 2% Lucro */}
-                            <td className="py-3.5 px-4 text-right text-xs text-emerald-400 font-semibold whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 text-right text-xs text-emerald-400 font-semibold whitespace-nowrap">
                               +{formatBRL(w.fee_cents)}
                             </td>
 
                             {/* Líquido a Pagar */}
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                              <span className="text-sm font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                            <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                              <span className="text-xs font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
                                 {formatBRL(w.net_amount_cents || w.amount_cents - w.fee_cents)}
                               </span>
                             </td>
 
                             {/* Status */}
-                            <td className="py-3.5 px-4 text-center">
+                            <td className="py-2.5 px-2.5 text-center">
                               {w.status === "pending" && (
                                 <div className="flex flex-col items-center gap-1">
                                   <Badge className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] gap-1 whitespace-nowrap">
@@ -1993,7 +2002,7 @@ export default function AdminWalletPage() {
                                   </Badge>
                                   {w.last_error && (
                                     <span
-                                      className="text-[10px] text-rose-400/90 max-w-[180px] truncate block"
+                                      className="text-[10px] text-rose-400/90 max-w-[150px] truncate block"
                                       title={w.last_error}
                                     >
                                       {w.last_error}
@@ -2014,16 +2023,16 @@ export default function AdminWalletPage() {
                             </td>
 
                             {/* Ações */}
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
                               {isPending ? (
-                                <div className="flex items-center justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-1">
                                   <Button
                                     size="sm"
                                     onClick={() => handleOpenWithdrawalDetails(w, "info")}
-                                    className="h-8 gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-semibold px-3 shadow-md shadow-emerald-950/40"
+                                    className="h-7 gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-[11px] font-semibold px-2.5 shadow-md shadow-emerald-950/40"
                                   >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    Revisar & Aprovar
+                                    <Eye className="h-3 w-3" />
+                                    Revisar
                                   </Button>
                                   <Button
                                     size="sm"
@@ -2032,14 +2041,14 @@ export default function AdminWalletPage() {
                                       setSelectedTx(w);
                                       setRejectModalOpen(true);
                                     }}
-                                    className="h-8 gap-1 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs px-2.5"
+                                    className="h-7 gap-1 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-[11px] px-2"
                                   >
-                                    <XCircle className="h-3.5 w-3.5" />
+                                    <XCircle className="h-3 w-3" />
                                     Rejeitar
                                   </Button>
                                 </div>
                               ) : (
-                                <div className="flex items-center justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-1">
                                   {w.status === "completed" && (
                                     <>
                                       <Button
@@ -2050,7 +2059,7 @@ export default function AdminWalletPage() {
                                         title="Ver Comprovante Oficial"
                                       >
                                         <Receipt className="h-3 w-3 text-emerald-400" />
-                                        Comprovante
+                                        Ver
                                       </Button>
                                       <Button
                                         size="sm"
@@ -2231,18 +2240,18 @@ export default function AdminWalletPage() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-[#070b14]/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#070b14]/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800/60">
                         <tr>
-                          <th className="py-3 px-4">Data Efetivação</th>
-                          <th className="py-3 px-4">Loja / Favorecido</th>
-                          <th className="py-3 px-4">Chave PIX</th>
-                          <th className="py-3 px-4 text-right">Bruto Solicitado</th>
-                          <th className="py-3 px-4 text-right">Taxa Retida</th>
-                          <th className="py-3 px-4 text-right">Líquido Pago (PIX)</th>
-                          <th className="py-3 px-4">ID PIX (Gateway)</th>
-                          <th className="py-3 px-4 text-center">Status</th>
-                          <th className="py-3 px-4 text-right">Comprovante</th>
+                          <th className="py-2.5 px-2.5">Data</th>
+                          <th className="py-2.5 px-2.5">Loja / Favorecido</th>
+                          <th className="py-2.5 px-2.5">Chave PIX</th>
+                          <th className="py-2.5 px-2.5 text-right">Bruto</th>
+                          <th className="py-2.5 px-2.5 text-right">Taxa</th>
+                          <th className="py-2.5 px-2.5 text-right">Líquido</th>
+                          <th className="py-2.5 px-2.5">ID Gateway</th>
+                          <th className="py-2.5 px-2.5 text-center">Status</th>
+                          <th className="py-2.5 px-2.5 text-right">Ações</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/40">
@@ -2252,7 +2261,7 @@ export default function AdminWalletPage() {
                           return (
                             <tr key={w.id} className="hover:bg-slate-900/40 transition-colors">
                               {/* Data Efetivação */}
-                              <td className="py-3.5 px-4 text-xs text-slate-300 whitespace-nowrap">
+                              <td className="py-2.5 px-2.5 text-xs text-slate-300 whitespace-nowrap">
                                 <div className="font-semibold text-slate-200">
                                   {w.completed_at
                                     ? format(new Date(w.completed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
@@ -2264,12 +2273,12 @@ export default function AdminWalletPage() {
                               </td>
 
                               {/* Loja / Favorecido */}
-                              <td className="py-3.5 px-4">
-                                <div className="font-semibold text-xs text-white">
+                              <td className="py-2.5 px-2.5 max-w-[160px] xl:max-w-[190px]">
+                                <div className="font-semibold text-xs text-white truncate" title={w.tenants?.name || "Loja"}>
                                   {w.tenants?.name || "Loja"}
                                 </div>
                                 {w.recipient_name && (
-                                  <div className="text-[11px] text-emerald-400 font-medium mt-0.5 truncate max-w-[200px]" title={w.recipient_name}>
+                                  <div className="text-[11px] text-emerald-400 font-medium mt-0.5 truncate" title={`${w.recipient_name}${w.recipient_bank ? ` • ${w.recipient_bank}` : ""}`}>
                                     Dest.: {w.recipient_name}
                                     {w.recipient_bank ? ` • ${w.recipient_bank}` : ""}
                                   </div>
@@ -2280,9 +2289,12 @@ export default function AdminWalletPage() {
                               </td>
 
                               {/* Chave PIX */}
-                              <td className="py-3.5 px-4">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-xs font-semibold text-white bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+                              <td className="py-2.5 px-2.5">
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className="font-mono text-[11px] font-semibold text-white bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800 max-w-[130px] xl:max-w-[165px] truncate block"
+                                    title={w.pix_key || "Não informada"}
+                                  >
                                     {w.pix_key || "Não informada"}
                                   </span>
                                   {w.pix_key && (
@@ -2290,13 +2302,13 @@ export default function AdminWalletPage() {
                                       variant="ghost"
                                       size="icon"
                                       onClick={() => handleCopyPixKey(w.pix_key || "", w.id)}
-                                      className="h-7 w-7 text-slate-400 hover:text-white"
+                                      className="h-6 w-6 text-slate-400 hover:text-white shrink-0"
                                       title="Copiar Chave PIX"
                                     >
                                       {copiedKeyId === w.id ? (
-                                        <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                        <Check className="h-3 w-3 text-emerald-400" />
                                       ) : (
-                                        <Copy className="h-3.5 w-3.5" />
+                                        <Copy className="h-3 w-3" />
                                       )}
                                     </Button>
                                   )}
@@ -2309,12 +2321,12 @@ export default function AdminWalletPage() {
                               </td>
 
                               {/* Bruto */}
-                              <td className="py-3.5 px-4 text-right text-xs font-medium text-slate-300 whitespace-nowrap">
+                              <td className="py-2.5 px-2.5 text-right text-xs font-medium text-slate-300 whitespace-nowrap">
                                 {formatBRL(w.amount_cents)}
                               </td>
 
                               {/* Taxa */}
-                              <td className="py-3.5 px-4 text-right text-xs text-slate-400 whitespace-nowrap">
+                              <td className="py-2.5 px-2.5 text-right text-xs text-slate-400 whitespace-nowrap">
                                 {w.fee_cents > 0 ? (
                                   <span className="text-amber-400 font-semibold">+{formatBRL(w.fee_cents)}</span>
                                 ) : (
@@ -2323,18 +2335,18 @@ export default function AdminWalletPage() {
                               </td>
 
                               {/* Líquido Pago */}
-                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                                <span className="text-sm font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1 justify-end font-mono">
-                                  <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+                              <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                                <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md inline-flex items-center gap-1 justify-end font-mono">
+                                  <ArrowUpRight className="h-3 w-3 text-emerald-400" />
                                   {formatBRL(netCents)}
                                 </span>
                               </td>
 
                               {/* ID PIX / Gateway */}
-                              <td className="py-3.5 px-4">
+                              <td className="py-2.5 px-2.5">
                                 {w.payment_id ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-mono text-[11px] text-purple-300 max-w-[150px] truncate" title={w.payment_id}>
+                                  <div className="flex items-center gap-1">
+                                    <span className="font-mono text-[11px] text-purple-300 max-w-[90px] xl:max-w-[120px] truncate" title={w.payment_id}>
                                       {w.payment_id}
                                     </span>
                                     <Button
@@ -2344,7 +2356,7 @@ export default function AdminWalletPage() {
                                         navigator.clipboard.writeText(w.payment_id!);
                                         toast({ title: "ID do PIX copiado!", description: w.payment_id! });
                                       }}
-                                      className="h-6 w-6 text-slate-400 hover:text-white"
+                                      className="h-6 w-6 text-slate-400 hover:text-white shrink-0"
                                       title="Copiar ID PIX"
                                     >
                                       <Copy className="h-3 w-3" />
@@ -2356,43 +2368,43 @@ export default function AdminWalletPage() {
                               </td>
 
                               {/* Status */}
-                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] gap-1">
+                              <td className="py-2.5 px-2.5 text-center whitespace-nowrap">
+                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] gap-1 px-2">
                                   <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                                   Liquidado
                                 </Badge>
                               </td>
 
                               {/* Ações / Informações & Comprovante */}
-                              <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-1.5">
+                              <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1">
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleOpenWithdrawalDetails(w, "info")}
-                                    className="h-7 text-xs border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-300 gap-1 px-2.5 shadow-sm"
+                                    className="h-7 text-[11px] border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-300 gap-1 px-2 shadow-sm"
                                     title="Ver Informações e Auditoria"
                                   >
-                                    <FileText className="h-3.5 w-3.5 text-blue-400" />
-                                    Informações
+                                    <FileText className="h-3 w-3 text-blue-400" />
+                                    Info
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleOpenReceiptModal(w)}
-                                    className="h-7 text-xs border-slate-700 bg-slate-800/80 text-emerald-300 hover:bg-slate-700 hover:text-white gap-1 px-2.5"
+                                    className="h-7 text-[11px] border-slate-700 bg-slate-800/80 text-emerald-300 hover:bg-slate-700 hover:text-white gap-1 px-2"
                                     title="Visualizar Comprovante Oficial"
                                   >
-                                    <Receipt className="h-3.5 w-3.5 text-emerald-400" />
-                                    Comprovante
+                                    <Receipt className="h-3 w-3 text-emerald-400" />
+                                    Ver
                                   </Button>
                                   <Button
                                     size="sm"
                                     onClick={() => handleDownloadReceiptPDF(w)}
-                                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2.5 shadow-sm"
+                                    className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white gap-1 px-2 shadow-sm"
                                     title="Baixar Comprovante em PDF"
                                   >
-                                    <Download className="h-3.5 w-3.5" />
+                                    <Download className="h-3 w-3" />
                                     PDF
                                   </Button>
                                 </div>
@@ -2872,14 +2884,14 @@ export default function AdminWalletPage() {
 
       {/* ─── 5. Modal: Gestão Completa, Auditoria & Comprovante de Saque (Tela Inteira) ─── */}
       <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
-        <DialogContent className="max-w-[96vw] xl:max-w-7xl w-full border-slate-800 bg-[#070b14] text-white max-h-[94vh] p-0 overflow-hidden flex flex-col shadow-2xl">
+        <DialogContent className="max-w-[96vw] xl:max-w-7xl w-full border-slate-800 bg-[#070b14] text-white max-h-[96vh] p-0 overflow-hidden flex flex-col shadow-2xl">
           {selectedTx && (
-            <div className="flex flex-col h-full max-h-[94vh]">
+            <div className="flex flex-col h-full max-h-[96vh]">
               {/* Header Fixo com Status e Alternador de Abas */}
-              <div className="p-4 sm:px-6 border-b border-slate-800/80 bg-[#0a0f1d] flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+              <div className="p-3 sm:px-5 border-b border-slate-800/80 bg-[#0a0f1d] flex flex-col md:flex-row md:items-center justify-between gap-2.5 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border",
+                    "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border",
                     selectedTx.status === "completed"
                       ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-400"
                       : selectedTx.status === "pending"
@@ -2887,17 +2899,17 @@ export default function AdminWalletPage() {
                       : "border-rose-500/40 bg-rose-950/40 text-rose-400"
                   )}>
                     {selectedTx.status === "completed" ? (
-                      <CheckCircle2 className="h-5 w-5" />
+                      <CheckCircle2 className="h-4 w-4" />
                     ) : selectedTx.status === "pending" ? (
-                      <Clock className="h-5 w-5" />
+                      <Clock className="h-4 w-4" />
                     ) : (
-                      <XCircle className="h-5 w-5" />
+                      <XCircle className="h-4 w-4" />
                     )}
                   </div>
 
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                      <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
                         Gestão de Saque #{selectedTx.id.slice(0, 8)}
                       </DialogTitle>
                       <Badge className={cn(
@@ -2967,16 +2979,16 @@ export default function AdminWalletPage() {
                 </div>
               </div>
 
-              {/* Corpo com Scroll */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#070b14]">
+              {/* Corpo do Modal */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 bg-[#070b14]">
                 {withdrawalModalTab === "info" ? (
                   /* ─── ABA 1: INFORMAÇÕES & AUDITORIA (GRID LARGO 2 COLUNAS) ─── */
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                     {/* Coluna da Esquerda (7 colunas) */}
-                    <div className="lg:col-span-7 space-y-4">
+                    <div className="lg:col-span-7 space-y-2.5">
                       {/* Card Loja & Comprador */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3 space-y-1.5">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] uppercase text-slate-500 font-semibold block">Loja Solicitante</span>
                             <Badge className="bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[10px] uppercase font-mono">
@@ -2997,7 +3009,7 @@ export default function AdminWalletPage() {
                           )}
                         </div>
 
-                        <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-2">
+                        <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3 space-y-1.5">
                           <span className="text-[10px] uppercase text-slate-500 font-semibold block">Comprador Discord (Origem)</span>
                           <p className="font-bold text-blue-300 text-sm truncate font-mono">
                             {selectedTx.source_order?.discord_username ? `@${selectedTx.source_order.discord_username}` : "Usuário Discord"}
@@ -3005,7 +3017,7 @@ export default function AdminWalletPage() {
                           <p className="text-[10px] text-slate-400 font-mono truncate">
                             Discord ID: {selectedTx.source_order?.discord_user_id || "—"}
                           </p>
-                          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                          <div className="pt-1.5 border-t border-slate-800 flex items-center justify-between text-xs">
                             <span className="text-slate-400">Canal de Origem:</span>
                             <span className="text-slate-300 font-medium">Checkout / Bot Discord</span>
                           </div>
@@ -3013,8 +3025,8 @@ export default function AdminWalletPage() {
                       </div>
 
                       {/* Card Origem dos Recursos: Auditoria da Venda do Produto */}
-                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
                           <div>
                             <span className="text-slate-400 block text-[11px]">Produto Vendido que Gerou o Saldo:</span>
                             <span className="font-bold text-white text-base flex items-center gap-2 mt-0.5">
@@ -3080,12 +3092,12 @@ export default function AdminWalletPage() {
                       </div>
 
                       {/* Identificadores Técnicos da Transação */}
-                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-3">
+                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-2">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">
                           Identificadores Técnicos & Rastreabilidade Bancária
                         </span>
 
-                        <div className="space-y-2.5 text-xs">
+                        <div className="space-y-1.5 text-xs">
                           <div className="flex items-center justify-between p-2 rounded-lg bg-[#070b14] border border-slate-800/80">
                             <span className="text-slate-400">ID da Solicitação de Saque:</span>
                             <div className="flex items-center gap-2">
@@ -3171,10 +3183,10 @@ export default function AdminWalletPage() {
                     </div>
 
                     {/* Coluna da Direita (5 colunas) */}
-                    <div className="lg:col-span-5 space-y-4">
+                    <div className="lg:col-span-5 space-y-2.5">
                       {/* Card de Conferência Financeira do Saque */}
                       <div className={cn(
-                        "rounded-xl border p-5 space-y-3.5 shadow-lg",
+                        "rounded-xl border p-3.5 space-y-2.5 shadow-lg",
                         selectedTx.status === "completed"
                           ? "border-emerald-500/30 bg-emerald-950/20"
                           : "border-amber-500/30 bg-amber-950/20"
@@ -3221,7 +3233,7 @@ export default function AdminWalletPage() {
                       </div>
 
                       {/* Card Chave PIX Destino em Destaque */}
-                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-3">
+                      <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-slate-300">Chave PIX de Destino:</span>
                           <Badge className="bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] uppercase font-mono">
@@ -3255,7 +3267,7 @@ export default function AdminWalletPage() {
                       </div>
 
                       {/* Informações da Gateway MisticPay */}
-                      <div className="rounded-xl border border-purple-500/20 bg-purple-950/10 p-4 space-y-2">
+                      <div className="rounded-xl border border-purple-500/20 bg-purple-950/10 p-3 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] uppercase font-bold text-purple-300 tracking-wider flex items-center gap-1.5">
                             <Zap className="h-3.5 w-3.5 text-purple-400" />
@@ -3379,16 +3391,16 @@ export default function AdminWalletPage() {
                     </div>
                   </div>
                 ) : (
-                  /* ─── ABA 2: COMPROVANTE OFICIAL PIX (DESIGN BANCÁRIO AMPLO) ─── */
-                  <div className="max-w-4xl mx-auto space-y-5 py-2">
+                  /* ─── ABA 2: COMPROVANTE OFICIAL PIX (DESIGN BANCÁRIO COMPACTO) ─── */
+                  <div className="max-w-4xl mx-auto">
                     {/* Header Institucional do Comprovante com Logo */}
-                    <div className="rounded-2xl border border-slate-800 bg-[#0a0f1d] p-6 shadow-xl space-y-5">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                    <div className="rounded-2xl border border-slate-800 bg-[#0a0f1d] p-3.5 sm:p-4 shadow-xl space-y-2.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
                         <div className="flex items-center gap-3">
                           <img
                             src={drikaBannerLogo}
                             alt="Drika Hub"
-                            className="h-9 sm:h-11 w-auto object-contain"
+                            className="h-7 sm:h-8 w-auto object-contain"
                           />
                         </div>
                         <div className="text-left sm:text-right">
@@ -3402,10 +3414,10 @@ export default function AdminWalletPage() {
                       </div>
 
                       {/* Card de Liquidação com Destaque */}
-                      <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-5 space-y-3">
+                      <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-3 sm:p-3.5 space-y-1.5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold gap-1.5 py-1 px-3">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold gap-1.5 py-0.5 px-2.5">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                             Transferência PIX Concluída com Sucesso
                           </Badge>
                           <span className="text-xs text-emerald-400/90 font-mono font-semibold">
@@ -3415,15 +3427,17 @@ export default function AdminWalletPage() {
                           </span>
                         </div>
 
-                        <div>
-                          <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold block">
-                            Valor Líquido Transferido:
-                          </span>
-                          <p className="text-4xl font-black text-emerald-400 font-mono mt-1">
-                            {formatBRL(selectedTx.net_amount_cents && selectedTx.net_amount_cents > 0 ? selectedTx.net_amount_cents : selectedTx.amount_cents)}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1.5">
-                            Valor Solicitado: {formatBRL(selectedTx.amount_cents)} | Taxa Retida: {formatBRL(selectedTx.fee_cents || 0)}
+                        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+                          <div>
+                            <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block">
+                              Valor Líquido Transferido:
+                            </span>
+                            <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono leading-tight">
+                              {formatBRL(selectedTx.net_amount_cents && selectedTx.net_amount_cents > 0 ? selectedTx.net_amount_cents : selectedTx.amount_cents)}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            Solicitado: {formatBRL(selectedTx.amount_cents)} | Taxa: {formatBRL(selectedTx.fee_cents || 0)}
                           </p>
                         </div>
                       </div>
@@ -3435,9 +3449,9 @@ export default function AdminWalletPage() {
                           store_name: selectedTx.tenants?.name,
                         });
                         return (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                             {/* Favorecido */}
-                            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
+                            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                                   Dados do Favorecido (Destino)
@@ -3451,12 +3465,16 @@ export default function AdminWalletPage() {
                                   <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] py-0 px-2">
                                     Verificado SPI
                                   </Badge>
+                                ) : recipientSyncNote ? (
+                                  <span className="text-[10px] text-amber-300/90" title={recipientSyncNote}>
+                                    Titular indisponível na gateway
+                                  </span>
                                 ) : null}
                               </div>
-                              <p className="font-bold text-white text-base">
+                              <p className="font-bold text-white text-sm truncate" title={recipientDisplay.favorecidoName}>
                                 {recipientDisplay.favorecidoName}
                               </p>
-                              <div className="text-slate-300 space-y-1 pt-1">
+                              <div className="text-slate-300 space-y-1 pt-0.5">
                                 {recipientDisplay.formattedDocument && (
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="text-slate-400">CPF / CNPJ:</span>
@@ -3468,7 +3486,7 @@ export default function AdminWalletPage() {
                                 {recipientDisplay.bankLabel && (
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="text-slate-400">Instituição:</span>
-                                    <span className="text-slate-200 font-semibold text-right">
+                                    <span className="text-slate-200 font-semibold text-right truncate max-w-[240px]" title={recipientDisplay.bankLabel}>
                                       {recipientDisplay.bankLabel}
                                     </span>
                                   </div>
@@ -3481,7 +3499,7 @@ export default function AdminWalletPage() {
                                 )}
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-slate-400">Chave PIX:</span>
-                                  <span className="font-mono text-emerald-400 font-bold text-sm">
+                                  <span className="font-mono text-emerald-400 font-bold text-xs truncate max-w-[240px]" title={formatPixDisplay(selectedTx.pix_key, selectedTx.pix_key_type)}>
                                     {formatPixDisplay(selectedTx.pix_key, selectedTx.pix_key_type)}
                                   </span>
                                 </div>
@@ -3493,14 +3511,14 @@ export default function AdminWalletPage() {
                             </div>
 
                             {/* Origem */}
-                            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2">
+                            <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
                               <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
                                 Origem dos Recursos (Pagador)
                               </span>
-                              <p className="font-bold text-white text-base">
+                              <p className="font-bold text-white text-sm">
                                 Drika Hub Soluções Digitais
                               </p>
-                              <div className="text-slate-300 space-y-1 pt-1">
+                              <div className="text-slate-300 space-y-1 pt-0.5">
                                 <div className="flex items-center justify-between text-slate-400">
                                   <span>Conta / Origem:</span>
                                   <span className="text-slate-200 font-medium">Caixa Central Drika Hub</span>
@@ -3509,6 +3527,12 @@ export default function AdminWalletPage() {
                                   <span>Gateway Liquidante:</span>
                                   <span className="text-purple-400 font-semibold">MisticPay / SPI Banco Central</span>
                                 </div>
+                                <div className="flex items-center justify-between text-slate-400">
+                                  <span>Data da Solicitação:</span>
+                                  <span className="text-slate-300 font-mono">
+                                    {format(parseISO(selectedTx.created_at), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -3516,16 +3540,16 @@ export default function AdminWalletPage() {
                       })()}
 
                       {/* Identificadores e Auditoria */}
-                      <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-2.5">
+                      <div className="rounded-xl border border-slate-800 bg-[#070b14] p-3 space-y-1.5">
                         <span className="text-[10px] uppercase text-slate-400 font-bold tracking-wider block">
                           Identificadores Técnicos de Auditoria
                         </span>
 
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-[#0a0f1d] border border-slate-800/80">
-                            <span className="text-slate-400">ID da Transação no Sistema:</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-slate-200 text-xs font-semibold">{selectedTx.id}</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center justify-between p-1.5 px-2.5 rounded-lg bg-[#0a0f1d] border border-slate-800/80 gap-2">
+                            <span className="text-slate-400 shrink-0">ID Transação:</span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className="font-mono text-slate-200 text-[11px] font-semibold truncate" title={selectedTx.id}>{selectedTx.id}</span>
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -3533,7 +3557,7 @@ export default function AdminWalletPage() {
                                   navigator.clipboard.writeText(selectedTx.id);
                                   toast({ title: "ID copiado!", description: selectedTx.id });
                                 }}
-                                className="h-6 w-6 text-slate-400 hover:text-white"
+                                className="h-5 w-5 text-slate-400 hover:text-white shrink-0"
                                 title="Copiar ID"
                               >
                                 <Copy className="h-3 w-3" />
@@ -3541,11 +3565,11 @@ export default function AdminWalletPage() {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-[#0a0f1d] border border-slate-800/80">
-                            <span className="text-slate-400">ID do PIX / Gateway (MisticPay):</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-purple-300 text-xs font-bold">
-                                {selectedTx.payment_id || "Liquidado via Sistema Interno"}
+                          <div className="flex items-center justify-between p-1.5 px-2.5 rounded-lg bg-[#0a0f1d] border border-slate-800/80 gap-2">
+                            <span className="text-slate-400 shrink-0">ID Gateway (MisticPay):</span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span className="font-mono text-purple-300 text-[11px] font-bold truncate" title={selectedTx.payment_id || ""}>
+                                {selectedTx.payment_id || "Sistema Interno"}
                               </span>
                               {selectedTx.payment_id && (
                                 <Button
@@ -3555,7 +3579,7 @@ export default function AdminWalletPage() {
                                     navigator.clipboard.writeText(selectedTx.payment_id!);
                                     toast({ title: "ID do PIX copiado!", description: selectedTx.payment_id! });
                                   }}
-                                  className="h-6 w-6 text-slate-400 hover:text-white"
+                                  className="h-5 w-5 text-slate-400 hover:text-white shrink-0"
                                   title="Copiar ID PIX"
                                 >
                                   <Copy className="h-3 w-3" />
@@ -3565,10 +3589,10 @@ export default function AdminWalletPage() {
                           </div>
 
                           {selectedTx.end_to_end_id && (
-                            <div className="flex items-center justify-between p-2 rounded-lg bg-[#0a0f1d] border border-slate-800/80">
-                              <span className="text-slate-400">ID End-to-End (BACEN):</span>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-emerald-300 text-xs font-bold">
+                            <div className="md:col-span-2 flex items-center justify-between p-1.5 px-2.5 rounded-lg bg-[#0a0f1d] border border-slate-800/80 gap-2">
+                              <span className="text-slate-400 shrink-0">ID End-to-End (BACEN):</span>
+                              <div className="flex items-center gap-1 min-w-0">
+                                <span className="font-mono text-emerald-300 text-[11px] font-bold truncate">
                                   {selectedTx.end_to_end_id}
                                 </span>
                                 <Button
@@ -3578,7 +3602,7 @@ export default function AdminWalletPage() {
                                     navigator.clipboard.writeText(selectedTx.end_to_end_id!);
                                     toast({ title: "EndToEndId copiado!", description: selectedTx.end_to_end_id! });
                                   }}
-                                  className="h-6 w-6 text-slate-400 hover:text-white"
+                                  className="h-5 w-5 text-slate-400 hover:text-white shrink-0"
                                   title="Copiar EndToEndId"
                                 >
                                   <Copy className="h-3 w-3" />
@@ -3586,48 +3610,38 @@ export default function AdminWalletPage() {
                               </div>
                             </div>
                           )}
-
-                          <div className="flex items-center justify-between text-xs px-2 pt-1">
-                            <span className="text-slate-400">Data e Hora da Solicitação:</span>
-                            <span className="text-slate-300 font-mono">
-                              {format(parseISO(selectedTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
-                            </span>
-                          </div>
                         </div>
                       </div>
 
                       {/* Selo de Autenticação Digital */}
-                      <div className="rounded-xl border border-slate-800 bg-[#070b14] p-4 space-y-1.5 text-xs">
+                      <div className="rounded-xl border border-slate-800 bg-[#070b14] p-2.5 px-3 space-y-1 text-xs">
                         <div className="flex items-center justify-between text-slate-400 font-semibold text-[11px]">
                           <span>AUTENTICAÇÃO DIGITAL & AUDITORIA</span>
                           <span className="text-emerald-400 font-mono">CONFORME BACEN / SPI</span>
                         </div>
-                        <p className="font-mono text-[11px] text-slate-300 pt-1">
+                        <p className="font-mono text-[10px] text-slate-300 truncate">
                           Código: {selectedTx.id.replace(/-/g, "").toUpperCase()}#{(selectedTx.payment_id || "SYS-OK").replace(/-/g, "").slice(0, 16).toUpperCase()}
-                        </p>
-                        <p className="text-[10px] text-slate-500">
-                          Este documento possui eficácia probatória plena da liquidação da ordem de pagamento via PIX.
                         </p>
                       </div>
 
                       {/* Ações do Comprovante */}
-                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                      <div className="flex flex-col sm:flex-row gap-2.5 pt-0.5">
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => handleCopyReceiptText(selectedTx)}
-                          className="border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs gap-2 flex-1 h-10"
+                          className="border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 text-xs gap-2 flex-1 h-9"
                         >
-                          {copiedReceiptText ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                          {copiedReceiptText ? "Copiado para a Área de Transferência!" : "Copiar Texto do Comprovante"}
+                          {copiedReceiptText ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedReceiptText ? "Copiado!" : "Copiar Texto do Comprovante"}
                         </Button>
 
                         <Button
                           type="button"
                           onClick={() => handleDownloadReceiptPDF(selectedTx)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 flex-1 h-10 shadow-lg shadow-emerald-950/40"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 flex-1 h-9 shadow-lg shadow-emerald-950/40"
                         >
-                          <Download className="h-4 w-4" />
+                          <Download className="h-3.5 w-3.5" />
                           Baixar Comprovante Oficial em PDF
                         </Button>
                       </div>

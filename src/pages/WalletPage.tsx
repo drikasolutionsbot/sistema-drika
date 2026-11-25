@@ -1839,8 +1839,8 @@ export default function WalletPage() {
 
       {/* ─── 6. Modal: Informações da Transação & Comprovante Oficial PIX ─── */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-[95vw] lg:max-w-4xl w-full border-slate-800 bg-[#070b14] text-white max-h-[92vh] p-0 overflow-hidden flex flex-col shadow-2xl">
-          <DialogHeader className="p-5 border-b border-slate-800/80 bg-[#0a0f1d] shrink-0">
+        <DialogContent className="max-w-[95vw] lg:max-w-4xl w-full border-slate-800 bg-[#070b14] text-white max-h-[95vh] p-0 overflow-hidden flex flex-col shadow-2xl">
+          <DialogHeader className="p-3.5 sm:px-5 border-b border-slate-800/80 bg-[#0a0f1d] shrink-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
@@ -1934,51 +1934,50 @@ export default function WalletPage() {
             )}
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-4 space-y-3">
             {selectedDetailTx && detailModalTab === "receipt" && selectedDetailTx.type === "withdrawal" && selectedDetailTx.status === "completed" ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Voucher Card Container */}
-                <div className="rounded-2xl border border-slate-700 bg-white text-slate-900 p-6 md:p-8 shadow-xl space-y-6">
+                <div className="rounded-2xl border border-slate-700 bg-white text-slate-900 p-4 sm:p-5 shadow-xl space-y-3">
                   {/* Header with Drika Hub Logo */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-200 gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
                     <div className="flex items-center gap-3">
                       <img
                         src={drikaBannerLogo}
                         alt="Drika Hub"
-                        className="h-10 w-auto object-contain"
+                        className="h-8 w-auto object-contain"
                       />
                     </div>
                     <div className="text-left sm:text-right text-xs text-slate-500 space-y-0.5">
                       <p className="font-semibold text-slate-700">Comprovante de Transferência PIX</p>
-                      <p className="text-[11px]">Saque Aprovado & Liquidado</p>
-                      <p className="text-[10px] text-slate-400">
-                        Emitido em: {format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
+                      <p className="text-[11px]">
+                        Saque Aprovado • Emitido em {format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
                       </p>
                     </div>
                   </div>
 
-                  {/* Sucesso Banner */}
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center gap-3 text-emerald-900">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="font-bold text-sm">TRANSFERÊNCIA PIX CONCLUÍDA COM SUCESSO</p>
-                      <p className="text-xs text-emerald-700 mt-0.5">
-                        Efetivado em:{" "}
-                        {selectedDetailTx.completed_at
-                          ? format(new Date(selectedDetailTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })
-                          : format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                  {/* Sucesso Banner & Valor Líquido Card */}
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-emerald-900">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="font-bold text-xs">TRANSFERÊNCIA PIX CONCLUÍDA COM SUCESSO</p>
+                        <p className="text-[11px] text-emerald-700">
+                          Efetivado em:{" "}
+                          {selectedDetailTx.completed_at
+                            ? format(new Date(selectedDetailTx.completed_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })
+                            : format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="sm:text-right">
+                      <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">
+                        Valor Líquido Transferido
+                      </span>
+                      <p className="text-2xl font-black text-slate-900 font-mono leading-tight">
+                        {formatBRL(selectedDetailTx.net_amount_cents || selectedDetailTx.amount_cents)}
                       </p>
                     </div>
-                  </div>
-
-                  {/* Valor Líquido Card */}
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-5">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
-                      Valor Líquido Transferido via PIX
-                    </span>
-                    <p className="text-3xl sm:text-4xl font-black text-slate-900 mt-1 font-sans">
-                      {formatBRL(selectedDetailTx.net_amount_cents || selectedDetailTx.amount_cents)}
-                    </p>
                   </div>
 
                   {/* Detalhes da Transferência */}
@@ -1989,7 +1988,7 @@ export default function WalletPage() {
                     });
                     return (
                       <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
-                        <div className="bg-slate-100 px-4 py-2.5 font-bold text-slate-800 border-b border-slate-200 uppercase tracking-wider text-[11px] flex items-center justify-between gap-2">
+                        <div className="bg-slate-100 px-3.5 py-2 font-bold text-slate-800 border-b border-slate-200 uppercase tracking-wider text-[11px] flex items-center justify-between gap-2">
                           <span>Dados da Transferência PIX</span>
                           {syncingRecipientId === selectedDetailTx.id && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-medium normal-case text-purple-600">
@@ -1999,65 +1998,61 @@ export default function WalletPage() {
                           )}
                         </div>
                         <div className="divide-y divide-slate-100">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                             <span className="font-semibold text-slate-600">Favorecido / Destinatário:</span>
                             <span className="font-bold text-slate-900">{recDisplay.favorecidoName}</span>
                           </div>
                           {recDisplay.formattedDocument && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                               <span className="font-semibold text-slate-600">CPF / CNPJ do Favorecido:</span>
                               <span className="font-mono font-semibold text-slate-800">{recDisplay.formattedDocument}</span>
                             </div>
                           )}
                           {recDisplay.bankLabel && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                               <span className="font-semibold text-slate-600">Instituição de Destino:</span>
                               <span className="font-semibold text-slate-800">{recDisplay.bankLabel}</span>
                             </div>
                           )}
                           {recDisplay.storeSubName && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                               <span className="font-semibold text-slate-600">Loja / Conta na Plataforma:</span>
                               <span className="font-semibold text-slate-800">{recDisplay.storeSubName}</span>
                             </div>
                           )}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                             <span className="font-semibold text-slate-600">Chave PIX de Destino:</span>
                             <span className="font-mono font-bold text-slate-900">
                               {formatPixKeyDisplay(selectedDetailTx.pix_key, selectedDetailTx.pix_key_type)}
                             </span>
                           </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                             <span className="font-semibold text-slate-600">Tipo de Chave:</span>
                             <span className="uppercase font-semibold text-slate-800">
                               {selectedDetailTx.pix_key_type || "CPF"}
                             </span>
                           </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                            <span className="font-semibold text-slate-600">Origem dos Recursos:</span>
-                            <span className="font-semibold text-slate-800">Drika Hub (Caixa Central)</span>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
+                            <span className="font-semibold text-slate-600">Origem / Gateway:</span>
+                            <span className="font-semibold text-slate-800">Drika Hub (Caixa Central) • MisticPay</span>
                           </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
-                            <span className="font-semibold text-slate-600">Gateway Processador:</span>
-                            <span className="font-semibold text-slate-800">MisticPay / PIX Automático</span>
-                          </div>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                             <span className="font-semibold text-slate-600">ID da Transação:</span>
                             <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.id}</span>
                           </div>
                           {selectedDetailTx.payment_id && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                               <span className="font-semibold text-slate-600">ID Liquidação PIX (Gateway):</span>
                               <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.payment_id}</span>
                             </div>
                           )}
                           {selectedDetailTx.end_to_end_id && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                               <span className="font-semibold text-slate-600">ID End-to-End (BACEN):</span>
                               <span className="font-mono text-slate-700 text-[11px]">{selectedDetailTx.end_to_end_id}</span>
                             </div>
                           )}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-3.5 py-2 gap-1">
                             <span className="font-semibold text-slate-600">Data e Hora da Solicitação:</span>
                             <span className="text-slate-800">
                               {format(new Date(selectedDetailTx.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
@@ -2069,7 +2064,7 @@ export default function WalletPage() {
                   })()}
 
                   {/* Rodapé de autenticação */}
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-center space-y-1">
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 text-center space-y-0.5">
                     <p className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">
                       Autenticação Digital: {selectedDetailTx.id.replace(/-/g, "").toUpperCase()}
                     </p>
@@ -2080,38 +2075,38 @@ export default function WalletPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-3">
                 {/* 3 Metric Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3 space-y-0.5">
                     <span className="text-[11px] text-slate-400 font-medium">Valor Bruto</span>
-                    <p className="text-xl font-bold text-white">
+                    <p className="text-lg font-bold text-white">
                       {formatBRL(selectedDetailTx?.amount_cents || 0)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-1">
+                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3 space-y-0.5">
                     <span className="text-[11px] text-slate-400 font-medium">Taxas Retidas (Split)</span>
-                    <p className="text-xl font-bold text-amber-400">
+                    <p className="text-lg font-bold text-amber-400">
                       {selectedDetailTx?.fee_cents ? `-${formatBRL(selectedDetailTx.fee_cents)}` : "R$ 0,00"}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-4 space-y-1">
+                  <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3 space-y-0.5">
                     <span className="text-[11px] text-slate-400 font-medium">
                       {selectedDetailTx?.type === "withdrawal" ? "Líquido Transferido" : "Líquido Creditado"}
                     </span>
-                    <p className="text-xl font-black text-emerald-400">
+                    <p className="text-lg font-black text-emerald-400">
                       {formatBRL(selectedDetailTx?.net_amount_cents || selectedDetailTx?.amount_cents || 0)}
                     </p>
                   </div>
                 </div>
 
                 {/* Audit Details Grid */}
-                <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-5 space-y-4">
+                <div className="rounded-xl border border-slate-800 bg-[#0a0f1d] p-3.5 space-y-2.5">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Identificadores Técnicos & Rastreabilidade
                   </h4>
 
-                  <div className="space-y-3 text-xs">
+                  <div className="space-y-2 text-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg bg-[#070b14] border border-slate-800/80 gap-2">
                       <span className="text-slate-400">ID da Transação:</span>
                       <div className="flex items-center gap-2">
