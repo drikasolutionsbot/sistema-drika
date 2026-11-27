@@ -176,11 +176,30 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
       .eq("channel_key", "restock_channel")
       .maybeSingle();
 
-    const { data: storeConfig } = await supabase
-      .from("store_configs")
-      .select("restock_channel_id, restock_embed_color, restock_embed_title, restock_embed_description, restock_embed_footer, restock_embed_image_url, restock_embed_thumbnail_url, restock_mention_role_id, store_url, embed_color")
-      .eq("tenant_id", tenant_id)
-      .single();
+    const [{ data: storeConfig }, { data: tenantRow }, { data: fbChannelConfig }] = await Promise.all([
+      supabase
+        .from("store_configs")
+        .select("restock_channel_id, restock_embed_color, restock_embed_title, restock_embed_description, restock_embed_footer, restock_embed_image_url, restock_embed_thumbnail_url, restock_mention_role_id, store_url, embed_color, feedback_channel_id")
+        .eq("tenant_id", tenant_id)
+        .single(),
+      supabase
+        .from("tenants")
+        .select("discord_guild_id")
+        .eq("id", tenant_id)
+        .maybeSingle(),
+      supabase
+        .from("channel_configs")
+        .select("discord_channel_id")
+        .eq("tenant_id", tenant_id)
+        .eq("channel_key", "logs_feedback")
+        .maybeSingle(),
+    ]);
+    if (storeConfig && tenantRow?.discord_guild_id) {
+      storeConfig.discord_guild_id = tenantRow.discord_guild_id;
+    }
+    if (storeConfig && !storeConfig.feedback_channel_id && fbChannelConfig?.discord_channel_id) {
+      storeConfig.feedback_channel_id = fbChannelConfig.discord_channel_id;
+    }
 
     const restockChannelId = channelConfig?.discord_channel_id || storeConfig?.restock_channel_id;
     if (!restockChannelId) {
@@ -208,18 +227,34 @@ async function sendRestockAnnouncement(client, entry, batchKey, restockBatch) {
     const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
     const embedColor = parseInt(rawColor.replace("#", ""), 16) || 0x9333ea;
 
+    const { ensureWhiteButtonEmojis } = require("./buttonEmojis");
+    const { cartEmoji, trophyEmoji } = await ensureWhiteButtonEmojis(process.env.DISCORD_BOT_TOKEN);
+
+    const rowButtons = [
+      {
+        type: 2,
+        style: 2, // Secondary dark button
+        label: "Comprar",
+        custom_id: `buy_product:${product_id}`,
+        emoji: cartEmoji,
+      }
+    ];
+
+    const feedbackChannelId = storeConfig?.feedback_channel_id || null;
+    if (feedbackChannelId && storeConfig?.discord_guild_id) {
+      rowButtons.push({
+        type: 2,
+        style: 5,
+        label: "Feedbacks",
+        url: `https://discord.com/channels/${storeConfig.discord_guild_id}/${feedbackChannelId}`,
+        emoji: trophyEmoji,
+      });
+    }
+
     const components = [
       {
         type: 1,
-        components: [
-          {
-            type: 2,
-            style: 2, // Secondary/Gray button
-            label: "Comprar Agora",
-            custom_id: `buy_product:${product_id}`,
-            emoji: { name: "🛒" }
-          }
-        ]
+        components: rowButtons,
       }
     ];
 

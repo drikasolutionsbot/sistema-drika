@@ -286,6 +286,34 @@ client.on(Events.ClientReady, async () => {
   };
   setTimeout(retryPendingWithdrawals, 25_000);
   setInterval(retryPendingWithdrawals, 5 * 60 * 1000);
+
+  // ── Limpeza automática de chat agendada (a cada 1 min) ──
+  const runDueChannelClears = async () => {
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL?.replace(/^"|"$/g, "").trim() || "https://iwotvdfxppjwasywrbmw.supabase.co";
+      const srk = process.env.SUPABASE_SERVICE_ROLE_KEY?.replace(/^"|"$/g, "").trim();
+      if (!srk) return;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/manage-channel-clean`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${srk}`,
+        },
+        body: JSON.stringify({ action: "run_due" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if ((data?.cleaned || 0) > 0) {
+          console.log(`[AUTO-CLEAN] Limpou ${data.cleaned} canal(is):`, JSON.stringify(data.results));
+        }
+      }
+    } catch (e) {
+      console.error("[AUTO-CLEAN] Erro na limpeza automática:", e.message);
+    }
+  };
+  setTimeout(runDueChannelClears, 20_000);
+  setInterval(runDueChannelClears, 60 * 1000);
 });
 // â”€â”€ SincronizaÃ§Ã£o automÃ¡tica do Dono do Discord por Guild â”€â”€
 async function syncGuildOwners() {
@@ -489,6 +517,12 @@ client.on(Events.GuildMemberAdd, async (member) => {
 
 client.on(Events.MessageCreate, async (message) => {
   try {
+    if (!message.author?.bot && message.guild && /^[!.](?:clear|limpar)(?:\s+\d+)?$/i.test((message.content || "").trim())) {
+      const tenant = await resolveTenant(message.guild.id).catch(() => null);
+      const { handleMessageClear } = require("./handlers/moderation");
+      await handleMessageClear(message, tenant);
+      return;
+    }
     await protectionHandler.onMessage(client, message);
   } catch (err) {
     console.error("Erro na proteção (message):", err);

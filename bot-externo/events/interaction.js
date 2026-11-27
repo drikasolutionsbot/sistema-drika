@@ -1,5 +1,6 @@
 const checkoutHandler = require("../handlers/checkout");
 const ticketsHandler = require("../handlers/tickets");
+const moderationHandler = require("../handlers/moderation");
 
 module.exports = async function handleInteraction(client, interaction) {
   const guildId = interaction.guildId;
@@ -34,6 +35,14 @@ module.exports = async function handleInteraction(client, interaction) {
     return;
   }
 
+  // ── Slash Commands ──
+  if (interaction.isChatInputCommand()) {
+    const cmd = String(interaction.commandName || "").toLowerCase();
+    if (cmd === "clear" || cmd === "limpar") return moderationHandler.handleClear(interaction, tenant);
+    if (cmd === "ban") return moderationHandler.handleBan(interaction, tenant);
+    if (cmd === "kick") return moderationHandler.handleKick(interaction, tenant);
+  }
+
   // ── Modal Submits ──
   if (interaction.isModalSubmit()) {
     const customId = interaction.customId;
@@ -45,6 +54,9 @@ module.exports = async function handleInteraction(client, interaction) {
   // ── Buttons ──
   if (interaction.isButton()) {
     const customId = interaction.customId;
+    if (customId === "manual_channel_clean") {
+      return moderationHandler.handleClear(interaction, tenant);
+    }
     // Checkout buttons
     if (customId.startsWith("notify_restock:")) {
       const parts = customId.split(":");

@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang, optionalLang, getTenantLang, type Lang } from "../_shared/i18n.ts";
+import {
+  isGuildAdministrator,
+  cleanDiscordChannelMessages,
+  buildChannelCleanSummaryPayload,
+} from "../_shared/discord-channel-clean.ts";
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -498,65 +503,54 @@ serve(async (req: Request) => {
     const getOption = (name: string) => options.find((o: any) => o.name === name)?.value;
 
     try {
-      // â”€â”€â”€ /clear - Limpa TODAS as mensagens do canal â”€â”€â”€â”€â”€â”€
-      if (commandName === "clear") {
-        const memberPerms = BigInt(interaction.member?.permissions || "0");
-        if (!(memberPerms & BigInt(0x2000)) && !(memberPerms & BigInt(0x8))) {
-          return respondImmediate(interaction, "âŒ VocÃª nÃ£o tem permissÃ£o para limpar mensagens.");
+      // ─── /clear & /limpar - Limpa mensagens do canal (somente Admins) ──────
+      if (commandName === "clear" || commandName === "limpar") {
+        const { data: clearTenant } = await supabase
+          .from("tenants")
+          .select("id, owner_discord_id")
+          .eq("discord_guild_id", guildId)
+          .maybeSingle();
+
+        const isAdmin = isGuildAdministrator({
+          memberPermissions: interaction.member?.permissions,
+          userId,
+          ownerIds: [clearTenant?.owner_discord_id],
+        });
+
+        if (!isAdmin) {
+          return respondImmediate(interaction, "❌ Apenas **Administradores** do servidor podem usar este comando de limpeza.");
         }
 
         await respondDeferred(interaction, botToken);
 
-        const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-        let totalDeleted = 0;
-        let hasMore = true;
+        const rawQty = getOption("quantidade") ?? getOption("amount") ?? getOption("qtd");
+        const parsedQty = rawQty !== undefined && rawQty !== null ? Number(rawQty) : null;
+        const limit = parsedQty && !Number.isNaN(parsedQty) && parsedQty > 0 ? Math.min(1000, Math.floor(parsedQty)) : null;
+        const rawKeepPinned = getOption("manter_fixadas");
+        const keepPinned = rawKeepPinned === undefined || rawKeepPinned === null ? true : Boolean(rawKeepPinned);
 
-        while (hasMore) {
-          const msgsRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=100`, {
-            headers: { Authorization: `Bot ${botToken}` },
-          });
+        const cleanRes = await cleanDiscordChannelMessages(botToken, channelId, {
+          limit,
+          keepPinned,
+        });
 
-          if (!msgsRes.ok) break;
-
-          const msgs = await msgsRes.json();
-          if (!Array.isArray(msgs) || msgs.length === 0) { hasMore = false; break; }
-
-          const deletable = msgs.filter((m: any) => new Date(m.timestamp).getTime() > twoWeeksAgo);
-          const old = msgs.filter((m: any) => new Date(m.timestamp).getTime() <= twoWeeksAgo);
-
-          if (deletable.length >= 2) {
-            await fetch(`${DISCORD_API}/channels/${channelId}/messages/bulk-delete`, {
-              method: "POST",
-              headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ messages: deletable.map((m: any) => m.id) }),
-            });
-            totalDeleted += deletable.length;
-          } else if (deletable.length === 1) {
-            await fetch(`${DISCORD_API}/channels/${channelId}/messages/${deletable[0].id}`, {
-              method: "DELETE",
-              headers: { Authorization: `Bot ${botToken}` },
-            });
-            totalDeleted += 1;
-          }
-
-          // Delete old messages one by one
-          for (const m of old) {
-            try {
-              await fetch(`${DISCORD_API}/channels/${channelId}/messages/${m.id}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bot ${botToken}` },
-              });
-              totalDeleted++;
-            } catch { /* skip */ }
-          }
-
-          if (msgs.length < 100) hasMore = false;
-
-          // Small delay to avoid rate limits
-          await new Promise(r => setTimeout(r, 1000));
+        if (cleanRes.failed) {
+          await editFollowup(interaction, botToken, "❌ Não consegui limpar o canal. Verifique se o bot tem permissão de **Gerenciar Mensagens**.");
+          return ok();
         }
 
-        await editFollowup(interaction, botToken, `âœ… Canal limpo! ${totalDeleted} mensagem(ns) deletada(s).`);
+        const summaryPayload = buildChannelCleanSummaryPayload({
+          deletedCount: cleanRes.deletedCount,
+          executorUserId: userId,
+        });
+
+        await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify(summaryPayload),
+        }).catch((e) => console.warn("[clear] Failed to post summary message:", e));
+
+        await editFollowup(interaction, botToken, `✅ Canal limpo! ${cleanRes.deletedCount} mensagem(ns) excluída(s).`);
         return ok();
       }
 
@@ -930,6 +924,53 @@ serve(async (req: Request) => {
     };
 
     try {
+      // ─── MANUAL CHANNEL CLEAN BUTTON (Somente Admins) ──────
+      if (customId === "manual_channel_clean") {
+        const channelId = interaction.channel_id;
+        const guildId = interaction.guild_id;
+
+        const { data: cleanTenant } = await supabase
+          .from("tenants")
+          .select("id, owner_discord_id")
+          .eq("discord_guild_id", guildId)
+          .maybeSingle();
+
+        const isAdmin = isGuildAdministrator({
+          memberPermissions: interaction.member?.permissions,
+          userId,
+          ownerIds: [cleanTenant?.owner_discord_id],
+        });
+
+        if (!isAdmin) {
+          return respondImmediate(interaction, "❌ Apenas **Administradores** do servidor podem usar a Limpeza Manual.");
+        }
+
+        await respondDeferred(interaction, botToken);
+
+        const cleanRes = await cleanDiscordChannelMessages(botToken, channelId, {
+          keepPinned: true,
+        });
+
+        if (cleanRes.failed) {
+          await editFollowup(interaction, botToken, "❌ Não consegui limpar o canal. Verifique se o bot tem permissão de **Gerenciar Mensagens**.");
+          return ok();
+        }
+
+        const summaryPayload = buildChannelCleanSummaryPayload({
+          deletedCount: cleanRes.deletedCount,
+          executorUserId: userId,
+        });
+
+        await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify(summaryPayload),
+        }).catch((e) => console.warn("[manual_channel_clean] Failed to post summary:", e));
+
+        await editFollowup(interaction, botToken, `✅ Limpeza manual concluída! ${cleanRes.deletedCount} mensagem(ns) excluída(s).`);
+        return ok();
+      }
+
       // â”€â”€â”€ TICKET CATEGORY SELECT (tipo de atendimento) â”€â”€â”€
       if (customId.startsWith("ticket_category_select:")) {
         const customParts = customId.split(":");

@@ -44,6 +44,7 @@ serve(async (req) => {
           name: product?.name || "Novo Produto", 
           tenant_id, 
           price_cents: product?.price_cents || 0,
+          button_style: product?.button_style || "secondary",
           payment_provider_key: defaultProvider
         })
         .select()

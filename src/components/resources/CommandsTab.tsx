@@ -378,10 +378,15 @@ export const CommandsTab = () => {
                           <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <code className="text-sm font-semibold text-foreground">{cmd.name}</code>
-                              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", categoryColors[cmd.category])}>
-                                {cmd.category}
-                              </Badge>
+                               <code className="text-sm font-semibold text-foreground">{cmd.name}</code>
+                               <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", categoryColors[cmd.category])}>
+                                 {cmd.category}
+                               </Badge>
+                               {(cmd.name === "/clear" || cmd.name === "/limpar" || cmd.name === "/painel") && (
+                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                   Somente Admins
+                                 </Badge>
+                               )}
                               {cmd.options && cmd.options.length > 0 && (
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-muted text-muted-foreground border-border">
                                   {cmd.options.length} param{cmd.options.length > 1 ? "s" : ""}

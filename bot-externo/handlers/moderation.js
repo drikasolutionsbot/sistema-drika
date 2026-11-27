@@ -1,15 +1,98 @@
-const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 const { applyDrikaCover } = require("../drikaTemplate");
 
-// ── /clear ──
+function isGuildAdminMember(member, guild, tenant) {
+  if (!member) return false;
+  const userId = member.id || member.user?.id;
+  if (guild?.ownerId && userId === guild.ownerId) return true;
+  if (tenant?.owner_discord_id && userId === tenant.owner_discord_id) return true;
+  return Boolean(member.permissions?.has(PermissionFlagsBits.Administrator));
+}
+
+async function cleanChannelMessages(channel, { limit = null, keepPinned = true, excludeIds = [] } = {}) {
+  const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const excludeSet = new Set((excludeIds || []).map(String));
+  const targetLimit = typeof limit === "number" && limit > 0 ? Math.min(limit, 1000) : null;
+
+  let totalDeleted = 0;
+  let before;
+
+  for (let i = 0; i < 25; i++) {
+    if (targetLimit !== null && totalDeleted >= targetLimit) break;
+
+    const remaining = targetLimit !== null ? targetLimit - totalDeleted : 100;
+    const fetchLimit = Math.min(100, targetLimit !== null ? Math.max(remaining + excludeSet.size, 10) : 100);
+    const msgs = await channel.messages.fetch({ limit: fetchLimit, ...(before ? { before } : {}) });
+    if (msgs.size === 0) break;
+
+    before = msgs.last().id;
+
+    const eligible = [];
+    for (const [, m] of msgs) {
+      if (excludeSet.has(m.id)) continue;
+      if (keepPinned && m.pinned) continue;
+      if (!m.deletable) continue;
+      eligible.push(m);
+      if (targetLimit !== null && totalDeleted + eligible.length >= targetLimit) break;
+    }
+
+    const recent = eligible.filter((m) => m.createdTimestamp > twoWeeksAgo);
+    const old = eligible.filter((m) => m.createdTimestamp <= twoWeeksAgo);
+
+    if (recent.length >= 2) {
+      try {
+        const deleted = await channel.bulkDelete(recent, true);
+        totalDeleted += deleted.size;
+      } catch {
+        for (const m of recent) {
+          try { await m.delete(); totalDeleted += 1; } catch {}
+        }
+      }
+    } else if (recent.length === 1) {
+      try { await recent[0].delete(); totalDeleted += 1; } catch {}
+    }
+
+    for (const m of old) {
+      try { await m.delete(); totalDeleted += 1; } catch {}
+    }
+
+    if (msgs.size < fetchLimit) break;
+    await new Promise((r) => setTimeout(r, 350));
+  }
+
+  return totalDeleted;
+}
+
+function buildCleanSummaryMessage(deletedCount, userId) {
+  const ts = Math.floor(Date.now() / 1000);
+  const countText = deletedCount === 1 ? "1 mensagem excluída" : `${deletedCount} mensagens excluídas`;
+  const actorText = userId ? `pelo <@${userId}>` : "automaticamente";
+  const embed = new EmbedBuilder()
+    .setDescription(`O canal teve **${countText}** ${actorText} <t:${ts}:f>`)
+    .setColor(0x2b2d31);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("manual_channel_clean")
+      .setLabel("Limpeza Manual")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  return {
+    embeds: [embed],
+    components: [row],
+    allowedMentions: { parse: [] },
+  };
+}
+
+// ── /clear & /limpar & Limpeza Manual (Somente Administradores) ──
 async function handleClear(interaction, tenant) {
   try {
-    const hasPermission =
-      interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages) ||
-      interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
-
-    if (!hasPermission) {
-      return interaction.reply({ content: "❌ Você não tem permissão para limpar mensagens.", ephemeral: true });
+    if (!isGuildAdminMember(interaction.member, interaction.guild, tenant)) {
+      return interaction.reply({
+        content: "❌ Apenas **Administradores** do servidor podem usar a limpeza de chat.",
+        ephemeral: true,
+      });
     }
 
     await interaction.reply({ content: "⏳ Limpando mensagens...", ephemeral: true });
@@ -25,42 +108,17 @@ async function handleClear(interaction, tenant) {
       return interaction.editReply({ content: "❌ Não tenho permissão de **Gerenciar Mensagens** neste canal." });
     }
 
-    let totalDeleted = 0;
-    let before;
-    const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const rawQty = interaction.isChatInputCommand?.() ? interaction.options.getInteger("quantidade") : null;
+    const rawKeepPinned = interaction.isChatInputCommand?.() ? interaction.options.getBoolean("manter_fixadas") : null;
+    const keepPinned = rawKeepPinned === null || rawKeepPinned === undefined ? true : rawKeepPinned;
 
-    for (let i = 0; i < 100; i++) {
-      const msgs = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
-      if (msgs.size === 0) break;
+    const totalDeleted = await cleanChannelMessages(channel, {
+      limit: rawQty && rawQty > 0 ? rawQty : null,
+      keepPinned,
+    });
 
-      before = msgs.last().id;
-
-      const deletable = msgs.filter((m) => m.deletable);
-      const recent = deletable.filter((m) => m.createdTimestamp > twoWeeksAgo);
-      const old = deletable.filter((m) => m.createdTimestamp <= twoWeeksAgo);
-
-      if (recent.size >= 2) {
-        const deleted = await channel.bulkDelete(recent, true);
-        totalDeleted += deleted.size;
-      } else if (recent.size === 1) {
-        try {
-          await recent.first().delete();
-          totalDeleted += 1;
-        } catch {}
-      }
-
-      for (const [, m] of old) {
-        try {
-          await m.delete();
-          totalDeleted += 1;
-        } catch {}
-      }
-
-      if (msgs.size < 100) break;
-      await new Promise((r) => setTimeout(r, 350));
-    }
-
-    await interaction.editReply({ content: `✅ Limpeza concluída. ${totalDeleted} mensagem(ns) removida(s), incluindo mensagens com embed.` });
+    await channel.send(buildCleanSummaryMessage(totalDeleted, interaction.user?.id)).catch(() => {});
+    await interaction.editReply({ content: `✅ Limpeza concluída. ${totalDeleted} mensagem(ns) excluída(s).` });
   } catch (err) {
     console.error("[handleClear] Error:", err.message);
     if (interaction.deferred || interaction.replied) {
@@ -69,6 +127,36 @@ async function handleClear(interaction, tenant) {
       await interaction.reply({ content: "❌ Erro ao limpar o canal.", ephemeral: true }).catch(() => {});
     }
   }
+}
+
+// ── Prefix command: !clear / !limpar / .clear / .limpar ──
+async function handleMessageClear(message, tenant) {
+  if (!message?.guild || !message?.channel?.isTextBased()) return;
+
+  if (!isGuildAdminMember(message.member, message.guild, tenant)) {
+    const warn = await message.reply("❌ Apenas **Administradores** do servidor podem usar a limpeza de chat.").catch(() => null);
+    if (warn) setTimeout(() => warn.delete().catch(() => {}), 4000);
+    return;
+  }
+
+  const botMember = message.guild.members?.me;
+  if (!message.channel.permissionsFor(botMember)?.has(PermissionFlagsBits.ManageMessages)) {
+    const warn = await message.reply("❌ Não tenho permissão de **Gerenciar Mensagens** neste canal.").catch(() => null);
+    if (warn) setTimeout(() => warn.delete().catch(() => {}), 5000);
+    return;
+  }
+
+  const match = message.content.trim().match(/^[!.](?:clear|limpar)(?:\s+(\d+))?$/i);
+  const qty = match?.[1] ? parseInt(match[1], 10) : null;
+
+  await message.delete().catch(() => {});
+  const totalDeleted = await cleanChannelMessages(message.channel, {
+    limit: qty && qty > 0 ? qty : null,
+    keepPinned: true,
+    excludeIds: [message.id],
+  });
+
+  await message.channel.send(buildCleanSummaryMessage(totalDeleted, message.author?.id)).catch(() => {});
 }
 
 // ── /ban ──
@@ -119,4 +207,4 @@ async function handleKick(interaction, tenant) {
   }
 }
 
-module.exports = { handleClear, handleBan, handleKick };
+module.exports = { handleClear, handleMessageClear, handleBan, handleKick };

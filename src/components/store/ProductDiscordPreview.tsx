@@ -292,51 +292,80 @@ export const ProductDiscordPreview = ({ product, storeName, fields = [], embedCo
         )}
 
         {/* Button row */}
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-wrap gap-2 mt-2">
           {(() => {
-            const style = product.button_style || "success";
+            const style = product.button_style || "secondary";
             const isGlass = style === "glass";
             const isLink = style === "link";
+            const isSecondary = style === "secondary";
             const styleConfig = getDiscordButtonStyles(style);
 
             const buttonClasses = isGlass
               ? "bg-white/10 backdrop-blur-sm border border-white/20 text-white"
               : isLink
                 ? "bg-transparent text-[#00AFF4] underline"
-                : "";
+                : isSecondary
+                  ? "bg-[#2b2d31] hover:bg-[#35373c] border border-white/10 text-white rounded-md"
+                  : "rounded";
 
-            const buttonStyle = !isGlass && !isLink ? {
+            const buttonStyle = !isGlass && !isLink && !isSecondary ? {
               backgroundColor: styleConfig.bgColor,
               color: styleConfig.textColor,
             } : undefined;
 
+            const rawLabel = embedConfig?.buy_button_label?.trim() || "";
+            const normalizedLabel = rawLabel.toLowerCase();
+            const isDefaultBuy =
+              !normalizedLabel ||
+              DEFAULT_DISCORD_TEXTS.has(normalizedLabel) ||
+              normalizedLabel === "<:car:1521242918290194493> comprar";
+            const cleanBuyText = isDefaultBuy ? L.buy.replace(/^🛒\s*/, "") : rawLabel;
+            const parsed = isDefaultBuy ? null : parseEmojiFromLabel(cleanBuyText);
+
             return (
               <>
                 <button
-                  className={`text-xs font-medium px-3 py-1.5 rounded flex items-center gap-1 cursor-default ${buttonClasses}`}
+                  className={`text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 cursor-default ${buttonClasses}`}
                   style={buttonStyle}
                 >
-                  {(() => {
-                    const label = embedConfig?.buy_button_label?.trim();
-                    const text = localizedOrCustom(label, L.buy);
-                    const parsed = parseEmojiFromLabel(text);
-                    return (
-                      <span className="flex items-center gap-1.5">
-                        {parsed.emoji && (
-                          parsed.isCustom && parsed.customId ? (
-                            <img
-                              src={`https://cdn.discordapp.com/emojis/${parsed.customId}.${parsed.animated ? "gif" : "png"}`}
-                              alt="emoji"
-                              className="h-4 w-4 object-contain shrink-0"
-                            />
-                          ) : (
-                            <span className="text-sm leading-none mr-0.5">{parsed.emoji}</span>
-                          )
-                        )}
-                        <span>{parsed.cleanLabel}</span>
-                      </span>
-                    );
-                  })()}
+                  {isDefaultBuy ? (
+                    <span className="flex items-center gap-1.5">
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white shrink-0" aria-hidden="true">
+                        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zM7.16 14.26l.03-.01L18.55 13c.72 0 1.35-.41 1.66-1.05l2.7-5.44A1 1 0 0 0 22 5H5.21l-.94-2H1v2h2l3.6 7.59-1.35 2.44C4.52 16.37 5.48 18 7 18h12v-2H7.42c-.14 0-.25-.11-.26-.25z" />
+                      </svg>
+                      <span>{cleanBuyText}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      {parsed?.emoji && (
+                        parsed.isCustom && parsed.customId ? (
+                          <img
+                            src={`https://cdn.discordapp.com/emojis/${parsed.customId}.${parsed.animated ? "gif" : "png"}`}
+                            alt="emoji"
+                            className="h-4 w-4 object-contain shrink-0"
+                          />
+                        ) : (
+                          <span className="text-sm leading-none mr-0.5">{parsed.emoji}</span>
+                        )
+                      )}
+                      <span>{parsed?.cleanLabel}</span>
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  className="text-xs font-medium px-3 py-1.5 rounded-md flex items-center gap-1.5 cursor-default bg-[#2b2d31] border border-white/10 text-white"
+                  title="Exibido automaticamente se o canal de Feedbacks estiver configurado na loja"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white shrink-0" aria-hidden="true">
+                    <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" />
+                  </svg>
+                  <span>Feedbacks</span>
+                  <svg viewBox="0 0 24 24" className="h-3 w-3 stroke-white/80 fill-none shrink-0" strokeWidth="2" aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
                 </button>
               </>
             );

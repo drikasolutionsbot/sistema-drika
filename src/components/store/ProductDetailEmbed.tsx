@@ -119,7 +119,7 @@ export const ProductDetailEmbed = ({ product, onChange, storeEmbedColor }: Produ
           embed_data: {
             type: "product_embed",
             embed_config: config,
-            button_style: product.button_style || "success",
+            button_style: product.button_style || "secondary",
             general: {
               name: product.name,
               description: product.description,
@@ -218,7 +218,7 @@ export const ProductDetailEmbed = ({ product, onChange, storeEmbedColor }: Produ
         {/* Estilo do Botão */}
         <section className="space-y-3">
           <DiscordButtonStylePicker
-            value={product.button_style || "success"}
+            value={product.button_style || "secondary"}
             onChange={(style) => onChange({ button_style: style })}
             label="Estilo do Botão de Compra"
           />

@@ -7,6 +7,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
   "pt-BR": {
     buy: "Comprar",
     buy_emoji: "🛒 Comprar",
+    feedbacks_button: "Feedbacks",
     cancel: "Cancelar",
     payment: "Pagamento",
     edit_quantity: "Editar Quantidade",
@@ -248,6 +249,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
   en: {
     buy: "Buy",
     buy_emoji: "🛒 Buy",
+    feedbacks_button: "Feedbacks",
     cancel: "Cancel",
     payment: "Payment",
     edit_quantity: "Edit Quantity",
@@ -489,6 +491,7 @@ export const I18N: Record<Lang, Record<string, string>> = {
   de: {
     buy: "Kaufen",
     buy_emoji: "🛒 Kaufen",
+    feedbacks_button: "Feedbacks",
     cancel: "Abbrechen",
     payment: "Zahlung",
     edit_quantity: "Menge ändern",

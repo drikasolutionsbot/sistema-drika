@@ -1,6 +1,7 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { initWasm, Resvg } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
+import { ensureWhiteButtonEmojis } from "../_shared/discord-emojis.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -197,13 +198,14 @@ serve(async (req) => {
     const rawColor = storeConfig?.restock_embed_color || storeConfig?.embed_color || "#9333ea";
 
     // 7. BotÃ£o Comprar Agora
+    const { cartEmoji } = await ensureWhiteButtonEmojis(botToken);
     const components: unknown[] = [];
     const storeUrl = storeConfig?.store_url;
     if (storeUrl) {
       const productUrl = storeUrl.includes("?") ? `${storeUrl}&product=${product_id}` : `${storeUrl}?product=${product_id}`;
       components.push({
         type: 1,
-        components: [{ type: 2, style: 5, label: "Comprar Agora", url: productUrl, emoji: { name: "ðŸ›’" } }],
+        components: [{ type: 2, style: 5, label: "Comprar", url: productUrl, emoji: cartEmoji }],
       });
     }
 

@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Hash, Shield, Users, Volume2, Plus, Loader2, RefreshCw, Megaphone, Mic,
   MessageSquare, Save, Settings2, ShoppingBag, UserCheck, Gavel, Tag,
-  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle, LayoutTemplate, PackagePlus
+  Layers, Lock, LifeBuoy, ChevronDown, ChevronRight, X, HelpCircle, LayoutTemplate, PackagePlus, Eraser
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ChannelPermissionsTab from "@/components/channels/ChannelPermissionsTab";
 import ChannelEmbedsTab from "@/components/channels/ChannelEmbedsTab";
 import RestockConfigTab from "@/components/channels/RestockConfigTab";
+import ChannelAutoCleanTab from "@/components/channels/ChannelAutoCleanTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -518,6 +519,9 @@ const ChannelsPage = () => {
           <TabsTrigger value="restock" className="gap-1.5 text-xs sm:text-sm">
             <PackagePlus className="h-3.5 w-3.5" /> Restock
           </TabsTrigger>
+          <TabsTrigger value="autoclean" className="gap-1.5 text-xs sm:text-sm">
+            <Eraser className="h-3.5 w-3.5" /> Limpeza de Chat
+          </TabsTrigger>
         </TabsList>
 
         {/* ========= TAB: Mapeamento ========= */}
@@ -695,6 +699,15 @@ const ChannelsPage = () => {
         {/* ========= TAB: Restock ========= */}
         <TabsContent value="restock" className="mt-4">
           <RestockConfigTab
+            discordChannels={discordChannels}
+            discordCategories={discordCategories}
+            loadingChannels={loadingChannels}
+          />
+        </TabsContent>
+
+        {/* ========= TAB: Limpeza de Chat ========= */}
+        <TabsContent value="autoclean" className="mt-4">
+          <ChannelAutoCleanTab
             discordChannels={discordChannels}
             discordCategories={discordCategories}
             loadingChannels={loadingChannels}

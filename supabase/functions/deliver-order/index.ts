@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, trf, normLang } from "../_shared/i18n.ts";
 import { formatCdnUrl } from "../_shared/utils.ts";
+import {
+  ensureWhiteButtonEmojis,
+  resolveFeedbackChannelId,
+  buildFeedbackLinkButton,
+} from "../_shared/discord-emojis.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -872,12 +877,27 @@ serve(async (req) => {
           }
         }
 
-        const buttons = [];
+        const { cartEmoji, trophyEmoji } = await ensureWhiteButtonEmojis(botToken);
+        const feedbackChannelId = await resolveFeedbackChannelId(supabase, tenant_id, storeConfig);
+
+        const buttons: any[] = [];
         if (productBuyUrl) {
-          buttons.push({ type: 2, style: 5, label: "ðŸ›’ Comprar", url: productBuyUrl });
+          buttons.push({
+            type: 2,
+            style: 5,
+            label: tr(lang, "buy") || "Comprar",
+            emoji: cartEmoji,
+            url: productBuyUrl,
+          });
         }
-        if (storeConfig?.feedback_channel_id && guildId) {
-          buttons.push({ type: 2, style: 5, label: "â­ Feedbacks", url: `https://discord.com/channels/${guildId}/${storeConfig.feedback_channel_id}` });
+        const fbButton = buildFeedbackLinkButton({
+          guildId,
+          feedbackChannelId,
+          label: tr(lang, "feedbacks_button") || "Feedbacks",
+          trophyEmoji,
+        });
+        if (fbButton) {
+          buttons.push(fbButton);
         }
 
         const buyButtonComponents = buttons.length > 0 ? [{ type: 1, components: buttons }] : [];

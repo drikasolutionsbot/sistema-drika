@@ -25,9 +25,26 @@ const DEFAULT_COMMANDS = [
     { name: "usuario", description: "Usuário para expulsar", type: 6, required: true },
     { name: "motivo", description: "Motivo da expulsão", type: 3, required: false },
   ] },
-  { name: "/clear", description: "Limpa mensagens do canal", category: "Moderação", enabled: true, options: [
-    { name: "quantidade", description: "Quantidade de mensagens (1-100)", type: 4, required: false },
-  ] },
+  {
+    name: "/clear",
+    description: "Limpa mensagens do canal (somente Admins)",
+    category: "Moderação",
+    enabled: true,
+    options: [
+      { name: "quantidade", description: "Quantidade de mensagens (1-100, deixe vazio para limpar tudo)", type: 4, required: false },
+      { name: "manter_fixadas", description: "Manter mensagens fixadas (padrão: sim)", type: 5, required: false },
+    ],
+  },
+  {
+    name: "/limpar",
+    description: "Limpa mensagens do canal (somente Admins)",
+    category: "Moderação",
+    enabled: true,
+    options: [
+      { name: "quantidade", description: "Quantidade de mensagens (1-100, deixe vazio para limpar tudo)", type: 4, required: false },
+      { name: "manter_fixadas", description: "Manter mensagens fixadas (padrão: sim)", type: 5, required: false },
+    ],
+  },
   { name: "/afiliado", description: "Gera um link de afiliado", category: "Loja", enabled: false, options: [] },
 ];
 
@@ -64,7 +81,7 @@ Deno.serve(async (req) => {
             category: cmd.category,
             enabled: cmd.enabled,
             is_default: true,
-            options: [],
+            options: cmd.options || [],
           }));
 
           const { data: seeded, error: seedErr } = await supabase
@@ -78,7 +95,34 @@ Deno.serve(async (req) => {
           });
         }
 
-        return new Response(JSON.stringify(data), {
+        // Auto-sync essential moderation defaults (/clear, /limpar) if missing
+        const existingNames = new Set((data || []).map((c: any) => String(c.name || "").toLowerCase()));
+        const missingDefaults = DEFAULT_COMMANDS.filter(
+          (cmd) => (cmd.name === "/clear" || cmd.name === "/limpar") && !existingNames.has(cmd.name.toLowerCase())
+        );
+
+        let resultList = data;
+        if (missingDefaults.length > 0) {
+          const { data: inserted } = await supabase
+            .from("bot_commands")
+            .insert(
+              missingDefaults.map((cmd) => ({
+                tenant_id,
+                name: cmd.name,
+                description: cmd.description,
+                category: cmd.category,
+                enabled: cmd.enabled,
+                is_default: true,
+                options: cmd.options || [],
+              }))
+            )
+            .select();
+          if (inserted && inserted.length > 0) {
+            resultList = [...data, ...inserted];
+          }
+        }
+
+        return new Response(JSON.stringify(resultList), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

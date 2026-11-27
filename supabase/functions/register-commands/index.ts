@@ -35,8 +35,12 @@ interface SlashCommand {
   name: string;
   description: string;
   type: number;
+  default_member_permissions?: string;
+  dm_permission?: boolean;
   options?: CommandOption[];
 }
+
+const ADMIN_ONLY_COMMANDS = new Set(["clear", "limpar", "painel"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -61,12 +65,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const slashCommands: SlashCommand[] = commands.map((cmd: { name: string; description: string; options?: CommandOption[] }) => {
+    const slashCommands: SlashCommand[] = commands.map((cmd: { name: string; description: string; default_member_permissions?: string | null; options?: CommandOption[] }) => {
+      const cleanName = cmd.name.replace(/^\//, "").toLowerCase();
       const built: SlashCommand = {
-        name: cmd.name.replace(/^\//, "").toLowerCase(),
+        name: cleanName,
         description: cmd.description.substring(0, 100),
         type: 1,
       };
+
+      if (cmd.default_member_permissions) {
+        built.default_member_permissions = String(cmd.default_member_permissions);
+        built.dm_permission = false;
+      } else if (ADMIN_ONLY_COMMANDS.has(cleanName)) {
+        built.default_member_permissions = "8";
+        built.dm_permission = false;
+      }
 
       if (cmd.options && cmd.options.length > 0) {
         built.options = cmd.options.map((opt) => {

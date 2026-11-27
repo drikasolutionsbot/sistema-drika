@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, normLang, type Lang } from "../_shared/i18n.ts";
+import {
+  ensureWhiteButtonEmojis,
+  resolveFeedbackChannelId,
+  buildFeedbackLinkButton,
+} from "../_shared/discord-emojis.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -316,32 +321,57 @@ async function buildProductPayload(
   }
   if (product.icon_url) embed.thumbnail = { url: product.icon_url };
 
-  // Button
+  // Button (dark gray secondary style + crisp white application emojis matching store design)
   const styleMap: Record<string, number> = {
     primary: 1, secondary: 2, success: 3, danger: 4, link: 2, glass: 2,
   };
-  const discordBuyStyle = styleMap[product.button_style || "success"] || 3;
+  const discordBuyStyle = styleMap[product.button_style || "secondary"] || 2;
   const rawBuyLabel = embedConfig.buy_button_label || "";
-  const normalizedBuyLabel = rawBuyLabel.trim();
-  const defaultBuyEmoji = tr(lang, "buy_emoji");
+  const normalizedBuyLabel = rawBuyLabel.trim().toLowerCase();
+  const isDefaultBuyButton =
+    !normalizedBuyLabel ||
+    normalizedBuyLabel === "comprar" ||
+    normalizedBuyLabel === "🛒 comprar" ||
+    normalizedBuyLabel === "<:car:1521242918290194493> comprar" ||
+    normalizedBuyLabel === "buy" ||
+    normalizedBuyLabel === "🛒 buy" ||
+    normalizedBuyLabel === "kaufen" ||
+    normalizedBuyLabel === "🛒 kaufen";
+
+  const { cartEmoji, trophyEmoji } = await ensureWhiteButtonEmojis(botToken);
   const defaultBuyText = tr(lang, "buy");
-  const finalBuyLabel = !normalizedBuyLabel || normalizedBuyLabel.toLowerCase() === "comprar" || normalizedBuyLabel.toLowerCase() === "buy" || normalizedBuyLabel.toLowerCase() === "kaufen" ? defaultBuyEmoji : rawBuyLabel;
-  const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(finalBuyLabel);
 
   const buyButton: any = {
     type: 2,
     style: discordBuyStyle,
-    label: btnLabel || defaultBuyText,
+    label: defaultBuyText,
     custom_id: `buy_product:${product_id}`,
   };
 
-  if (btnEmoji) {
-    if (isCustom && customId) {
-      buyButton.emoji = { id: customId, name: customName, animated };
+  if (isDefaultBuyButton) {
+    buyButton.emoji = cartEmoji;
+  } else {
+    const { emoji: btnEmoji, cleanLabel: btnLabel, isCustom, customId, customName, animated } = parseEmojiFromLabel(rawBuyLabel);
+    buyButton.label = btnLabel || defaultBuyText;
+    if (btnEmoji) {
+      if (isCustom && customId) {
+        buyButton.emoji = { id: customId, name: customName, animated };
+      } else {
+        buyButton.emoji = { name: btnEmoji };
+      }
     } else {
-      buyButton.emoji = { name: btnEmoji };
+      buyButton.emoji = cartEmoji;
     }
   }
+
+  const guildId = tenant?.discord_guild_id || null;
+  const feedbackChannelId = await resolveFeedbackChannelId(supabase, tenant_id, storeConfig);
+  const feedbackButton = buildFeedbackLinkButton({
+    guildId,
+    feedbackChannelId,
+    label: tr(lang, "feedbacks_button") || "Feedbacks",
+    trophyEmoji,
+  });
 
   // Fields (variations) check
   const { data: fields } = await supabase
@@ -427,8 +457,12 @@ async function buildProductPayload(
         }
       ];
     }
+    if (feedbackButton) {
+      finalComponents.push({ type: 1, components: [feedbackButton] });
+    }
   } else {
-    finalComponents = [{ type: 1, components: [buyButton] }];
+    const rowComponents = feedbackButton ? [buyButton, feedbackButton] : [buyButton];
+    finalComponents = [{ type: 1, components: rowComponents }];
   }
 
   const payload: Record<string, any> = {
@@ -449,14 +483,14 @@ async function syncProductMessages(
   // Fetch tenant
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("bot_name, bot_avatar_url, banner_url, name, language")
+    .select("bot_name, bot_avatar_url, banner_url, name, language, discord_guild_id")
     .eq("id", tenant_id)
     .single();
 
   // Fetch store config
   const { data: storeConfig } = await supabase
     .from("store_configs")
-    .select("embed_color")
+    .select("embed_color, feedback_channel_id")
     .eq("tenant_id", tenant_id)
     .single();
 
@@ -581,7 +615,7 @@ serve(async (req) => {
     // Fetch tenant customization
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("bot_name, bot_avatar_url, banner_url, name, language, plan, bot_banner_url")
+      .select("bot_name, bot_avatar_url, banner_url, name, language, plan, bot_banner_url, discord_guild_id")
       .eq("id", tenant_id)
       .single();
 
@@ -626,7 +660,7 @@ serve(async (req) => {
     if (product_id) {
       const { data: storeConfig } = await supabase
         .from("store_configs")
-        .select("embed_color")
+        .select("embed_color, feedback_channel_id")
         .eq("tenant_id", tenant_id)
         .single();
 
