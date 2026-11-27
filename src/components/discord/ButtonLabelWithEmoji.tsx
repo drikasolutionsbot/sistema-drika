@@ -320,7 +320,7 @@ const ButtonLabelWithEmoji = ({
                           type="button"
                           onClick={() => handleCustomEmojiSelect(emoji)}
                           className={`relative h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors ${emoji.blocked ? "opacity-70" : ""}`}
-                          title={`:${emoji.name}: ${emoji.blocked ? "(bloqueado)" : ""}`}
+                          title={`:${emoji.name}: ${emoji.animated ? "(Nitro / Animado) " : ""}${emoji.blocked ? "(bloqueado)" : ""}`.trim()}
                         >
                           <img
                             src={emoji.url}

@@ -164,6 +164,100 @@ export async function resolveFeedbackChannelId(
   return data?.discord_channel_id ? String(data.discord_channel_id).trim() : null;
 }
 
+export interface DiscordServerEmoji {
+  id: string;
+  name: string;
+  animated: boolean;
+  available: boolean;
+  role_ids: string[];
+  blocked: boolean;
+  url: string;
+  formatted: string;
+  format: string;
+}
+
+function mapRawDiscordEmoji(e: any): DiscordServerEmoji {
+  const isAnimated = Boolean(e?.animated);
+  const roleIds = Array.isArray(e?.roles) ? e.roles : [];
+  const available = e?.available ?? true;
+  const blocked = !available || roleIds.length > 0;
+  const id = String(e?.id || "");
+  const name = String(e?.name || "emoji");
+  const formatted = `<${isAnimated ? "a" : ""}:${name}:${id}>`;
+
+  return {
+    id,
+    name,
+    animated: isAnimated,
+    available,
+    role_ids: roleIds,
+    blocked,
+    url: `https://cdn.discordapp.com/emojis/${id}.${isAnimated ? "gif" : "png"}`,
+    formatted,
+    format: formatted,
+  };
+}
+
+/**
+ * Fetches both the connected Discord server's custom/Nitro emojis and the bot application's
+ * global custom/Nitro emojis, deduplicated by emoji ID.
+ */
+export async function fetchServerAndAppEmojis(
+  botToken: string,
+  guildId: string
+): Promise<DiscordServerEmoji[]> {
+  const appId = await resolveAppId(botToken);
+  const [guildRes, appRes] = await Promise.all([
+    fetch(`${DISCORD_API}/guilds/${guildId}/emojis`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    }),
+    appId
+      ? fetch(`${DISCORD_API}/applications/${appId}/emojis`, {
+          headers: { Authorization: `Bot ${botToken}` },
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  if (!guildRes.ok && (!appRes || !appRes.ok)) {
+    const text = await guildRes.text();
+    throw new Error(`Discord API error [${guildRes.status}]: ${text}`);
+  }
+
+  const seen = new Set<string>();
+  const combined: DiscordServerEmoji[] = [];
+
+  if (guildRes.ok) {
+    const guildEmojis = await guildRes.json();
+    if (Array.isArray(guildEmojis)) {
+      for (const raw of guildEmojis) {
+        const mapped = mapRawDiscordEmoji(raw);
+        if (mapped.id && !seen.has(mapped.id)) {
+          seen.add(mapped.id);
+          combined.push(mapped);
+        }
+      }
+    }
+  }
+
+  if (appRes && appRes.ok) {
+    const appPayload = await appRes.json().catch(() => ({}));
+    const appItems: any[] = Array.isArray(appPayload?.items)
+      ? appPayload.items
+      : Array.isArray(appPayload)
+        ? appPayload
+        : [];
+    for (const raw of appItems) {
+      const mapped = mapRawDiscordEmoji(raw);
+      if (mapped.id && !seen.has(mapped.id)) {
+        seen.add(mapped.id);
+        combined.push(mapped);
+      }
+    }
+  }
+
+  return combined;
+}
+
 export function buildFeedbackLinkButton(opts: {
   guildId?: string | null;
   feedbackChannelId?: string | null;

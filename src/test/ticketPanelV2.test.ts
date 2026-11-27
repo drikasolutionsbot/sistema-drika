@@ -13,6 +13,7 @@ import {
   resolveHowItWorksHeading,
   resolveTicketPromptLine,
   resolveTicketSelectPlaceholder,
+  tokenizeDiscordInlineEmojis,
 } from "@/lib/ticketPanel";
 
 describe("ticketPanel Components V2 payload", () => {
@@ -163,12 +164,12 @@ describe("ticketPanel Components V2 payload", () => {
     expect(withoutHeading).toContain("Somente o corpo");
   });
 
-  it("wraps description paragraphs into a single continuous quote bar and stops before the prompt", () => {
+  it("wraps description paragraphs into a continuous Discord >>> quote block isolated from later sections", () => {
     const formatted = formatDescriptionWithQuoteBar(
       "⭐ Linha 1\n\n🛒 Linha 2\n\n🎧 Linha 3",
       true
     );
-    expect(formatted).toBe("> ⭐ Linha 1\n>\n> 🛒 Linha 2\n>\n> 🎧 Linha 3");
+    expect(formatted).toBe(">>> ⭐ Linha 1\n\n🛒 Linha 2\n\n🎧 Linha 3");
 
     const blocks = groupTicketPreviewBlocks(parseTicketPreviewLines(formatted));
     expect(blocks).toHaveLength(1);
@@ -178,15 +179,23 @@ describe("ticketPanel Components V2 payload", () => {
       expect(blocks[0].lines[1].kind).toBe("quote_spacer");
     }
 
-    const panelText = formatTicketPanelText({
-      title: "CENTRAL ATENDIMENTO | FLOW STORE",
-      description: "⭐ Linha 1\n\n🛒 Linha 2",
+    const payload = buildTicketPanelPayload({
+      tenantId: "t1",
+      channelId: "c1",
+      title: "Atendimento",
+      description: "> Linha 1\n\n> ✅teste",
       quoteBar: true,
-      hasCategories: true,
+      howItWorksTitle: "Como funciona?",
+      howItWorks: "Selecione uma opção",
+      categories: [{ id: "cat-1", name: "Suporte" }],
     });
-    expect(panelText).toBe(
-      "### CENTRAL ATENDIMENTO | FLOW STORE\n\n> ⭐ Linha 1\n>\n> 🛒 Linha 2\n\nClique nas opções abaixo para continuar:"
-    );
+
+    const container = payload.components[0] as any;
+    expect(container.components[0].type).toBe(10);
+    expect(container.components[0].content).toBe("### Atendimento\n\n>>> Linha 1\n\n✅teste");
+    expect(container.components[1].type).toBe(10);
+    expect(container.components[1].content).toContain("**Como funciona?**\nSelecione uma opção");
+    expect(container.components[1].content).not.toContain(">>>");
   });
 
   it("supports custom emoji and text for the category selector placeholder with safe fallback", () => {
@@ -203,5 +212,30 @@ describe("ticketPanel Components V2 payload", () => {
     const container = payload.components[0] as any;
     const actionRow = container.components[container.components.length - 1];
     expect(actionRow.components[0].placeholder).toBe("📩 Selecione o setor desejado");
+  });
+
+  it("tokenizes custom static and animated Nitro Discord emojis for inline preview rendering", () => {
+    const tokens = tokenizeDiscordInlineEmojis(
+      "Bem-vindo <:check:111222> e <a:nitro_star:999888>!"
+    );
+    expect(tokens).toEqual([
+      { kind: "text", value: "Bem-vindo " },
+      {
+        kind: "emoji",
+        id: "111222",
+        name: "check",
+        animated: false,
+        url: "https://cdn.discordapp.com/emojis/111222.png",
+      },
+      { kind: "text", value: " e " },
+      {
+        kind: "emoji",
+        id: "999888",
+        name: "nitro_star",
+        animated: true,
+        url: "https://cdn.discordapp.com/emojis/999888.gif",
+      },
+      { kind: "text", value: "!" },
+    ]);
   });
 });

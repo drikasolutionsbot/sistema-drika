@@ -31,6 +31,7 @@ import {
   resolveHowItWorksHeading,
   resolveTicketPromptLine,
   resolveTicketSelectPlaceholder,
+  tokenizeDiscordInlineEmojis,
   type PreviewLine,
 } from "@/lib/ticketPanel";
 
@@ -70,6 +71,22 @@ const defaults: TicketEmbedData = {
   ticket_staff_role_id: "",
 };
 
+function renderDiscordInlineText(text: string, keyPrefix: string) {
+  return tokenizeDiscordInlineEmojis(text).map((seg, idx) =>
+    seg.kind === "emoji" ? (
+      <img
+        key={`${keyPrefix}-em-${idx}`}
+        src={seg.url}
+        alt={`:${seg.name}:`}
+        title={`:${seg.name}:`}
+        className="inline-block h-4 w-4 align-text-bottom object-contain mx-0.5"
+      />
+    ) : (
+      <span key={`${keyPrefix}-tx-${idx}`}>{seg.value}</span>
+    )
+  );
+}
+
 function renderPreviewLines(lines: PreviewLine[], keyPrefix: string) {
   return groupTicketPreviewBlocks(lines).map((block, blockIdx) => {
     if (block.kind === "quote_group") {
@@ -86,7 +103,7 @@ function renderPreviewLines(lines: PreviewLine[], keyPrefix: string) {
                 key={`${keyPrefix}-ql-${blockIdx}-${lineIdx}`}
                 className="text-[#dbdee1] text-[13px] leading-relaxed break-words"
               >
-                {line.text}
+                {renderDiscordInlineText(line.text, `${keyPrefix}-ql-${blockIdx}-${lineIdx}`)}
               </p>
             )
           )}
@@ -102,7 +119,7 @@ function renderPreviewLines(lines: PreviewLine[], keyPrefix: string) {
         key={`${keyPrefix}-tx-${blockIdx}`}
         className="text-[#dbdee1] text-[13px] leading-relaxed break-words"
       >
-        {block.line.text}
+        {renderDiscordInlineText(block.line.text, `${keyPrefix}-tx-${blockIdx}`)}
       </p>
     );
   });
@@ -498,9 +515,14 @@ const TicketEmbedConfig = () => {
                 value={data.ticket_embed_select_placeholder}
                 onChange={(val) => update("ticket_embed_select_placeholder", val)}
                 placeholder={TICKET_SELECT_PLACEHOLDER}
-                allowCustomEmojis={false}
               />
-              <p className="text-[11px] text-muted-foreground">Texto e emoji Unicode exibidos na caixa de seleção dentro do modal.</p>
+              {parseEmojiFromLabel(data.ticket_embed_select_placeholder).isCustom ? (
+                <p className="text-[11px] text-amber-400/90">
+                  Aviso: o placeholder de menus seletores no Discord só renderiza emojis Unicode padrão — emojis personalizados/Nitro (&lt;:id&gt;) funcionam normalmente nos textos, botões e opções das categorias.
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">Texto e emoji exibidos na caixa de seleção dentro do modal.</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Texto do Botão <span className="text-xs text-muted-foreground font-normal">(quando sem categorias)</span></Label>
@@ -728,7 +750,9 @@ const TicketEmbedConfig = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 space-y-2 min-w-0">
                     {cleanPreviewTitle && (
-                      <p className="font-bold text-white text-[15px] leading-snug tracking-tight">{cleanPreviewTitle}</p>
+                      <p className="font-bold text-white text-[15px] leading-snug tracking-tight">
+                        {renderDiscordInlineText(cleanPreviewTitle, "title")}
+                      </p>
                     )}
 
                     {data.ticket_embed_description && (
@@ -740,7 +764,9 @@ const TicketEmbedConfig = () => {
                     {data.ticket_embed_how_it_works && (
                       <div className="pt-1.5 space-y-1">
                         {howItWorksHeading && (
-                          <p className="text-white text-[13px] font-semibold">{howItWorksHeading}</p>
+                          <p className="text-white text-[13px] font-semibold">
+                            {renderDiscordInlineText(howItWorksHeading, "how-title")}
+                          </p>
                         )}
                         {renderPreviewLines(howItWorksLines, "how")}
                       </div>
@@ -751,7 +777,9 @@ const TicketEmbedConfig = () => {
                     )}
 
                     {data.ticket_embed_footer && (
-                      <p className="text-[#949ba4] text-[11px] pt-0.5">{data.ticket_embed_footer}</p>
+                      <p className="text-[#949ba4] text-[11px] pt-0.5">
+                        {renderDiscordInlineText(data.ticket_embed_footer, "footer")}
+                      </p>
                     )}
                   </div>
 
@@ -771,7 +799,12 @@ const TicketEmbedConfig = () => {
                 {/* Interactive ActionRow inside Container */}
                 {hasCategories ? (
                   <div className="w-full flex items-center justify-between bg-[#0e0f12] border border-[#2a2d34] hover:border-[#3f434d] rounded-md px-3 py-2.5 text-[#dbdee1] text-[13px] cursor-default">
-                    <span className="truncate">{resolveTicketSelectPlaceholder(data.ticket_embed_select_placeholder)}</span>
+                    <span className="truncate">
+                      {renderDiscordInlineText(
+                        resolveTicketSelectPlaceholder(data.ticket_embed_select_placeholder),
+                        "sel"
+                      )}
+                    </span>
                     <ChevronDown className="h-4 w-4 text-[#b5bac1] shrink-0 ml-2" />
                   </div>
                 ) : (
@@ -779,7 +812,15 @@ const TicketEmbedConfig = () => {
                     <div
                       className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-medium cursor-default ${getDiscordButtonStyles(data.ticket_embed_button_style)}`}
                     >
-                      <span>{parsedButton.emoji && !parsedButton.isCustom ? parsedButton.emoji : "📩"}</span>
+                      {parsedButton.isCustom && parsedButton.customId ? (
+                        <img
+                          src={`https://cdn.discordapp.com/emojis/${parsedButton.customId}.${parsedButton.animated ? "gif" : "png"}`}
+                          alt={parsedButton.customName || "emoji"}
+                          className="h-4 w-4 object-contain"
+                        />
+                      ) : (
+                        <span>{parsedButton.emoji || "📩"}</span>
+                      )}
                       <span>{parsedButton.cleanLabel || "Abrir Ticket"}</span>
                     </div>
                   </div>

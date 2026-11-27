@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchServerAndAppEmojis } from "../_shared/discord-emojis.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,27 +38,7 @@ serve(async (req) => {
     if (!botToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN).");
     if (!guildId) throw new Error("Nenhum servidor Discord conectado a este painel.");
 
-    const discordRes = await fetch(
-      `https://discord.com/api/v10/guilds/${guildId}/emojis`,
-      {
-        headers: { Authorization: `Bot ${botToken}` },
-      }
-    );
-
-    if (!discordRes.ok) {
-      const text = await discordRes.text();
-      throw new Error(`Discord API error [${discordRes.status}]: ${text}`);
-    }
-
-    const discordEmojis = await discordRes.json();
-    
-    // Formata os emojis para ficarem na mesma estrutura que o Discord usa na string: <:nome:id> ou <a:nome:id>
-    const emojis = discordEmojis.map((e: any) => ({
-      id: e.id,
-      name: e.name,
-      animated: e.animated,
-      format: `<${e.animated ? "a" : ""}:${e.name}:${e.id}>`
-    }));
+    const emojis = await fetchServerAndAppEmojis(botToken, guildId);
 
     return new Response(JSON.stringify({ emojis, debug_guild_id: guildId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

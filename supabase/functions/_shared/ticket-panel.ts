@@ -140,7 +140,7 @@ export function resolveHowItWorksHeading(howItWorksTitle?: string | null): strin
 }
 
 /**
- * Formats description lines with a continuous Discord blockquote bar (`>`) across paragraphs.
+ * Formats description lines with a continuous Discord multiline blockquote (`>>>`) across paragraphs.
  */
 export function formatDescriptionWithQuoteBar(
   description?: string | null,
@@ -151,19 +151,83 @@ export function formatDescriptionWithQuoteBar(
     return trimmed;
   }
 
-  return trimmed
+  const stripped = trimmed
     .split(/\r?\n/)
-    .map((rawLine) => {
-      const clean = rawLine.trim();
-      if (!clean) return ">";
-      if (clean.startsWith(">")) return clean;
-      return `> ${rawLine}`;
-    })
-    .join("\n");
+    .map((rawLine) => rawLine.replace(/^\s*>{1,3}\s?/, ""))
+    .join("\n")
+    .trim();
+
+  return stripped ? `>>> ${stripped}` : "";
 }
 
 /**
- * Formats the markdown string placed inside the Ticket Container TextDisplay block.
+ * Formats the primary (title + description) and secondary (extra field + prompt + footer)
+ * sections so multiline `>>>` quotes never spill into later text blocks.
+ */
+export function formatTicketPanelSections(params: {
+  title?: string | null;
+  description?: string | null;
+  quoteBar?: boolean | null;
+  howItWorksTitle?: string | null;
+  howItWorks?: string | null;
+  footer?: string | null;
+  hasCategories: boolean;
+  defaultTitle?: string;
+  defaultDescription?: string;
+}): { primaryText: string; secondaryText: string; hasMultilineQuote: boolean } {
+  const primaryParts: string[] = [];
+  const rawTitle = (params.title || params.defaultTitle || "Atendimento").trim();
+  if (rawTitle) {
+    const alreadyHeading = /^#{1,3}\s/.test(rawTitle) || /^\*\*.*\*\*$/.test(rawTitle);
+    primaryParts.push(alreadyHeading ? rawTitle : `### ${rawTitle}`);
+  }
+
+  const rawDesc = (params.description || params.defaultDescription || "").trim();
+  const formattedDesc = formatDescriptionWithQuoteBar(rawDesc, params.quoteBar);
+  if (formattedDesc) {
+    primaryParts.push(formattedDesc);
+  }
+
+  const secondaryParts: string[] = [];
+  const rawHowItWorks = (params.howItWorks || "").trim();
+  if (rawHowItWorks) {
+    const heading = resolveHowItWorksHeading(params.howItWorksTitle);
+    secondaryParts.push(heading ? `**${heading}**\n${rawHowItWorks}` : rawHowItWorks);
+  }
+
+  const combinedBody = [rawDesc, rawHowItWorks].filter(Boolean).join("\n");
+  const promptLine = resolveTicketPromptLine(combinedBody, params.hasCategories);
+  if (promptLine) {
+    secondaryParts.push(promptLine);
+  }
+
+  const rawFooter = (params.footer || "").trim();
+  if (rawFooter) {
+    secondaryParts.push(`-# ${rawFooter}`);
+  }
+
+  let primaryText = primaryParts.join("\n\n");
+  let secondaryText = secondaryParts.join("\n\n");
+
+  const maxTotal = 3900;
+  if (primaryText.length + secondaryText.length > maxTotal) {
+    const combined = [primaryText, secondaryText].filter(Boolean).join("\n\n").slice(0, maxTotal - 3) + "...";
+    return {
+      primaryText: combined,
+      secondaryText: "",
+      hasMultilineQuote: /(?:^|\n)>>>\s/.test(formattedDesc),
+    };
+  }
+
+  return {
+    primaryText,
+    secondaryText,
+    hasMultilineQuote: /(?:^|\n)>>>\s/.test(formattedDesc),
+  };
+}
+
+/**
+ * Formats the combined markdown string placed inside the Ticket Container TextDisplay block.
  */
 export function formatTicketPanelText(params: {
   title?: string | null;
@@ -176,37 +240,8 @@ export function formatTicketPanelText(params: {
   defaultTitle?: string;
   defaultDescription?: string;
 }): string {
-  const parts: string[] = [];
-  const rawTitle = (params.title || params.defaultTitle || "Atendimento").trim();
-  if (rawTitle) {
-    const alreadyHeading = /^#{1,3}\s/.test(rawTitle) || /^\*\*.*\*\*$/.test(rawTitle);
-    parts.push(alreadyHeading ? rawTitle : `### ${rawTitle}`);
-  }
-
-  const rawDesc = (params.description || params.defaultDescription || "").trim();
-  const formattedDesc = formatDescriptionWithQuoteBar(rawDesc, params.quoteBar);
-  if (formattedDesc) {
-    parts.push(formattedDesc);
-  }
-
-  const rawHowItWorks = (params.howItWorks || "").trim();
-  if (rawHowItWorks) {
-    const heading = resolveHowItWorksHeading(params.howItWorksTitle);
-    parts.push(heading ? `**${heading}**\n${rawHowItWorks}` : rawHowItWorks);
-  }
-
-  const combinedBody = [rawDesc, rawHowItWorks].filter(Boolean).join("\n");
-  const promptLine = resolveTicketPromptLine(combinedBody, params.hasCategories);
-  if (promptLine) {
-    parts.push(promptLine);
-  }
-
-  const rawFooter = (params.footer || "").trim();
-  if (rawFooter) {
-    parts.push(`-# ${rawFooter}`);
-  }
-
-  const text = parts.join("\n\n");
+  const { primaryText, secondaryText } = formatTicketPanelSections(params);
+  const text = [primaryText, secondaryText].filter(Boolean).join("\n\n");
   return text.length > 3900 ? `${text.slice(0, 3897)}...` : text;
 }
 
@@ -318,7 +353,7 @@ export function buildTicketPanelPayload(input: BuildTicketPanelInput): {
     });
   }
 
-  const mainText = formatTicketPanelText({
+  const { primaryText, secondaryText, hasMultilineQuote } = formatTicketPanelSections({
     title: input.title,
     description: input.description,
     quoteBar: input.quoteBar,
@@ -330,22 +365,30 @@ export function buildTicketPanelPayload(input: BuildTicketPanelInput): {
     defaultDescription: input.defaultDescription,
   });
 
-  const textDisplay = {
-    type: 10,
-    content: mainText,
-  };
+  const textDisplays: Record<string, unknown>[] =
+    hasMultilineQuote && secondaryText
+      ? [
+          { type: 10, content: primaryText },
+          { type: 10, content: secondaryText },
+        ]
+      : [
+          {
+            type: 10,
+            content: [primaryText, secondaryText].filter(Boolean).join("\n\n"),
+          },
+        ];
 
   if (input.thumbnailUrl) {
     containerComponents.push({
       type: 9,
-      components: [textDisplay],
+      components: textDisplays,
       accessory: {
         type: 11,
         media: { url: input.thumbnailUrl },
       },
     });
   } else {
-    containerComponents.push(textDisplay);
+    containerComponents.push(...textDisplays);
   }
 
   containerComponents.push({

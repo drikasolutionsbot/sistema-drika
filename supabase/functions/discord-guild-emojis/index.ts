@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchServerAndAppEmojis } from "../_shared/discord-emojis.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,34 +39,7 @@ serve(async (req) => {
     const botToken = Deno.env.get("DISCORD_BOT_TOKEN") || null;
     if (!botToken) throw new Error("Bot externo não configurado (DISCORD_BOT_TOKEN)");
 
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guild_id}/emojis`, {
-      headers: { Authorization: `Bot ${botToken}` },
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Discord API error [${res.status}]: ${text}`);
-    }
-
-    const emojis = await res.json();
-
-    const formatted = emojis.map((e: any) => {
-      const isAnimated = e.animated ?? false;
-      const roleIds = Array.isArray(e.roles) ? e.roles : [];
-      const available = e.available ?? true;
-      const blocked = !available || roleIds.length > 0;
-
-      return {
-        id: e.id,
-        name: e.name,
-        animated: isAnimated,
-        available,
-        role_ids: roleIds,
-        blocked,
-        url: `https://cdn.discordapp.com/emojis/${e.id}.${isAnimated ? "gif" : "png"}`,
-        formatted: isAnimated ? `<a:${e.name}:${e.id}>` : `<:${e.name}:${e.id}>`,
-      };
-    });
+    const formatted = await fetchServerAndAppEmojis(botToken, guild_id);
 
     return new Response(JSON.stringify(formatted), {
       headers: {
