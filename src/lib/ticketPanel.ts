@@ -1,4 +1,5 @@
 export {
+  DEFAULT_HOW_IT_WORKS_TITLE,
   DISCORD_IS_COMPONENTS_V2_FLAG,
   TICKET_DEFAULT_APP_EMOJI,
   TICKET_SELECT_PLACEHOLDER,
@@ -6,6 +7,7 @@ export {
   formatTicketPanelText,
   parseDiscordEmoji,
   parseTicketAccentColor,
+  resolveHowItWorksHeading,
   resolveTicketPromptLine,
   type BuildTicketPanelInput,
   type ParsedDiscordEmoji,

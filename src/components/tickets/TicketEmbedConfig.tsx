@@ -21,10 +21,13 @@ import { toast } from "sonner";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import {
+  DEFAULT_HOW_IT_WORKS_TITLE,
   TICKET_SELECT_PLACEHOLDER,
   parseTicketAccentColor,
   parseTicketPreviewLines,
+  resolveHowItWorksHeading,
   resolveTicketPromptLine,
+  type PreviewLine,
 } from "@/lib/ticketPanel";
 
 interface TicketEmbedData {
@@ -36,6 +39,7 @@ interface TicketEmbedData {
   ticket_embed_footer: string;
   ticket_embed_button_label: string;
   ticket_embed_button_style: DiscordButtonStyle;
+  ticket_embed_how_it_works_title: string;
   ticket_embed_how_it_works: string;
   ticket_channel_id: string;
   ticket_logs_channel_id: string;
@@ -51,11 +55,27 @@ const defaults: TicketEmbedData = {
   ticket_embed_footer: "",
   ticket_embed_button_label: "📩 Abrir Ticket",
   ticket_embed_button_style: "glass",
+  ticket_embed_how_it_works_title: DEFAULT_HOW_IT_WORKS_TITLE,
   ticket_embed_how_it_works: "",
   ticket_channel_id: "",
   ticket_logs_channel_id: "",
   ticket_staff_role_id: "",
 };
+
+function renderPreviewLines(lines: PreviewLine[], keyPrefix: string) {
+  return lines.map((line, idx) => {
+    if (line.kind === "spacer") return <div key={`${keyPrefix}-${idx}`} className="h-1" />;
+    if (line.kind === "quote") {
+      return (
+        <div key={`${keyPrefix}-${idx}`} className="flex items-start gap-2.5 pl-0.5">
+          <span className="w-[3px] self-stretch rounded-full bg-[#4e5058] shrink-0" />
+          <p className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>
+        </div>
+      );
+    }
+    return <p key={`${keyPrefix}-${idx}`} className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>;
+  });
+}
 
 interface TicketPreset {
   id: string;
@@ -156,6 +176,7 @@ const TicketEmbedConfig = () => {
       ticket_embed_footer: preset.preset_data.ticket_embed_footer || "",
       ticket_embed_button_label: preset.preset_data.ticket_embed_button_label,
       ticket_embed_button_style: preset.preset_data.ticket_embed_button_style,
+      ticket_embed_how_it_works_title: preset.preset_data.ticket_embed_how_it_works_title ?? defaults.ticket_embed_how_it_works_title,
       ticket_embed_how_it_works: preset.preset_data.ticket_embed_how_it_works || "",
     }));
     setLoadPresetOpen(false);
@@ -209,7 +230,7 @@ const TicketEmbedConfig = () => {
       const [{ data: config }, { count: catCount }] = await Promise.all([
         (supabase as any)
           .from("store_configs")
-          .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_embed_how_it_works, ticket_channel_id, ticket_logs_channel_id, ticket_staff_role_id")
+          .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_embed_how_it_works_title, ticket_embed_how_it_works, ticket_channel_id, ticket_logs_channel_id, ticket_staff_role_id")
           .eq("tenant_id", tenantId)
           .maybeSingle(),
         (supabase as any)
@@ -229,6 +250,7 @@ const TicketEmbedConfig = () => {
           ticket_embed_footer: config.ticket_embed_footer || "",
           ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
           ticket_embed_button_style: (config.ticket_embed_button_style as DiscordButtonStyle) || defaults.ticket_embed_button_style,
+          ticket_embed_how_it_works_title: config.ticket_embed_how_it_works_title ?? defaults.ticket_embed_how_it_works_title,
           ticket_embed_how_it_works: config.ticket_embed_how_it_works ?? "",
           ticket_channel_id: config.ticket_channel_id || "",
           ticket_logs_channel_id: config.ticket_logs_channel_id || "",
@@ -254,6 +276,7 @@ const TicketEmbedConfig = () => {
         ticket_embed_footer: data.ticket_embed_footer || null,
         ticket_embed_button_label: data.ticket_embed_button_label || null,
         ticket_embed_button_style: data.ticket_embed_button_style || "glass",
+        ticket_embed_how_it_works_title: data.ticket_embed_how_it_works_title.trim(),
         ticket_embed_how_it_works: data.ticket_embed_how_it_works || null,
         ticket_channel_id: data.ticket_channel_id || null,
         ticket_logs_channel_id: data.ticket_logs_channel_id || null,
@@ -280,6 +303,7 @@ const TicketEmbedConfig = () => {
         ticket_embed_footer: savedConfig?.ticket_embed_footer || data.ticket_embed_footer,
         ticket_embed_button_label: savedConfig?.ticket_embed_button_label || data.ticket_embed_button_label,
         ticket_embed_button_style: (savedConfig?.ticket_embed_button_style as DiscordButtonStyle) || data.ticket_embed_button_style,
+        ticket_embed_how_it_works_title: savedConfig?.ticket_embed_how_it_works_title ?? data.ticket_embed_how_it_works_title,
         ticket_embed_how_it_works: savedConfig?.ticket_embed_how_it_works ?? data.ticket_embed_how_it_works,
         ticket_channel_id: savedConfig?.ticket_channel_id || data.ticket_channel_id,
         ticket_logs_channel_id: savedConfig?.ticket_logs_channel_id || data.ticket_logs_channel_id,
@@ -318,6 +342,7 @@ const TicketEmbedConfig = () => {
           image_url: data.ticket_embed_image_url || undefined,
           thumbnail_url: data.ticket_embed_thumbnail_url || undefined,
           footer: data.ticket_embed_footer || undefined,
+          how_it_works_title: data.ticket_embed_how_it_works_title,
           how_it_works: data.ticket_embed_how_it_works || undefined,
         },
       });
@@ -394,15 +419,28 @@ const TicketEmbedConfig = () => {
               />
               <p className="text-[11px] text-muted-foreground">Dica: inicie linhas com <code className="font-mono">&gt;</code> para criar blocos de citação com barra lateral no Discord.</p>
             </div>
-            <div className="space-y-2">
-              <Label>Como funciona? <span className="text-xs text-muted-foreground font-normal">(texto do campo)</span></Label>
-              <TextareaWithEmoji
-                value={data.ticket_embed_how_it_works}
-                onChange={(val) => update("ticket_embed_how_it_works", val)}
-                placeholder="Selecione uma opção no menu para direcionar melhor seu atendimento.\nA equipe será avisada e acompanhará tudo pelo canal criado."
-                rows={3}
-              />
-              <p className="text-[11px] text-muted-foreground">Aparece como campo "Como funciona?" dentro do embed, acima do menu de seleção.</p>
+            <div className="space-y-3 rounded-lg border border-border/60 bg-background/40 p-3">
+              <div className="space-y-1.5">
+                <Label>Título do Campo Extra <span className="text-xs text-muted-foreground font-normal">(padrão: Como funciona?)</span></Label>
+                <Input
+                  value={data.ticket_embed_how_it_works_title}
+                  onChange={(e) => update("ticket_embed_how_it_works_title", e.target.value)}
+                  placeholder="Como funciona?"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  {resolveHowItWorksHeading(data.ticket_embed_how_it_works_title) || "Campo Extra"}{" "}
+                  <span className="text-xs text-muted-foreground font-normal">(texto do campo)</span>
+                </Label>
+                <TextareaWithEmoji
+                  value={data.ticket_embed_how_it_works}
+                  onChange={(val) => update("ticket_embed_how_it_works", val)}
+                  placeholder="Selecione uma opção no menu para direcionar melhor seu atendimento.\nA equipe será avisada e acompanhará tudo pelo canal criado."
+                  rows={3}
+                />
+                <p className="text-[11px] text-muted-foreground">Aparece com o título acima dentro do modal, logo antes do seletor/botão (deixe o título vazio para mostrar só o texto).</p>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Texto do Botão <span className="text-xs text-muted-foreground font-normal">(quando sem categorias)</span></Label>
@@ -605,6 +643,7 @@ const TicketEmbedConfig = () => {
             const parsedButton = parseEmojiFromLabel(data.ticket_embed_button_label || "Abrir Ticket");
             const descLines = parseTicketPreviewLines(data.ticket_embed_description || "");
             const howItWorksLines = parseTicketPreviewLines(data.ticket_embed_how_it_works || "");
+            const howItWorksHeading = resolveHowItWorksHeading(data.ticket_embed_how_it_works_title);
 
             return (
               <div
@@ -630,36 +669,16 @@ const TicketEmbedConfig = () => {
 
                     {data.ticket_embed_description && (
                       <div className="space-y-1.5">
-                        {descLines.map((line, idx) => {
-                          if (line.kind === "spacer") return <div key={idx} className="h-1" />;
-                          if (line.kind === "quote") {
-                            return (
-                              <div key={idx} className="flex items-start gap-2.5 pl-0.5">
-                                <span className="w-[3px] self-stretch rounded-full bg-[#4e5058] shrink-0" />
-                                <p className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>
-                              </div>
-                            );
-                          }
-                          return <p key={idx} className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>;
-                        })}
+                        {renderPreviewLines(descLines, "desc")}
                       </div>
                     )}
 
                     {data.ticket_embed_how_it_works && (
                       <div className="pt-1.5 space-y-1">
-                        <p className="text-white text-[13px] font-semibold">Como funciona?</p>
-                        {howItWorksLines.map((line, idx) => {
-                          if (line.kind === "spacer") return <div key={idx} className="h-1" />;
-                          if (line.kind === "quote") {
-                            return (
-                              <div key={idx} className="flex items-start gap-2.5 pl-0.5">
-                                <span className="w-[3px] self-stretch rounded-full bg-[#4e5058] shrink-0" />
-                                <p className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>
-                              </div>
-                            );
-                          }
-                          return <p key={idx} className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>;
-                        })}
+                        {howItWorksHeading && (
+                          <p className="text-white text-[13px] font-semibold">{howItWorksHeading}</p>
+                        )}
+                        {renderPreviewLines(howItWorksLines, "how")}
                       </div>
                     )}
 

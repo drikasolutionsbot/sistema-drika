@@ -1,5 +1,6 @@
 export const TICKET_SELECT_PLACEHOLDER = "➡️ Clique aqui para ver as opções";
 export const DISCORD_IS_COMPONENTS_V2_FLAG = 32768;
+export const DEFAULT_HOW_IT_WORKS_TITLE = "Como funciona?";
 
 export const TICKET_DEFAULT_APP_EMOJI = {
   id: "1521240067064987669",
@@ -38,6 +39,7 @@ export interface BuildTicketPanelInput {
   channelId: string;
   title?: string | null;
   description?: string | null;
+  howItWorksTitle?: string | null;
   howItWorks?: string | null;
   footer?: string | null;
   buttonLabel?: string | null;
@@ -126,11 +128,22 @@ export function resolveTicketPromptLine(bodyText: string, hasCategories: boolean
 }
 
 /**
+ * Resolves the section heading above `howItWorks`, keeping "Como funciona?" as default when unset.
+ */
+export function resolveHowItWorksHeading(howItWorksTitle?: string | null): string {
+  if (howItWorksTitle === undefined || howItWorksTitle === null) {
+    return DEFAULT_HOW_IT_WORKS_TITLE;
+  }
+  return howItWorksTitle.trim();
+}
+
+/**
  * Formats the markdown string placed inside the Ticket Container TextDisplay block.
  */
 export function formatTicketPanelText(params: {
   title?: string | null;
   description?: string | null;
+  howItWorksTitle?: string | null;
   howItWorks?: string | null;
   footer?: string | null;
   hasCategories: boolean;
@@ -151,7 +164,8 @@ export function formatTicketPanelText(params: {
 
   const rawHowItWorks = (params.howItWorks || "").trim();
   if (rawHowItWorks) {
-    parts.push(`**Como funciona?**\n${rawHowItWorks}`);
+    const heading = resolveHowItWorksHeading(params.howItWorksTitle);
+    parts.push(heading ? `**${heading}**\n${rawHowItWorks}` : rawHowItWorks);
   }
 
   const combinedBody = [rawDesc, rawHowItWorks].filter(Boolean).join("\n");
@@ -269,6 +283,7 @@ export function buildTicketPanelPayload(input: BuildTicketPanelInput): {
   const mainText = formatTicketPanelText({
     title: input.title,
     description: input.description,
+    howItWorksTitle: input.howItWorksTitle,
     howItWorks: input.howItWorks,
     footer: input.footer,
     hasCategories,

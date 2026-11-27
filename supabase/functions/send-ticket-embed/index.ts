@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
       image_url,
       thumbnail_url,
       footer,
+      how_it_works_title,
       how_it_works,
     } = await req.json();
 
@@ -75,6 +76,7 @@ Deno.serve(async (req) => {
       channelId: channel_id,
       title,
       description,
+      howItWorksTitle: how_it_works_title,
       howItWorks: how_it_works,
       footer,
       buttonLabel: button_label,

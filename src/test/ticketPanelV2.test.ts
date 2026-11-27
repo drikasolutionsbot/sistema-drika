@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_HOW_IT_WORKS_TITLE,
   DISCORD_IS_COMPONENTS_V2_FLAG,
   TICKET_DEFAULT_APP_EMOJI,
   TICKET_SELECT_PLACEHOLDER,
   buildTicketPanelPayload,
+  formatTicketPanelText,
   parseTicketAccentColor,
   parseTicketPreviewLines,
+  resolveHowItWorksHeading,
   resolveTicketPromptLine,
 } from "@/lib/ticketPanel";
 
@@ -121,5 +124,39 @@ describe("ticketPanel Components V2 payload", () => {
       { kind: "spacer", text: "" },
       { kind: "text", text: "Texto normal" },
     ]);
+  });
+
+  it("uses Como funciona? as default field title and respects custom or empty overrides", () => {
+    expect(resolveHowItWorksHeading(undefined)).toBe(DEFAULT_HOW_IT_WORKS_TITLE);
+    expect(resolveHowItWorksHeading(null)).toBe("Como funciona?");
+    expect(resolveHowItWorksHeading("Atendimento")).toBe("Atendimento");
+    expect(resolveHowItWorksHeading("")).toBe("");
+
+    const withDefault = formatTicketPanelText({
+      title: "Atendimento",
+      description: "Descrição",
+      howItWorks: "Texto extra",
+      hasCategories: true,
+    });
+    expect(withDefault).toContain("**Como funciona?**\nTexto extra");
+
+    const withCustom = formatTicketPanelText({
+      title: "Atendimento",
+      description: "Descrição",
+      howItWorksTitle: "Horário de Atendimento",
+      howItWorks: "09h às 22h",
+      hasCategories: true,
+    });
+    expect(withCustom).toContain("**Horário de Atendimento**\n09h às 22h");
+
+    const withoutHeading = formatTicketPanelText({
+      title: "Atendimento",
+      description: "Descrição",
+      howItWorksTitle: "",
+      howItWorks: "Somente o corpo",
+      hasCategories: true,
+    });
+    expect(withoutHeading).not.toContain("**Como funciona?**");
+    expect(withoutHeading).toContain("Somente o corpo");
   });
 });
