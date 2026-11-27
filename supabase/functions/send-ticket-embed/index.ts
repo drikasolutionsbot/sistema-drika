@@ -1,23 +1,12 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { tr, getTenantLang } from "../_shared/i18n.ts";
 import { formatCdnUrl } from "../_shared/utils.ts";
+import { buildTicketPanelPayload } from "../_shared/ticket-panel.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-function parseEmojiFromLabel(label: string) {
-  const customMatch = label.match(/^<(a?):(\w+):(\d+)>\s*/);
-  if (customMatch) {
-    return { emoji: customMatch[0].trim(), cleanLabel: label.slice(customMatch[0].length), isCustom: true, animated: customMatch[1] === "a", customName: customMatch[2], customId: customMatch[3] };
-  }
-  const unicodeMatch = label.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
-  if (unicodeMatch) {
-    return { emoji: unicodeMatch[1], cleanLabel: label.slice(unicodeMatch[0].length), isCustom: false, animated: false, customName: undefined, customId: undefined };
-  }
-  return { emoji: null, cleanLabel: label, isCustom: false, animated: false, customName: undefined, customId: undefined };
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -74,100 +63,30 @@ Deno.serve(async (req) => {
       .eq("active", true)
       .order("sort_order", { ascending: true });
 
-    const hasCategories = categories && categories.length > 0;
-
-    const colorInt = parseInt((embed_color || "#2B2D31").replace("#", ""), 16);
-    let safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
+    const hasCategories = Boolean(categories && categories.length > 0);
+    const safeImageUrl = typeof image_url === "string" && image_url.trim() ? formatCdnUrl(image_url.trim()) : null;
     const safeThumbnailUrl = typeof thumbnail_url === "string" && thumbnail_url.trim() ? formatCdnUrl(thumbnail_url.trim()) : null;
 
     // Banner só aparece se foi explicitamente configurado pelo usuário nas configs do ticket
-
     const lang = await getTenantLang(supabase, tenant_id);
 
-    const embed: any = {
-      title: title || tr(lang, "ticket_default_title"),
-      description: description || tr(lang, "ticket_default_desc"),
-      color: colorInt,
-    };
-
-    if (how_it_works && how_it_works.trim() !== "") {
-      embed.fields = [
-        {
-          name: "Como funciona?",
-          value: how_it_works.trim(),
-          inline: false
-        }
-      ];
-    }
-
-    // thumbnail always goes top-right of the text embed
-    if (safeThumbnailUrl) embed.thumbnail = { url: safeThumbnailUrl };
-    if (footer) embed.footer = { text: footer };
-
-    if (safeImageUrl) embed.image = { url: safeImageUrl };
-
-    let embeds: any[] = [embed];
-
-    let components: any[];
-
-    if (hasCategories) {
-      // String Select Menu with categories
-      const options = (categories as any[]).slice(0, 25).map((cat: any) => {
-        const opt: any = {
-          label: cat.name.slice(0, 100),
-          value: cat.id,
-        };
-        if (cat.description) opt.description = cat.description.slice(0, 100);
-        
-        if (cat.emoji) {
-          const customEmojiMatch = String(cat.emoji).match(/<a?:(.+?):(\d+)>/);
-          if (customEmojiMatch) {
-            opt.emoji = { 
-              name: customEmojiMatch[1], 
-              id: customEmojiMatch[2],
-              animated: String(cat.emoji).startsWith("<a:")
-            };
-          } else {
-            const unicodeMatch = String(cat.emoji).match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)/u);
-            if (unicodeMatch) opt.emoji = { name: unicodeMatch[1] };
-          }
-        }
-        return opt;
-      });
-
-      components = [
-        {
-          type: 1,
-          components: [{
-            type: 3,
-            custom_id: `ticket_category_select:${tenant_id}:${channel_id}`,
-            placeholder: "Selecione o tipo de atendimento",
-            min_values: 1,
-            max_values: 1,
-            options,
-          }],
-        },
-      ];
-    } else {
-      // No categories â€” button (original behavior)
-      const styleMap: Record<string, number> = {
-        primary: 1, secondary: 2, success: 3, danger: 4, glass: 2, link: 2,
-      };
-      const discordStyle = styleMap[button_style || "glass"] || 2;
-      const rawLabel = button_label || ("open_ticket");
-      const { cleanLabel: btnLabel } = parseEmojiFromLabel(rawLabel);
-
-      const ticketButton: any = {
-        type: 2,
-        style: discordStyle,
-        label: btnLabel || tr(lang, "open_ticket"),
-        custom_id: `ticket_open_${tenant_id}_${channel_id}`,
-      };
-      ticketButton.emoji = { id: "1521240067064987669", name: "mail", animated: false };
-      components = [{ type: 1, components: [ticketButton] }];
-    }
-
-    const payload: any = { embeds, components };
+    const payload = buildTicketPanelPayload({
+      tenantId: tenant_id,
+      channelId: channel_id,
+      title,
+      description,
+      howItWorks: how_it_works,
+      footer,
+      buttonLabel: button_label,
+      buttonStyle: button_style,
+      embedColor: embed_color,
+      imageUrl: safeImageUrl,
+      thumbnailUrl: safeThumbnailUrl,
+      categories: (categories as any[]) || [],
+      defaultTitle: tr(lang, "ticket_default_title"),
+      defaultDescription: tr(lang, "ticket_default_desc"),
+      defaultOpenTicketLabel: tr(lang, "open_ticket"),
+    });
 
     const existingMessageId = storeConfig?.ticket_message_id;
     const existingChannelId = storeConfig?.ticket_channel_id;
