@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import DrikaLockedFields from "@/components/customization/DrikaLockedFields";
 import { Loader2, Save, Palette, Type, Image, MessageSquare, Send, Undo2, Shield, ChevronDown, FolderOpen, BookmarkPlus } from "lucide-react";
@@ -23,20 +24,25 @@ import { useDiscordRoles } from "@/hooks/useDiscordRoles";
 import {
   DEFAULT_HOW_IT_WORKS_TITLE,
   TICKET_SELECT_PLACEHOLDER,
+  formatDescriptionWithQuoteBar,
+  groupTicketPreviewBlocks,
   parseTicketAccentColor,
   parseTicketPreviewLines,
   resolveHowItWorksHeading,
   resolveTicketPromptLine,
+  resolveTicketSelectPlaceholder,
   type PreviewLine,
 } from "@/lib/ticketPanel";
 
 interface TicketEmbedData {
   ticket_embed_title: string;
   ticket_embed_description: string;
+  ticket_embed_quote_bar: boolean;
   ticket_embed_color: string;
   ticket_embed_image_url: string;
   ticket_embed_thumbnail_url: string;
   ticket_embed_footer: string;
+  ticket_embed_select_placeholder: string;
   ticket_embed_button_label: string;
   ticket_embed_button_style: DiscordButtonStyle;
   ticket_embed_how_it_works_title: string;
@@ -49,10 +55,12 @@ interface TicketEmbedData {
 const defaults: TicketEmbedData = {
   ticket_embed_title: "Atendimento",
   ticket_embed_description: "Clique no botão abaixo para abrir um ticket.",
+  ticket_embed_quote_bar: false,
   ticket_embed_color: "",
   ticket_embed_image_url: "",
   ticket_embed_thumbnail_url: "",
   ticket_embed_footer: "",
+  ticket_embed_select_placeholder: TICKET_SELECT_PLACEHOLDER,
   ticket_embed_button_label: "📩 Abrir Ticket",
   ticket_embed_button_style: "glass",
   ticket_embed_how_it_works_title: DEFAULT_HOW_IT_WORKS_TITLE,
@@ -63,17 +71,40 @@ const defaults: TicketEmbedData = {
 };
 
 function renderPreviewLines(lines: PreviewLine[], keyPrefix: string) {
-  return lines.map((line, idx) => {
-    if (line.kind === "spacer") return <div key={`${keyPrefix}-${idx}`} className="h-1" />;
-    if (line.kind === "quote") {
+  return groupTicketPreviewBlocks(lines).map((block, blockIdx) => {
+    if (block.kind === "quote_group") {
       return (
-        <div key={`${keyPrefix}-${idx}`} className="flex items-start gap-2.5 pl-0.5">
-          <span className="w-[3px] self-stretch rounded-full bg-[#4e5058] shrink-0" />
-          <p className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>
+        <div
+          key={`${keyPrefix}-qgrp-${blockIdx}`}
+          className="border-l-[3px] border-[#4e5058] pl-3 space-y-1.5"
+        >
+          {block.lines.map((line, lineIdx) =>
+            line.kind === "quote_spacer" ? (
+              <div key={`${keyPrefix}-qsp-${blockIdx}-${lineIdx}`} className="h-1.5" />
+            ) : (
+              <p
+                key={`${keyPrefix}-ql-${blockIdx}-${lineIdx}`}
+                className="text-[#dbdee1] text-[13px] leading-relaxed break-words"
+              >
+                {line.text}
+              </p>
+            )
+          )}
         </div>
       );
     }
-    return <p key={`${keyPrefix}-${idx}`} className="text-[#dbdee1] text-[13px] leading-relaxed break-words">{line.text}</p>;
+
+    if (block.line.kind === "spacer") {
+      return <div key={`${keyPrefix}-sp-${blockIdx}`} className="h-1.5" />;
+    }
+    return (
+      <p
+        key={`${keyPrefix}-tx-${blockIdx}`}
+        className="text-[#dbdee1] text-[13px] leading-relaxed break-words"
+      >
+        {block.line.text}
+      </p>
+    );
   });
 }
 
@@ -170,10 +201,12 @@ const TicketEmbedConfig = () => {
       ...prev,
       ticket_embed_title: preset.preset_data.ticket_embed_title,
       ticket_embed_description: preset.preset_data.ticket_embed_description,
+      ticket_embed_quote_bar: Boolean(preset.preset_data.ticket_embed_quote_bar),
       ticket_embed_color: preset.preset_data.ticket_embed_color || "",
       ticket_embed_image_url: preset.preset_data.ticket_embed_image_url || "",
       ticket_embed_thumbnail_url: preset.preset_data.ticket_embed_thumbnail_url || "",
       ticket_embed_footer: preset.preset_data.ticket_embed_footer || "",
+      ticket_embed_select_placeholder: preset.preset_data.ticket_embed_select_placeholder || defaults.ticket_embed_select_placeholder,
       ticket_embed_button_label: preset.preset_data.ticket_embed_button_label,
       ticket_embed_button_style: preset.preset_data.ticket_embed_button_style,
       ticket_embed_how_it_works_title: preset.preset_data.ticket_embed_how_it_works_title ?? defaults.ticket_embed_how_it_works_title,
@@ -230,7 +263,7 @@ const TicketEmbedConfig = () => {
       const [{ data: config }, { count: catCount }] = await Promise.all([
         (supabase as any)
           .from("store_configs")
-          .select("ticket_embed_title, ticket_embed_description, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_button_label, ticket_embed_button_style, ticket_embed_how_it_works_title, ticket_embed_how_it_works, ticket_channel_id, ticket_logs_channel_id, ticket_staff_role_id")
+          .select("ticket_embed_title, ticket_embed_description, ticket_embed_quote_bar, ticket_embed_color, ticket_embed_image_url, ticket_embed_thumbnail_url, ticket_embed_footer, ticket_embed_select_placeholder, ticket_embed_button_label, ticket_embed_button_style, ticket_embed_how_it_works_title, ticket_embed_how_it_works, ticket_channel_id, ticket_logs_channel_id, ticket_staff_role_id")
           .eq("tenant_id", tenantId)
           .maybeSingle(),
         (supabase as any)
@@ -244,10 +277,12 @@ const TicketEmbedConfig = () => {
         const loaded: TicketEmbedData = {
           ticket_embed_title: config.ticket_embed_title || defaults.ticket_embed_title,
           ticket_embed_description: config.ticket_embed_description || defaults.ticket_embed_description,
+          ticket_embed_quote_bar: Boolean(config.ticket_embed_quote_bar),
           ticket_embed_color: config.ticket_embed_color ?? "",
           ticket_embed_image_url: config.ticket_embed_image_url || "",
           ticket_embed_thumbnail_url: config.ticket_embed_thumbnail_url || "",
           ticket_embed_footer: config.ticket_embed_footer || "",
+          ticket_embed_select_placeholder: config.ticket_embed_select_placeholder || defaults.ticket_embed_select_placeholder,
           ticket_embed_button_label: config.ticket_embed_button_label || defaults.ticket_embed_button_label,
           ticket_embed_button_style: (config.ticket_embed_button_style as DiscordButtonStyle) || defaults.ticket_embed_button_style,
           ticket_embed_how_it_works_title: config.ticket_embed_how_it_works_title ?? defaults.ticket_embed_how_it_works_title,
@@ -270,10 +305,12 @@ const TicketEmbedConfig = () => {
       const configPayload = {
         ticket_embed_title: data.ticket_embed_title || null,
         ticket_embed_description: data.ticket_embed_description || null,
+        ticket_embed_quote_bar: Boolean(data.ticket_embed_quote_bar),
         ticket_embed_color: data.ticket_embed_color || null,
         ticket_embed_image_url: data.ticket_embed_image_url || null,
         ticket_embed_thumbnail_url: data.ticket_embed_thumbnail_url || null,
         ticket_embed_footer: data.ticket_embed_footer || null,
+        ticket_embed_select_placeholder: data.ticket_embed_select_placeholder.trim() || defaults.ticket_embed_select_placeholder,
         ticket_embed_button_label: data.ticket_embed_button_label || null,
         ticket_embed_button_style: data.ticket_embed_button_style || "glass",
         ticket_embed_how_it_works_title: data.ticket_embed_how_it_works_title.trim(),
@@ -297,10 +334,12 @@ const TicketEmbedConfig = () => {
       setServerData({
         ticket_embed_title: savedConfig?.ticket_embed_title || data.ticket_embed_title,
         ticket_embed_description: savedConfig?.ticket_embed_description || data.ticket_embed_description,
+        ticket_embed_quote_bar: savedConfig?.ticket_embed_quote_bar ?? data.ticket_embed_quote_bar,
         ticket_embed_color: savedConfig?.ticket_embed_color ?? data.ticket_embed_color,
         ticket_embed_image_url: savedConfig?.ticket_embed_image_url || data.ticket_embed_image_url,
         ticket_embed_thumbnail_url: savedConfig?.ticket_embed_thumbnail_url || data.ticket_embed_thumbnail_url,
         ticket_embed_footer: savedConfig?.ticket_embed_footer || data.ticket_embed_footer,
+        ticket_embed_select_placeholder: savedConfig?.ticket_embed_select_placeholder || data.ticket_embed_select_placeholder,
         ticket_embed_button_label: savedConfig?.ticket_embed_button_label || data.ticket_embed_button_label,
         ticket_embed_button_style: (savedConfig?.ticket_embed_button_style as DiscordButtonStyle) || data.ticket_embed_button_style,
         ticket_embed_how_it_works_title: savedConfig?.ticket_embed_how_it_works_title ?? data.ticket_embed_how_it_works_title,
@@ -342,6 +381,8 @@ const TicketEmbedConfig = () => {
           image_url: data.ticket_embed_image_url || undefined,
           thumbnail_url: data.ticket_embed_thumbnail_url || undefined,
           footer: data.ticket_embed_footer || undefined,
+          quote_bar: data.ticket_embed_quote_bar,
+          select_placeholder: data.ticket_embed_select_placeholder,
           how_it_works_title: data.ticket_embed_how_it_works_title,
           how_it_works: data.ticket_embed_how_it_works || undefined,
         },
@@ -356,8 +397,8 @@ const TicketEmbedConfig = () => {
     }
   };
 
-  const update = (key: keyof TicketEmbedData, value: string) => {
-    setData((prev) => ({ ...prev, [key]: value as any }));
+  const update = <K extends keyof TicketEmbedData>(key: K, value: TicketEmbedData[K]) => {
+    setData((prev) => ({ ...prev, [key]: value }));
   };
 
   if (loading) {
@@ -417,7 +458,16 @@ const TicketEmbedConfig = () => {
                 placeholder="Clique no botão abaixo para abrir um ticket."
                 rows={3}
               />
-              <p className="text-[11px] text-muted-foreground">Dica: inicie linhas com <code className="font-mono">&gt;</code> para criar blocos de citação com barra lateral no Discord.</p>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-background/40 px-3 py-2">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-medium">Barra vertical contínua nos textos (&gt;)</p>
+                  <p className="text-[11px] text-muted-foreground">Aplica a linha vertical contínua conectando todos os parágrafos da descrição.</p>
+                </div>
+                <Switch
+                  checked={data.ticket_embed_quote_bar}
+                  onCheckedChange={(checked) => update("ticket_embed_quote_bar", checked)}
+                />
+              </div>
             </div>
             <div className="space-y-3 rounded-lg border border-border/60 bg-background/40 p-3">
               <div className="space-y-1.5">
@@ -441,6 +491,16 @@ const TicketEmbedConfig = () => {
                 />
                 <p className="text-[11px] text-muted-foreground">Aparece com o título acima dentro do modal, logo antes do seletor/botão (deixe o título vazio para mostrar só o texto).</p>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Texto e Emoji do Seletor <span className="text-xs text-muted-foreground font-normal">(quando com categorias)</span></Label>
+              <ButtonLabelWithEmoji
+                value={data.ticket_embed_select_placeholder}
+                onChange={(val) => update("ticket_embed_select_placeholder", val)}
+                placeholder={TICKET_SELECT_PLACEHOLDER}
+                allowCustomEmojis={false}
+              />
+              <p className="text-[11px] text-muted-foreground">Texto e emoji Unicode exibidos na caixa de seleção dentro do modal.</p>
             </div>
             <div className="space-y-2">
               <Label>Texto do Botão <span className="text-xs text-muted-foreground font-normal">(quando sem categorias)</span></Label>
@@ -633,7 +693,7 @@ const TicketEmbedConfig = () => {
       {/* Discord Preview */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-muted-foreground">Pré-visualização do Discord</h3>
-        <div className="rounded-lg bg-[#1a1b1e] p-4 space-y-2 font-sans">
+        <div className="rounded-lg bg-[#0b0c0e] p-4 space-y-2 font-sans">
           {(() => {
             const hasCategories = activeTicketCategoryCount > 0;
             const accentInt = parseTicketAccentColor(data.ticket_embed_color);
@@ -641,13 +701,17 @@ const TicketEmbedConfig = () => {
             const autoPrompt = resolveTicketPromptLine(combinedBody, hasCategories);
             const cleanPreviewTitle = (data.ticket_embed_title || "").replace(/^#{1,3}\s+/, "").replace(/^\*\*(.*)\*\*$/, "$1");
             const parsedButton = parseEmojiFromLabel(data.ticket_embed_button_label || "Abrir Ticket");
-            const descLines = parseTicketPreviewLines(data.ticket_embed_description || "");
+            const formattedDesc = formatDescriptionWithQuoteBar(
+              data.ticket_embed_description || "",
+              data.ticket_embed_quote_bar
+            );
+            const descLines = parseTicketPreviewLines(formattedDesc);
             const howItWorksLines = parseTicketPreviewLines(data.ticket_embed_how_it_works || "");
             const howItWorksHeading = resolveHowItWorksHeading(data.ticket_embed_how_it_works_title);
 
             return (
               <div
-                className="rounded-lg bg-[#242429] border border-[#34363c] p-3.5 space-y-3"
+                className="rounded-lg bg-[#141518] border border-[#24262c] p-3.5 space-y-3"
                 style={accentInt !== undefined ? { borderLeftWidth: "4px", borderLeftColor: data.ticket_embed_color } : undefined}
               >
                 {/* MediaGallery Banner inside Container */}
@@ -702,12 +766,12 @@ const TicketEmbedConfig = () => {
                 </div>
 
                 {/* Separator (type 14) inside Container */}
-                <div className="border-t border-[#34363c]" />
+                <div className="border-t border-[#24262c]" />
 
                 {/* Interactive ActionRow inside Container */}
                 {hasCategories ? (
-                  <div className="w-full flex items-center justify-between bg-[#1e1f22] border border-[#383a40] hover:border-[#4e5058] rounded-md px-3 py-2.5 text-[#dbdee1] text-[13px] cursor-default">
-                    <span className="truncate">{TICKET_SELECT_PLACEHOLDER}</span>
+                  <div className="w-full flex items-center justify-between bg-[#0e0f12] border border-[#2a2d34] hover:border-[#3f434d] rounded-md px-3 py-2.5 text-[#dbdee1] text-[13px] cursor-default">
+                    <span className="truncate">{resolveTicketSelectPlaceholder(data.ticket_embed_select_placeholder)}</span>
                     <ChevronDown className="h-4 w-4 text-[#b5bac1] shrink-0 ml-2" />
                   </div>
                 ) : (

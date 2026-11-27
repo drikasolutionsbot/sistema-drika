@@ -5,11 +5,14 @@ import {
   TICKET_DEFAULT_APP_EMOJI,
   TICKET_SELECT_PLACEHOLDER,
   buildTicketPanelPayload,
+  formatDescriptionWithQuoteBar,
   formatTicketPanelText,
+  groupTicketPreviewBlocks,
   parseTicketAccentColor,
   parseTicketPreviewLines,
   resolveHowItWorksHeading,
   resolveTicketPromptLine,
+  resolveTicketSelectPlaceholder,
 } from "@/lib/ticketPanel";
 
 describe("ticketPanel Components V2 payload", () => {
@@ -158,5 +161,47 @@ describe("ticketPanel Components V2 payload", () => {
     });
     expect(withoutHeading).not.toContain("**Como funciona?**");
     expect(withoutHeading).toContain("Somente o corpo");
+  });
+
+  it("wraps description paragraphs into a single continuous quote bar and stops before the prompt", () => {
+    const formatted = formatDescriptionWithQuoteBar(
+      "⭐ Linha 1\n\n🛒 Linha 2\n\n🎧 Linha 3",
+      true
+    );
+    expect(formatted).toBe("> ⭐ Linha 1\n>\n> 🛒 Linha 2\n>\n> 🎧 Linha 3");
+
+    const blocks = groupTicketPreviewBlocks(parseTicketPreviewLines(formatted));
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe("quote_group");
+    if (blocks[0].kind === "quote_group") {
+      expect(blocks[0].lines).toHaveLength(5);
+      expect(blocks[0].lines[1].kind).toBe("quote_spacer");
+    }
+
+    const panelText = formatTicketPanelText({
+      title: "CENTRAL ATENDIMENTO | FLOW STORE",
+      description: "⭐ Linha 1\n\n🛒 Linha 2",
+      quoteBar: true,
+      hasCategories: true,
+    });
+    expect(panelText).toBe(
+      "### CENTRAL ATENDIMENTO | FLOW STORE\n\n> ⭐ Linha 1\n>\n> 🛒 Linha 2\n\nClique nas opções abaixo para continuar:"
+    );
+  });
+
+  it("supports custom emoji and text for the category selector placeholder with safe fallback", () => {
+    expect(resolveTicketSelectPlaceholder("")).toBe(TICKET_SELECT_PLACEHOLDER);
+    expect(resolveTicketSelectPlaceholder("🎫 Escolha uma categoria")).toBe("🎫 Escolha uma categoria");
+    expect(resolveTicketSelectPlaceholder("a".repeat(200)).length).toBe(150);
+
+    const payload = buildTicketPanelPayload({
+      tenantId: "tenant-1",
+      channelId: "123",
+      selectPlaceholder: "📩 Selecione o setor desejado",
+      categories: [{ id: "cat-1", name: "Suporte" }],
+    });
+    const container = payload.components[0] as any;
+    const actionRow = container.components[container.components.length - 1];
+    expect(actionRow.components[0].placeholder).toBe("📩 Selecione o setor desejado");
   });
 });

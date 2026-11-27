@@ -22,7 +22,7 @@ const EMOJI_CATEGORIES: { label: string; icon: string; emojis: string[] }[] = [
     label: "Frequentes",
     icon: "⏱",
     emojis: [
-      "📩", "🎫", "✅", "🛒", "🔒", "🔓", "⭐", "🎁", "💎", "🏆",
+      "➡️", "📩", "🎫", "✅", "🛒", "🔒", "🔓", "⭐", "🎁", "💎", "🏆",
       "🚀", "⚡", "💬", "🔔", "❤️", "👍", "🎮", "🎯", "💡", "🔑",
       "🛡️", "⚙️", "📌", "✨", "💪", "🤝", "💥", "🌟", "🎊", "📢",
       "🔥", "💰", "📦", "👑", "🎉", "❌", "🔗", "📋", "🏷️", "🧾",
@@ -122,15 +122,21 @@ interface ButtonLabelWithEmojiProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  allowCustomEmojis?: boolean;
 }
 
-const ButtonLabelWithEmoji = ({ value, onChange, placeholder }: ButtonLabelWithEmojiProps) => {
+const ButtonLabelWithEmoji = ({
+  value,
+  onChange,
+  placeholder,
+  allowCustomEmojis = true,
+}: ButtonLabelWithEmojiProps) => {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
   const tenantName = tenant?.name;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("servidor");
+  const [activeTab, setActiveTab] = useState(allowCustomEmojis ? "servidor" : "frequentes");
   const [customEmojis, setCustomEmojis] = useState<DiscordEmoji[]>(() =>
     tenantId && emojiCache[tenantId] ? emojiCache[tenantId].emojis : []
   );
@@ -138,7 +144,7 @@ const ButtonLabelWithEmoji = ({ value, onChange, placeholder }: ButtonLabelWithE
 
   // Fetch server custom emojis
   useEffect(() => {
-    if (!open || !tenantId) return;
+    if (!allowCustomEmojis || !open || !tenantId) return;
 
     const cached = emojiCache[tenantId];
     if (cached && !cached.loading) {
@@ -270,14 +276,16 @@ const ButtonLabelWithEmoji = ({ value, onChange, placeholder }: ButtonLabelWithE
 
           {/* Category tabs */}
           <div className="flex gap-0.5 px-2 py-1.5 border-b border-border overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("servidor")}
-              className={`h-7 w-7 flex items-center justify-center rounded text-sm shrink-0 transition-colors ${activeTab === "servidor" ? "bg-primary/20" : "hover:bg-muted"}`}
-              title={tenantName || "Servidor"}
-              type="button"
-            >
-              🏠
-            </button>
+            {allowCustomEmojis && (
+              <button
+                onClick={() => setActiveTab("servidor")}
+                className={`h-7 w-7 flex items-center justify-center rounded text-sm shrink-0 transition-colors ${activeTab === "servidor" ? "bg-primary/20" : "hover:bg-muted"}`}
+                title={tenantName || "Servidor"}
+                type="button"
+              >
+                🏠
+              </button>
+            )}
             {EMOJI_CATEGORIES.map((cat) => (
               <button
                 key={cat.label}
@@ -294,7 +302,7 @@ const ButtonLabelWithEmoji = ({ value, onChange, placeholder }: ButtonLabelWithE
           <ScrollArea className="h-56">
             <div className="p-2">
               {/* Server tab */}
-              {activeTab === "servidor" && (
+              {allowCustomEmojis && activeTab === "servidor" && (
                 <div>
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
                     🏠 {tenantName || "Servidor"}

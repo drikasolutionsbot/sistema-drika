@@ -4,20 +4,26 @@ export {
   TICKET_DEFAULT_APP_EMOJI,
   TICKET_SELECT_PLACEHOLDER,
   buildTicketPanelPayload,
+  formatDescriptionWithQuoteBar,
   formatTicketPanelText,
   parseDiscordEmoji,
   parseTicketAccentColor,
   resolveHowItWorksHeading,
   resolveTicketPromptLine,
+  resolveTicketSelectPlaceholder,
   type BuildTicketPanelInput,
   type ParsedDiscordEmoji,
   type TicketCategoryOptionInput,
 } from "../../supabase/functions/_shared/ticket-panel";
 
 export interface PreviewLine {
-  kind: "quote" | "text" | "spacer";
+  kind: "quote" | "quote_spacer" | "text" | "spacer";
   text: string;
 }
+
+export type PreviewBlock =
+  | { kind: "quote_group"; lines: PreviewLine[] }
+  | { kind: "line"; line: PreviewLine };
 
 /**
  * Splits multi-line description/body text into quote bars and regular paragraphs
@@ -33,6 +39,10 @@ export function parseTicketPreviewLines(input: string): PreviewLine[] {
       result.push({ kind: "spacer", text: "" });
       continue;
     }
+    if (trimmed === ">") {
+      result.push({ kind: "quote_spacer", text: "" });
+      continue;
+    }
     if (trimmed.startsWith(">")) {
       result.push({ kind: "quote", text: trimmed.replace(/^>\s?/, "") });
       continue;
@@ -41,4 +51,26 @@ export function parseTicketPreviewLines(input: string): PreviewLine[] {
   }
 
   return result;
+}
+
+/**
+ * Groups consecutive quoted lines (`>` and empty `>` spacers) into one continuous bar block.
+ */
+export function groupTicketPreviewBlocks(lines: PreviewLine[]): PreviewBlock[] {
+  const blocks: PreviewBlock[] = [];
+
+  for (const line of lines) {
+    if (line.kind === "quote" || line.kind === "quote_spacer") {
+      const prev = blocks[blocks.length - 1];
+      if (prev && prev.kind === "quote_group") {
+        prev.lines.push(line);
+      } else {
+        blocks.push({ kind: "quote_group", lines: [line] });
+      }
+      continue;
+    }
+    blocks.push({ kind: "line", line });
+  }
+
+  return blocks;
 }

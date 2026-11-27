@@ -39,9 +39,11 @@ export interface BuildTicketPanelInput {
   channelId: string;
   title?: string | null;
   description?: string | null;
+  quoteBar?: boolean | null;
   howItWorksTitle?: string | null;
   howItWorks?: string | null;
   footer?: string | null;
+  selectPlaceholder?: string | null;
   buttonLabel?: string | null;
   buttonStyle?: string | null;
   embedColor?: string | null;
@@ -138,11 +140,35 @@ export function resolveHowItWorksHeading(howItWorksTitle?: string | null): strin
 }
 
 /**
+ * Formats description lines with a continuous Discord blockquote bar (`>`) across paragraphs.
+ */
+export function formatDescriptionWithQuoteBar(
+  description?: string | null,
+  quoteBar?: boolean | null
+): string {
+  const trimmed = (description || "").trim();
+  if (!trimmed || !quoteBar) {
+    return trimmed;
+  }
+
+  return trimmed
+    .split(/\r?\n/)
+    .map((rawLine) => {
+      const clean = rawLine.trim();
+      if (!clean) return ">";
+      if (clean.startsWith(">")) return clean;
+      return `> ${rawLine}`;
+    })
+    .join("\n");
+}
+
+/**
  * Formats the markdown string placed inside the Ticket Container TextDisplay block.
  */
 export function formatTicketPanelText(params: {
   title?: string | null;
   description?: string | null;
+  quoteBar?: boolean | null;
   howItWorksTitle?: string | null;
   howItWorks?: string | null;
   footer?: string | null;
@@ -158,8 +184,9 @@ export function formatTicketPanelText(params: {
   }
 
   const rawDesc = (params.description || params.defaultDescription || "").trim();
-  if (rawDesc) {
-    parts.push(rawDesc);
+  const formattedDesc = formatDescriptionWithQuoteBar(rawDesc, params.quoteBar);
+  if (formattedDesc) {
+    parts.push(formattedDesc);
   }
 
   const rawHowItWorks = (params.howItWorks || "").trim();
@@ -213,6 +240,17 @@ function buildCategorySelectOption(cat: TicketCategoryOptionInput): Record<strin
   return option;
 }
 
+/**
+ * Resolves the category StringSelect placeholder clamped to Discord's 150-char limit.
+ */
+export function resolveTicketSelectPlaceholder(selectPlaceholder?: string | null): string {
+  const trimmed = (selectPlaceholder || "").trim();
+  if (!trimmed) {
+    return TICKET_SELECT_PLACEHOLDER;
+  }
+  return trimmed.slice(0, 150);
+}
+
 function buildTicketActionRow(input: BuildTicketPanelInput, hasCategories: boolean): Record<string, unknown> {
   if (hasCategories) {
     const options = (input.categories || []).slice(0, 25).map(buildCategorySelectOption);
@@ -222,7 +260,7 @@ function buildTicketActionRow(input: BuildTicketPanelInput, hasCategories: boole
         {
           type: 3,
           custom_id: `ticket_category_select:${input.tenantId}:${input.channelId}`,
-          placeholder: TICKET_SELECT_PLACEHOLDER,
+          placeholder: resolveTicketSelectPlaceholder(input.selectPlaceholder),
           min_values: 1,
           max_values: 1,
           options,
@@ -283,6 +321,7 @@ export function buildTicketPanelPayload(input: BuildTicketPanelInput): {
   const mainText = formatTicketPanelText({
     title: input.title,
     description: input.description,
+    quoteBar: input.quoteBar,
     howItWorksTitle: input.howItWorksTitle,
     howItWorks: input.howItWorks,
     footer: input.footer,
